@@ -94,11 +94,23 @@ function Home() {
 
       {/* ── Main visual ──────────────────────────── */}
       <Section className="mt-5">
-        <Placeholder
-          label="示例图片（首页主视觉猫舍照片，待替换）"
-          ratio="aspect-[4/5]"
-          rounded="rounded-[1.75rem]"
-        />
+        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[1.75rem] border border-border bg-gradient-cream shadow-card">
+          <img
+            src={catMotif}
+            alt=""
+            aria-hidden
+            className="absolute left-1/2 top-1/2 w-[62%] max-w-[220px] -translate-x-1/2 -translate-y-[58%] opacity-60 mix-blend-multiply"
+          />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4ead6]/90 to-transparent px-5 pb-5 pt-14">
+            <p className="font-display text-[11px] uppercase tracking-[0.28em] text-warm">
+              StarlitSky · 2019
+            </p>
+            <p className="mt-1 text-[13px] font-medium leading-relaxed text-heading">
+              示例图片（首页主视觉猫舍照片，待替换）
+            </p>
+          </div>
+          <StarIcon className="absolute right-6 top-6 h-4 w-4 text-violet/40" />
+        </div>
       </Section>
 
       {/* ── About narrative ──────────────────────── */}
