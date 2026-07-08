@@ -9,25 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as StudsRouteImport } from './routes/studs'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as QuestionnaireRouteImport } from './routes/questionnaire'
 import { Route as ProcessRouteImport } from './routes/process'
 import { Route as PhilosophyRouteImport } from './routes/philosophy'
-import { Route as MoreRouteImport } from './routes/more'
 import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as KittensIndexRouteImport } from './routes/kittens.index'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 
-const StudsRoute = StudsRouteImport.update({
-  id: '/studs',
-  path: '/studs',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -46,11 +38,6 @@ const ProcessRoute = ProcessRouteImport.update({
 const PhilosophyRoute = PhilosophyRouteImport.update({
   id: '/philosophy',
   path: '/philosophy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MoreRoute = MoreRouteImport.update({
-  id: '/more',
-  path: '/more',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedingRoute = FeedingRouteImport.update({
@@ -78,11 +65,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const KittensIndexRoute = KittensIndexRouteImport.update({
-  id: '/kittens/',
-  path: '/kittens/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const KittensIdRoute = KittensIdRouteImport.update({
   id: '/kittens/$id',
   path: '/kittens/$id',
@@ -95,14 +77,11 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
-  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
-  '/kittens/': typeof KittensIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,14 +89,11 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
-  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
-  '/kittens': typeof KittensIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -126,14 +102,11 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
-  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
-  '/kittens/': typeof KittensIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -143,14 +116,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/environment'
     | '/feeding'
-    | '/more'
     | '/philosophy'
     | '/process'
     | '/questionnaire'
     | '/sitemap.xml'
-    | '/studs'
     | '/kittens/$id'
-    | '/kittens/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -158,14 +128,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/environment'
     | '/feeding'
-    | '/more'
     | '/philosophy'
     | '/process'
     | '/questionnaire'
     | '/sitemap.xml'
-    | '/studs'
     | '/kittens/$id'
-    | '/kittens'
   id:
     | '__root__'
     | '/'
@@ -173,14 +140,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/environment'
     | '/feeding'
-    | '/more'
     | '/philosophy'
     | '/process'
     | '/questionnaire'
     | '/sitemap.xml'
-    | '/studs'
     | '/kittens/$id'
-    | '/kittens/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -189,25 +153,15 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   EnvironmentRoute: typeof EnvironmentRoute
   FeedingRoute: typeof FeedingRoute
-  MoreRoute: typeof MoreRoute
   PhilosophyRoute: typeof PhilosophyRoute
   ProcessRoute: typeof ProcessRoute
   QuestionnaireRoute: typeof QuestionnaireRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  StudsRoute: typeof StudsRoute
   KittensIdRoute: typeof KittensIdRoute
-  KittensIndexRoute: typeof KittensIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/studs': {
-      id: '/studs'
-      path: '/studs'
-      fullPath: '/studs'
-      preLoaderRoute: typeof StudsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -234,13 +188,6 @@ declare module '@tanstack/react-router' {
       path: '/philosophy'
       fullPath: '/philosophy'
       preLoaderRoute: typeof PhilosophyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/more': {
-      id: '/more'
-      path: '/more'
-      fullPath: '/more'
-      preLoaderRoute: typeof MoreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feeding': {
@@ -278,13 +225,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/kittens/': {
-      id: '/kittens/'
-      path: '/kittens'
-      fullPath: '/kittens/'
-      preLoaderRoute: typeof KittensIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/kittens/$id': {
       id: '/kittens/$id'
       path: '/kittens/$id'
@@ -301,14 +241,11 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   EnvironmentRoute: EnvironmentRoute,
   FeedingRoute: FeedingRoute,
-  MoreRoute: MoreRoute,
   PhilosophyRoute: PhilosophyRoute,
   ProcessRoute: ProcessRoute,
   QuestionnaireRoute: QuestionnaireRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  StudsRoute: StudsRoute,
   KittensIdRoute: KittensIdRoute,
-  KittensIndexRoute: KittensIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
