@@ -76,25 +76,21 @@ function Home() {
       {/* ── Two doorways, as a hand-drawn guide ──── */}
       <div className="mt-14">
         {/* 01 · 了解星月 */}
-        <Section>
-          <Link to="/discover" className="pressable block">
-            <div className="flex items-center gap-5">
-              <CatProfile className="h-[86px] w-[86px] shrink-0 text-[#4a5e8f]/80" />
-              <div className="min-w-0">
-                <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
-                  01 · About StarlitSky
-                </p>
-                <h2 className="mt-1 text-[20px] font-bold text-heading">
-                  了解星月
-                </h2>
-                <p className="mt-1.5 text-[12.5px] leading-[1.85] text-foreground">
-                  我们是谁、如何繁育、住在怎样的环境，以及接猫流程与售后。
-                </p>
-                <span className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet">
-                  走进猫舍 <span aria-hidden>→</span>
-                </span>
-              </div>
-            </div>
+        <Section className="relative">
+          <CatProfile className="absolute -right-1 -top-2 h-20 w-20 text-[#4a5e8f]/15" />
+          <Link to="/discover" className="pressable relative block pr-16">
+            <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+              01 · About StarlitSky
+            </p>
+            <h2 className="mt-1 text-[20px] font-bold text-heading">
+              了解星月
+            </h2>
+            <p className="mt-1.5 text-[12.5px] leading-[1.85] text-foreground">
+              我们是谁、如何繁育、住在怎样的环境，以及接猫流程与售后。
+            </p>
+            <span className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet">
+              走进猫舍 <span aria-hidden>→</span>
+            </span>
           </Link>
         </Section>
 
@@ -104,28 +100,25 @@ function Home() {
         </div>
 
         {/* 02 · 我们的猫 */}
-        <Section>
-          <Link to="/cats" className="pressable block">
-            <div className="flex items-center gap-5">
-              <div className="min-w-0 text-right">
-                <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
-                  02 · Our Cats
-                </p>
-                <h2 className="mt-1 text-[20px] font-bold text-heading">
-                  我们的猫
-                </h2>
-                <p className="mt-1.5 text-[12.5px] leading-[1.85] text-foreground">
-                  在售与观察中的小猫，以及陪伴我们的种猫，血线清晰、健康透明。
-                </p>
-                <span className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet">
-                  看看小猫 <span aria-hidden>→</span>
-                </span>
-              </div>
-              <CurledCat className="h-[86px] w-[86px] shrink-0 text-[#a0876a]" />
-            </div>
+        <Section className="relative">
+          <CurledCat className="absolute -right-1 -top-2 h-20 w-20 text-[#a0876a]/15" />
+          <Link to="/cats" className="pressable relative block pr-16">
+            <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+              02 · Our Cats
+            </p>
+            <h2 className="mt-1 text-[20px] font-bold text-heading">
+              我们的猫
+            </h2>
+            <p className="mt-1.5 text-[12.5px] leading-[1.85] text-foreground">
+              在售与观察中的小猫，以及陪伴我们的种猫，血线清晰、健康透明。
+            </p>
+            <span className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet">
+              看看小猫 <span aria-hidden>→</span>
+            </span>
           </Link>
         </Section>
       </div>
+
 
       {/* ── Gentle conversion — no box, just breathing space ── */}
       <Section className="mb-12 mt-16 text-center">
