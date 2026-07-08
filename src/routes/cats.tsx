@@ -8,7 +8,7 @@ import {
   KITTENS,
   STUDS,
   statusTone,
-  WECHAT_ID,
+  
   type KittenStatus,
   type StudCategory,
 } from "@/lib/cattery-data";

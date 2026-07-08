@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
 import { PaperIcon, CheckIcon, HeartIcon } from "@/components/mobile/icons";
-import { WECHAT_ID } from "@/lib/cattery-data";
+
 
 export const Route = createFileRoute("/questionnaire")({
   head: () => ({
