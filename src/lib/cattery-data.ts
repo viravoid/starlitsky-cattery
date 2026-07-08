@@ -101,3 +101,142 @@ export function statusTone(status: KittenStatus) {
       return "warm";
   }
 }
+
+// ── Questionnaire submissions (admin only) ────────────────────
+export type FormStatus =
+  | "未查看"
+  | "已联系"
+  | "适合继续沟通"
+  | "暂不合适"
+  | "已完成";
+
+export const FORM_STATUSES: FormStatus[] = [
+  "未查看",
+  "已联系",
+  "适合继续沟通",
+  "暂不合适",
+  "已完成",
+];
+
+export interface FormEntry {
+  id: string;
+  time: string;
+  name: string;
+  gender: string;
+  phone: string;
+  age: string;
+  job: string;
+  city: string;
+  experience: string; // 是否有养猫经验
+  residents: string; // 家里是否有原住民
+  residentsNeutered: string; // 原住民是否绝育
+  hasKids: string;
+  housing: string;
+  windowSealed: string;
+  familyAgree: string;
+  wantGender: string;
+  wantColor: string;
+  budget: string;
+  acceptNeuter: string;
+  monthlySpend: string;
+  scientificFeeding: string;
+  acceptActive: string;
+  commitment: string;
+  status: FormStatus;
+}
+
+export const FORM_ENTRIES: FormEntry[] = [
+  {
+    id: "form-1",
+    time: "2026-07-06 21:14",
+    name: "示例文字（缺少姓名）",
+    gender: "女",
+    phone: "138****0000",
+    age: "28",
+    job: "示例文字（缺少职业）",
+    city: "西安",
+    experience: "有",
+    residents: "有",
+    residentsNeutered: "已绝育",
+    hasKids: "没有",
+    housing: "自有住房",
+    windowSealed: "已封窗",
+    familyAgree: "全部同意",
+    wantGender: "母猫",
+    wantColor: "银虎斑、玳瑁都可以",
+    budget: "1w-2w",
+    acceptNeuter: "能接受",
+    monthlySpend: "500-1000",
+    scientificFeeding: "能接受",
+    acceptActive: "能接受",
+    commitment: "能接受",
+    status: "未查看",
+  },
+  {
+    id: "form-2",
+    time: "2026-07-04 10:32",
+    name: "示例文字（缺少姓名）",
+    gender: "男",
+    phone: "159****8888",
+    age: "34",
+    job: "示例文字（缺少职业）",
+    city: "成都",
+    experience: "没有",
+    residents: "没有",
+    residentsNeutered: "暂不适用",
+    hasKids: "有",
+    housing: "租房，房东同意养猫",
+    windowSealed: "暂未封窗但可以封",
+    familyAgree: "全部同意",
+    wantGender: "都可以",
+    wantColor: "棕虎斑",
+    budget: "2w-3w",
+    acceptNeuter: "能接受",
+    monthlySpend: "1000 以上",
+    scientificFeeding: "需要进一步了解",
+    acceptActive: "能接受",
+    commitment: "能接受",
+    status: "已联系",
+  },
+  {
+    id: "form-3",
+    time: "2026-07-01 16:05",
+    name: "示例文字（缺少姓名）",
+    gender: "女",
+    phone: "186****2233",
+    age: "26",
+    job: "示例文字（缺少职业）",
+    city: "上海",
+    experience: "有",
+    residents: "有",
+    residentsNeutered: "部分绝育",
+    hasKids: "没有",
+    housing: "租房，尚未确认",
+    windowSealed: "无法封窗",
+    familyAgree: "部分同意",
+    wantGender: "咨询现猫，暂不填写",
+    wantColor: "都可以",
+    budget: "可根据小猫情况沟通",
+    acceptNeuter: "能接受",
+    monthlySpend: "500-1000",
+    scientificFeeding: "能接受",
+    acceptActive: "需要进一步了解",
+    commitment: "能接受",
+    status: "适合继续沟通",
+  },
+];
+
+export function formStatusTone(status: FormStatus) {
+  switch (status) {
+    case "未查看":
+      return "warm";
+    case "已联系":
+      return "sky";
+    case "适合继续沟通":
+      return "violet";
+    case "已完成":
+      return "sunny";
+    default:
+      return "warm";
+  }
+}
