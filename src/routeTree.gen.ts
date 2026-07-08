@@ -18,6 +18,7 @@ import { Route as EnvironmentRouteImport } from './routes/environment'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as KittensIndexRouteImport } from './routes/kittens.index'
+import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 
 const StudsRoute = StudsRouteImport.update({
   id: '/studs',
@@ -64,6 +65,11 @@ const KittensIndexRoute = KittensIndexRouteImport.update({
   path: '/kittens/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KittensIdRoute = KittensIdRouteImport.update({
+  id: '/kittens/$id',
+  path: '/kittens/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/studs': typeof StudsRoute
+  '/kittens/$id': typeof KittensIdRoute
   '/kittens/': typeof KittensIndexRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/studs': typeof StudsRoute
+  '/kittens/$id': typeof KittensIdRoute
   '/kittens': typeof KittensIndexRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/studs': typeof StudsRoute
+  '/kittens/$id': typeof KittensIdRoute
   '/kittens/': typeof KittensIndexRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/questionnaire'
     | '/studs'
+    | '/kittens/$id'
     | '/kittens/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/questionnaire'
     | '/studs'
+    | '/kittens/$id'
     | '/kittens'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/questionnaire'
     | '/studs'
+    | '/kittens/$id'
     | '/kittens/'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   ProcessRoute: typeof ProcessRoute
   QuestionnaireRoute: typeof QuestionnaireRoute
   StudsRoute: typeof StudsRoute
+  KittensIdRoute: typeof KittensIdRoute
   KittensIndexRoute: typeof KittensIndexRoute
 }
 
@@ -212,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KittensIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/kittens/$id': {
+      id: '/kittens/$id'
+      path: '/kittens/$id'
+      fullPath: '/kittens/$id'
+      preLoaderRoute: typeof KittensIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProcessRoute: ProcessRoute,
   QuestionnaireRoute: QuestionnaireRoute,
   StudsRoute: StudsRoute,
+  KittensIdRoute: KittensIdRoute,
   KittensIndexRoute: KittensIndexRoute,
 }
 export const routeTree = rootRouteImport
