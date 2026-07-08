@@ -17,70 +17,111 @@ const base = {
   strokeLinejoin: "round" as const,
 };
 
-/** Sitting cat gazing up at a crescent moon and stars — for "了解星月". */
+/** Cat gazing at a crescent moon — refined, dreamy brand illustration for "了解星月". */
 export function CatProfile(props: P) {
   return (
-    <svg {...base} {...props}>
-      {/* Crescent moon */}
+    <svg {...base} strokeWidth={1.3} {...props}>
+      {/* Crescent moon cradling the upper right */}
       <path d="M54 14c-13 0-22 11-22 25s9 25 22 25c-7 0-14-10-14-25s7-25 14-25z" />
-      {/* Large star */}
-      <path d="M60 26l.9 2.4 2.5.3-1.8 1.7.5 2.5-2.2-1.3-2.2 1.3.5-2.5-1.8-1.7 2.5-.3z" />
-      {/* Small star */}
-      <path d="M22 32l.5 1.3 1.4.2-1 .9.3 1.4-1.2-.7-1.2.7.3-1.4-1-.9 1.4-.2z" />
-      {/* Cat body */}
-      <path d="M24 58c-4 0-6-6-4-12s8-10 14-8" />
-      <path d="M34 38c4-2 10-2 14 0" />
-      {/* Front paws */}
-      <path d="M30 52v6" />
-      <path d="M40 52v6" />
-      {/* Head, looking up */}
-      <path d="M28 34c0-7 6-13 14-13s14 6 14 13" />
+
+      {/* Stars */}
+      <path d="M60 24l.8 2.2 2.2.2-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.2z" />
+      <path d="M22 30l.5 1.4 1.5.2-1.1 1 .3 1.5-1.3-.8-1.3.8.3-1.5-1.1-1 1.5-.2z" />
+      <path d="M64 46l.4 1.1 1.1.1-.8.8.2 1.1-1-.5-1 .5.2-1.1-.8-.8 1.1-.1z" />
+
+      {/* Maine Coon in profile, sitting and looking up at the moon */}
+      {/* Haunch, back, and tail */}
+      <path d="M18 60c-4 0-6-6-4-12s8-10 14-8" />
+      <path d="M30 58c10 0 16-6 14-14" />
+
+      {/* Chest and front paws */}
+      <path d="M28 40c6 2 12 8 12 16" />
+      <path d="M34 56v6" />
+      <path d="M42 56v6" />
+
+      {/* Head in profile, turned upward */}
+      <path d="M24 38c0-7 6-13 14-13s14 6 14 13" />
+
+      {/* Profile face: nose, mouth, chin */}
+      <path d="M28 32c-4 2-6 6-6 9" />
+      <path d="M22 41c-2 1-3 4-2 6" />
+
       {/* Tufted ears */}
-      <path d="M30 24l-3-8 8 6" />
-      <path d="M32 22l-1-5 5 4" />
-      <path d="M50 24l3-8-8 6" />
-      <path d="M48 22l1-5-5 4" />
-      {/* Face */}
-      <path d="M36 34c1-1 3-1 4 0" />
-      <path d="M46 34c1-1 3-1 4 0" />
-      <path d="M40 40l1 2h-2z" />
-      {/* Tail curled around */}
-      <path d="M48 56c7 0 11-5 9-11" />
+      <path d="M26 26c-3-4-4-7-3-10l7 6" />
+      <path d="M28 24c-2-3-3-5-2-7l5 5" />
+      <path d="M48 26c3-4 4-7 3-10l-7 6" />
+      <path d="M46 24c2-3 3-5 2-7l-5 5" />
+
+      {/* Closed, peaceful eye */}
+      <path d="M32 35c2 0 4 .5 5 1.5" />
+
+      {/* Long whiskers */}
+      <path d="M26 42c-3 1-5 3-6 5" />
+      <path d="M27 44c-2 2-3 4-3 6" />
+
+      {/* Soft fur texture */}
+      <path d="M20 52c2 1 4 1 5 0" />
+      <path d="M22 48c2 1 3 1 4 0" />
     </svg>
   );
 }
 
-/** Adult cat sitting with a small kitten — for "我们的猫". */
+/** Adult cat nestled with a small kitten — tender, intimate brand illustration for "我们的猫". */
 export function CurledCat(props: P) {
   return (
-    <svg {...base} {...props}>
-      {/* Adult cat */}
-      <path d="M18 58c-4 0-6-6-4-12s8-10 14-8" />
-      <path d="M28 38c4-2 10-2 14 0" />
-      <path d="M24 52v6" />
-      <path d="M34 52v6" />
-      <path d="M22 34c0-7 6-13 14-13s14 6 14 13" />
-      <path d="M24 24l-3-8 8 6" />
-      <path d="M26 22l-1-5 5 4" />
-      <path d="M46 24l3-8-8 6" />
-      <path d="M44 22l1-5-5 4" />
-      <path d="M30 34c1-1 3-1 4 0" />
-      <path d="M40 34c1-1 3-1 4 0" />
-      <path d="M34 40l1 2h-2z" />
-      {/* Kitten beside adult */}
-      <path d="M48 58c-3 0-4-4-2-8s6-6 10-4" />
-      <path d="M56 50v8" />
-      <path d="M52 44c0-5 4-9 9-9s9 4 9 9" />
-      <path d="M55 37l-2-5 5 3" />
-      <path d="M57 36l-1-3 3 2" />
-      <path d="M67 37l2-5-5 3" />
-      <path d="M65 36l1-3-3 2" />
-      <path d="M58 44c.8-.8 2.2-.8 3 0" />
-      <path d="M64 44c.8-.8 2.2-.8 3 0" />
-      <path d="M61 48l.8 1.5h-1.6z" />
+    <svg {...base} strokeWidth={1.3} {...props}>
+      {/* Adult cat: lying down with tail curled around the kitten */}
+      {/* Back */}
+      <path d="M14 46c4-8 12-14 22-14s18 6 22 14" />
+      {/* Tail wrapping */}
+      <path d="M58 46c6 4 8 11 4 16s-12 6-18 2" />
+
+      {/* Adult head */}
+      <path d="M14 46c-4 0-7-3-7-8s3-9 8-9" />
+      {/* Ear tufts */}
+      <path d="M7 31c-2-3-2-6-1-8l6 5" />
+      <path d="M9 29c-1-2-1-4 0-5l4 4" />
+      <path d="M21 31c2-3 2-6 1-8l-6 5" />
+      <path d="M19 29c1-2 1-4 0-5l-4 4" />
+
+      {/* Adult closed eye and gentle nose */}
+      <path d="M10 39c1.5 0 3-.5 4-1.5" />
+      <path d="M9 43c-2 1-3 3-2 5" />
+      <path d="M11 45c3 1 5 3 6 5" />
+
+      {/* Adult chest and front paws */}
+      <path d="M16 50c2 4 6 6 10 6" />
+      <path d="M26 56v5" />
+      <path d="M32 56v5" />
+
+      {/* Kitten nestled in front of the adult */}
+      <path d="M28 58c-3 0-5-3-4-7s5-6 9-5" />
+      <path d="M34 46c5-1 10 2 11 7" />
+      <path d="M28 58c-4 0-7-2-7-6s3-6 7-6" />
+      {/* Kitten ears */}
+      <path d="M23 48c-1-2-1-4 0-5l4 3" />
+      <path d="M31 48c1-2 1-4 0-5l-4 3" />
+      {/* Kitten closed eye */}
+      <path d="M26 53c1 0 2-.3 3-1" />
+      {/* Kitten nose/mouth */}
+      <path d="M23 55c-1 1-2 2-1 3" />
+
+      {/* Connecting paw between adult and kitten */}
+      <path d="M34 56c2 0 4-1 5-2" />
+
+      {/* Soft fur texture lines */}
+      <path d="M20 48c2 0 3-1 4-2" />
+      <path d="M36 50c2 1 3 2 4 4" />
+      <path d="M42 54c1 2 1 4 0 6" />
+
+      {/* One tiny star above */}
+      <path d="M60 22l.4 1.1 1.1.1-.8.8.2 1.1-1-.5-1 .5.2-1.1-.8-.8 1.1-.1z" />
     </svg>
   );
 }
+
+
+
 
 /** Crescent moon with a couple of sparkles. */
 export function MoonStars(props: P) {
