@@ -201,8 +201,9 @@ function Questionnaire() {
 
   return (
     <PhoneFrame
-      activeTab="questionnaire"
-      showTabBar
+      title="选猫问卷"
+      backTo="/discover"
+
       bottomBar={
         <div className="border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
           <button
