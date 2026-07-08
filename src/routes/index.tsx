@@ -2,12 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
 import { CopyText } from "@/components/mobile/CopyText";
+import { StarIcon, PaperIcon } from "@/components/mobile/icons";
 import {
-  CatIcon,
-  StarIcon,
-  PaperIcon,
-  ChevronRightIcon,
-} from "@/components/mobile/icons";
+  CatProfile,
+  CurledCat,
+  MoonStars,
+  StarDivider,
+} from "@/components/mobile/illustrations";
 import { WECHAT_ID } from "@/lib/cattery-data";
 import heroCats from "@/assets/hero-cats.png";
 import catMotif from "@/assets/placeholder-cat.png";
@@ -15,24 +16,6 @@ import catMotif from "@/assets/placeholder-cat.png";
 export const Route = createFileRoute("/")({
   component: Home,
 });
-
-/** Two primary destinations — the whole app funnels through these. */
-const ENTRIES = [
-  {
-    label: "了解星月",
-    en: "About StarlitSky",
-    desc: "猫舍介绍 · 理念 · 环境 · 流程 · 售后",
-    to: "/discover",
-    Icon: StarIcon,
-  },
-  {
-    label: "我们的猫",
-    en: "Our Cats",
-    desc: "在售小猫 · 观察中 · 种猫介绍",
-    to: "/cats",
-    Icon: CatIcon,
-  },
-] as const;
 
 function Home() {
   return (
@@ -86,46 +69,69 @@ function Home() {
               示例图片（首页主视觉猫舍照片，待替换）
             </p>
           </div>
-          <StarIcon className="absolute right-6 top-6 h-4 w-4 text-violet/40" />
+          <MoonStars className="absolute right-5 top-5 h-9 w-9 text-violet/40" />
         </div>
       </Section>
 
-      {/* ── Two primary entries ──────────────────── */}
-      <Section className="mt-7 space-y-3">
-        {ENTRIES.map(({ label, en, desc, to, Icon }) => (
-          <Link
-            key={label}
-            to={to}
-            className="pressable flex items-center gap-4 rounded-[1.5rem] border border-border bg-card p-4 shadow-card"
-          >
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sky/25 text-heading">
-              <Icon className="h-6 w-6" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[16px] font-semibold text-heading">
-                {label}
-              </span>
-              <span className="mt-0.5 block font-display text-[10px] uppercase tracking-[0.22em] text-warm">
-                {en}
-              </span>
-              <span className="mt-1 block truncate text-[12px] text-muted-foreground">
-                {desc}
-              </span>
-            </span>
-            <ChevronRightIcon className="h-5 w-5 shrink-0 text-warm" />
-          </Link>
-        ))}
+      <StarDivider className="mt-9" />
+
+      {/* ── Entry: 了解星月 (illustration left) ───── */}
+      <Section className="mt-6">
+        <div className="flex items-center gap-4">
+          <CatProfile className="h-[76px] w-[76px] shrink-0 text-[#4a5e8f]/80" />
+          <div className="min-w-0">
+            <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+              About StarlitSky
+            </p>
+            <h2 className="mt-0.5 text-[19px] font-bold text-heading">了解星月</h2>
+            <p className="mt-1.5 text-[12.5px] leading-[1.8] text-foreground">
+              我们是谁、如何繁育、住在怎样的环境里，以及接猫流程与售后。
+            </p>
+            <Link
+              to="/discover"
+              className="pressable mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet"
+            >
+              走进猫舍
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
+        </div>
       </Section>
 
+      {/* ── Entry: 我们的猫 (illustration right) ───── */}
+      <Section className="mt-7">
+        <div className="flex items-center gap-4">
+          <div className="min-w-0 text-right">
+            <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+              Our Cats
+            </p>
+            <h2 className="mt-0.5 text-[19px] font-bold text-heading">我们的猫</h2>
+            <p className="mt-1.5 text-[12.5px] leading-[1.8] text-foreground">
+              在售与观察中的小猫，以及陪伴我们的种猫，血线清晰、健康筛查透明。
+            </p>
+            <Link
+              to="/cats"
+              className="pressable mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet"
+            >
+              看看小猫
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
+          <CurledCat className="h-[76px] w-[76px] shrink-0 text-[#a0876a]" />
+        </div>
+      </Section>
+
+      <StarDivider className="mt-9" />
+
       {/* ── Gentle conversion ────────────────────── */}
-      <Section className="mb-12 mt-9">
-        <div className="rounded-[1.75rem] bg-gradient-cream p-6 text-center">
-          <StarIcon className="mx-auto h-5 w-5 text-violet/60" />
-          <p className="mt-2 text-[15px] font-semibold text-heading">
+      <Section className="mb-12 mt-8">
+        <div className="rounded-[1.75rem] bg-gradient-cream px-6 py-7 text-center">
+          <MoonStars className="mx-auto h-9 w-9 text-violet/55" />
+          <p className="mt-2.5 text-[15px] font-semibold text-heading">
             想进一步了解星月的小猫
           </p>
           <p className="mx-auto mt-2 max-w-[16rem] text-[12.5px] leading-relaxed text-foreground">
-            可以先填写选猫问卷，或复制微信号与我们聊聊。
+            可以先填写选猫问卷，或复制微信号与我们慢慢聊。
           </p>
           <div className="mt-4 flex flex-col gap-2.5">
             <Link

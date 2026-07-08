@@ -11,30 +11,51 @@ export const SOCIALS = [
 export type StudCategory = "现役公猫" | "预备役公猫" | "现役母猫" | "退役种猫";
 
 export interface Stud {
+  id: string;
   name: string;
   color: string;
   role: string;
   category: StudCategory;
-  trait: string;
+  status: string; // 当前状态
+  trait: string; // 性格特点（简短介绍）
+  source: string; // 来源 / 血线
+  structure: string; // 结构特点
+  breeding: string; // 繁育方向
+}
+
+const SRC = "示例文字（缺少来源 / 血线）";
+const STRUCT = "示例文字（缺少结构特点）";
+const BREED = "示例文字（缺少繁育方向）";
+
+function stud(
+  id: string,
+  name: string,
+  color: string,
+  role: string,
+  category: StudCategory,
+  status: string,
+  trait: string,
+): Stud {
+  return { id, name, color, role, category, status, trait, source: SRC, structure: STRUCT, breeding: BREED };
 }
 
 export const STUDS: Stud[] = [
-  { name: "重楼", color: "红虎斑 d22", role: "现役公猫 / 半退役", category: "现役公猫", trait: "体格宽大，气质沉稳" },
-  { name: "琥珀", color: "棕虎斑麻纹加白 n2509", role: "现役公猫", category: "现役公猫", trait: "骨量足，纹路清晰" },
-  { name: "水龙吟", color: "黑银鱼骨纹 ns23", role: "现役公猫", category: "现役公猫", trait: "银度高，性格温柔" },
-  { name: "天河", color: "银虎斑加白 ns2203", role: "现役公猫", category: "现役公猫", trait: "大方亲人，表情甜" },
-  { name: "三明治", color: "棕虎斑 n22", role: "预备役公猫", category: "预备役公猫", trait: "潜力款，正在成长" },
-  { name: "云母", color: "黑银麻纹加白 ns2503", role: "现役母猫", category: "现役母猫", trait: "五官柔和，母性强" },
-  { name: "尿团", color: "银玳瑁虎斑 fs22", role: "现役母猫", category: "现役母猫", trait: "颜色特别，活泼" },
-  { name: "桂花糕", color: "玳瑁麻纹加白 f2509", role: "现役母猫", category: "现役母猫", trait: "花色甜美，亲人" },
-  { name: "昭月", color: "黑银鱼骨纹 ns23", role: "现役母猫", category: "现役母猫", trait: "纹路利落，安静" },
-  { name: "惊蛰", color: "蓝银虎斑 as22", role: "现役母猫", category: "现役母猫", trait: "蓝调稀有，优雅" },
-  { name: "小熊猫", color: "棕麻纹加白 n2509", role: "现役母猫", category: "现役母猫", trait: "圆脸，表情丰富" },
-  { name: "云玥", color: "银玳瑁虎斑 fs22", role: "现役母猫", category: "现役母猫", trait: "色块干净，稳重" },
-  { name: "小虾线", color: "银玳瑁麻纹 fs25", role: "现役母猫", category: "现役母猫", trait: "年轻小母，灵动" },
-  { name: "玛瑙", color: "玳瑁虎斑加白 f2209", role: "现役母猫", category: "现役母猫", trait: "加白匀称，甜美" },
-  { name: "小边牧", color: "玳瑁虎斑 f22", role: "现役母猫", category: "现役母猫", trait: "花纹俏皮，亲人" },
-  { name: "小桃", color: "玳瑁麻纹 f25", role: "现役母猫", category: "现役母猫", trait: "粉嫩气质，温柔" },
+  stud("chonglou", "重楼", "红虎斑 d22", "现役公猫 / 半退役", "现役公猫", "在舍", "体格宽大，气质沉稳"),
+  stud("hupo", "琥珀", "棕虎斑麻纹加白 n2509", "现役公猫", "现役公猫", "在配", "骨量足，纹路清晰"),
+  stud("shulongyin", "水龙吟", "黑银鱼骨纹 ns23", "现役公猫", "现役公猫", "在配", "银度高，性格温柔"),
+  stud("tianhe", "天河", "银虎斑加白 ns2203", "现役公猫", "现役公猫", "在配", "大方亲人，表情甜"),
+  stud("sanmingzhi", "三明治", "棕虎斑 n22", "预备役公猫", "预备役公猫", "成长中", "潜力款，正在成长"),
+  stud("yunmu", "云母", "黑银麻纹加白 ns2503", "现役母猫", "现役母猫", "在舍", "五官柔和，母性强"),
+  stud("niaotuan", "尿团", "银玳瑁虎斑 fs22", "现役母猫", "现役母猫", "在舍", "颜色特别，活泼"),
+  stud("guihuagao", "桂花糕", "玳瑁麻纹加白 f2509", "现役母猫", "现役母猫", "在舍", "花色甜美，亲人"),
+  stud("zhaoyue", "昭月", "黑银鱼骨纹 ns23", "现役母猫", "现役母猫", "在舍", "纹路利落，安静"),
+  stud("jingzhe", "惊蛰", "蓝银虎斑 as22", "现役母猫", "现役母猫", "在舍", "蓝调稀有，优雅"),
+  stud("xiongmao", "小熊猫", "棕麻纹加白 n2509", "现役母猫", "现役母猫", "在舍", "圆脸，表情丰富"),
+  stud("yunyue", "云玥", "银玳瑁虎斑 fs22", "现役母猫", "现役母猫", "在舍", "色块干净，稳重"),
+  stud("xiaoxiaxian", "小虾线", "银玳瑁麻纹 fs25", "现役母猫", "现役母猫", "成长中", "年轻小母，灵动"),
+  stud("manao", "玛瑙", "玳瑁虎斑加白 f2209", "现役母猫", "现役母猫", "在舍", "加白匀称，甜美"),
+  stud("xiaobianmu", "小边牧", "玳瑁虎斑 f22", "现役母猫", "现役母猫", "在舍", "花纹俏皮，亲人"),
+  stud("xiaotao", "小桃", "玳瑁麻纹 f25", "现役母猫", "现役母猫", "成长中", "粉嫩气质，温柔"),
 ];
 
 export type KittenStatus = "在售" | "观察中" | "已预订" | "已售" | "咨询价格";
