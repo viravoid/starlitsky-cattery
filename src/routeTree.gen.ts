@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudsRouteImport } from './routes/studs'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as QuestionnaireRouteImport } from './routes/questionnaire'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProcessRouteImport } from './routes/process'
@@ -25,6 +26,11 @@ import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 const StudsRoute = StudsRouteImport.update({
   id: '/studs',
   path: '/studs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const QuestionnaireRoute = QuestionnaireRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/process': typeof ProcessRoute
   '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/kittens/': typeof KittensIndexRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/process': typeof ProcessRoute
   '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/kittens': typeof KittensIndexRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/process': typeof ProcessRoute
   '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/kittens/': typeof KittensIndexRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/profile'
     | '/questionnaire'
+    | '/sitemap.xml'
     | '/studs'
     | '/kittens/$id'
     | '/kittens/'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/profile'
     | '/questionnaire'
+    | '/sitemap.xml'
     | '/studs'
     | '/kittens/$id'
     | '/kittens'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/process'
     | '/profile'
     | '/questionnaire'
+    | '/sitemap.xml'
     | '/studs'
     | '/kittens/$id'
     | '/kittens/'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   ProcessRoute: typeof ProcessRoute
   ProfileRoute: typeof ProfileRoute
   QuestionnaireRoute: typeof QuestionnaireRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StudsRoute: typeof StudsRoute
   KittensIdRoute: typeof KittensIdRoute
   KittensIndexRoute: typeof KittensIndexRoute
@@ -193,6 +206,13 @@ declare module '@tanstack/react-router' {
       path: '/studs'
       fullPath: '/studs'
       preLoaderRoute: typeof StudsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/questionnaire': {
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProcessRoute: ProcessRoute,
   ProfileRoute: ProfileRoute,
   QuestionnaireRoute: QuestionnaireRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   StudsRoute: StudsRoute,
   KittensIdRoute: KittensIdRoute,
   KittensIndexRoute: KittensIndexRoute,
