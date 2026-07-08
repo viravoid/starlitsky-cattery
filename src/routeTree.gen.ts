@@ -12,9 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudsRouteImport } from './routes/studs'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as QuestionnaireRouteImport } from './routes/questionnaire'
-import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProcessRouteImport } from './routes/process'
 import { Route as PhilosophyRouteImport } from './routes/philosophy'
+import { Route as MoreRouteImport } from './routes/more'
 import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -38,11 +38,6 @@ const QuestionnaireRoute = QuestionnaireRouteImport.update({
   path: '/questionnaire',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProcessRoute = ProcessRouteImport.update({
   id: '/process',
   path: '/process',
@@ -51,6 +46,11 @@ const ProcessRoute = ProcessRouteImport.update({
 const PhilosophyRoute = PhilosophyRouteImport.update({
   id: '/philosophy',
   path: '/philosophy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoreRoute = MoreRouteImport.update({
+  id: '/more',
+  path: '/more',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedingRoute = FeedingRouteImport.update({
@@ -95,9 +95,9 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
+  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
-  '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
@@ -110,9 +110,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
+  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
-  '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
@@ -126,9 +126,9 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
+  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
-  '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
@@ -143,9 +143,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/environment'
     | '/feeding'
+    | '/more'
     | '/philosophy'
     | '/process'
-    | '/profile'
     | '/questionnaire'
     | '/sitemap.xml'
     | '/studs'
@@ -158,9 +158,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/environment'
     | '/feeding'
+    | '/more'
     | '/philosophy'
     | '/process'
-    | '/profile'
     | '/questionnaire'
     | '/sitemap.xml'
     | '/studs'
@@ -173,9 +173,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/environment'
     | '/feeding'
+    | '/more'
     | '/philosophy'
     | '/process'
-    | '/profile'
     | '/questionnaire'
     | '/sitemap.xml'
     | '/studs'
@@ -189,9 +189,9 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   EnvironmentRoute: typeof EnvironmentRoute
   FeedingRoute: typeof FeedingRoute
+  MoreRoute: typeof MoreRoute
   PhilosophyRoute: typeof PhilosophyRoute
   ProcessRoute: typeof ProcessRoute
-  ProfileRoute: typeof ProfileRoute
   QuestionnaireRoute: typeof QuestionnaireRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StudsRoute: typeof StudsRoute
@@ -222,13 +222,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuestionnaireRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/process': {
       id: '/process'
       path: '/process'
@@ -241,6 +234,13 @@ declare module '@tanstack/react-router' {
       path: '/philosophy'
       fullPath: '/philosophy'
       preLoaderRoute: typeof PhilosophyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/more': {
+      id: '/more'
+      path: '/more'
+      fullPath: '/more'
+      preLoaderRoute: typeof MoreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feeding': {
@@ -301,9 +301,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   EnvironmentRoute: EnvironmentRoute,
   FeedingRoute: FeedingRoute,
+  MoreRoute: MoreRoute,
   PhilosophyRoute: PhilosophyRoute,
   ProcessRoute: ProcessRoute,
-  ProfileRoute: ProfileRoute,
   QuestionnaireRoute: QuestionnaireRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StudsRoute: StudsRoute,
