@@ -20,6 +20,7 @@ import { Route as CatsRouteImport } from './routes/cats'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StudsIdRouteImport } from './routes/studs.$id'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -77,6 +78,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudsIdRoute = StudsIdRouteImport.update({
+  id: '/studs/$id',
+  path: '/studs/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KittensIdRoute = KittensIdRouteImport.update({
   id: '/kittens/$id',
   path: '/kittens/$id',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/kittens/$id': typeof KittensIdRoute
+  '/studs/$id': typeof StudsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/kittens/$id': typeof KittensIdRoute
+  '/studs/$id': typeof StudsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/kittens/$id': typeof KittensIdRoute
+  '/studs/$id': typeof StudsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/questionnaire'
     | '/sitemap.xml'
     | '/kittens/$id'
+    | '/studs/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/questionnaire'
     | '/sitemap.xml'
     | '/kittens/$id'
+    | '/studs/$id'
   id:
     | '__root__'
     | '/'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/questionnaire'
     | '/sitemap.xml'
     | '/kittens/$id'
+    | '/studs/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -184,6 +196,7 @@ export interface RootRouteChildren {
   QuestionnaireRoute: typeof QuestionnaireRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   KittensIdRoute: typeof KittensIdRoute
+  StudsIdRoute: typeof StudsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/studs/$id': {
+      id: '/studs/$id'
+      path: '/studs/$id'
+      fullPath: '/studs/$id'
+      preLoaderRoute: typeof StudsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/kittens/$id': {
       id: '/kittens/$id'
       path: '/kittens/$id'
@@ -288,6 +308,7 @@ const rootRouteChildren: RootRouteChildren = {
   QuestionnaireRoute: QuestionnaireRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   KittensIdRoute: KittensIdRoute,
+  StudsIdRoute: StudsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
