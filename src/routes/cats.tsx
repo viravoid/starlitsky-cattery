@@ -3,7 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
 import { CopyText } from "@/components/mobile/CopyText";
-import { PaperIcon, PawIcon, ChevronRightIcon } from "@/components/mobile/icons";
+import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
+import { CurledCat } from "@/components/mobile/illustrations";
 import {
   KITTENS,
   STUDS,
@@ -39,8 +40,57 @@ function Meta({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex gap-2 text-[12px]">
       <span className="shrink-0 text-muted-foreground">{k}</span>
-      <span className="text-card-foreground">{v}</span>
+      <span className="truncate text-card-foreground">{v}</span>
     </div>
+  );
+}
+
+/** One shared card layout used for both kittens and studs. */
+function CatCard({
+  imageLabel,
+  pill,
+  name,
+  meta,
+  intro,
+  to,
+  params,
+}: {
+  imageLabel: string;
+  pill: { text: string; tone: string };
+  name: string;
+  meta: { k: string; v: string }[];
+  intro: string;
+  to: string;
+  params: Record<string, string>;
+}) {
+  return (
+    <Link
+      // @ts-expect-error dynamic route string
+      to={to}
+      params={params}
+      className="pressable block overflow-hidden rounded-3xl border border-border bg-card shadow-card"
+    >
+      <div className="relative">
+        <Placeholder label={imageLabel} ratio="aspect-[16/10]" rounded="rounded-none" />
+        <div className="absolute left-3 top-3">
+          <Pill tone={pill.tone}>{pill.text}</Pill>
+        </div>
+      </div>
+      <div className="space-y-2.5 p-4">
+        <h3 className="text-[15px] font-semibold leading-snug text-heading">
+          {name}
+        </h3>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {meta.map((m) => (
+            <Meta key={m.k} k={m.k} v={m.v} />
+          ))}
+        </div>
+        <p className="text-[12px] leading-relaxed text-foreground">{intro}</p>
+        <span className="mt-1 flex items-center justify-center gap-1 rounded-full bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground shadow-card">
+          了解详情 <ChevronRightIcon className="h-3.5 w-3.5" />
+        </span>
+      </div>
+    </Link>
   );
 }
 
@@ -131,83 +181,55 @@ function Cats() {
             </p>
           ) : (
             kittenList.map((k) => (
-              <div
+              <CatCard
                 key={k.id}
-                className="overflow-hidden rounded-3xl border border-border bg-card shadow-card"
-              >
-                <div className="relative">
-                  <Placeholder
-                    label="示例图片（小猫照片，待替换）"
-                    ratio="aspect-[16/10]"
-                    rounded="rounded-none"
-                  />
-                  <div className="absolute left-3 top-3">
-                    <Pill tone={statusTone(k.status)}>{k.status}</Pill>
-                  </div>
-                </div>
-                <div className="space-y-2.5 p-4">
-                  <h3 className="text-[14px] font-semibold leading-snug text-heading">
-                    {k.name}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                    <Meta k="性别" v={k.gender} />
-                    <Meta k="颜色" v={k.color} />
-                    <Meta k="生日" v={k.birthday} />
-                    <Meta k="价格" v={k.price} />
-                  </div>
-                  <Meta k="父母" v={k.parents} />
-                  <Meta k="性格" v={k.personality} />
-                  <Link
-                    to="/kittens/$id"
-                    params={{ id: k.id }}
-                    className="pressable mt-1 flex items-center justify-center gap-1 rounded-full bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground shadow-card"
-                  >
-                    查看详情 <ChevronRightIcon className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              </div>
+                imageLabel="示例图片（小猫照片，待替换）"
+                pill={{ text: k.status, tone: statusTone(k.status) }}
+                name={k.name}
+                meta={[
+                  { k: "性别", v: k.gender },
+                  { k: "颜色", v: k.color },
+                  { k: "生日", v: k.birthday },
+                  { k: "价格", v: k.price },
+                ]}
+                intro={k.personality}
+                to="/kittens/$id"
+                params={{ id: k.id }}
+              />
             ))
           )}
         </Section>
       )}
 
-      {/* ── Studs ───────────────────────────────── */}
+      {/* ── Studs (same layout) ─────────────────── */}
       {tab === "studs" && (
-        <Section className="mb-6 mt-2">
+        <Section className="mb-6 mt-2 space-y-4">
           {studList.length === 0 ? (
             <div className="mt-16 flex flex-col items-center gap-3 text-center">
-              <PawIcon className="h-10 w-10 text-warm" />
+              <CurledCat className="h-14 w-14 text-warm" />
               <p className="text-[13px] text-muted-foreground">
                 示例文字（缺少「{sFilter}」资料）
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {studList.map((s) => (
-                <div
-                  key={s.name}
-                  className="overflow-hidden rounded-3xl border border-border bg-card text-left shadow-card"
-                >
-                  <Placeholder
-                    label="示例图片（种猫照片，待替换）"
-                    ratio="aspect-square"
-                    rounded="rounded-none"
-                  />
-                  <div className="space-y-1 p-3">
-                    <h3 className="text-[14px] font-semibold text-heading">
-                      {s.name}
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">{s.color}</p>
-                    <Pill tone={s.category.includes("母") ? "creamblue" : "sky"}>
-                      {s.role}
-                    </Pill>
-                    <p className="pt-0.5 text-[11px] leading-snug text-foreground">
-                      {s.trait}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            studList.map((s) => (
+              <CatCard
+                key={s.id}
+                imageLabel="示例图片（种猫照片，待替换）"
+                pill={{
+                  text: s.status,
+                  tone: s.category.includes("母") ? "creamblue" : "sky",
+                }}
+                name={s.name}
+                meta={[
+                  { k: "身份", v: s.role },
+                  { k: "颜色", v: s.color },
+                ]}
+                intro={s.trait}
+                to="/studs/$id"
+                params={{ id: s.id }}
+              />
+            ))
           )}
         </Section>
       )}
