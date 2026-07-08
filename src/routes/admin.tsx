@@ -86,8 +86,10 @@ function Admin() {
                 label="照片"
                 ratio="aspect-square"
                 rounded="rounded-xl"
+                compact
                 className="h-14 w-14 shrink-0"
               />
+
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-semibold text-heading">{k.name}</p>
                 <div className="mt-1 flex items-center gap-1.5">
