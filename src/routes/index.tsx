@@ -77,7 +77,7 @@ function Home() {
       <div className="mt-14">
         {/* 01 · 了解星月 */}
         <Section className="relative">
-          <CatProfile className="absolute -right-1 -top-2 h-20 w-20 text-[#4a5e8f]/15" />
+          <CatProfile className="absolute right-2 top-0 h-20 w-20 text-[#4a5e8f]/20" />
           <Link to="/discover" className="pressable relative block pr-16">
             <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
               01 · About StarlitSky
