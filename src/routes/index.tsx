@@ -78,8 +78,8 @@ function Home() {
         {/* 01 · 了解星月 */}
         <Section>
           <Link to="/discover" className="pressable block">
-            <CatProfile className="h-14 w-14 text-[#4a5e8f]/50" />
-            <p className="mt-5 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+            <CatProfile className="h-14 w-14 text-[#4a5e8f]/40" />
+            <p className="mt-4 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
               01 · About StarlitSky
             </p>
             <h2 className="mt-1 text-[20px] font-bold text-heading">
