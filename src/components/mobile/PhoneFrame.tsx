@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Signal, Wifi, BatteryFull } from "lucide-react";
-import { CatIcon, HouseIcon, PaperIcon, GridIcon, ChevronLeftIcon } from "./icons";
+import { CatIcon, HouseIcon, StarIcon, ChevronLeftIcon } from "./icons";
 
-type TabKey = "home" | "kittens" | "questionnaire" | "more";
+type TabKey = "home" | "discover" | "cats";
 
 const TABS: {
   key: TabKey;
@@ -12,9 +12,8 @@ const TABS: {
   Icon: (p: { className?: string }) => ReactNode;
 }[] = [
   { key: "home", label: "首页", to: "/", Icon: HouseIcon },
-  { key: "kittens", label: "现猫", to: "/kittens", Icon: CatIcon },
-  { key: "questionnaire", label: "问卷", to: "/questionnaire", Icon: PaperIcon },
-  { key: "more", label: "更多", to: "/more", Icon: GridIcon },
+  { key: "discover", label: "了解星月", to: "/discover", Icon: StarIcon },
+  { key: "cats", label: "我们的猫", to: "/cats", Icon: CatIcon },
 ];
 
 function StatusBar({ dark = false }: { dark?: boolean }) {

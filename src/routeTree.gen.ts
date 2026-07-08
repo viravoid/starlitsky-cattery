@@ -9,25 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as StudsRouteImport } from './routes/studs'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as QuestionnaireRouteImport } from './routes/questionnaire'
 import { Route as ProcessRouteImport } from './routes/process'
 import { Route as PhilosophyRouteImport } from './routes/philosophy'
-import { Route as MoreRouteImport } from './routes/more'
 import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
+import { Route as DiscoverRouteImport } from './routes/discover'
+import { Route as CatsRouteImport } from './routes/cats'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as KittensIndexRouteImport } from './routes/kittens.index'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 
-const StudsRoute = StudsRouteImport.update({
-  id: '/studs',
-  path: '/studs',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -48,11 +42,6 @@ const PhilosophyRoute = PhilosophyRouteImport.update({
   path: '/philosophy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MoreRoute = MoreRouteImport.update({
-  id: '/more',
-  path: '/more',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const FeedingRoute = FeedingRouteImport.update({
   id: '/feeding',
   path: '/feeding',
@@ -61,6 +50,16 @@ const FeedingRoute = FeedingRouteImport.update({
 const EnvironmentRoute = EnvironmentRouteImport.update({
   id: '/environment',
   path: '/environment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiscoverRoute = DiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatsRoute = CatsRouteImport.update({
+  id: '/cats',
+  path: '/cats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -78,11 +77,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const KittensIndexRoute = KittensIndexRouteImport.update({
-  id: '/kittens/',
-  path: '/kittens/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const KittensIdRoute = KittensIdRouteImport.update({
   id: '/kittens/$id',
   path: '/kittens/$id',
@@ -93,47 +87,44 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/cats': typeof CatsRoute
+  '/discover': typeof DiscoverRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
-  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
-  '/kittens/': typeof KittensIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/cats': typeof CatsRoute
+  '/discover': typeof DiscoverRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
-  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
-  '/kittens': typeof KittensIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/cats': typeof CatsRoute
+  '/discover': typeof DiscoverRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
-  '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/studs': typeof StudsRoute
   '/kittens/$id': typeof KittensIdRoute
-  '/kittens/': typeof KittensIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,73 +132,62 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/cats'
+    | '/discover'
     | '/environment'
     | '/feeding'
-    | '/more'
     | '/philosophy'
     | '/process'
     | '/questionnaire'
     | '/sitemap.xml'
-    | '/studs'
     | '/kittens/$id'
-    | '/kittens/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/admin'
+    | '/cats'
+    | '/discover'
     | '/environment'
     | '/feeding'
-    | '/more'
     | '/philosophy'
     | '/process'
     | '/questionnaire'
     | '/sitemap.xml'
-    | '/studs'
     | '/kittens/$id'
-    | '/kittens'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/admin'
+    | '/cats'
+    | '/discover'
     | '/environment'
     | '/feeding'
-    | '/more'
     | '/philosophy'
     | '/process'
     | '/questionnaire'
     | '/sitemap.xml'
-    | '/studs'
     | '/kittens/$id'
-    | '/kittens/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
+  CatsRoute: typeof CatsRoute
+  DiscoverRoute: typeof DiscoverRoute
   EnvironmentRoute: typeof EnvironmentRoute
   FeedingRoute: typeof FeedingRoute
-  MoreRoute: typeof MoreRoute
   PhilosophyRoute: typeof PhilosophyRoute
   ProcessRoute: typeof ProcessRoute
   QuestionnaireRoute: typeof QuestionnaireRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  StudsRoute: typeof StudsRoute
   KittensIdRoute: typeof KittensIdRoute
-  KittensIndexRoute: typeof KittensIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/studs': {
-      id: '/studs'
-      path: '/studs'
-      fullPath: '/studs'
-      preLoaderRoute: typeof StudsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -236,13 +216,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PhilosophyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/more': {
-      id: '/more'
-      path: '/more'
-      fullPath: '/more'
-      preLoaderRoute: typeof MoreRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/feeding': {
       id: '/feeding'
       path: '/feeding'
@@ -255,6 +228,20 @@ declare module '@tanstack/react-router' {
       path: '/environment'
       fullPath: '/environment'
       preLoaderRoute: typeof EnvironmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/discover': {
+      id: '/discover'
+      path: '/discover'
+      fullPath: '/discover'
+      preLoaderRoute: typeof DiscoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cats': {
+      id: '/cats'
+      path: '/cats'
+      fullPath: '/cats'
+      preLoaderRoute: typeof CatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -278,13 +265,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/kittens/': {
-      id: '/kittens/'
-      path: '/kittens'
-      fullPath: '/kittens/'
-      preLoaderRoute: typeof KittensIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/kittens/$id': {
       id: '/kittens/$id'
       path: '/kittens/$id'
@@ -299,16 +279,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
+  CatsRoute: CatsRoute,
+  DiscoverRoute: DiscoverRoute,
   EnvironmentRoute: EnvironmentRoute,
   FeedingRoute: FeedingRoute,
-  MoreRoute: MoreRoute,
   PhilosophyRoute: PhilosophyRoute,
   ProcessRoute: ProcessRoute,
   QuestionnaireRoute: QuestionnaireRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  StudsRoute: StudsRoute,
   KittensIdRoute: KittensIdRoute,
-  KittensIndexRoute: KittensIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

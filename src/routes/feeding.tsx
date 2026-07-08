@@ -55,7 +55,7 @@ const MODULES = [
 
 function Feeding() {
   return (
-    <PhoneFrame title="猫舍喂养" backTo="/">
+    <PhoneFrame title="猫舍喂养" backTo="/discover">
       <Section className="pt-1">
         <Card className="bg-gradient-cream p-4">
           <div className="mb-1 flex items-center gap-2">
