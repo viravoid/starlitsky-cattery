@@ -49,11 +49,9 @@ function About() {
       <Section className="mt-6">
         <SectionTitle cn="猫舍名片" en="At a glance" />
         <div className="grid grid-cols-2 gap-2.5">
-          {FACTS.map(({ label, Icon }) => (
+          {FACTS.map(({ label, Art }) => (
             <Card key={label} className="flex items-center gap-2.5 p-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-sky/25">
-                <Icon className="h-5 w-5 text-heading" />
-              </span>
+              <Art className="h-9 w-9 shrink-0 text-violet/80" />
               <span className="text-[13px] font-medium leading-snug text-card-foreground">
                 {label}
               </span>
