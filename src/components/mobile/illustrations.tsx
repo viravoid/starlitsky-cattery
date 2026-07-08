@@ -23,8 +23,6 @@ export function CatProfile(props: P) {
     <svg {...base} strokeWidth={1.5} {...props}>
       {/* Crescent moon */}
       <path d="M58 16c-12 0-20 10-20 23s8 23 20 23c-6 0-12-9-12-23s6-23 12-23z" />
-      {/* One small star */}
-      <path d="M22 32l.5 1.3 1.3.2-1 .9.3 1.3-1.2-.7-1.2.7.3-1.3-1-.9 1.3-.2z" />
       {/* Cat body */}
       <path d="M24 62c-4 0-6-6-4-11s8-9 14-7" />
       {/* Chest and front legs */}
