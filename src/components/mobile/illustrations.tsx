@@ -17,32 +17,67 @@ const base = {
   strokeLinejoin: "round" as const,
 };
 
-/** Maine coon side profile — tufted ears, ruff, gentle face. */
+/** Sitting cat gazing up at a crescent moon and stars — for "了解星月". */
 export function CatProfile(props: P) {
   return (
     <svg {...base} {...props}>
-      <path d="M15 46c-3-10-1-19 6-25l-3-11 11 8c4-2 9-2 13 0l11-8-3 11c7 6 9 15 6 25" />
-      <path d="M15 46c1 12 12 19 25 19s24-7 25-19" />
-      <path d="M27 40c1.6-2 4.6-2 6 0" />
-      <path d="M47 40c1.6-2 4.6-2 6 0" />
-      <path d="M39 47l1.6 3h-3.2z" />
-      <path d="M40 50v3" />
-      <path d="M40 53c-1.4 1.6-4 1.6-5.4 0" />
-      <path d="M40 53c1.4 1.6 4 1.6 5.4 0" />
+      {/* Crescent moon */}
+      <path d="M54 14c-13 0-22 11-22 25s9 25 22 25c-7 0-14-10-14-25s7-25 14-25z" />
+      {/* Large star */}
+      <path d="M60 26l.9 2.4 2.5.3-1.8 1.7.5 2.5-2.2-1.3-2.2 1.3.5-2.5-1.8-1.7 2.5-.3z" />
+      {/* Small star */}
+      <path d="M22 32l.5 1.3 1.4.2-1 .9.3 1.4-1.2-.7-1.2.7.3-1.4-1-.9 1.4-.2z" />
+      {/* Cat body */}
+      <path d="M24 58c-4 0-6-6-4-12s8-10 14-8" />
+      <path d="M34 38c4-2 10-2 14 0" />
+      {/* Front paws */}
+      <path d="M30 52v6" />
+      <path d="M40 52v6" />
+      {/* Head, looking up */}
+      <path d="M28 34c0-7 6-13 14-13s14 6 14 13" />
+      {/* Tufted ears */}
+      <path d="M30 24l-3-8 8 6" />
+      <path d="M32 22l-1-5 5 4" />
+      <path d="M50 24l3-8-8 6" />
+      <path d="M48 22l1-5-5 4" />
+      {/* Face */}
+      <path d="M36 34c1-1 3-1 4 0" />
+      <path d="M46 34c1-1 3-1 4 0" />
+      <path d="M40 40l1 2h-2z" />
+      {/* Tail curled around */}
+      <path d="M48 56c7 0 11-5 9-11" />
     </svg>
   );
 }
 
-/** Curled sleeping cat — one continuous spiral body, tiny ears. */
+/** Adult cat sitting with a small kitten — for "我们的猫". */
 export function CurledCat(props: P) {
   return (
     <svg {...base} {...props}>
-      <path d="M13 44C10 28 26 17 43 20c13 2 22 13 17 25-4 11-20 15-31 11" />
-      <path d="M29 56c7-2 11-8 10-15-1-6 3-11 9-12" />
-      <path d="M46 15l2 5 5-1-3 5" />
-      <path d="M20 33c-3 0-5-2-5-5" />
-      <path d="M24 30l-1-4 4 2" />
-      <path d="M30 28l-1-4 4 2" />
+      {/* Adult cat */}
+      <path d="M18 58c-4 0-6-6-4-12s8-10 14-8" />
+      <path d="M28 38c4-2 10-2 14 0" />
+      <path d="M24 52v6" />
+      <path d="M34 52v6" />
+      <path d="M22 34c0-7 6-13 14-13s14 6 14 13" />
+      <path d="M24 24l-3-8 8 6" />
+      <path d="M26 22l-1-5 5 4" />
+      <path d="M46 24l3-8-8 6" />
+      <path d="M44 22l1-5-5 4" />
+      <path d="M30 34c1-1 3-1 4 0" />
+      <path d="M40 34c1-1 3-1 4 0" />
+      <path d="M34 40l1 2h-2z" />
+      {/* Kitten beside adult */}
+      <path d="M48 58c-3 0-4-4-2-8s6-6 10-4" />
+      <path d="M56 50v8" />
+      <path d="M52 44c0-5 4-9 9-9s9 4 9 9" />
+      <path d="M55 37l-2-5 5 3" />
+      <path d="M57 36l-1-3 3 2" />
+      <path d="M67 37l2-5-5 3" />
+      <path d="M65 36l1-3-3 2" />
+      <path d="M58 44c.8-.8 2.2-.8 3 0" />
+      <path d="M64 44c.8-.8 2.2-.8 3 0" />
+      <path d="M61 48l.8 1.5h-1.6z" />
     </svg>
   );
 }
