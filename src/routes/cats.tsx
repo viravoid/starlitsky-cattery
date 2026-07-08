@@ -65,7 +65,6 @@ function CatCard({
 }) {
   return (
     <Link
-      // @ts-expect-error dynamic route string
       to={to}
       params={params}
       className="pressable block overflow-hidden rounded-3xl border border-border bg-card shadow-card"
