@@ -2,9 +2,9 @@ export const WECHAT_ID = "xingyuemianyinmao";
 
 export const SOCIALS = [
   { label: "微信号", value: "xingyuemianyinmao" },
-  { label: "小红书", value: "星月缅因猫舍" },
+  { label: "小红书", value: "StarlitSky星月缅因猫舍" },
   { label: "微博", value: "星月缅因猫舍" },
-  { label: "抖音", value: "星月缅因猫舍" },
+  { label: "抖音", value: "星月家的猫" },
 ];
 
 export type StudCategory = "现役公猫" | "预备役公猫" | "现役母猫" | "退役种猫";
