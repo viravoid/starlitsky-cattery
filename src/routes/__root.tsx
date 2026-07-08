@@ -76,20 +76,39 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, maximum-scale=1",
+      },
+      { title: "星月缅因猫舍 StarlitSky Maine Coon Cattery" },
+      {
+        name: "description",
+        content:
+          "星月缅因猫舍 · 西安 · 2019 年成立，WCF / CFA 注册，自繁自养别墅散养。有温度的缅因猫舍品牌与小猫信息展示。",
+      },
+      { name: "author", content: "StarlitSky Maine Coon Cattery" },
+      { property: "og:title", content: "星月缅因猫舍 StarlitSky Maine Coon Cattery" },
+      {
+        property: "og:description",
+        content: "做一家有温度的缅因猫舍 · 自繁自养，陪伴小猫从出生到新家。",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Quicksand:wght@400;500;600;700&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],

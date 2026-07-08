@@ -9,8 +9,50 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StudsRouteImport } from './routes/studs'
+import { Route as QuestionnaireRouteImport } from './routes/questionnaire'
+import { Route as ProcessRouteImport } from './routes/process'
+import { Route as PhilosophyRouteImport } from './routes/philosophy'
+import { Route as FeedingRouteImport } from './routes/feeding'
+import { Route as EnvironmentRouteImport } from './routes/environment'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
+const StudsRoute = StudsRouteImport.update({
+  id: '/studs',
+  path: '/studs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuestionnaireRoute = QuestionnaireRouteImport.update({
+  id: '/questionnaire',
+  path: '/questionnaire',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcessRoute = ProcessRouteImport.update({
+  id: '/process',
+  path: '/process',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PhilosophyRoute = PhilosophyRouteImport.update({
+  id: '/philosophy',
+  path: '/philosophy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedingRoute = FeedingRouteImport.update({
+  id: '/feeding',
+  path: '/feeding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnvironmentRoute = EnvironmentRouteImport.update({
+  id: '/environment',
+  path: '/environment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +61,130 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/environment': typeof EnvironmentRoute
+  '/feeding': typeof FeedingRoute
+  '/philosophy': typeof PhilosophyRoute
+  '/process': typeof ProcessRoute
+  '/questionnaire': typeof QuestionnaireRoute
+  '/studs': typeof StudsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/environment': typeof EnvironmentRoute
+  '/feeding': typeof FeedingRoute
+  '/philosophy': typeof PhilosophyRoute
+  '/process': typeof ProcessRoute
+  '/questionnaire': typeof QuestionnaireRoute
+  '/studs': typeof StudsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/environment': typeof EnvironmentRoute
+  '/feeding': typeof FeedingRoute
+  '/philosophy': typeof PhilosophyRoute
+  '/process': typeof ProcessRoute
+  '/questionnaire': typeof QuestionnaireRoute
+  '/studs': typeof StudsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/environment'
+    | '/feeding'
+    | '/philosophy'
+    | '/process'
+    | '/questionnaire'
+    | '/studs'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/about'
+    | '/environment'
+    | '/feeding'
+    | '/philosophy'
+    | '/process'
+    | '/questionnaire'
+    | '/studs'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/environment'
+    | '/feeding'
+    | '/philosophy'
+    | '/process'
+    | '/questionnaire'
+    | '/studs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  EnvironmentRoute: typeof EnvironmentRoute
+  FeedingRoute: typeof FeedingRoute
+  PhilosophyRoute: typeof PhilosophyRoute
+  ProcessRoute: typeof ProcessRoute
+  QuestionnaireRoute: typeof QuestionnaireRoute
+  StudsRoute: typeof StudsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/studs': {
+      id: '/studs'
+      path: '/studs'
+      fullPath: '/studs'
+      preLoaderRoute: typeof StudsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/questionnaire': {
+      id: '/questionnaire'
+      path: '/questionnaire'
+      fullPath: '/questionnaire'
+      preLoaderRoute: typeof QuestionnaireRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/process': {
+      id: '/process'
+      path: '/process'
+      fullPath: '/process'
+      preLoaderRoute: typeof ProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/philosophy': {
+      id: '/philosophy'
+      path: '/philosophy'
+      fullPath: '/philosophy'
+      preLoaderRoute: typeof PhilosophyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feeding': {
+      id: '/feeding'
+      path: '/feeding'
+      fullPath: '/feeding'
+      preLoaderRoute: typeof FeedingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/environment': {
+      id: '/environment'
+      path: '/environment'
+      fullPath: '/environment'
+      preLoaderRoute: typeof EnvironmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +197,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  EnvironmentRoute: EnvironmentRoute,
+  FeedingRoute: FeedingRoute,
+  PhilosophyRoute: PhilosophyRoute,
+  ProcessRoute: ProcessRoute,
+  QuestionnaireRoute: QuestionnaireRoute,
+  StudsRoute: StudsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
