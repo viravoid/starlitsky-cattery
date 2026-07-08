@@ -232,16 +232,6 @@ function Cats() {
           )}
         </Section>
       )}
-
-      {/* Contact hint */}
-      <Section className="mb-8">
-        <div className="rounded-2xl bg-muted p-3.5">
-          <p className="mb-2 text-[12px] text-muted-foreground">
-            想第一时间了解小猫情况？复制微信号咨询：
-          </p>
-          <CopyText label="微信号" value={WECHAT_ID} />
-        </div>
-      </Section>
     </PhoneFrame>
   );
 }

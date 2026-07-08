@@ -131,7 +131,7 @@ function Home() {
             想进一步了解星月的小猫
           </p>
           <p className="mx-auto mt-2 max-w-[16rem] text-[12.5px] leading-relaxed text-foreground">
-            可以先填写选猫问卷，或复制微信号与我们慢慢聊。
+            可以先填写选猫问卷，我们会认真查看每一份回复。
           </p>
           <div className="mt-4 flex flex-col gap-2.5">
             <Link
@@ -140,9 +140,6 @@ function Home() {
             >
               <PaperIcon className="h-4 w-4" /> 填写选猫问卷
             </Link>
-            <div className="mx-auto w-full max-w-[15rem]">
-              <CopyText label="微信号" value={WECHAT_ID} />
-            </div>
           </div>
         </div>
       </Section>

@@ -29,7 +29,6 @@ function StudDetail() {
       backTo="/cats"
       bottomBar={
         <div className="flex gap-2.5 border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
-          <CopyText value="xingyuemianyinmao" variant="button" />
           <Link
             to="/questionnaire"
             className="pressable inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-violet px-4 py-3 text-sm font-semibold text-white shadow-card"
