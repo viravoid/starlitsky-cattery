@@ -56,7 +56,7 @@ const MODULES = [
 
 function Philosophy() {
   return (
-    <PhoneFrame title="繁育理念" backTo="/">
+    <PhoneFrame title="繁育理念" backTo="/discover">
       <Section className="pt-1">
         <Card className="relative overflow-hidden bg-gradient-hero p-5">
           <StarIcon className="absolute right-4 top-4 h-4 w-4 text-white/70" />
