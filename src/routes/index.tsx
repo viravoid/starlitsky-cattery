@@ -100,7 +100,7 @@ function Home() {
         </div>
 
         {/* 02 · 我们的猫 */}
-        <Section className="mt-14">
+        <Section>
           <Link to="/cats" className="pressable block">
             <CurledCat className="h-14 w-14 text-[#a0876a]/50" />
             <p className="mt-5 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
