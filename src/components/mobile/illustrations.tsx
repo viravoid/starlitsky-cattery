@@ -17,23 +17,26 @@ const base = {
   strokeLinejoin: "round" as const,
 };
 
-/** Cat sitting beneath a crescent moon — clean, minimal column illustration for "了解星月". */
+/** A quiet little cattery home with an arched window and a crescent moon —
+ *  "walk into StarlitSky's small world" motif for "了解星月". One home + one moon. */
 export function CatProfile(props: P) {
   return (
-    <svg {...base} strokeWidth={1.5} {...props}>
-      {/* Crescent moon */}
-      <path d="M58 16c-12 0-20 10-20 23s8 23 20 23c-6 0-12-9-12-23s6-23 12-23z" />
-      {/* Cat body */}
-      <path d="M24 62c-4 0-6-6-4-11s8-9 14-7" />
-      {/* Chest and front legs */}
-      <path d="M34 48c5 1 10 6 10 12" />
-      <path d="M38 60v6" />
-      <path d="M44 60v6" />
-      {/* Head in profile, looking up */}
-      <path d="M28 46c0-6 5-11 12-11s12 5 12 11" />
-      {/* Tufted ears */}
-      <path d="M30 38l-3-7 7 5" />
-      <path d="M42 38l3-7-7 5" />
+    <svg {...base} strokeWidth={1.4} {...props}>
+      {/* softly peaked roof */}
+      <path d="M15 37q25-22 50 0" />
+      {/* walls + floor */}
+      <path d="M23 37v25" />
+      <path d="M57 37v25" />
+      <path d="M21 62h38" />
+      {/* arched window, glowing warm inside */}
+      <path d="M33 62V49a7 7 0 0 1 14 0v13" />
+      <path d="M33 55h14" />
+      {/* a small cat resting on the sill, seen from the room */}
+      <path d="M37 62c-1-4 1-6 3-6s4 2 3 6" />
+      <path d="M38 54l-1-3 2 2" />
+      <path d="M42 54l1-3-2 2" />
+      {/* crescent moon in the night sky, upper right */}
+      <path d="M62 15c-4 0-7 3-7 7s3 7 7 7c-3-1-4-3-4-7s1-6 4-7z" />
     </svg>
   );
 }

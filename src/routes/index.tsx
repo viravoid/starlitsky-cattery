@@ -73,19 +73,23 @@ function Home() {
         </div>
       </div>
 
-      {/* ── Two doorways, as a hand-drawn guide ──── */}
+      {/* ── Two doorways — an editorial, off-balance guide ── */}
       <div className="mt-14">
-        {/* 01 · 了解星月 */}
+        {/* 01 · 了解星月 — left-weighted, illustration hugging the title */}
         <Section>
-          <Link to="/discover" className="pressable block">
-            <CatProfile className="h-16 w-16 text-[#4a5e8f]/40" />
-            <p className="mt-4 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
-              01 · About StarlitSky
-            </p>
-            <h2 className="mt-1 text-[20px] font-bold text-heading">
-              了解星月
-            </h2>
-            <p className="mt-1.5 text-[12.5px] leading-[1.85] text-foreground">
+          <Link to="/discover" className="pressable block max-w-[15.5rem]">
+            <div className="flex items-start gap-3.5">
+              <CatProfile className="-mt-1 h-14 w-14 shrink-0 text-[#4a5e8f]/45" />
+              <div className="pt-0.5">
+                <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+                  01 · About StarlitSky
+                </p>
+                <h2 className="mt-1 text-[21px] font-bold leading-none text-heading">
+                  了解星月
+                </h2>
+              </div>
+            </div>
+            <p className="mt-3.5 text-[12.5px] leading-[1.85] text-foreground">
               我们是谁、如何繁育、住在怎样的环境，以及接猫流程与售后。
             </p>
             <span className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet">
@@ -94,22 +98,25 @@ function Home() {
           </Link>
         </Section>
 
-        {/* connecting hand-drawn trail */}
-        <div className="my-6 flex justify-center">
+        {/* connecting hand-drawn trail, nudged off-centre */}
+        <div className="my-7 flex justify-end pr-14">
           <PawTrail />
         </div>
 
-        {/* 02 · 我们的猫 */}
+        {/* 02 · 我们的猫 — right-weighted, illustration as a corner accent */}
         <Section>
-          <Link to="/cats" className="pressable block">
-            <CurledCat className="h-16 w-16 text-[#a0876a]/40" />
-            <p className="mt-4 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+          <Link
+            to="/cats"
+            className="pressable relative ml-auto block max-w-[16.5rem] text-right"
+          >
+            <CurledCat className="absolute -left-3 bottom-1 h-16 w-16 text-[#a0876a]/30" />
+            <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
               02 · Our Cats
             </p>
-            <h2 className="mt-1 text-[20px] font-bold text-heading">
+            <h2 className="mt-1 text-[22px] font-bold leading-none text-heading">
               我们的猫
             </h2>
-            <p className="mt-1.5 text-[12.5px] leading-[1.85] text-foreground">
+            <p className="ml-auto mt-3 max-w-[13.5rem] text-[12.5px] leading-[1.9] text-foreground">
               在售与观察中的小猫，以及陪伴我们的种猫，血线清晰、健康透明。
             </p>
             <span className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet">
@@ -118,6 +125,7 @@ function Home() {
           </Link>
         </Section>
       </div>
+
 
 
 
