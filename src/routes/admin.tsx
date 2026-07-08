@@ -14,7 +14,7 @@ import {
 import { KITTENS, statusTone } from "@/lib/cattery-data";
 
 export const Route = createFileRoute("/admin")({
-  component: Admin;
+  component: Admin,
 });
 
 const STATS = [
