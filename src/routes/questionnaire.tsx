@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
-import { CopyText } from "@/components/mobile/CopyText";
 import { PaperIcon, CheckIcon, HeartIcon } from "@/components/mobile/icons";
 import { WECHAT_ID } from "@/lib/cattery-data";
 

@@ -2,7 +2,6 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Card, Pill } from "@/components/mobile/ui";
 import { Carousel } from "@/components/mobile/Carousel";
-import { CopyText } from "@/components/mobile/CopyText";
 import { PaperIcon, CheckIcon, StarIcon } from "@/components/mobile/icons";
 import { KITTENS, statusTone } from "@/lib/cattery-data";
 

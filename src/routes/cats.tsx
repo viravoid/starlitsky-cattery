@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
-import { CopyText } from "@/components/mobile/CopyText";
 import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
 import { CurledCat } from "@/components/mobile/illustrations";
 import {
