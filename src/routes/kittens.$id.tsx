@@ -2,7 +2,6 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Card, Pill } from "@/components/mobile/ui";
 import { Carousel } from "@/components/mobile/Carousel";
-import { CopyText } from "@/components/mobile/CopyText";
 import { PaperIcon, CheckIcon, StarIcon } from "@/components/mobile/icons";
 import { KITTENS, statusTone } from "@/lib/cattery-data";
 
@@ -45,7 +44,6 @@ function KittenDetail() {
       backTo="/cats"
       bottomBar={
         <div className="flex gap-2.5 border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
-          <CopyText value="xingyuemianyinmao" variant="button" />
           <Link
             to="/questionnaire"
             className="pressable inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-violet px-4 py-3 text-sm font-semibold text-white shadow-card"

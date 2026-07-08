@@ -2,14 +2,13 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
-import { CopyText } from "@/components/mobile/CopyText";
 import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
 import { CurledCat } from "@/components/mobile/illustrations";
 import {
   KITTENS,
   STUDS,
   statusTone,
-  WECHAT_ID,
+  
   type KittenStatus,
   type StudCategory,
 } from "@/lib/cattery-data";
@@ -232,16 +231,6 @@ function Cats() {
           )}
         </Section>
       )}
-
-      {/* Contact hint */}
-      <Section className="mb-8">
-        <div className="rounded-2xl bg-muted p-3.5">
-          <p className="mb-2 text-[12px] text-muted-foreground">
-            想第一时间了解小猫情况？复制微信号咨询：
-          </p>
-          <CopyText label="微信号" value={WECHAT_ID} />
-        </div>
-      </Section>
     </PhoneFrame>
   );
 }

@@ -2,9 +2,8 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
-import { CopyText } from "@/components/mobile/CopyText";
 import { PaperIcon, CheckIcon, HeartIcon } from "@/components/mobile/icons";
-import { WECHAT_ID } from "@/lib/cattery-data";
+
 
 export const Route = createFileRoute("/questionnaire")({
   head: () => ({
@@ -183,11 +182,8 @@ function Questionnaire() {
             问卷已提交，感谢你的填写
           </h2>
           <p className="mt-2 text-[13px] leading-relaxed text-foreground">
-            也可以复制微信号与我们联系：
+            我们会尽快查看你的问卷，请耐心等待回复。
           </p>
-          <div className="mt-4 w-full max-w-xs">
-            <CopyText label="微信号" value={WECHAT_ID} />
-          </div>
           <button
             onClick={() => setSubmitted(false)}
             className="pressable mt-6 text-[13px] font-semibold text-violet"
