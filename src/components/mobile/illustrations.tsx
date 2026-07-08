@@ -207,6 +207,50 @@ export function PawCheck(props: P) {
   );
 }
 
+/** A single flowing cat tail that curls into an arc — decorative accent. */
+export function TailArc(props: P) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M14 60c18 4 30-2 36-14s2-24-8-27c-8-2-13 4-11 11 1 5 6 7 10 4" />
+      <path d="M52 22l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" />
+    </svg>
+  );
+}
+
+/** A small window with curtains — a glimpse into the cattery. */
+export function Window(props: P) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="20" y="16" width="40" height="48" rx="3" />
+      <path d="M40 16v48M20 40h40" />
+      <path d="M20 16c5 6 5 14 0 20M60 16c-5 6-5 14 0 20" />
+      <path d="M12 64h56" />
+    </svg>
+  );
+}
+
+/** A trail of three paw prints — walking through the content. */
+export function PawTrail({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex items-center gap-4 text-warm/45 ${className}`}>
+      {[0, 1, 2].map((i) => (
+        <svg
+          key={i}
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          className={`h-3 w-3 ${i === 1 ? "translate-y-1.5" : ""}`}
+        >
+          <ellipse cx="12" cy="15" rx="5" ry="4" />
+          <ellipse cx="6" cy="9" rx="1.8" ry="2.4" />
+          <ellipse cx="18" cy="9" rx="1.8" ry="2.4" />
+          <ellipse cx="9" cy="5.5" rx="1.6" ry="2.1" />
+          <ellipse cx="15" cy="5.5" rx="1.6" ry="2.1" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Decorative divider: a soft hand-drawn line with a small star at center.
  * Use to separate content sections without a hard rule.
