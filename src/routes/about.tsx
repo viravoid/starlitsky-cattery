@@ -1,27 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, SectionTitle, Card, Placeholder } from "@/components/mobile/ui";
+import { PawIcon } from "@/components/mobile/icons";
 import {
-  StarIcon,
-  HouseIcon,
-  ShieldIcon,
-  DnaIcon,
-  UserIcon,
-  CatIcon,
-  PawIcon,
-} from "@/components/mobile/icons";
+  MoonStars,
+  Cottage,
+  Rosette,
+  HeartPaw,
+  CurledCat,
+  PawCheck,
+} from "@/components/mobile/illustrations";
 
 export const Route = createFileRoute("/about")({
   component: About,
 });
 
 const FACTS = [
-  { label: "2019 年成立", Icon: StarIcon },
-  { label: "西安", Icon: HouseIcon },
-  { label: "WCF / CFA 注册", Icon: ShieldIcon },
-  { label: "全职猫家长", Icon: UserIcon },
-  { label: "自繁自养", Icon: CatIcon },
-  { label: "遗传病筛查 all n/n", Icon: DnaIcon },
+  { label: "2019 年成立", Art: MoonStars },
+  { label: "西安", Art: Cottage },
+  { label: "WCF / CFA 注册", Art: Rosette },
+  { label: "全职猫家长", Art: HeartPaw },
+  { label: "自繁自养", Art: CurledCat },
+  { label: "遗传病筛查 all n/n", Art: PawCheck },
 ];
 
 function About() {
