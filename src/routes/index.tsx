@@ -12,7 +12,6 @@ import {
   RouteIcon,
   ShieldIcon,
   PaperIcon,
-  MoonIcon,
   StarIcon,
   ChevronRightIcon,
   HeartIcon,
