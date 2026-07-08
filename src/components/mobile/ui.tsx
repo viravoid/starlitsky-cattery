@@ -1,39 +1,44 @@
 import type { ReactNode } from "react";
-import { CatIcon } from "./icons";
+import catMotif from "@/assets/placeholder-cat.png";
 
 /**
- * Light placeholder image block for missing photos.
- * Always labelled so it's obvious it must be replaced.
+ * Minimal placeholder image block for missing photos.
+ * Calm cream tint + a single hand-drawn sleeping cat motif.
+ * No busy patterns — plenty of breathing room.
  */
 export function Placeholder({
   label,
   className = "",
   ratio = "aspect-[4/3]",
   rounded = "rounded-2xl",
+  compact = false,
 }: {
   label: string;
   className?: string;
   ratio?: string;
   rounded?: string;
+  compact?: boolean;
 }) {
   return (
     <div
-      className={`relative flex ${ratio} w-full flex-col items-center justify-center gap-2 overflow-hidden ${rounded} border border-dashed border-border bg-gradient-cream ${className}`}
+      className={`relative flex ${ratio} w-full flex-col items-center justify-center gap-2.5 overflow-hidden ${rounded} bg-gradient-cream ${className}`}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.5]"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(45deg, transparent 0 12px, color-mix(in oklab, var(--warm) 18%, transparent) 12px 13px)",
-        }}
+      <img
+        src={catMotif}
+        alt=""
+        aria-hidden
+        loading="lazy"
+        className={`${compact ? "w-1/2" : "w-[36%]"} max-w-[128px] opacity-40 mix-blend-multiply`}
       />
-      <CatIcon className="h-9 w-9 text-warm" />
-      <span className="relative px-4 text-center text-xs font-medium leading-relaxed text-muted-foreground">
-        {label}
-      </span>
+      {!compact && (
+        <span className="px-6 text-center text-[11px] font-medium leading-relaxed text-warm">
+          {label}
+        </span>
+      )}
     </div>
   );
 }
+
 
 export function Section({
   children,

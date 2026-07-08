@@ -12,12 +12,12 @@ import {
   RouteIcon,
   ShieldIcon,
   PaperIcon,
-  MoonIcon,
   StarIcon,
   ChevronRightIcon,
   HeartIcon,
 } from "@/components/mobile/icons";
 import { KITTENS, WECHAT_ID, statusTone } from "@/lib/cattery-data";
+import heroCats from "@/assets/hero-cats.png";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -50,49 +50,43 @@ const ADVANTAGES = [
 function Home() {
   return (
     <PhoneFrame activeTab="home" showTabBar>
-      {/* Brand region */}
-      <div className="relative overflow-hidden bg-gradient-hero px-5 pb-8 pt-6">
-        <StarIcon className="absolute right-6 top-4 h-5 w-5 text-white/70" />
-        <MoonIcon className="absolute right-12 top-10 h-8 w-8 text-white/60" />
-        <StarIcon className="absolute left-8 top-16 h-3.5 w-3.5 text-white/60" />
-        <p className="font-display text-[11px] uppercase tracking-[0.3em] text-[#4a5e8f]">
+      {/* Brand hero */}
+      <div className="relative px-6 pb-4 pt-4 text-center">
+        <StarIcon className="absolute left-7 top-8 h-4 w-4 text-primary/70" />
+        <StarIcon className="absolute right-8 top-16 h-3 w-3 text-violet/50" />
+        <p className="font-display text-[11px] uppercase tracking-[0.32em] text-violet">
           Est. 2019 · Xi'an
         </p>
-        <h1 className="mt-2 text-[27px] font-bold leading-tight text-heading">
+        <img
+          src={heroCats}
+          alt="星月缅因猫舍 手绘缅因猫插画"
+          width={1440}
+          height={1040}
+          className="mx-auto mt-1 w-[82%] max-w-[300px]"
+        />
+        <h1 className="-mt-2 text-[26px] font-bold leading-tight text-heading">
           星月缅因猫舍
         </h1>
         <p className="font-display text-[13px] italic leading-snug text-[#4a5e8f]">
           StarlitSky Maine Coon Cattery
         </p>
-        <p className="mt-3 max-w-[15rem] text-[13px] leading-relaxed text-[#6b5644]">
+        <p className="mx-auto mt-2.5 max-w-[16rem] text-[12.5px] leading-relaxed text-foreground">
           做一家有温度的缅因猫舍 · 自繁自养，陪伴小猫从出生到新家。
         </p>
+        <div className="mt-3.5 flex flex-wrap justify-center gap-1.5">
+          <Pill tone="sky">2019 年成立</Pill>
+          <Pill tone="creamblue">西安猫舍</Pill>
+          <Pill tone="violet">WCF / CFA 注册</Pill>
+          <Pill tone="sunny">别墅散养</Pill>
+        </div>
       </div>
 
-      {/* Carousel */}
-      <Section className="-mt-4">
+      {/* Feature band */}
+      <Section className="mt-3">
         <Carousel
           slides={[
             {
-              label: "示例图片（首页轮播图 1，待替换）",
-              overlay: (
-                <div className="flex flex-wrap gap-1.5">
-                  <Pill tone="violet">2019 年成立</Pill>
-                  <Pill tone="sky">西安 · 缅因猫舍</Pill>
-                </div>
-              ),
-            },
-            {
-              label: "示例图片（首页轮播图 2，待替换）",
-              overlay: (
-                <div className="flex flex-wrap gap-1.5">
-                  <Pill tone="violet">WCF / CFA 注册</Pill>
-                  <Pill tone="sunny">自繁自养</Pill>
-                </div>
-              ),
-            },
-            {
-              label: "示例图片（首页轮播图 3，待替换）",
+              label: "示例图片（首页轮播图 1 · 猫舍环境，待替换）",
               overlay: (
                 <div className="flex flex-wrap gap-1.5">
                   <Pill tone="violet">别墅散养</Pill>
@@ -100,9 +94,28 @@ function Home() {
                 </div>
               ),
             },
+            {
+              label: "示例图片（首页轮播图 2 · 小猫日常，待替换）",
+              overlay: (
+                <div className="flex flex-wrap gap-1.5">
+                  <Pill tone="violet">自繁自养</Pill>
+                  <Pill tone="sunny">社会化训练</Pill>
+                </div>
+              ),
+            },
+            {
+              label: "示例图片（首页轮播图 3 · 种猫风采，待替换）",
+              overlay: (
+                <div className="flex flex-wrap gap-1.5">
+                  <Pill tone="violet">血线清晰</Pill>
+                  <Pill tone="sky">all n/n</Pill>
+                </div>
+              ),
+            },
           ]}
         />
       </Section>
+
 
       {/* Quick entries */}
       <Section className="mt-7">
