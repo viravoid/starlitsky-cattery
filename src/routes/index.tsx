@@ -18,6 +18,7 @@ import {
   HeartIcon,
 } from "@/components/mobile/icons";
 import { KITTENS, WECHAT_ID, statusTone } from "@/lib/cattery-data";
+import heroCats from "@/assets/hero-cats.png";
 
 export const Route = createFileRoute("/")({
   component: Home,
