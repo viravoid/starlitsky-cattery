@@ -4,10 +4,8 @@ import { Section } from "@/components/mobile/ui";
 import { CopyText } from "@/components/mobile/CopyText";
 import {
   CatIcon,
-  PawIcon,
-  HouseIcon,
-  PaperIcon,
   StarIcon,
+  PaperIcon,
   ChevronRightIcon,
 } from "@/components/mobile/icons";
 import { WECHAT_ID } from "@/lib/cattery-data";
@@ -18,12 +16,22 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-/** Four — and only four — primary destinations. */
-const PRIMARY = [
-  { label: "现猫介绍", en: "Kittens", to: "/kittens", Icon: CatIcon },
-  { label: "种猫介绍", en: "Studs", to: "/studs", Icon: PawIcon },
-  { label: "猫舍环境", en: "Cattery", to: "/environment", Icon: HouseIcon },
-  { label: "选猫问卷", en: "Enquiry", to: "/questionnaire", Icon: PaperIcon },
+/** Two primary destinations — the whole app funnels through these. */
+const ENTRIES = [
+  {
+    label: "了解星月",
+    en: "About StarlitSky",
+    desc: "猫舍介绍 · 理念 · 环境 · 流程 · 售后",
+    to: "/discover",
+    Icon: StarIcon,
+  },
+  {
+    label: "我们的猫",
+    en: "Our Cats",
+    desc: "在售小猫 · 观察中 · 种猫介绍",
+    to: "/cats",
+    Icon: CatIcon,
+  },
 ] as const;
 
 function Home() {
@@ -50,7 +58,7 @@ function Home() {
           StarlitSky Maine Coon Cattery
         </p>
         <p className="mx-auto mt-3.5 max-w-[17rem] text-[13px] leading-[1.9] text-foreground">
-          成立于 2019 年，位于西安。我们坚持自繁自养、低频率繁育与小猫社会化训练，陪伴小猫从出生到去新家。
+          做一家有温度的缅因猫舍。坚持自繁自养、低频率繁育与小猫社会化训练，陪伴小猫从出生到去新家。
         </p>
         <div className="mt-4 flex items-center justify-center gap-3 text-[11.5px] font-medium text-warm">
           <span>2019 年成立</span>
@@ -82,57 +90,42 @@ function Home() {
         </div>
       </Section>
 
-      {/* ── Primary destinations ─────────────────── */}
-      <Section className="mt-7">
-        <div className="grid grid-cols-2 gap-3">
-          {PRIMARY.map(({ label, en, to, Icon }) => (
-            <Link
-              key={label}
-              to={to}
-              className="pressable group relative flex flex-col justify-between overflow-hidden rounded-[1.5rem] border border-border bg-card p-4 shadow-card"
-            >
-              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-sky/25 text-heading">
-                <Icon className="h-[22px] w-[22px]" />
+      {/* ── Two primary entries ──────────────────── */}
+      <Section className="mt-7 space-y-3">
+        {ENTRIES.map(({ label, en, desc, to, Icon }) => (
+          <Link
+            key={label}
+            to={to}
+            className="pressable flex items-center gap-4 rounded-[1.5rem] border border-border bg-card p-4 shadow-card"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sky/25 text-heading">
+              <Icon className="h-6 w-6" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-semibold text-heading">
+                {label}
               </span>
-              <div className="mt-6">
-                <p className="text-[15px] font-semibold text-heading">{label}</p>
-                <p className="mt-0.5 font-display text-[10px] uppercase tracking-[0.22em] text-warm">
-                  {en}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── Short about ──────────────────────────── */}
-      <Section className="mt-9">
-        <p className="font-display text-[11px] uppercase tracking-[0.28em] text-warm">
-          About
-        </p>
-        <h2 className="mt-1.5 text-[18px] font-semibold leading-snug text-heading">
-          做一家有温度的缅因猫舍
-        </h2>
-        <p className="mt-3 text-[13.5px] leading-[2] text-foreground">
-          星月缅因猫舍成立于 2019 年，位于西安，注册于 WCF、CFA 协会。由星下和月七两位主理人全职经营，日常陪伴小猫成长，记录窝次日常，并从小进行社会化训练。我们重视健康、喂养和生活环境，坚持自繁自养、别墅散养和低频率繁育。
-        </p>
-        <Link
-          to="/about"
-          className="pressable mt-3.5 inline-flex items-center gap-1 text-[13px] font-semibold text-violet"
-        >
-          了解猫舍故事 <ChevronRightIcon className="h-3.5 w-3.5" />
-        </Link>
+              <span className="mt-0.5 block font-display text-[10px] uppercase tracking-[0.22em] text-warm">
+                {en}
+              </span>
+              <span className="mt-1 block truncate text-[12px] text-muted-foreground">
+                {desc}
+              </span>
+            </span>
+            <ChevronRightIcon className="h-5 w-5 shrink-0 text-warm" />
+          </Link>
+        ))}
       </Section>
 
       {/* ── Gentle conversion ────────────────────── */}
-      <Section className="mb-12 mt-10">
+      <Section className="mb-12 mt-9">
         <div className="rounded-[1.75rem] bg-gradient-cream p-6 text-center">
           <StarIcon className="mx-auto h-5 w-5 text-violet/60" />
           <p className="mt-2 text-[15px] font-semibold text-heading">
             想进一步了解星月的小猫
           </p>
           <p className="mx-auto mt-2 max-w-[16rem] text-[12.5px] leading-relaxed text-foreground">
-            可以先填写选猫问卷，了解接猫流程，或复制微信号与我们聊聊。
+            可以先填写选猫问卷，或复制微信号与我们聊聊。
           </p>
           <div className="mt-4 flex flex-col gap-2.5">
             <Link
@@ -141,20 +134,11 @@ function Home() {
             >
               <PaperIcon className="h-4 w-4" /> 填写选猫问卷
             </Link>
-            <div className="flex gap-2.5">
-              <Link
-                to="/process"
-                className="pressable inline-flex flex-1 items-center justify-center rounded-full border border-border bg-card px-4 py-3 text-sm font-semibold text-heading"
-              >
-                查看接猫流程
-              </Link>
-              <CopyText value={WECHAT_ID} variant="button" />
+            <div className="mx-auto w-full max-w-[15rem]">
+              <CopyText label="微信号" value={WECHAT_ID} />
             </div>
           </div>
         </div>
-        <p className="mt-4 text-center text-[11.5px] text-muted-foreground">
-          更多联系方式与内容导航见「更多」
-        </p>
       </Section>
     </PhoneFrame>
   );
