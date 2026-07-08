@@ -76,7 +76,7 @@ function Home() {
       {/* ── Two doorways, as a hand-drawn guide ──── */}
       <div className="mt-14">
         {/* 01 · 了解星月 */}
-        <Section className="mt-14">
+        <Section>
           <Link to="/discover" className="pressable block">
             <CatProfile className="h-14 w-14 text-[#4a5e8f]/50" />
             <p className="mt-5 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
