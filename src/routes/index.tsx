@@ -76,10 +76,10 @@ function Home() {
       {/* ── Two doorways, as a hand-drawn guide ──── */}
       <div className="mt-14">
         {/* 01 · 了解星月 */}
-        <Section className="relative">
-          <CatProfile className="absolute right-2 top-0 h-20 w-20 text-[#4a5e8f]/20" />
-          <Link to="/discover" className="pressable relative block pr-16">
-            <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+        <Section className="mt-14">
+          <Link to="/discover" className="pressable block">
+            <CatProfile className="h-14 w-14 text-[#4a5e8f]/50" />
+            <p className="mt-5 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
               01 · About StarlitSky
             </p>
             <h2 className="mt-1 text-[20px] font-bold text-heading">
@@ -100,10 +100,10 @@ function Home() {
         </div>
 
         {/* 02 · 我们的猫 */}
-        <Section className="relative">
-          <CurledCat className="absolute right-2 top-0 h-20 w-20 text-[#a0876a]/20" />
-          <Link to="/cats" className="pressable relative block pr-16">
-            <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
+        <Section className="mt-14">
+          <Link to="/cats" className="pressable block">
+            <CurledCat className="h-14 w-14 text-[#a0876a]/50" />
+            <p className="mt-5 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
               02 · Our Cats
             </p>
             <h2 className="mt-1 text-[20px] font-bold text-heading">
@@ -118,6 +118,7 @@ function Home() {
           </Link>
         </Section>
       </div>
+
 
 
       {/* ── Gentle conversion — no box, just breathing space ── */}
