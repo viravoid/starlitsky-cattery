@@ -21,8 +21,8 @@ const base = {
 export function CatProfile(props: P) {
   return (
     <svg {...base} strokeWidth={1.3} {...props}>
-      {/* Crescent moon behind the cat */}
-      <path d="M52 14c-12 0-21 11-21 25s9 25 21 25c-7 0-13-10-13-25s6-25 13-25z" />
+      {/* Crescent moon cradling the upper right */}
+      <path d="M54 14c-13 0-22 11-22 25s9 25 22 25c-7 0-14-10-14-25s7-25 14-25z" />
 
       {/* Stars */}
       <path d="M60 24l.8 2.2 2.2.2-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.2z" />
@@ -30,7 +30,7 @@ export function CatProfile(props: P) {
       <path d="M64 46l.4 1.1 1.1.1-.8.8.2 1.1-1-.5-1 .5.2-1.1-.8-.8 1.1-.1z" />
 
       {/* Maine Coon in profile, sitting and looking up at the moon */}
-      {/* Flowing back, tail and haunch */}
+      {/* Haunch, back, and tail */}
       <path d="M18 60c-4 0-6-6-4-12s8-10 14-8" />
       <path d="M30 58c10 0 16-6 14-14" />
 
@@ -70,8 +70,8 @@ export function CatProfile(props: P) {
 export function CurledCat(props: P) {
   return (
     <svg {...base} strokeWidth={1.3} {...props}>
-      {/* Adult cat: lying down, head up, tail curled around the nest */}
-      {/* Back line */}
+      {/* Adult cat: lying down with tail curled around the kitten */}
+      {/* Back */}
       <path d="M14 46c4-8 12-14 22-14s18 6 22 14" />
       {/* Tail wrapping */}
       <path d="M58 46c6 4 8 11 4 16s-12 6-18 2" />
@@ -89,12 +89,12 @@ export function CurledCat(props: P) {
       <path d="M9 43c-2 1-3 3-2 5" />
       <path d="M11 45c3 1 5 3 6 5" />
 
-      {/* Adult chest / front paws */}
+      {/* Adult chest and front paws */}
       <path d="M16 50c2 4 6 6 10 6" />
       <path d="M26 56v5" />
       <path d="M32 56v5" />
 
-      {/* Kitten nestled in front */}
+      {/* Kitten nestled in front of the adult */}
       <path d="M28 58c-3 0-5-3-4-7s5-6 9-5" />
       <path d="M34 46c5-1 10 2 11 7" />
       <path d="M28 58c-4 0-7-2-7-6s3-6 7-6" />
@@ -106,10 +106,10 @@ export function CurledCat(props: P) {
       {/* Kitten nose/mouth */}
       <path d="M23 55c-1 1-2 2-1 3" />
 
-      {/* Connecting paw */}
+      {/* Connecting paw between adult and kitten */}
       <path d="M34 56c2 0 4-1 5-2" />
 
-      {/* Soft fur lines */}
+      {/* Soft fur texture lines */}
       <path d="M20 48c2 0 3-1 4-2" />
       <path d="M36 50c2 1 3 2 4 4" />
       <path d="M42 54c1 2 1 4 0 6" />
@@ -119,6 +119,7 @@ export function CurledCat(props: P) {
     </svg>
   );
 }
+
 
 
 
