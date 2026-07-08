@@ -101,7 +101,7 @@ function Home() {
 
         {/* 02 · 我们的猫 */}
         <Section className="relative">
-          <CurledCat className="absolute -right-1 -top-2 h-20 w-20 text-[#a0876a]/15" />
+          <CurledCat className="absolute right-2 top-0 h-20 w-20 text-[#a0876a]/20" />
           <Link to="/cats" className="pressable relative block pr-16">
             <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
               02 · Our Cats
