@@ -65,11 +65,9 @@ function Philosophy() {
       </Section>
 
       <Section className="mb-10 mt-5 space-y-3">
-        {MODULES.map(({ title, desc, Icon, tone }, i) => (
+        {MODULES.map(({ title, desc, Art }, i) => (
           <Card key={title} className="flex gap-3 p-4">
-            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${tone}`}>
-              <Icon className="h-6 w-6 text-heading" />
-            </span>
+            <Art className="h-10 w-10 shrink-0 text-violet/80" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-display text-[12px] text-warm">0{i + 1}</span>
