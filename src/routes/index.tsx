@@ -102,7 +102,7 @@ function Home() {
         {/* 02 · 我们的猫 */}
         <Section>
           <Link to="/cats" className="pressable block">
-            <CurledCat className="h-14 w-14 text-[#a0876a]/40" />
+            <CurledCat className="h-16 w-16 text-[#a0876a]/40" />
             <p className="mt-4 font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
               02 · Our Cats
             </p>
