@@ -1,27 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, SectionTitle, Card, Placeholder } from "@/components/mobile/ui";
+import { PawIcon } from "@/components/mobile/icons";
 import {
-  StarIcon,
-  HouseIcon,
-  ShieldIcon,
-  DnaIcon,
-  UserIcon,
-  CatIcon,
-  PawIcon,
-} from "@/components/mobile/icons";
+  MoonStars,
+  Cottage,
+  Rosette,
+  HeartPaw,
+  CurledCat,
+  PawCheck,
+} from "@/components/mobile/illustrations";
 
 export const Route = createFileRoute("/about")({
   component: About,
 });
 
 const FACTS = [
-  { label: "2019 年成立", Icon: StarIcon },
-  { label: "西安", Icon: HouseIcon },
-  { label: "WCF / CFA 注册", Icon: ShieldIcon },
-  { label: "全职猫家长", Icon: UserIcon },
-  { label: "自繁自养", Icon: CatIcon },
-  { label: "遗传病筛查 all n/n", Icon: DnaIcon },
+  { label: "2019 年成立", Art: MoonStars },
+  { label: "西安", Art: Cottage },
+  { label: "WCF / CFA 注册", Art: Rosette },
+  { label: "全职猫家长", Art: HeartPaw },
+  { label: "自繁自养", Art: CurledCat },
+  { label: "遗传病筛查 all n/n", Art: PawCheck },
 ];
 
 function About() {
@@ -49,11 +49,9 @@ function About() {
       <Section className="mt-6">
         <SectionTitle cn="猫舍名片" en="At a glance" />
         <div className="grid grid-cols-2 gap-2.5">
-          {FACTS.map(({ label, Icon }) => (
+          {FACTS.map(({ label, Art }) => (
             <Card key={label} className="flex items-center gap-2.5 p-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-sky/25">
-                <Icon className="h-5 w-5 text-heading" />
-              </span>
+              <Art className="h-9 w-9 shrink-0 text-violet/80" />
               <span className="text-[13px] font-medium leading-snug text-card-foreground">
                 {label}
               </span>

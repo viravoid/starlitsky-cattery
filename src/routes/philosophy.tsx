@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Card } from "@/components/mobile/ui";
+import { MoonIcon, StarIcon } from "@/components/mobile/icons";
 import {
-  HeartIcon,
-  PawIcon,
-  DnaIcon,
-  MoonIcon,
-  UserIcon,
-  ShieldIcon,
-  StarIcon,
-} from "@/components/mobile/icons";
+  HeartPaw,
+  CurledCat,
+  Sparkles,
+  MoonStars,
+  CatProfile,
+  ShieldHeart,
+} from "@/components/mobile/illustrations";
 
 export const Route = createFileRoute("/philosophy")({
   component: Philosophy,
@@ -19,38 +19,32 @@ const MODULES = [
   {
     title: "健康优先",
     desc: "体质好、抵抗力强，遗传病筛查 all n/n，从源头保障小猫健康。",
-    Icon: HeartIcon,
-    tone: "bg-sky/25",
+    Art: HeartPaw,
   },
   {
     title: "性格与社会化",
     desc: "乖巧亲人、大方自信，从小进行社会化训练，适应家庭生活。",
-    Icon: PawIcon,
-    tone: "bg-sunny/45",
+    Art: CurledCat,
   },
   {
     title: "血线与风格",
     desc: "种猫来自国内外知名猫舍，血线清晰透明，风格稳定。",
-    Icon: DnaIcon,
-    tone: "bg-creamblue/45",
+    Art: Sparkles,
   },
   {
     title: "低频率繁育",
     desc: "保证种猫身心健康，不追求数量，只为更好的小猫。",
-    Icon: MoonIcon,
-    tone: "bg-warm/30",
+    Art: MoonStars,
   },
   {
     title: "互相选择的小猫家长",
     desc: "希望和珍惜小猫的家长双向奔赴，一起陪伴小猫长大。",
-    Icon: UserIcon,
-    tone: "bg-sky/25",
+    Art: CatProfile,
   },
   {
     title: "售后不推诿",
     desc: "小猫到新家后遇到问题，我们会一直在，认真沟通、不逃避。",
-    Icon: ShieldIcon,
-    tone: "bg-sunny/45",
+    Art: ShieldHeart,
   },
 ];
 
@@ -71,11 +65,9 @@ function Philosophy() {
       </Section>
 
       <Section className="mb-10 mt-5 space-y-3">
-        {MODULES.map(({ title, desc, Icon, tone }, i) => (
+        {MODULES.map(({ title, desc, Art }, i) => (
           <Card key={title} className="flex gap-3 p-4">
-            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${tone}`}>
-              <Icon className="h-6 w-6 text-heading" />
-            </span>
+            <Art className="h-10 w-10 shrink-0 text-violet/80" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-display text-[12px] text-warm">0{i + 1}</span>
