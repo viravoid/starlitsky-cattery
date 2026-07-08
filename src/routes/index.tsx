@@ -12,6 +12,7 @@ import {
 } from "@/components/mobile/icons";
 import { SOCIALS, WECHAT_ID } from "@/lib/cattery-data";
 import heroCats from "@/assets/hero-cats.png";
+import catMotif from "@/assets/placeholder-cat.png";
 
 export const Route = createFileRoute("/")({
   component: Home,
