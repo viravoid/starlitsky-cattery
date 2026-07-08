@@ -17,26 +17,14 @@ const base = {
   strokeLinejoin: "round" as const,
 };
 
-/** A quiet little cattery home with an arched window and a crescent moon —
- *  "walk into StarlitSky's small world" motif for "了解星月". One home + one moon. */
+/** A single crescent moon with one star — quiet "StarlitSky" motif for "了解星月". */
 export function CatProfile(props: P) {
   return (
     <svg {...base} strokeWidth={1.4} {...props}>
-      {/* softly peaked roof */}
-      <path d="M15 37q25-22 50 0" />
-      {/* walls + floor */}
-      <path d="M23 37v25" />
-      <path d="M57 37v25" />
-      <path d="M21 62h38" />
-      {/* arched window, glowing warm inside */}
-      <path d="M33 62V49a7 7 0 0 1 14 0v13" />
-      <path d="M33 55h14" />
-      {/* a small cat resting on the sill, seen from the room */}
-      <path d="M37 62c-1-4 1-6 3-6s4 2 3 6" />
-      <path d="M38 54l-1-3 2 2" />
-      <path d="M42 54l1-3-2 2" />
-      {/* crescent moon in the night sky, upper right */}
-      <path d="M62 15c-4 0-7 3-7 7s3 7 7 7c-3-1-4-3-4-7s1-6 4-7z" />
+      {/* crescent moon */}
+      <path d="M55 18c-8 0-14 7-14 15s6 15 14 15c-6-2-9-7-9-15s3-13 9-15z" />
+      {/* one star, soft hand-drawn */}
+      <path d="M28 28l2 4.5 4.5 2-4.5 2-2 4.5-2-4.5-4.5-2 4.5-2z" />
     </svg>
   );
 }
