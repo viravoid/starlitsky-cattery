@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudsRouteImport } from './routes/studs'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as QuestionnaireRouteImport } from './routes/questionnaire'
-import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProcessRouteImport } from './routes/process'
 import { Route as PhilosophyRouteImport } from './routes/philosophy'
 import { Route as MoreRouteImport } from './routes/more'
@@ -37,11 +36,6 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const QuestionnaireRoute = QuestionnaireRouteImport.update({
   id: '/questionnaire',
   path: '/questionnaire',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProcessRoute = ProcessRouteImport.update({
@@ -104,7 +98,6 @@ export interface FileRoutesByFullPath {
   '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
-  '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
@@ -120,7 +113,6 @@ export interface FileRoutesByTo {
   '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
-  '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
@@ -137,7 +129,6 @@ export interface FileRoutesById {
   '/more': typeof MoreRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
-  '/profile': typeof ProfileRoute
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studs': typeof StudsRoute
@@ -155,7 +146,6 @@ export interface FileRouteTypes {
     | '/more'
     | '/philosophy'
     | '/process'
-    | '/profile'
     | '/questionnaire'
     | '/sitemap.xml'
     | '/studs'
@@ -171,7 +161,6 @@ export interface FileRouteTypes {
     | '/more'
     | '/philosophy'
     | '/process'
-    | '/profile'
     | '/questionnaire'
     | '/sitemap.xml'
     | '/studs'
@@ -187,7 +176,6 @@ export interface FileRouteTypes {
     | '/more'
     | '/philosophy'
     | '/process'
-    | '/profile'
     | '/questionnaire'
     | '/sitemap.xml'
     | '/studs'
@@ -204,7 +192,6 @@ export interface RootRouteChildren {
   MoreRoute: typeof MoreRoute
   PhilosophyRoute: typeof PhilosophyRoute
   ProcessRoute: typeof ProcessRoute
-  ProfileRoute: typeof ProfileRoute
   QuestionnaireRoute: typeof QuestionnaireRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StudsRoute: typeof StudsRoute
@@ -233,13 +220,6 @@ declare module '@tanstack/react-router' {
       path: '/questionnaire'
       fullPath: '/questionnaire'
       preLoaderRoute: typeof QuestionnaireRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/process': {
@@ -324,7 +304,6 @@ const rootRouteChildren: RootRouteChildren = {
   MoreRoute: MoreRoute,
   PhilosophyRoute: PhilosophyRoute,
   ProcessRoute: ProcessRoute,
-  ProfileRoute: ProfileRoute,
   QuestionnaireRoute: QuestionnaireRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StudsRoute: StudsRoute,

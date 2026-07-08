@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
-import { Section, Placeholder } from "@/components/mobile/ui";
+import { Section } from "@/components/mobile/ui";
 import { CopyText } from "@/components/mobile/CopyText";
 import {
   CatIcon,
@@ -10,7 +10,7 @@ import {
   StarIcon,
   ChevronRightIcon,
 } from "@/components/mobile/icons";
-import { SOCIALS, WECHAT_ID } from "@/lib/cattery-data";
+import { WECHAT_ID } from "@/lib/cattery-data";
 import heroCats from "@/assets/hero-cats.png";
 import catMotif from "@/assets/placeholder-cat.png";
 
@@ -18,16 +18,7 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-/** Small uppercase kicker label used above section headings. */
-function Kicker({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="font-display text-[11px] uppercase tracking-[0.3em] text-warm">
-      {children}
-    </p>
-  );
-}
-
-/** Four primary destinations, given real visual weight. */
+/** Four — and only four — primary destinations. */
 const PRIMARY = [
   { label: "现猫介绍", en: "Kittens", to: "/kittens", Icon: CatIcon },
   { label: "种猫介绍", en: "Studs", to: "/studs", Icon: PawIcon },
@@ -35,44 +26,22 @@ const PRIMARY = [
   { label: "选猫问卷", en: "Enquiry", to: "/questionnaire", Icon: PaperIcon },
 ] as const;
 
-/** Secondary links, kept intentionally lighter. */
-const SECONDARY = [
-  { label: "繁育理念", to: "/philosophy" },
-  { label: "喂养体系", to: "/feeding" },
-  { label: "接猫流程", to: "/process" },
-  { label: "售后保障", to: "/process" },
-] as const;
-
-/** Advantages grouped into three quiet blocks — no pills, no card grid. */
-const GROUPS = [
-  {
-    title: "健康与血线",
-    lines: ["种猫血线清晰透明", "健康筛查无先天问题", "遗传病筛查 all n/n"],
-  },
-  {
-    title: "成长与社会化",
-    lines: ["从出生开始记录日常", "逐步完成社会化训练", "窝次群持续更新蹲猫家长"],
-  },
-  {
-    title: "环境与福利",
-    lines: ["别墅散养，拒绝笼养", "每天打扫消毒", "低频率繁育，注重动物福利"],
-  },
-] as const;
-
 function Home() {
   return (
     <PhoneFrame activeTab="home" showTabBar>
       {/* ── Brand hero ───────────────────────────── */}
-      <header className="relative px-6 pb-2 pt-3 text-center">
-        <StarIcon className="absolute left-7 top-6 h-4 w-4 text-primary/60" />
+      <header className="relative px-6 pb-2 pt-4 text-center">
+        <StarIcon className="absolute left-7 top-7 h-4 w-4 text-primary/60" />
         <StarIcon className="absolute right-9 top-14 h-3 w-3 text-violet/45" />
-        <Kicker>Est. 2019 · Xi&apos;an</Kicker>
+        <p className="font-display text-[11px] uppercase tracking-[0.3em] text-warm">
+          Est. 2019 · Xi&apos;an
+        </p>
         <img
           src={heroCats}
           alt="星月缅因猫舍 手绘缅因猫插画"
           width={1440}
           height={1040}
-          className="mx-auto mt-1 w-[78%] max-w-[288px]"
+          className="mx-auto mt-1 w-[74%] max-w-[272px]"
         />
         <h1 className="-mt-3 text-[27px] font-bold leading-tight text-heading">
           星月缅因猫舍
@@ -80,15 +49,15 @@ function Home() {
         <p className="mt-0.5 font-display text-[13px] italic text-[#4a5e8f]">
           StarlitSky Maine Coon Cattery
         </p>
-        <p className="mx-auto mt-3 max-w-[17rem] text-[13px] leading-[1.9] text-foreground">
+        <p className="mx-auto mt-3.5 max-w-[17rem] text-[13px] leading-[1.9] text-foreground">
           成立于 2019 年，位于西安。我们坚持自繁自养、低频率繁育与小猫社会化训练，陪伴小猫从出生到去新家。
         </p>
-        <div className="mt-3.5 flex items-center justify-center gap-2.5 text-[11px] font-medium text-warm">
+        <div className="mt-4 flex items-center justify-center gap-3 text-[11.5px] font-medium text-warm">
+          <span>2019 年成立</span>
+          <span className="h-3 w-px bg-border" />
           <span>WCF · CFA 注册</span>
           <span className="h-3 w-px bg-border" />
           <span>自繁自养</span>
-          <span className="h-3 w-px bg-border" />
-          <span>all n/n</span>
         </div>
       </header>
 
@@ -99,13 +68,13 @@ function Home() {
             src={catMotif}
             alt=""
             aria-hidden
-            className="absolute left-1/2 top-1/2 w-[62%] max-w-[220px] -translate-x-1/2 -translate-y-[58%] opacity-60 mix-blend-multiply"
+            className="absolute left-1/2 top-1/2 w-[60%] max-w-[210px] -translate-x-1/2 -translate-y-[58%] opacity-60 mix-blend-multiply"
           />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4ead6]/90 to-transparent px-5 pb-5 pt-14">
             <p className="font-display text-[11px] uppercase tracking-[0.28em] text-warm">
               StarlitSky · 2019
             </p>
-            <p className="mt-1 text-[13px] font-medium leading-relaxed text-heading">
+            <p className="mt-1 text-[12.5px] font-medium leading-relaxed text-heading">
               示例图片（首页主视觉猫舍照片，待替换）
             </p>
           </div>
@@ -113,33 +82,8 @@ function Home() {
         </div>
       </Section>
 
-      {/* ── About narrative ──────────────────────── */}
-      <Section className="mt-8">
-        <Kicker>About</Kicker>
-        <h2 className="mt-1.5 text-[19px] font-semibold leading-snug text-heading">
-          做一家有温度的缅因猫舍
-        </h2>
-        <p className="mt-3 text-[13.5px] leading-[2] text-foreground">
-          星月缅因猫舍成立于{" "}
-          <span className="font-semibold text-heading">2019 年</span>
-          ，位于西安，注册于{" "}
-          <span className="font-semibold text-heading">WCF、CFA 协会</span>
-          。由星下和月七两位主理人全职经营，日常陪伴小猫成长，记录窝次日常，并从小进行社会化训练。我们重视健康、喂养与生活环境，坚持{" "}
-          <span className="font-semibold text-heading">
-            自繁自养、别墅散养和低频率繁育
-          </span>
-          。
-        </p>
-        <Link
-          to="/about"
-          className="pressable mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-violet"
-        >
-          了解猫舍故事 <ChevronRightIcon className="h-3.5 w-3.5" />
-        </Link>
-      </Section>
-
       {/* ── Primary destinations ─────────────────── */}
-      <Section className="mt-9">
+      <Section className="mt-7">
         <div className="grid grid-cols-2 gap-3">
           {PRIMARY.map(({ label, en, to, Icon }) => (
             <Link
@@ -159,100 +103,36 @@ function Home() {
             </Link>
           ))}
         </div>
-
-        {/* Secondary, lighter links */}
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-1">
-          <span className="text-[11px] font-medium text-muted-foreground">
-            更多了解
-          </span>
-          {SECONDARY.map(({ label, to }) => (
-            <Link
-              key={label}
-              to={to}
-              className="pressable text-[13px] text-foreground underline-offset-4 hover:underline"
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
       </Section>
 
-      {/* ── Why us — grouped narrative ───────────── */}
-      <Section className="mt-10">
-        <Kicker>Why StarlitSky</Kicker>
-        <h2 className="mt-1.5 text-[19px] font-semibold leading-snug text-heading">
-          健康、成长与福利
-        </h2>
-        <div className="mt-5 space-y-6">
-          {GROUPS.map((g, i) => (
-            <div key={g.title} className="flex gap-4">
-              <span className="font-display text-[15px] font-semibold text-violet/70">
-                0{i + 1}
-              </span>
-              <div className="flex-1 border-b border-border/70 pb-5 last:border-0 last:pb-0">
-                <h3 className="text-[15px] font-semibold text-heading">
-                  {g.title}
-                </h3>
-                <p className="mt-2 text-[13px] leading-[1.95] text-foreground">
-                  {g.lines.join(" · ")}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── Environment preview ──────────────────── */}
-      <Section className="mt-10">
-        <Kicker>Environment</Kicker>
-        <h2 className="mt-1.5 text-[19px] font-semibold leading-snug text-heading">
-          600 余平散养空间
+      {/* ── Short about ──────────────────────────── */}
+      <Section className="mt-9">
+        <p className="font-display text-[11px] uppercase tracking-[0.28em] text-warm">
+          About
+        </p>
+        <h2 className="mt-1.5 text-[18px] font-semibold leading-snug text-heading">
+          做一家有温度的缅因猫舍
         </h2>
         <p className="mt-3 text-[13.5px] leading-[2] text-foreground">
-          猫舍室内面积 600
-          余平，绝大部分空间用于饲养猫咪。我们按母婴区、幼猫生活区、种母生活区、种公生活区与公共活动区进行空间规划，保证动物福利，拒绝笼养。
-        </p>
-        <div className="mt-4">
-          <Placeholder
-            label="示例图片（猫舍环境照片，待替换）"
-            ratio="aspect-[16/10]"
-            rounded="rounded-[1.5rem]"
-          />
-        </div>
-        <Link
-          to="/environment"
-          className="pressable mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-violet"
-        >
-          查看猫舍环境 <ChevronRightIcon className="h-3.5 w-3.5" />
-        </Link>
-      </Section>
-
-      {/* ── Feeding preview ──────────────────────── */}
-      <Section className="mt-10">
-        <Kicker>Feeding</Kicker>
-        <h2 className="mt-1.5 text-[19px] font-semibold leading-snug text-heading">
-          从小培养不挑食
-        </h2>
-        <p className="mt-3 text-[13.5px] leading-[2] text-foreground">
-          小猫从开食起会慢慢尝试多种食物。日常包含湿粮、熟自制、猫粮、冻干及营养品补充，帮助小猫适应多样饮食，方便去新家后平稳过渡。
+          星月缅因猫舍成立于 2019 年，位于西安，注册于 WCF、CFA 协会。由星下和月七两位主理人全职经营，日常陪伴小猫成长，记录窝次日常，并从小进行社会化训练。我们重视健康、喂养和生活环境，坚持自繁自养、别墅散养和低频率繁育。
         </p>
         <Link
-          to="/feeding"
-          className="pressable mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-violet"
+          to="/about"
+          className="pressable mt-3.5 inline-flex items-center gap-1 text-[13px] font-semibold text-violet"
         >
-          了解喂养体系 <ChevronRightIcon className="h-3.5 w-3.5" />
+          了解猫舍故事 <ChevronRightIcon className="h-3.5 w-3.5" />
         </Link>
       </Section>
 
       {/* ── Gentle conversion ────────────────────── */}
-      <Section className="mb-9 mt-11">
+      <Section className="mb-12 mt-10">
         <div className="rounded-[1.75rem] bg-gradient-cream p-6 text-center">
           <StarIcon className="mx-auto h-5 w-5 text-violet/60" />
           <p className="mt-2 text-[15px] font-semibold text-heading">
             想进一步了解星月的小猫
           </p>
           <p className="mx-auto mt-2 max-w-[16rem] text-[12.5px] leading-relaxed text-foreground">
-            可以先阅读接猫流程，填写选猫问卷，或复制微信号与我们聊聊。
+            可以先填写选猫问卷，了解接猫流程，或复制微信号与我们聊聊。
           </p>
           <div className="mt-4 flex flex-col gap-2.5">
             <Link
@@ -272,17 +152,9 @@ function Home() {
             </div>
           </div>
         </div>
-
-        {/* Contact accounts — copyable */}
-        <div className="mt-6 space-y-2.5">
-          <Kicker>Contact</Kicker>
-          {SOCIALS.map((s) => (
-            <CopyText key={s.label} label={s.label} value={s.value} />
-          ))}
-          <p className="px-1 pt-1 text-[11px] leading-relaxed text-muted-foreground">
-            小猫日常号：月七的小猫存档
-          </p>
-        </div>
+        <p className="mt-4 text-center text-[11.5px] text-muted-foreground">
+          更多联系方式与内容导航见「更多」
+        </p>
       </Section>
     </PhoneFrame>
   );
