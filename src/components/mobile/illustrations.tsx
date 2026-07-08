@@ -182,6 +182,31 @@ export function YarnBall(props: P) {
   );
 }
 
+/** Award rosette with ribbon tails and a star — registration / certification. */
+export function Rosette(props: P) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="40" cy="30" r="15" />
+      <path d="M31 43l-5 21 14-9 14 9-5-21" />
+      <path d="M40 22c.7 4.8 1.8 5.9 6.6 6.6-4.8.7-5.9 1.8-6.6 6.6-.7-4.8-1.8-5.9-6.6-6.6 4.8-.7 5.9-1.8 6.6-6.6z" />
+    </svg>
+  );
+}
+
+/** Paw print with a small check — health screening all n/n. */
+export function PawCheck(props: P) {
+  return (
+    <svg {...base} {...props}>
+      <ellipse cx="40" cy="47" rx="12" ry="9" />
+      <ellipse cx="25" cy="35" rx="4" ry="5.5" />
+      <ellipse cx="55" cy="35" rx="4" ry="5.5" />
+      <ellipse cx="32.5" cy="25" rx="3.6" ry="4.8" />
+      <ellipse cx="47.5" cy="25" rx="3.6" ry="4.8" />
+      <path d="M35 47.5l4 4 8-9" />
+    </svg>
+  );
+}
+
 /**
  * Decorative divider: a soft hand-drawn line with a small star at center.
  * Use to separate content sections without a hard rule.
