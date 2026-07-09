@@ -93,7 +93,7 @@
 
   html,
   body {
-    background-color: #efe7d6;
+    background-color: #f2eee6;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
