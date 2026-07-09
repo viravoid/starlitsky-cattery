@@ -1,16 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
+import { Carousel } from "@/components/mobile/Carousel";
 import { StarIcon, PaperIcon } from "@/components/mobile/icons";
 import {
   CatProfile,
   CurledCat,
-  MoonStars,
   PawTrail,
   TailArc,
 } from "@/components/mobile/illustrations";
-import heroCats from "@/assets/hero-cats.png";
-import catMotif from "@/assets/placeholder-cat.png";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -26,14 +24,18 @@ function Home() {
         <p className="font-display text-[11px] uppercase tracking-[0.34em] text-warm">
           Est. 2019 · Xi&apos;an
         </p>
-        <img
-          src={heroCats}
-          alt="星月缅因猫舍 手绘缅因猫插画"
-          width={1440}
-          height={1040}
-          className="mx-auto mt-1 w-[74%] max-w-[272px]"
-        />
-        <h1 className="-mt-3 text-[28px] font-bold leading-tight text-heading">
+        <div className="mx-auto mt-5 w-[84%] max-w-[300px]">
+          <Carousel
+            slides={[
+              { label: "示例图片（首页轮播图 1，待替换）" },
+              { label: "示例图片（首页轮播图 2，待替换）" },
+              { label: "示例图片（首页轮播图 3，待替换）" },
+            ]}
+            ratio="aspect-[4/3]"
+            rounded="rounded-[1.5rem]"
+          />
+        </div>
+        <h1 className="mt-4 text-[28px] font-bold leading-tight text-heading">
           星月缅因猫舍
         </h1>
         <p className="mt-0.5 font-display text-[13px] italic text-[#4a5e8f]">
@@ -44,37 +46,8 @@ function Home() {
         </p>
       </header>
 
-      {/* ── Main visual — full-bleed hero photo ──── */}
-      <div className="relative mt-6 px-3">
-        <div className="relative aspect-[5/6] w-full overflow-hidden rounded-[2rem] bg-gradient-cream">
-          <img
-            src={catMotif}
-            alt=""
-            aria-hidden
-            className="absolute left-1/2 top-1/2 w-[58%] max-w-[210px] -translate-x-1/2 -translate-y-[58%] opacity-55 mix-blend-multiply"
-          />
-          <MoonStars className="absolute right-6 top-6 h-10 w-10 text-violet/35" />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4ead6]/95 via-[#f4ead6]/60 to-transparent px-6 pb-6 pt-16 text-left">
-            <p className="font-display text-[11px] uppercase tracking-[0.28em] text-warm">
-              StarlitSky · 2019
-            </p>
-            <p className="mt-1.5 max-w-[15rem] text-[13px] font-medium leading-relaxed text-heading">
-              示例图片（首页主视觉猫舍照片，待替换）
-            </p>
-          </div>
-        </div>
-        {/* small credential line, understated */}
-        <div className="mt-4 flex items-center justify-center gap-3 text-[11.5px] font-medium text-warm">
-          <span>WCF · CFA 注册</span>
-          <span className="h-3 w-px bg-border" />
-          <span>自繁自养</span>
-          <span className="h-3 w-px bg-border" />
-          <span>别墅散养</span>
-        </div>
-      </div>
-
       {/* ── Two doorways — an editorial, off-balance guide ── */}
-      <div className="mt-14">
+      <div className="mt-9">
         {/* 01 · 了解星月 — left-weighted, illustration hugging the title */}
         <Section>
           <Link to="/discover" className="pressable block max-w-[15.5rem]">
