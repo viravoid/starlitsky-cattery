@@ -26,7 +26,7 @@ const ZONES = [
 
 function Environment() {
   return (
-    <PhoneFrame title="猫舍环境" backTo="/discover">
+    <PhoneFrame title="猫舍环境" backTo="/">
       <Section className="pt-1">
         <Card className="bg-gradient-cream p-4">
           <div className="mb-1 flex items-center gap-2">

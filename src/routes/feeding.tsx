@@ -36,7 +36,7 @@ const MODULES = [
 
 function Feeding() {
   return (
-    <PhoneFrame title="猫舍喂养" backTo="/discover">
+    <PhoneFrame title="猫舍喂养" backTo="/">
       <Section className="pt-2">
         <div className="mb-2 flex items-center gap-2">
           <BowlIcon className="h-5 w-5 text-violet" />

@@ -40,7 +40,7 @@ const GIFTS = [
 
 function Process() {
   return (
-    <PhoneFrame title="接猫流程" backTo="/discover">
+    <PhoneFrame title="接猫流程" backTo="/">
       {/* Prices */}
       <Section className="pt-1">
         <SectionTitle
