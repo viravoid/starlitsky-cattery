@@ -238,7 +238,7 @@ function Home() {
           to="/cats"
           className="pressable relative block overflow-hidden rounded-[1.75rem] border border-border bg-gradient-cream p-6"
         >
-          <CurledCat className="absolute -right-3 -bottom-3 h-24 w-24 text-[#a0876a]/25" />
+          <CurledCat className="absolute -right-3 -bottom-3 h-24 w-24 text-warm/25" />
           <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
             Our Cats
           </p>
