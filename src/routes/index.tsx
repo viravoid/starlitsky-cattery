@@ -46,34 +46,6 @@ function Home() {
         </p>
       </header>
 
-      {/* ── Main visual — full-bleed hero photo ──── */}
-      <div className="relative mt-6 px-3">
-        <div className="relative aspect-[5/6] w-full overflow-hidden rounded-[2rem] bg-gradient-cream">
-          <img
-            src={catMotif}
-            alt=""
-            aria-hidden
-            className="absolute left-1/2 top-1/2 w-[58%] max-w-[210px] -translate-x-1/2 -translate-y-[58%] opacity-55 mix-blend-multiply"
-          />
-          <MoonStars className="absolute right-6 top-6 h-10 w-10 text-violet/35" />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4ead6]/95 via-[#f4ead6]/60 to-transparent px-6 pb-6 pt-16 text-left">
-            <p className="font-display text-[11px] uppercase tracking-[0.28em] text-warm">
-              StarlitSky · 2019
-            </p>
-            <p className="mt-1.5 max-w-[15rem] text-[13px] font-medium leading-relaxed text-heading">
-              示例图片（首页主视觉猫舍照片，待替换）
-            </p>
-          </div>
-        </div>
-        {/* small credential line, understated */}
-        <div className="mt-4 flex items-center justify-center gap-3 text-[11.5px] font-medium text-warm">
-          <span>WCF · CFA 注册</span>
-          <span className="h-3 w-px bg-border" />
-          <span>自繁自养</span>
-          <span className="h-3 w-px bg-border" />
-          <span>别墅散养</span>
-        </div>
-      </div>
 
       {/* ── Two doorways — an editorial, off-balance guide ── */}
       <div className="mt-14">
