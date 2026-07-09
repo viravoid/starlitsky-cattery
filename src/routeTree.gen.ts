@@ -15,6 +15,7 @@ import { Route as ProcessRouteImport } from './routes/process'
 import { Route as PhilosophyRouteImport } from './routes/philosophy'
 import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CatsRouteImport } from './routes/cats'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
@@ -50,6 +51,11 @@ const FeedingRoute = FeedingRouteImport.update({
 const EnvironmentRoute = EnvironmentRouteImport.update({
   id: '/environment',
   path: '/environment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CatsRoute = CatsRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/cats': typeof CatsRoute
+  '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/cats': typeof CatsRoute
+  '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/cats': typeof CatsRoute
+  '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/cats'
+    | '/contact'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/cats'
+    | '/contact'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/cats'
+    | '/contact'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -176,6 +188,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
   CatsRoute: typeof CatsRoute
+  ContactRoute: typeof ContactRoute
   EnvironmentRoute: typeof EnvironmentRoute
   FeedingRoute: typeof FeedingRoute
   PhilosophyRoute: typeof PhilosophyRoute
@@ -230,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EnvironmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cats': {
       id: '/cats'
       path: '/cats'
@@ -280,6 +300,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
   CatsRoute: CatsRoute,
+  ContactRoute: ContactRoute,
   EnvironmentRoute: EnvironmentRoute,
   FeedingRoute: FeedingRoute,
   PhilosophyRoute: PhilosophyRoute,
