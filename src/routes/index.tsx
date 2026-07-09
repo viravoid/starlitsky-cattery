@@ -168,9 +168,6 @@ function Home() {
       <Section className="mt-9">
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
-          <p className="font-display text-[10.5px] uppercase tracking-[0.26em] text-warm">
-            Discover StarlitSky
-          </p>
           <span className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
         </div>
         <h2 className="mt-3 text-center text-[20px] font-bold text-heading">
