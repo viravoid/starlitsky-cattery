@@ -26,7 +26,7 @@ const FACTS = [
 
 function About() {
   return (
-    <PhoneFrame title="关于星月" backTo="/discover">
+    <PhoneFrame title="关于星月" backTo="/">
       <Section className="pt-1">
         <Placeholder label="示例图片（猫舍介绍主图，待替换）" ratio="aspect-[16/10]" rounded="rounded-3xl" />
       </Section>

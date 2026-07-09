@@ -15,8 +15,9 @@ import { Route as ProcessRouteImport } from './routes/process'
 import { Route as PhilosophyRouteImport } from './routes/philosophy'
 import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
-import { Route as DiscoverRouteImport } from './routes/discover'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CatsRouteImport } from './routes/cats'
+import { Route as AftercareRouteImport } from './routes/aftercare'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -53,14 +54,19 @@ const EnvironmentRoute = EnvironmentRouteImport.update({
   path: '/environment',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DiscoverRoute = DiscoverRouteImport.update({
-  id: '/discover',
-  path: '/discover',
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CatsRoute = CatsRouteImport.update({
   id: '/cats',
   path: '/cats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AftercareRoute = AftercareRouteImport.update({
+  id: '/aftercare',
+  path: '/aftercare',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -93,8 +99,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
-  '/discover': typeof DiscoverRoute
+  '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -108,8 +115,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
-  '/discover': typeof DiscoverRoute
+  '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -124,8 +132,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
-  '/discover': typeof DiscoverRoute
+  '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -141,8 +150,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/aftercare'
     | '/cats'
-    | '/discover'
+    | '/contact'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -156,8 +166,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/aftercare'
     | '/cats'
-    | '/discover'
+    | '/contact'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -171,8 +182,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/aftercare'
     | '/cats'
-    | '/discover'
+    | '/contact'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -187,8 +199,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
+  AftercareRoute: typeof AftercareRoute
   CatsRoute: typeof CatsRoute
-  DiscoverRoute: typeof DiscoverRoute
+  ContactRoute: typeof ContactRoute
   EnvironmentRoute: typeof EnvironmentRoute
   FeedingRoute: typeof FeedingRoute
   PhilosophyRoute: typeof PhilosophyRoute
@@ -243,11 +256,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EnvironmentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/discover': {
-      id: '/discover'
-      path: '/discover'
-      fullPath: '/discover'
-      preLoaderRoute: typeof DiscoverRouteImport
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cats': {
@@ -255,6 +268,13 @@ declare module '@tanstack/react-router' {
       path: '/cats'
       fullPath: '/cats'
       preLoaderRoute: typeof CatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aftercare': {
+      id: '/aftercare'
+      path: '/aftercare'
+      fullPath: '/aftercare'
+      preLoaderRoute: typeof AftercareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -299,8 +319,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
+  AftercareRoute: AftercareRoute,
   CatsRoute: CatsRoute,
-  DiscoverRoute: DiscoverRoute,
+  ContactRoute: ContactRoute,
   EnvironmentRoute: EnvironmentRoute,
   FeedingRoute: FeedingRoute,
   PhilosophyRoute: PhilosophyRoute,

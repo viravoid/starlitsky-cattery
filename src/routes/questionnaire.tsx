@@ -173,7 +173,7 @@ function Questionnaire() {
 
   if (submitted) {
     return (
-      <PhoneFrame title="选猫问卷" backTo="/discover">
+      <PhoneFrame title="选猫问卷" backTo="/">
         <div className="flex min-h-full flex-col items-center justify-center px-8 text-center">
           <span className="grid h-20 w-20 place-items-center rounded-full bg-sky/25">
             <CheckIcon className="h-10 w-10 text-violet" />
@@ -198,7 +198,7 @@ function Questionnaire() {
   return (
     <PhoneFrame
       title="选猫问卷"
-      backTo="/discover"
+      backTo="/"
 
       bottomBar={
         <div className="border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
