@@ -15,7 +15,6 @@ import { Route as ProcessRouteImport } from './routes/process'
 import { Route as PhilosophyRouteImport } from './routes/philosophy'
 import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
-import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as CatsRouteImport } from './routes/cats'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
@@ -51,11 +50,6 @@ const FeedingRoute = FeedingRouteImport.update({
 const EnvironmentRoute = EnvironmentRouteImport.update({
   id: '/environment',
   path: '/environment',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DiscoverRoute = DiscoverRouteImport.update({
-  id: '/discover',
-  path: '/discover',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CatsRoute = CatsRouteImport.update({
@@ -94,7 +88,6 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/cats': typeof CatsRoute
-  '/discover': typeof DiscoverRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -109,7 +102,6 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/cats': typeof CatsRoute
-  '/discover': typeof DiscoverRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -125,7 +117,6 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/cats': typeof CatsRoute
-  '/discover': typeof DiscoverRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
@@ -142,7 +133,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/cats'
-    | '/discover'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -157,7 +147,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/cats'
-    | '/discover'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -172,7 +161,6 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/cats'
-    | '/discover'
     | '/environment'
     | '/feeding'
     | '/philosophy'
@@ -188,7 +176,6 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
   CatsRoute: typeof CatsRoute
-  DiscoverRoute: typeof DiscoverRoute
   EnvironmentRoute: typeof EnvironmentRoute
   FeedingRoute: typeof FeedingRoute
   PhilosophyRoute: typeof PhilosophyRoute
@@ -243,13 +230,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EnvironmentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/discover': {
-      id: '/discover'
-      path: '/discover'
-      fullPath: '/discover'
-      preLoaderRoute: typeof DiscoverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/cats': {
       id: '/cats'
       path: '/cats'
@@ -300,7 +280,6 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
   CatsRoute: CatsRoute,
-  DiscoverRoute: DiscoverRoute,
   EnvironmentRoute: EnvironmentRoute,
   FeedingRoute: FeedingRoute,
   PhilosophyRoute: PhilosophyRoute,
