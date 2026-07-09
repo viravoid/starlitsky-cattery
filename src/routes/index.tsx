@@ -252,25 +252,6 @@ function Home() {
         </Link>
       </Section>
 
-      {/* ── Gentle conversion — questionnaire + wechat ── */}
-      <Section className="mb-12 mt-14 text-center">
-        <TailArc className="mx-auto h-11 w-11 text-violet/45" />
-        <p className="mt-3 text-[16px] font-semibold text-heading">
-          想进一步了解星月的小猫
-        </p>
-        <p className="mx-auto mt-2 max-w-[16rem] text-[12.5px] leading-[1.9] text-foreground">
-          可以先填写一份选猫问卷，或直接复制微信号添加咨询。
-        </p>
-        <Link
-          to="/questionnaire"
-          className="pressable mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-violet px-6 py-3.5 text-sm font-semibold text-white shadow-card"
-        >
-          <PaperIcon className="h-4 w-4" /> 填写选猫问卷
-        </Link>
-        <div className="mx-auto mt-4 max-w-[17rem]">
-          <CopyText label="微信号" value={WECHAT_ID} />
-        </div>
-      </Section>
     </PhoneFrame>
   );
 }
