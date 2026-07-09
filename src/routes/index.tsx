@@ -1,16 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
+import { Carousel } from "@/components/mobile/Carousel";
 import { StarIcon, PaperIcon } from "@/components/mobile/icons";
 import {
   CatProfile,
   CurledCat,
-  MoonStars,
   PawTrail,
   TailArc,
 } from "@/components/mobile/illustrations";
-import heroCats from "@/assets/hero-cats.png";
-import catMotif from "@/assets/placeholder-cat.png";
 
 export const Route = createFileRoute("/")({
   component: Home,
