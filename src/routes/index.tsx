@@ -133,10 +133,10 @@ function Home() {
       {/* ── Photo carousel hero ─────────────────── */}
       <div className="relative px-3 pt-3">
         <div className="pointer-events-none absolute inset-x-3 bottom-0 z-10 flex flex-col items-center justify-end rounded-b-[1.75rem] px-4 pb-7 pt-12 text-center">
-          <h1 className="text-[27px] font-bold leading-tight text-white drop-shadow-sm">
+          <h1 className="text-[27px] font-bold leading-tight text-violet drop-shadow-sm">
             星月缅因猫舍
           </h1>
-          <p className="mt-1 font-display text-[13px] italic text-white/90 drop-shadow-sm">
+          <p className="mt-1 font-display text-[13px] italic text-violet/90 drop-shadow-sm">
             StarlitSky Maine Coon Cattery
           </p>
         </div>
