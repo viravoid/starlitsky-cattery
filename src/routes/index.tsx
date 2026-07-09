@@ -24,14 +24,18 @@ function Home() {
         <p className="font-display text-[11px] uppercase tracking-[0.34em] text-warm">
           Est. 2019 · Xi&apos;an
         </p>
-        <img
-          src={heroCats}
-          alt="星月缅因猫舍 手绘缅因猫插画"
-          width={1440}
-          height={1040}
-          className="mx-auto mt-1 w-[74%] max-w-[272px]"
-        />
-        <h1 className="-mt-3 text-[28px] font-bold leading-tight text-heading">
+        <div className="mx-auto mt-5 w-[84%] max-w-[300px]">
+          <Carousel
+            slides={[
+              { label: "示例图片（首页轮播图 1，待替换）" },
+              { label: "示例图片（首页轮播图 2，待替换）" },
+              { label: "示例图片（首页轮播图 3，待替换）" },
+            ]}
+            ratio="aspect-[4/3]"
+            rounded="rounded-[1.5rem]"
+          />
+        </div>
+        <h1 className="mt-4 text-[28px] font-bold leading-tight text-heading">
           星月缅因猫舍
         </h1>
         <p className="mt-0.5 font-display text-[13px] italic text-[#4a5e8f]">
