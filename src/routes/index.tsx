@@ -131,7 +131,15 @@ function Home() {
   return (
     <PhoneFrame activeTab="home" showTabBar>
       {/* ── Photo carousel hero ─────────────────── */}
-      <div className="px-3 pt-3">
+      <div className="relative px-3 pt-3">
+        <div className="absolute inset-x-3 top-3 z-10 flex flex-col items-center justify-start rounded-t-[1.75rem] bg-gradient-to-b from-black/35 via-black/15 to-transparent px-4 pb-10 pt-8 text-center">
+          <h1 className="text-[27px] font-bold leading-tight text-white drop-shadow-sm">
+            星月缅因猫舍
+          </h1>
+          <p className="mt-1 font-display text-[13px] italic text-white/90 drop-shadow-sm">
+            StarlitSky Maine Coon Cattery
+          </p>
+        </div>
         <Carousel
           slides={[
             { label: "示例图片（首页轮播照片 1，待替换）" },
@@ -145,13 +153,7 @@ function Home() {
 
       {/* ── Brand intro ─────────────────────────── */}
       <header className="px-6 pb-1 pt-6 text-center">
-        <h1 className="text-[27px] font-bold leading-tight text-heading">
-          星月缅因猫舍
-        </h1>
-        <p className="mt-1 font-display text-[13px] italic text-[#4a5e8f]">
-          StarlitSky Maine Coon Cattery
-        </p>
-        <p className="mt-3 font-display text-[10.5px] uppercase tracking-[0.3em] text-warm">
+        <p className="font-display text-[10.5px] uppercase tracking-[0.3em] text-warm">
           Est. 2019 · Xi&apos;an · WCF / CFA 注册
         </p>
         <p className="mx-auto mt-4 max-w-[19rem] text-[13px] leading-[2] text-foreground">
