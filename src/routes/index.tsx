@@ -132,7 +132,7 @@ function Home() {
     <PhoneFrame activeTab="home" showTabBar>
       {/* ── Photo carousel hero ─────────────────── */}
       <div className="relative px-3 pt-3">
-        <div className="absolute inset-x-3 top-3 z-10 flex flex-col items-center justify-start rounded-t-[1.75rem] bg-gradient-to-b from-black/35 via-black/15 to-transparent px-4 pb-10 pt-8 text-center">
+        <div className="pointer-events-none absolute inset-x-3 bottom-0 z-10 flex flex-col items-center justify-end rounded-b-[1.75rem] px-4 pb-7 pt-12 text-center">
           <h1 className="text-[27px] font-bold leading-tight text-white drop-shadow-sm">
             星月缅因猫舍
           </h1>
