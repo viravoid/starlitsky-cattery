@@ -163,15 +163,17 @@ function Home() {
         <PawTrail className="mx-auto mt-5" />
       </header>
 
-      {/* ── 了解星月 — chaptered editorial guide ─── */}
-      <Section className="mt-9">
-        <div className="flex items-center gap-3">
-          <span className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
-          <span className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
+      {/* ── chaptered editorial guide ─── */}
+      <Section className="mt-10">
+        <div className="flex items-center gap-4">
+          <span className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-border" />
+          <div className="flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-2">
+            <StarIcon className="h-3.5 w-3.5 text-violet" />
+            <MoonIcon className="h-3.5 w-3.5 text-accent" />
+            <StarIcon className="h-2.5 w-2.5 text-warm" />
+          </div>
+          <span className="h-px flex-1 bg-gradient-to-l from-transparent via-border to-border" />
         </div>
-        <h2 className="mt-3 text-center text-[20px] font-bold text-heading">
-          了解星月
-        </h2>
       </Section>
 
       <div className="mt-9 space-y-14">
