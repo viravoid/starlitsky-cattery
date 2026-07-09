@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
 import { Carousel } from "@/components/mobile/Carousel";
+import { StarIcon, MoonIcon } from "@/components/mobile/icons";
 import {
   CatProfile,
   Cottage,
