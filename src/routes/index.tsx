@@ -55,7 +55,7 @@ const GROUPS: Group[] = [
     cn: "关于星月",
     lead: "了解星月缅因猫舍的成立时间、主理人、繁育方向与我们希望坚持的猫舍理念。",
     Art: CatProfile,
-    tint: "text-[#4a5e8f]/70",
+    tint: "text-violet/70",
     items: [
       {
         no: "01",
@@ -76,7 +76,7 @@ const GROUPS: Group[] = [
     cn: "照顾方式",
     lead: "从生活空间、母婴照护到日常喂养，了解小猫在星月的成长环境。",
     Art: Cottage,
-    tint: "text-[#7a9b8a]",
+    tint: "text-accent",
     items: [
       {
         no: "03",
@@ -238,7 +238,7 @@ function Home() {
           to="/cats"
           className="pressable relative block overflow-hidden rounded-[1.75rem] border border-border bg-gradient-cream p-6"
         >
-          <CurledCat className="absolute -right-3 -bottom-3 h-24 w-24 text-[#a0876a]/25" />
+          <CurledCat className="absolute -right-3 -bottom-3 h-24 w-24 text-warm/25" />
           <p className="font-display text-[10.5px] uppercase tracking-[0.24em] text-warm">
             Our Cats
           </p>
