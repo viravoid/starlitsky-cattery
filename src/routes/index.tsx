@@ -46,9 +46,8 @@ function Home() {
         </p>
       </header>
 
-
       {/* ── Two doorways — an editorial, off-balance guide ── */}
-      <div className="mt-14">
+      <div className="mt-9">
         {/* 01 · 了解星月 — left-weighted, illustration hugging the title */}
         <Section>
           <Link to="/discover" className="pressable block max-w-[15.5rem]">
