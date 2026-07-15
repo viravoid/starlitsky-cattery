@@ -74,7 +74,9 @@ function KittenDetail() {
           <Info label="出生日期 / 月龄" value={kitten.birthday} />
           <Info label="价格" value={kitten.price} />
           <Info label="父母" value={kitten.parents} />
-          <Info label="是否已绝育" value="示例文字（待更新）" />
+          {kitten.status !== "已有家" && (
+            <Info label="是否已绝育" value="示例文字（待更新）" />
+          )}
         </div>
       </Section>
 
