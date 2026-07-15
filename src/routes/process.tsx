@@ -73,7 +73,9 @@ function Process() {
           en="Pricing"
           icon={<PriceTagIcon className="h-5 w-5" />}
         />
-        <p className="mb-3 text-[12px] text-muted-foreground">传统色 · 绝育小猫价格</p>
+        <p className="mb-3 whitespace-pre-line text-[12px] text-muted-foreground">
+          {`传统色 · 绝育小猫价格\n小猫8周后定价，从品相，体格，性格等方面综合评估，每只小猫找家都会有详细的介绍以及找家信息`}
+        </p>
         <div className="space-y-2.5">
           {PRICES.map((p) => (
             <Card key={p.label} className={`p-4 ${p.tone}`}>
