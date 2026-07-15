@@ -73,12 +73,15 @@ function Environment() {
         {ZONES.map((z) => (
           <Card key={z.name} className="overflow-hidden p-0">
             <Placeholder label={z.img} ratio="aspect-[16/9]" rounded="rounded-none" />
-            <div className="flex items-center justify-between gap-2 p-3.5">
-              <div className="flex items-center gap-2">
-                <HouseIcon className="h-5 w-5 text-heading" />
-                <h3 className="text-[14px] font-semibold text-heading">{z.name}</h3>
+            <div className="p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <HouseIcon className="h-5 w-5 text-heading" />
+                  <h3 className="text-[14px] font-semibold text-heading">{z.name}</h3>
+                </div>
+                <span className="text-[12px] font-medium text-muted-foreground">{z.area}</span>
               </div>
-              <span className="text-[12px] font-medium text-muted-foreground">{z.area}</span>
+              <p className="mt-2 text-[12px] leading-[1.8] text-muted-foreground">{z.desc}</p>
             </div>
           </Card>
         ))}
