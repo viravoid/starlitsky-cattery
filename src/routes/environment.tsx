@@ -8,20 +8,42 @@ export const Route = createFileRoute("/environment")({
 });
 
 const ZONES = [
-  { name: "母婴区", area: "约 52㎡", img: "示例图片（母婴区照片，待替换）" },
-  { name: "幼猫生活区", area: "约 66㎡", img: "示例图片（幼猫生活区照片，待替换）" },
-  { name: "种母生活区", area: "约 102㎡", img: "示例图片（种母生活区照片，待替换）" },
+  {
+    name: "母婴区",
+    area: "约 52㎡",
+    img: "示例图片（母婴区照片，待替换）",
+    desc: "孕猫房和育婴房挨着我们的卧室。怀孕 30 天以上的母猫和 1–2 月龄小奶猫生活在这里。",
+  },
+  {
+    name: "幼猫生活区",
+    area: "约 66㎡",
+    img: "示例图片（幼猫生活区照片，待替换）",
+    desc: "幼猫区共分为四个房间，有三个小房间供 2–4 月龄不同窝次的小猫生活，和一个大房间供 4 月龄以上打齐疫苗的宝宝们自由活动。",
+  },
+  {
+    name: "种母生活区",
+    area: "约 102㎡",
+    img: "示例图片（种母生活区照片，待替换）",
+    desc: "共有四间母猫房供我们的种母生活。我们会按母猫的猫际关系为她们分配合适的房间，有部分母猫和我们生活在客厅卧室。",
+  },
   {
     name: "种公生活区",
     area: "室内约 65㎡ · 室外约 40㎡",
     img: "示例图片（种公生活区照片，待替换）",
+    desc: "我们准备了三个种公房间单独隔离公猫，还有一个院子可以让我们的猫猫国王充分晒太阳、呼吸新鲜空气。打齐疫苗的小猫也可以来院子玩耍。",
   },
   {
     name: "公共活动区",
     area: "室内 220㎡ · 花园 70㎡",
     img: "示例图片（公共活动区照片，待替换）",
+    desc: "公区主要作为人类生活区以及我们宠物猫和退役种猫的生活空间，会有粘人母猫和打齐疫苗的小猫散养在这里。",
   },
-  { name: "隔离房 · 医疗间 · 洗护间", area: "功能空间", img: "示例图片（医疗 / 洗护空间照片，待替换）" },
+  {
+    name: "隔离房 · 医疗间 · 洗护间",
+    area: "功能空间",
+    img: "示例图片（医疗 / 洗护空间照片，待替换）",
+    desc: "一间小的隔离房用于隔离新到家的小猫；一间医疗间可以为小猫进行基础体检和隔离生病的小猫；一间洗护间配有全套赛洗设备。",
+  },
 ];
 
 function Environment() {
@@ -51,12 +73,15 @@ function Environment() {
         {ZONES.map((z) => (
           <Card key={z.name} className="overflow-hidden p-0">
             <Placeholder label={z.img} ratio="aspect-[16/9]" rounded="rounded-none" />
-            <div className="flex items-center justify-between gap-2 p-3.5">
-              <div className="flex items-center gap-2">
-                <HouseIcon className="h-5 w-5 text-heading" />
-                <h3 className="text-[14px] font-semibold text-heading">{z.name}</h3>
+            <div className="p-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <HouseIcon className="h-5 w-5 text-heading" />
+                  <h3 className="text-[14px] font-semibold text-heading">{z.name}</h3>
+                </div>
+                <span className="text-[12px] font-medium text-muted-foreground">{z.area}</span>
               </div>
-              <span className="text-[12px] font-medium text-muted-foreground">{z.area}</span>
+              <p className="mt-2 text-[12px] leading-[1.8] text-muted-foreground">{z.desc}</p>
             </div>
           </Card>
         ))}
