@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, SectionTitle, Card, Placeholder } from "@/components/mobile/ui";
-import { PawIcon } from "@/components/mobile/icons";
+
 import {
   MoonStars,
   Cottage,
