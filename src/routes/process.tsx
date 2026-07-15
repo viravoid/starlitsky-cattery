@@ -165,6 +165,9 @@ function Process() {
               </span>
             ))}
           </div>
+          <p className="mt-3 text-[12px] leading-relaxed text-foreground/70">
+            内容可能偶尔调整，价值差别不大。
+          </p>
         </Card>
       </Section>
 
