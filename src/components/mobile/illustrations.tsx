@@ -54,6 +54,21 @@ export function CurledCat(props: P) {
   );
 }
 
+/** Baby bottle — self-bred and hand-raised kittens. */
+export function BabyBottle(props: P) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M28 22h24v44H28z" />
+      <path d="M28 22c0-6 6-10 12-10s12 4 12 10" />
+      <path d="M34 20v-4h12v4" />
+      <path d="M28 34h24" />
+      <path d="M32 42c0 4 3 6 6 6s6-2 6-6" />
+      <path d="M32 52c0 4 3 6 6 6s6-2 6-6" />
+      <path d="M28 66h24" />
+    </svg>
+  );
+}
+
 
 
 
