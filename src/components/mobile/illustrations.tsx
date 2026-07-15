@@ -183,6 +183,23 @@ export function PawCheck(props: P) {
   );
 }
 
+/** DNA double helix — genetic disease screening. */
+export function DnaHelix(props: P) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M28 16c0 10 24 10 24 20M28 16c0 10 24 10 24 20" />
+      <path d="M28 56c0-10 24-10 24-20M28 56c0-10 24-10 24-20" />
+      <path d="M28 20c8 0 16 4 24 16" />
+      <path d="M52 52c-8 0-16-4-24-16" />
+      <path d="M28 36h24" />
+      <path d="M28 32c4 0 8-2 12-6" />
+      <path d="M52 40c-4 0-8 2-12 6" />
+      <path d="M28 24l-3 4 3 4" />
+      <path d="M52 48l3-4-3-4" />
+    </svg>
+  );
+}
+
 /** A single flowing cat tail that curls into an arc — decorative accent. */
 export function TailArc(props: P) {
   return (
