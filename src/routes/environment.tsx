@@ -36,7 +36,7 @@ function Environment() {
             </p>
           </div>
           <p className="text-[13px] leading-[1.9] text-foreground">
-            猫舍室内面积 600 余平，绝大部分空间用于饲养猫咪，有科学的空间规划，保证动物福利，拒绝笼养。另有三个院子方便小猫小狗跑动。
+            猫舍室内面积 600 余平，绝大部分空间用于饲养猫咪，有科学的空间规划，保证动物福利，拒绝笼养。小部分为人类生活区，允许宠物猫和退役种猫自由活动。有三个院子方便小猫小狗跑动。
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <Pill tone="sky">600+ ㎡ 室内</Pill>
