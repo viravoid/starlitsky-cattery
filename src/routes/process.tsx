@@ -33,6 +33,13 @@ const BREEDING = [
   { label: "繁育权 · 公猫", value: "40000 – 70000 元" },
 ];
 
+const SENIOR_BENEFITS = [
+  { label: "二胎", value: "9 折" },
+  { label: "三胎", value: "8 折" },
+  { label: "四胎", value: "7 折" },
+  { label: "退役猫", value: "免费领养" },
+];
+
 const STEPS = [
   {
     title: "阅读猫舍介绍，填写选猫问卷",
