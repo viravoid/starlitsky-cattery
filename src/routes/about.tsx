@@ -7,7 +7,7 @@ import {
   Cottage,
   Rosette,
   HeartPaw,
-  CurledCat,
+  BabyBottle,
   DnaHelix,
 } from "@/components/mobile/illustrations";
 
@@ -20,7 +20,7 @@ const FACTS = [
   { label: "西安", Art: Cottage },
   { label: "WCF / CFA 注册", Art: Rosette },
   { label: "全职猫家长", Art: HeartPaw },
-  { label: "自繁自养", Art: CurledCat },
+  { label: "自繁自养", Art: BabyBottle },
   { label: "遗传病筛查 all n/n", Art: DnaHelix },
 ];
 
