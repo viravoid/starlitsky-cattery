@@ -39,10 +39,10 @@ function About() {
           </p>
         </div>
         <p className="text-[14px] leading-[1.9] text-foreground">
-          猫舍成立于 2019 年，位于西安，注册于 WCF、CFA 协会。由主理人星下和月七全职经营。我们重视小猫的健康、喂养、生活环境与社会化训练。
+          欢迎了解我们的猫舍~我们的猫舍成立于2019年位于十三朝古都西安，注册于WCF、CFA协会。由主理人星下和月七两人全职经营，作为全职“猫家长”，我们每天最重要的事就是陪伴小猫成长，我们会从小猫出生开始记录日常逐步完成各项社会化训练，会有窝次群给蹲猫家长更新这些。同时我们非常重视小猫的健康、喂养和生活环境；小猫均为别墅散养每天都会打扫消毒，目前主理人已完成繁育课g1课程和九月的行为学课程以及邓俊的响片课，仍在不断学习中。
         </p>
-        <p className="mt-3 text-[14px] leading-[1.9] text-foreground">
-          所有小猫均为自己繁育，种猫来自国内外知名猫舍，血线清晰透明，经健康筛查无先天问题，遗传病筛查 all n/n。我们注重动物福利，低频率繁育，保证种猫身心健康。
+        <p className="mt-4 text-[14px] leading-[1.9] text-foreground">
+          所有小猫均为自己繁育，种猫均来自国内外知名猫舍血线清晰透明，经健康筛查无先天问题，遗传病筛选（all n/n)，注重动物福利，低频率繁育保证种猫身心健康。
         </p>
       </Section>
 
@@ -64,7 +64,7 @@ function About() {
         <Card className="space-y-2 bg-gradient-cream p-4">
           <h3 className="text-[15px] font-semibold text-heading">主理人 · 星下 & 月七</h3>
           <p className="text-[13px] leading-relaxed text-foreground">
-            两位全职猫家长，从小猫出生记录到去新家，希望家长不会缺席小猫成长的每一个阶段。
+            两位主理人全职经营猫舍，作为全职“猫家长”，陪伴并记录小猫从出生、社会化训练到去新家的成长过程。
           </p>
         </Card>
       </Section>
