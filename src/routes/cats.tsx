@@ -159,12 +159,6 @@ function Cats() {
             );
           })}
         </div>
-
-        {tab === "kittens" && kFilter === "已有家" && (
-          <p className="mt-3 px-1 text-[12px] leading-relaxed text-muted-foreground">
-            以下小猫来自我们不同繁育组合，感兴趣可询父母蹲同款孩子
-          </p>
-        )}
       </div>
 
       {/* ── Kittens ─────────────────────────────── */}
