@@ -27,12 +27,11 @@ export const Route = createFileRoute("/cats")({
   component: Cats,
 });
 
-const KITTEN_FILTERS = ["全部", "在售", "观察中", "已预订", "已售"] as const;
+const KITTEN_FILTERS = ["待找家", "找家中", "已有家"] as const;
 const STUD_FILTERS: StudCategory[] = [
   "现役公猫",
-  "预备役公猫",
   "现役母猫",
-  "退役种猫",
+  "预备役公猫",
 ];
 
 function Meta({ k, v }: { k: string; v: string }) {
