@@ -42,6 +42,7 @@ function Environment() {
             <Pill tone="sky">600+ ㎡ 室内</Pill>
             <Pill tone="sunny">3 个院子</Pill>
             <Pill tone="violet">拒绝笼养</Pill>
+            <Pill tone="cream">科学规划</Pill>
           </div>
         </Card>
       </Section>
