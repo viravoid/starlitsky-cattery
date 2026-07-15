@@ -8,7 +8,7 @@ import {
   Rosette,
   HeartPaw,
   CurledCat,
-  PawCheck,
+  DnaHelix,
 } from "@/components/mobile/illustrations";
 
 export const Route = createFileRoute("/about")({
@@ -21,7 +21,7 @@ const FACTS = [
   { label: "WCF / CFA 注册", Art: Rosette },
   { label: "全职猫家长", Art: HeartPaw },
   { label: "自繁自养", Art: CurledCat },
-  { label: "遗传病筛查 all n/n", Art: PawCheck },
+  { label: "遗传病筛查 all n/n", Art: DnaHelix },
 ];
 
 function About() {
