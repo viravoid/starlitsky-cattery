@@ -26,11 +26,8 @@ function Philosophy() {
       <Section className="mt-5">
         <div className="rounded-xl border border-[#efe4cf]/70 bg-[#fbf5e8]/40 px-4 py-4">
           <P>
-            我们的繁育理念是繁育体质好、抵抗力强，乖巧亲人、大方自信的小猫。从小猫出生开始记录到去新家，让家长不会缺席小猫成长的每一个阶段。
+            我们的繁育理念是繁育体质好、抵抗力强，乖巧亲人、大方自信的小猫。从小猫出生开始记录到去新家，让家长不会缺席小猫成长的每一个阶段。做一家有温度的猫舍。
           </P>
-          <p className="mt-3 text-center font-display text-[16px] tracking-[0.15em] text-heading">
-            做一家有温度的猫舍
-          </p>
         </div>
       </Section>
 
