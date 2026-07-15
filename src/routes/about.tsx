@@ -8,7 +8,7 @@ import {
   Rosette,
   HeartPaw,
   CurledCat,
-  PawCheck,
+  DnaHelix,
 } from "@/components/mobile/illustrations";
 
 export const Route = createFileRoute("/about")({
