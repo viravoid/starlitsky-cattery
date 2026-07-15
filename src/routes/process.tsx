@@ -120,11 +120,13 @@ function Process() {
         </p>
         <div className="grid grid-cols-4 gap-2.5">
           {SENIOR_BENEFITS.map((b) => (
-            <Card key={b.label} className="p-3 text-center">
+            <Card key={b.label} className="flex flex-col p-3 text-center">
               <p className="text-[12px] font-medium text-card-foreground">{b.label}</p>
-              <p className="mt-1 whitespace-pre-line text-[15px] font-semibold text-heading">
-                {b.value}
-              </p>
+              <div className="flex flex-1 items-center justify-center">
+                <p className="whitespace-pre-line text-[15px] font-semibold text-heading">
+                  {b.value}
+                </p>
+              </div>
             </Card>
           ))}
         </div>
