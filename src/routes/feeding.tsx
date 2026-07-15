@@ -10,19 +10,15 @@ export const Route = createFileRoute("/feeding")({
 const MODULES = [
   {
     title: "熟自制",
-    desc: "红肉、白肉、内脏，按正确配比添加营养补剂。",
+    desc: "考虑到小猫饮食多样营养均衡，我们会采购各种不同种类的白肉红肉以及内脏，按照正确的配比添加营养补剂。\n红肉（不同部位牛肉鹿肉，偶尔鸵鸟）\n内脏（牛，兔，鸡内脏）\n白肉（鸡胸鸡腿，鸭胸）",
   },
   {
     title: "猫粮",
-    desc: "百利高蛋白、百利无谷鸡、NG 猪肉、NG 紫鸡等进口粮为主，不定期更换。",
+    desc: "目前猫粮为百利高蛋白、百利无谷鸡、NG 猪肉、NG 紫鸡等配方良好的进口粮为主，不定期更换。",
   },
   {
     title: "罐头",
-    desc: "macs、mja、ven、小李子等德罐为主。",
-  },
-  {
-    title: "奶猫开食",
-    desc: "皇家奶糕。",
+    desc: "macs、mja、ven、小李子等德罐为主。\n奶猫开食皇家奶糕。",
   },
   {
     title: "冻干",
@@ -60,7 +56,7 @@ function Feeding() {
                 <h3 className="text-[16px] font-semibold leading-tight text-heading">
                   {title}
                 </h3>
-                <p className="mt-1 text-[13px] leading-relaxed text-foreground/90">
+                <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-foreground/90">
                   {desc}
                 </p>
               </div>
