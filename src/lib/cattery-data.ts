@@ -82,7 +82,8 @@ export interface Kitten {
   gender: string;
   color: string;
   birthday: string;
-  parents: string;
+  father: string;
+  mother: string;
   status: KittenStatus;
   price: string;
   personality: string;
