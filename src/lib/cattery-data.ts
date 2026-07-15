@@ -17,15 +17,12 @@ export interface Stud {
   role: string;
   category: StudCategory;
   status: string; // 当前状态
-  trait: string; // 性格特点（简短介绍）
+  trait: string; // 简短一句话介绍（用于列表卡片）
   source: string; // 来源 / 血线
-  structure: string; // 结构特点
-  breeding: string; // 繁育方向
+  story?: string[]; // 主理人完整介绍（自然分段）
 }
 
 const SRC = "示例文字（缺少来源 / 血线）";
-const STRUCT = "示例文字（缺少结构特点）";
-const BREED = "示例文字（缺少繁育方向）";
 
 function stud(
   id: string,
@@ -35,12 +32,30 @@ function stud(
   category: StudCategory,
   status: string,
   trait: string,
+  source: string = SRC,
+  story?: string[],
 ): Stud {
-  return { id, name, color, role, category, status, trait, source: SRC, structure: STRUCT, breeding: BREED };
+  return { id, name, color, role, category, status, trait, source, story };
 }
 
 export const STUDS: Stud[] = [
-  stud("chonglou", "重楼", "红虎斑 d22", "现役公猫 / 半退役", "现役公猫", "在舍", "体格宽大，气质沉稳"),
+  stud(
+    "chonglou",
+    "重楼",
+    "红虎斑 d22",
+    "现役公猫 / 半退役",
+    "现役公猫",
+    "半退役 · 在舍",
+    "体格宽大，气质沉稳",
+    "俄罗斯老牌猫舍",
+    [
+      "来自一家俄罗斯老牌猫舍，该猫舍主理人曾任国内 WCF 协会裁判，繁育的小猫结构细节都很出色。",
+      "重楼头版强壮敦厚，额头饱满转折清晰，耳位端正耳朵又大又直，而且他也来自一条大体格血线，身体肌肉轮廓清晰强健有力，骨量优秀，体重接近二十斤，运动能力优秀，热爱跑跳和小猫玩。体检心脏、髋关节都很健康。",
+      "与此同时他还有着非常温顺的性格，对人友好，喜欢陪小猫玩，对母猫也很温柔。",
+      "他的风格比较符合我理想中甜美帅气结合的样子，尽管他身价不菲，但我还是毅然决然地接他回家。",
+      "一转眼他已经打工四年啦，时间证明了结构优秀的种猫是不会过时的，他为我们留下了很多非常优秀的小猫。现在半退役生活在我家享受退役猫待遇，因为他不乱尿可以偶尔出来玩耍，在新房也给他准备了最大的公猫房~",
+    ],
+  ),
   stud("hupo", "琥珀", "棕虎斑麻纹加白 n2509", "现役公猫", "现役公猫", "在配", "骨量足，纹路清晰"),
   stud("shulongyin", "水龙吟", "黑银鱼骨纹 ns23", "现役公猫", "现役公猫", "在配", "银度高，性格温柔"),
   stud("tianhe", "天河", "银虎斑加白 ns2203", "现役公猫", "现役公猫", "在配", "大方亲人，表情甜"),
@@ -57,6 +72,7 @@ export const STUDS: Stud[] = [
   stud("xiaobianmu", "小边牧", "玳瑁虎斑 f22", "现役母猫", "现役母猫", "在舍", "花纹俏皮，亲人"),
   stud("xiaotao", "小桃", "玳瑁麻纹 f25", "现役母猫", "现役母猫", "成长中", "粉嫩气质，温柔"),
 ];
+
 
 export type KittenStatus = "待找家" | "找家中" | "已有家";
 
