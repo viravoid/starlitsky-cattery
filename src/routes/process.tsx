@@ -37,7 +37,7 @@ const SENIOR_BENEFITS = [
   { label: "二胎", value: "9 折" },
   { label: "三胎", value: "8 折" },
   { label: "四胎", value: "7 折" },
-  { label: "退役猫", value: "免费领养" },
+  { label: "退役猫", value: "免费\n领养" },
 ];
 
 const STEPS = [
@@ -122,7 +122,9 @@ function Process() {
           {SENIOR_BENEFITS.map((b) => (
             <Card key={b.label} className="p-3 text-center">
               <p className="text-[12px] font-medium text-card-foreground">{b.label}</p>
-              <p className="mt-1 text-[15px] font-semibold text-heading">{b.value}</p>
+              <p className="mt-1 whitespace-pre-line text-[15px] font-semibold text-heading">
+                {b.value}
+              </p>
             </Card>
           ))}
         </div>
