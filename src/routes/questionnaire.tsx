@@ -114,12 +114,10 @@ function RadioField({
 
 /** Longer commitment questions get their own calm block. */
 function CommitBlock({
-  no,
   text,
   value,
   onChange,
 }: {
-  no: string;
   text: string;
   value: string;
   onChange: (v: string) => void;
@@ -128,7 +126,6 @@ function CommitBlock({
   return (
     <div className="rounded-[1.25rem] border border-border bg-card/60 p-4">
       <p className="text-[13px] leading-[1.9] text-foreground">
-        <span className="mr-1 font-semibold text-violet/70">{no}</span>
         {text}
         <span className="ml-0.5 text-[#7A2F36]">*</span>
       </p>
@@ -385,19 +382,16 @@ function Questionnaire() {
         <GroupTitle no="五" cn="饲养理念与承诺" />
         <div className="space-y-3">
           <CommitBlock
-            no="19"
             text="能否接受科学（天然粮 / 主食罐 / 生骨肉 / 熟自制）喂养，承诺不喂垃圾粮、不喂来源不明确的生肉"
             value={val("scientificFeeding")}
             onChange={set("scientificFeeding")}
           />
           <CommitBlock
-            no="20"
             text="小猫比较活泼，日常有可能会有抓挠家具、咬线、玩闹误伤等行为，能否接受"
             value={val("acceptActive")}
             onChange={set("acceptActive")}
           />
           <CommitBlock
-            no="21"
             text="是否承诺对小猫不离不弃，如遇不可抗因素无法继续饲养，必须与猫舍进行联系，猫舍有权知晓小猫未来的去向，能否接受"
             value={val("commitment")}
             onChange={set("commitment")}
