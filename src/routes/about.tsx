@@ -72,7 +72,7 @@ function About() {
         <Card className="space-y-2 bg-gradient-cream p-4">
           <h3 className="text-[15px] font-semibold text-heading">主理人 · 星下 & 月七</h3>
           <p className="text-[13px] leading-relaxed text-foreground">
-            两位主理人全职经营猫舍，作为全职“猫家长”，陪伴并记录小猫从出生、社会化训练到去新家的成长过程。
+            两位主理人全职经营猫舍，持续陪伴小猫成长，也在不断学习和完善繁育与行为学知识。
           </p>
         </Card>
       </Section>
