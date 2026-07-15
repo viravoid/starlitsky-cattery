@@ -58,7 +58,7 @@ export const STUDS: Stud[] = [
   stud("xiaotao", "小桃", "玳瑁麻纹 f25", "现役母猫", "现役母猫", "成长中", "粉嫩气质，温柔"),
 ];
 
-export type KittenStatus = "在售" | "观察中" | "已预订" | "已售" | "咨询价格";
+export type KittenStatus = "待找家" | "找家中" | "已有家";
 
 export interface Kitten {
   id: string;
@@ -80,7 +80,7 @@ export const KITTENS: Kitten[] = [
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
     parents: "示例文字（缺少父母信息）",
-    status: "观察中",
+    status: "待找家",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
   },
@@ -91,7 +91,7 @@ export const KITTENS: Kitten[] = [
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
     parents: "示例文字（缺少父母信息）",
-    status: "在售",
+    status: "找家中",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
   },
@@ -102,7 +102,7 @@ export const KITTENS: Kitten[] = [
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
     parents: "示例文字（缺少父母信息）",
-    status: "已预订",
+    status: "已有家",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
   },
@@ -110,13 +110,11 @@ export const KITTENS: Kitten[] = [
 
 export function statusTone(status: KittenStatus) {
   switch (status) {
-    case "在售":
-      return "sky";
-    case "观察中":
+    case "待找家":
       return "sunny";
-    case "已预订":
-      return "violet";
-    case "已售":
+    case "找家中":
+      return "sky";
+    case "已有家":
       return "warm";
     default:
       return "warm";
