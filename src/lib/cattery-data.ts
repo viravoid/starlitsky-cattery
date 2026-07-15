@@ -82,7 +82,8 @@ export interface Kitten {
   gender: string;
   color: string;
   birthday: string;
-  parents: string;
+  father: string;
+  mother: string;
   status: KittenStatus;
   price: string;
   personality: string;
@@ -95,7 +96,8 @@ export const KITTENS: Kitten[] = [
     gender: "妹妹",
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
-    parents: "示例文字（缺少父母信息）",
+    father: "示例文字（缺少父亲信息）",
+    mother: "示例文字（缺少母亲信息）",
     status: "待找家",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
@@ -106,7 +108,8 @@ export const KITTENS: Kitten[] = [
     gender: "弟弟",
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
-    parents: "示例文字（缺少父母信息）",
+    father: "示例文字（缺少父亲信息）",
+    mother: "示例文字（缺少母亲信息）",
     status: "找家中",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
@@ -117,7 +120,8 @@ export const KITTENS: Kitten[] = [
     gender: "妹妹",
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
-    parents: "示例文字（缺少父母信息）",
+    father: "示例文字（缺少父亲信息）",
+    mother: "示例文字（缺少母亲信息）",
     status: "已有家",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
