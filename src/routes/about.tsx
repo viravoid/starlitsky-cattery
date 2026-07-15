@@ -38,6 +38,32 @@ function About() {
             About StarlitSky
           </p>
         </div>
+      </Section>
+
+      <Section className="mt-2">
+        <SectionTitle cn="猫舍名片" en="At a glance" />
+        <div className="grid grid-cols-2 gap-2.5">
+          {FACTS.map(({ label, Art }) => (
+            <Card key={label} className="flex items-center gap-2.5 p-3">
+              <Art className="h-9 w-9 shrink-0 text-violet/80" />
+              <span className="text-[13px] font-medium leading-snug text-card-foreground">
+                {label}
+              </span>
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      <Section className="mt-6">
+        <Card className="space-y-2 bg-gradient-cream p-4">
+          <h3 className="text-[15px] font-semibold text-heading">主理人 · 星下 & 月七</h3>
+          <p className="text-[13px] leading-relaxed text-foreground">
+            两位主理人全职经营猫舍，持续陪伴小猫成长，也在不断学习和完善繁育与行为学知识。
+          </p>
+        </Card>
+      </Section>
+
+      <Section className="mb-10 mt-10">
         <div className="space-y-5 text-[14px] leading-[2] text-foreground">
           <p>
             欢迎了解我们的猫舍~我们的猫舍成立于2019年位于十三朝古都西安，注册于WCF、CFA协会。由主理人星下和月七两人全职经营，作为全职“猫家长”，我们每天最重要的事就是陪伴小猫成长。
@@ -54,28 +80,6 @@ function About() {
         </div>
       </Section>
 
-      <Section className="mt-10">
-        <SectionTitle cn="猫舍名片" en="At a glance" />
-        <div className="grid grid-cols-2 gap-2.5">
-          {FACTS.map(({ label, Art }) => (
-            <Card key={label} className="flex items-center gap-2.5 p-3">
-              <Art className="h-9 w-9 shrink-0 text-violet/80" />
-              <span className="text-[13px] font-medium leading-snug text-card-foreground">
-                {label}
-              </span>
-            </Card>
-          ))}
-        </div>
-      </Section>
-
-      <Section className="mb-10 mt-6">
-        <Card className="space-y-2 bg-gradient-cream p-4">
-          <h3 className="text-[15px] font-semibold text-heading">主理人 · 星下 & 月七</h3>
-          <p className="text-[13px] leading-relaxed text-foreground">
-            两位主理人全职经营猫舍，持续陪伴小猫成长，也在不断学习和完善繁育与行为学知识。
-          </p>
-        </Card>
-      </Section>
     </PhoneFrame>
   );
 }
