@@ -91,7 +91,7 @@ function Process() {
       <Section className="mt-7">
         <SectionTitle cn="繁育权" en="Breeding Rights" icon={<PawIcon className="h-5 w-5" />} />
         <p className="mb-3 text-[12px] text-muted-foreground">
-          繁育权仅面向合规猫舍与有繁育经验的家长，具体以正式合同为准。
+          繁育权仅面向互相了解，并且主理人熟悉科学饲养科学繁育的猫舍。
         </p>
         <div className="grid grid-cols-2 gap-2.5">
           {BREEDING.map((b) => (
