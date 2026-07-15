@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, SectionTitle, Card } from "@/components/mobile/ui";
-import { PriceTagIcon, GiftIcon, RouteIcon, MoonIcon, PawIcon } from "@/components/mobile/icons";
+import { PriceTagIcon, GiftIcon, RouteIcon, MoonIcon, PawIcon, HeartIcon } from "@/components/mobile/icons";
 
 export const Route = createFileRoute("/process")({
   component: Process,
