@@ -111,7 +111,6 @@ function KittenDetail() {
         <div className="space-y-2.5">
           <Progress label="疫苗进度" value="示例文字（待更新）" done={false} />
           <Progress label="驱虫进度" value="示例文字（待更新）" done={false} />
-          <Progress label="体检情况" value="示例文字（待更新）" done={false} />
         </div>
       </Section>
     </PhoneFrame>
