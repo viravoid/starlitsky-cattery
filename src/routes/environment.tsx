@@ -40,9 +40,9 @@ function Environment() {
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <Pill tone="sky">600+ ㎡ 室内</Pill>
-            <Pill tone="sunny">3 个院子</Pill>
-            <Pill tone="violet">拒绝笼养</Pill>
-            <Pill tone="cream">科学规划</Pill>
+            <Pill tone="mint">3 个院子</Pill>
+            <Pill tone="sunny">拒绝笼养</Pill>
+            <Pill tone="creamblue">科学规划</Pill>
           </div>
         </Card>
       </Section>
