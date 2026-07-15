@@ -37,6 +37,10 @@ function Progress({ label, value, done }: { label: string; value: string; done: 
 function KittenDetail() {
   const { id } = useParams({ from: "/kittens/$id" });
   const kitten = KITTENS.find((k) => k.id === id) ?? KITTENS[0];
+  const paragraphs =
+    kitten.story && kitten.story.length > 0
+      ? kitten.story
+      : [kitten.personality || "（示例文字：主理人的完整介绍待补充）"];
 
   return (
     <PhoneFrame
@@ -81,29 +85,42 @@ function KittenDetail() {
         </div>
       </Section>
 
-      <Section className="mt-5 space-y-3">
-        <Card className="p-4">
-          <h3 className="mb-1.5 flex items-center gap-1.5 text-[14px] font-semibold text-heading">
-            <StarIcon className="h-4 w-4 text-violet" /> 性格介绍
-          </h3>
-          <p className="text-[13px] leading-relaxed text-foreground">{kitten.personality}</p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="mb-1.5 flex items-center gap-1.5 text-[14px] font-semibold text-heading">
-            <StarIcon className="h-4 w-4 text-violet" /> 品相介绍
-          </h3>
-          <p className="text-[13px] leading-relaxed text-foreground">
-            示例文字（缺少品相介绍）
+      {/* 「关于这只小猫」完整介绍 */}
+      <Section className="mb-10 mt-8">
+        <div className="relative">
+          <div className="mb-5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent via-violet/30 to-transparent" />
+            <span className="text-[10px] uppercase tracking-[0.3em] text-violet/70">About</span>
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent via-violet/30 to-transparent" />
+          </div>
+
+          <h2 className="text-[17px] font-semibold leading-snug text-heading">关于{kitten.name}</h2>
+          <p className="mt-1 text-[11px] tracking-wider text-muted-foreground/80">
+            主理人手记 · Keeper's Note
           </p>
-        </Card>
-        <Card className="p-4">
-          <h3 className="mb-1.5 flex items-center gap-1.5 text-[14px] font-semibold text-heading">
-            <StarIcon className="h-4 w-4 text-violet" /> 成长记录
-          </h3>
-          <p className="text-[13px] leading-relaxed text-foreground">
-            示例文字（缺少成长记录，从出生开始持续更新）
-          </p>
-        </Card>
+
+          <div className="relative mt-5 rounded-[22px] bg-gradient-to-b from-cream/60 to-transparent px-1 py-2">
+            <div className="space-y-4 px-4 py-3">
+              {paragraphs.map((p, i) => (
+                <p
+                  key={i}
+                  className="text-[14.5px] leading-[1.95] tracking-[0.01em] text-foreground/90"
+                >
+                  {i === 0 && <span className="mr-1 align-baseline text-violet/60">「</span>}
+                  {p}
+                  {i === paragraphs.length - 1 && (
+                    <span className="ml-0.5 align-baseline text-violet/60">」</span>
+                  )}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 flex items-center justify-end gap-2 text-[11px] text-muted-foreground/80">
+            <span className="h-px w-8 bg-muted-foreground/30" />
+            <span>— 星月 · 主理人</span>
+          </div>
+        </div>
       </Section>
 
       <Section className="mb-8 mt-5">
