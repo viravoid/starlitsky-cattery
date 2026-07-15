@@ -47,7 +47,6 @@ function CatCard({
   pill,
   name,
   meta,
-  intro,
   to,
   params,
 }: {
@@ -55,7 +54,6 @@ function CatCard({
   pill: { text: string; tone: string };
   name: string;
   meta: { k: string; v: string }[];
-  intro: string;
   to: string;
   params: Record<string, string>;
 }) {
@@ -80,7 +78,6 @@ function CatCard({
             <Meta key={m.k} k={m.k} v={m.v} />
           ))}
         </div>
-        <p className="text-[12px] leading-relaxed text-foreground">{intro}</p>
         <span className="mt-1 flex items-center justify-center gap-1 rounded-full bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground shadow-card">
           了解详情 <ChevronRightIcon className="h-3.5 w-3.5" />
         </span>
@@ -184,7 +181,6 @@ function Cats() {
                   { k: "生日", v: k.birthday },
                   { k: "价格", v: k.price },
                 ]}
-                intro={k.personality}
                 to="/kittens/$id"
                 params={{ id: k.id }}
               />
@@ -217,7 +213,6 @@ function Cats() {
                   { k: "身份", v: s.role },
                   { k: "颜色", v: s.color },
                 ]}
-                intro={s.trait}
                 to="/studs/$id"
                 params={{ id: s.id }}
               />
