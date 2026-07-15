@@ -31,15 +31,6 @@ function About() {
         <Placeholder label="示例图片（猫舍介绍主图，待替换）" ratio="aspect-[16/10]" rounded="rounded-3xl" />
       </Section>
 
-      <Section className="mt-5">
-        <div className="mb-2 flex items-center gap-2">
-          <PawIcon className="h-5 w-5 text-violet" />
-          <p className="font-display text-[12px] uppercase tracking-[0.25em] text-warm">
-            About StarlitSky
-          </p>
-        </div>
-      </Section>
-
       <Section className="mt-2">
         <SectionTitle cn="猫舍名片" en="At a glance" />
         <div className="grid grid-cols-2 gap-2.5">
@@ -64,7 +55,10 @@ function About() {
       </Section>
 
       <Section className="mb-10 mt-10">
-        <div className="space-y-5 text-[14px] leading-[2] text-foreground">
+        <p className="font-display text-[12px] uppercase tracking-[0.25em] text-warm">
+          About StarlitSky
+        </p>
+        <div className="mt-4 space-y-5 text-[14px] leading-[2] text-foreground">
           <p>
             欢迎了解我们的猫舍~我们的猫舍成立于2019年位于十三朝古都西安，注册于WCF、CFA协会。由主理人星下和月七两人全职经营，作为全职“猫家长”，我们每天最重要的事就是陪伴小猫成长。
           </p>
@@ -79,6 +73,7 @@ function About() {
           </p>
         </div>
       </Section>
+
 
     </PhoneFrame>
   );
