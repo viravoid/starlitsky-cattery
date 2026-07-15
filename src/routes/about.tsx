@@ -7,7 +7,7 @@ import {
   Cottage,
   Rosette,
   HeartPaw,
-  CurledCat,
+  BabyBottle,
   DnaHelix,
 } from "@/components/mobile/illustrations";
 
