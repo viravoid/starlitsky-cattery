@@ -38,15 +38,23 @@ function About() {
             About StarlitSky
           </p>
         </div>
-        <p className="text-[14px] leading-[1.9] text-foreground">
-          欢迎了解我们的猫舍~我们的猫舍成立于2019年位于十三朝古都西安，注册于WCF、CFA协会。由主理人星下和月七两人全职经营，作为全职“猫家长”，我们每天最重要的事就是陪伴小猫成长，我们会从小猫出生开始记录日常逐步完成各项社会化训练，会有窝次群给蹲猫家长更新这些。同时我们非常重视小猫的健康、喂养和生活环境；小猫均为别墅散养每天都会打扫消毒，目前主理人已完成繁育课g1课程和九月的行为学课程以及邓俊的响片课，仍在不断学习中。
-        </p>
-        <p className="mt-4 text-[14px] leading-[1.9] text-foreground">
-          所有小猫均为自己繁育，种猫均来自国内外知名猫舍血线清晰透明，经健康筛查无先天问题，遗传病筛选（all n/n)，注重动物福利，低频率繁育保证种猫身心健康。
-        </p>
+        <div className="space-y-5 text-[14px] leading-[2] text-foreground">
+          <p>
+            欢迎了解我们的猫舍~我们的猫舍成立于2019年位于十三朝古都西安，注册于WCF、CFA协会。由主理人星下和月七两人全职经营，作为全职“猫家长”，我们每天最重要的事就是陪伴小猫成长。
+          </p>
+          <p>
+            我们会从小猫出生开始记录日常逐步完成各项社会化训练，会有窝次群给蹲猫家长更新这些。同时我们非常重视小猫的健康、喂养和生活环境；小猫均为别墅散养每天都会打扫消毒。
+          </p>
+          <p>
+            目前主理人已完成繁育课g1课程和九月的行为学课程以及邓俊的响片课，仍在不断学习中。
+          </p>
+          <p>
+            所有小猫均为自己繁育，种猫均来自国内外知名猫舍血线清晰透明，经健康筛查无先天问题，遗传病筛选（all n/n)，注重动物福利，低频率繁育保证种猫身心健康。
+          </p>
+        </div>
       </Section>
 
-      <Section className="mt-6">
+      <Section className="mt-10">
         <SectionTitle cn="猫舍名片" en="At a glance" />
         <div className="grid grid-cols-2 gap-2.5">
           {FACTS.map(({ label, Art }) => (
@@ -64,7 +72,7 @@ function About() {
         <Card className="space-y-2 bg-gradient-cream p-4">
           <h3 className="text-[15px] font-semibold text-heading">主理人 · 星下 & 月七</h3>
           <p className="text-[13px] leading-relaxed text-foreground">
-            两位主理人全职经营猫舍，作为全职“猫家长”，陪伴并记录小猫从出生、社会化训练到去新家的成长过程。
+            两位主理人全职经营猫舍，持续陪伴小猫成长，也在不断学习和完善繁育与行为学知识。
           </p>
         </Card>
       </Section>
