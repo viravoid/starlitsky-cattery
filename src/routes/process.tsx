@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, SectionTitle, Card } from "@/components/mobile/ui";
-import { PriceTagIcon, GiftIcon, RouteIcon, MoonIcon, PawIcon } from "@/components/mobile/icons";
+import { PriceTagIcon, GiftIcon, RouteIcon, MoonIcon, PawIcon, HeartIcon } from "@/components/mobile/icons";
 
 export const Route = createFileRoute("/process")({
   component: Process,
@@ -31,6 +31,13 @@ const PRICES = [
 const BREEDING = [
   { label: "繁育权 · 母猫", value: "30000 – 50000 元" },
   { label: "繁育权 · 公猫", value: "40000 – 70000 元" },
+];
+
+const SENIOR_BENEFITS = [
+  { label: "二胎", value: "9 折" },
+  { label: "三胎", value: "8 折" },
+  { label: "四胎", value: "7 折" },
+  { label: "退役猫", value: "免费领养" },
 ];
 
 const STEPS = [
@@ -98,6 +105,22 @@ function Process() {
         <div className="grid grid-cols-2 gap-2.5">
           {BREEDING.map((b) => (
             <Card key={b.label} className="p-3.5">
+              <p className="text-[12px] font-medium text-card-foreground">{b.label}</p>
+              <p className="mt-1 text-[15px] font-semibold text-heading">{b.value}</p>
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      {/* Senior parent benefits */}
+      <Section className="mt-7">
+        <SectionTitle cn="老家长福利" en="Returning Families" icon={<HeartIcon className="h-5 w-5" />} />
+        <p className="mb-3 text-[12px] text-muted-foreground">
+          感谢一路同行的信任与陪伴，星月永远记得每一位老家长。
+        </p>
+        <div className="grid grid-cols-4 gap-2.5">
+          {SENIOR_BENEFITS.map((b) => (
+            <Card key={b.label} className="p-3 text-center">
               <p className="text-[12px] font-medium text-card-foreground">{b.label}</p>
               <p className="mt-1 text-[15px] font-semibold text-heading">{b.value}</p>
             </Card>
