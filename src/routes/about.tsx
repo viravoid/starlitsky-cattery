@@ -54,7 +54,7 @@ function About() {
         </div>
       </Section>
 
-      <Section className="mt-6">
+      <Section className="mt-10">
         <SectionTitle cn="猫舍名片" en="At a glance" />
         <div className="grid grid-cols-2 gap-2.5">
           {FACTS.map(({ label, Art }) => (
