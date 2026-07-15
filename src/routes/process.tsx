@@ -157,7 +157,7 @@ function Process() {
       <Section className="mt-7">
         <SectionTitle cn="新家礼包" en="Welcome Kit" icon={<GiftIcon className="h-5 w-5" />} />
         <Card className="p-4">
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-2.5">
             {GIFTS.map((g) => (
               <span
                 key={g}
