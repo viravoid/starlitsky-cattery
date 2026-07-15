@@ -87,6 +87,7 @@ export interface Kitten {
   status: KittenStatus;
   price: string;
   personality: string;
+  story?: string[]; // 主理人完整介绍（自然分段）
 }
 
 export const KITTENS: Kitten[] = [
@@ -101,6 +102,7 @@ export const KITTENS: Kitten[] = [
     status: "待找家",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
+    story: ["（示例文字：主理人的完整介绍待补充）"],
   },
   {
     id: "kitten-b",
@@ -113,6 +115,7 @@ export const KITTENS: Kitten[] = [
     status: "找家中",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
+    story: ["（示例文字：主理人的完整介绍待补充）"],
   },
   {
     id: "kitten-c",
@@ -125,6 +128,7 @@ export const KITTENS: Kitten[] = [
     status: "已有家",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
+    story: ["（示例文字：主理人的完整介绍待补充）"],
   },
 ];
 
