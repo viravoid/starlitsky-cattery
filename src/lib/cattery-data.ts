@@ -8,7 +8,7 @@ export const SOCIALS = [
   { label: "小猫日常号", value: "月七的小猫存档" },
 ];
 
-export type StudCategory = "现役公猫" | "预备役公猫" | "现役母猫" | "退役种猫";
+export type StudCategory = "现役公猫" | "现役母猫" | "预备役种猫";
 
 export interface Stud {
   id: string;
@@ -44,7 +44,7 @@ export const STUDS: Stud[] = [
   stud("hupo", "琥珀", "棕虎斑麻纹加白 n2509", "现役公猫", "现役公猫", "在配", "骨量足，纹路清晰"),
   stud("shulongyin", "水龙吟", "黑银鱼骨纹 ns23", "现役公猫", "现役公猫", "在配", "银度高，性格温柔"),
   stud("tianhe", "天河", "银虎斑加白 ns2203", "现役公猫", "现役公猫", "在配", "大方亲人，表情甜"),
-  stud("sanmingzhi", "三明治", "棕虎斑 n22", "预备役公猫", "预备役公猫", "成长中", "潜力款，正在成长"),
+  stud("sanmingzhi", "三明治", "棕虎斑 n22", "预备役种猫", "预备役种猫", "成长中", "潜力款，正在成长"),
   stud("yunmu", "云母", "黑银麻纹加白 ns2503", "现役母猫", "现役母猫", "在舍", "五官柔和，母性强"),
   stud("niaotuan", "尿团", "银玳瑁虎斑 fs22", "现役母猫", "现役母猫", "在舍", "颜色特别，活泼"),
   stud("guihuagao", "桂花糕", "玳瑁麻纹加白 f2509", "现役母猫", "现役母猫", "在舍", "花色甜美，亲人"),
@@ -58,7 +58,7 @@ export const STUDS: Stud[] = [
   stud("xiaotao", "小桃", "玳瑁麻纹 f25", "现役母猫", "现役母猫", "成长中", "粉嫩气质，温柔"),
 ];
 
-export type KittenStatus = "在售" | "观察中" | "已预订" | "已售" | "咨询价格";
+export type KittenStatus = "待找家" | "找家中" | "已有家";
 
 export interface Kitten {
   id: string;
@@ -80,7 +80,7 @@ export const KITTENS: Kitten[] = [
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
     parents: "示例文字（缺少父母信息）",
-    status: "观察中",
+    status: "待找家",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
   },
@@ -91,7 +91,7 @@ export const KITTENS: Kitten[] = [
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
     parents: "示例文字（缺少父母信息）",
-    status: "在售",
+    status: "找家中",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
   },
@@ -102,7 +102,7 @@ export const KITTENS: Kitten[] = [
     color: "示例文字（缺少颜色）",
     birthday: "示例文字（缺少生日）",
     parents: "示例文字（缺少父母信息）",
-    status: "已预订",
+    status: "已有家",
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
   },
@@ -110,13 +110,11 @@ export const KITTENS: Kitten[] = [
 
 export function statusTone(status: KittenStatus) {
   switch (status) {
-    case "在售":
-      return "sky";
-    case "观察中":
+    case "待找家":
       return "sunny";
-    case "已预订":
-      return "violet";
-    case "已售":
+    case "找家中":
+      return "sky";
+    case "已有家":
       return "warm";
     default:
       return "warm";

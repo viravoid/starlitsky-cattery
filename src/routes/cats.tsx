@@ -8,8 +8,6 @@ import {
   KITTENS,
   STUDS,
   statusTone,
-  
-  type KittenStatus,
   type StudCategory,
 } from "@/lib/cattery-data";
 
@@ -27,12 +25,11 @@ export const Route = createFileRoute("/cats")({
   component: Cats,
 });
 
-const KITTEN_FILTERS = ["全部", "在售", "观察中", "已预订", "已售"] as const;
+const KITTEN_FILTERS = ["待找家", "找家中", "已有家"] as const;
 const STUD_FILTERS: StudCategory[] = [
   "现役公猫",
-  "预备役公猫",
   "现役母猫",
-  "退役种猫",
+  "预备役种猫",
 ];
 
 function Meta({ k, v }: { k: string; v: string }) {
@@ -95,13 +92,10 @@ function CatCard({
 function Cats() {
   const [tab, setTab] = useState<"kittens" | "studs">("kittens");
   const [kFilter, setKFilter] =
-    useState<(typeof KITTEN_FILTERS)[number]>("全部");
+    useState<(typeof KITTEN_FILTERS)[number]>("待找家");
   const [sFilter, setSFilter] = useState<StudCategory>("现役公猫");
 
-  const kittenList =
-    kFilter === "全部"
-      ? KITTENS
-      : KITTENS.filter((k) => k.status === (kFilter as KittenStatus));
+  const kittenList = KITTENS.filter((k) => k.status === kFilter);
   const studList = STUDS.filter((s) => s.category === sFilter);
 
   return (
