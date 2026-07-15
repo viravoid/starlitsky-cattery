@@ -87,6 +87,7 @@ export interface Kitten {
   status: KittenStatus;
   price: string;
   personality: string;
+  story?: string[]; // 主理人完整介绍（自然分段）
 }
 
 export const KITTENS: Kitten[] = [
