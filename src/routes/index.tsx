@@ -158,7 +158,7 @@ function Home() {
           Est. 2019 · Xi&apos;an · WCF / CFA 注册
         </p>
         <p className="mx-auto mt-4 max-w-[19rem] text-[13px] leading-[2] text-foreground">
-          做一家有温度的缅因猫舍，低频率繁育，别墅散养，专注小猫社会化，记录小猫从出生到去新家。
+          做一家有温度的缅因猫舍，低频率繁育别墅散养专注小猫社会化，记录小猫从出生到去新家的日常，绝育找家，长期售后
         </p>
         <PawTrail className="mx-auto mt-5" />
       </header>
