@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
-import { Section, Card, Pill } from "@/components/mobile/ui";
+import { Section, Pill } from "@/components/mobile/ui";
 import { Carousel } from "@/components/mobile/Carousel";
-import { PaperIcon, CheckIcon, StarIcon } from "@/components/mobile/icons";
+import { PaperIcon, CheckIcon } from "@/components/mobile/icons";
 import { KITTENS, statusTone } from "@/lib/cattery-data";
 
 export const Route = createFileRoute("/kittens/$id")({
