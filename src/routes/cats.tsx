@@ -31,7 +31,7 @@ const KITTEN_FILTERS = ["待找家", "找家中", "已有家"] as const;
 const STUD_FILTERS: StudCategory[] = [
   "现役公猫",
   "现役母猫",
-  "预备役公猫",
+  "预备役种猫",
 ];
 
 function Meta({ k, v }: { k: string; v: string }) {
