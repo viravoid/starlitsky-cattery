@@ -225,8 +225,8 @@ function GhostBtn({ children }: { children: React.ReactNode }) {
 function Overview() {
   const stats = [
     { label: "小猫总数", value: KITTENS.length, tone: "bg-sky/25" },
-    { label: "在售数量", value: KITTENS.filter((k) => k.status === "在售").length, tone: "bg-creamblue/45" },
-    { label: "观察中数量", value: KITTENS.filter((k) => k.status === "观察中").length, tone: "bg-sunny/45" },
+    { label: "待找家数量", value: KITTENS.filter((k) => k.status === "待找家").length, tone: "bg-creamblue/45" },
+    { label: "找家中数量", value: KITTENS.filter((k) => k.status === "找家中").length, tone: "bg-sunny/45" },
     { label: "问卷提交数量", value: FORM_ENTRIES.length, tone: "bg-warm/30" },
   ];
   return (
