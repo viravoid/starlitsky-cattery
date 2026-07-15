@@ -94,13 +94,10 @@ function CatCard({
 function Cats() {
   const [tab, setTab] = useState<"kittens" | "studs">("kittens");
   const [kFilter, setKFilter] =
-    useState<(typeof KITTEN_FILTERS)[number]>("全部");
+    useState<(typeof KITTEN_FILTERS)[number]>("待找家");
   const [sFilter, setSFilter] = useState<StudCategory>("现役公猫");
 
-  const kittenList =
-    kFilter === "全部"
-      ? KITTENS
-      : KITTENS.filter((k) => k.status === (kFilter as KittenStatus));
+  const kittenList = KITTENS.filter((k) => k.status === kFilter);
   const studList = STUDS.filter((s) => s.category === sFilter);
 
   return (
