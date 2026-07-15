@@ -6,9 +6,9 @@ export const Route = createFileRoute("/philosophy")({
   component: Philosophy,
 });
 
-function P({ children }: { children: React.ReactNode }) {
+function P({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className="text-[15px] leading-[1.9] text-[#5b4a3a]">{children}</p>
+    <p className={`text-[15px] leading-[1.9] text-[#5b4a3a] ${className ?? ""}`}>{children}</p>
   );
 }
 
