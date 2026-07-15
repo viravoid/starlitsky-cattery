@@ -66,11 +66,11 @@ function Aftercare() {
           icon={<CrossIcon className="h-5 w-5" />}
         />
         <Card className="p-4">
-          <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+          <ul className="flex flex-col gap-3">
             {HEALTH.map((h) => (
-              <li key={h} className="flex items-start gap-2 text-[12.5px] text-card-foreground">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                <span className="leading-snug">{h}</span>
+              <li key={h} className="flex items-start gap-2.5 text-[13px] leading-relaxed text-card-foreground">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <span>{h}</span>
               </li>
             ))}
           </ul>
