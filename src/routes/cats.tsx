@@ -8,8 +8,6 @@ import {
   KITTENS,
   STUDS,
   statusTone,
-  
-  type KittenStatus,
   type StudCategory,
 } from "@/lib/cattery-data";
 
