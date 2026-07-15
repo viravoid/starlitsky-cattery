@@ -8,7 +8,7 @@ export const SOCIALS = [
   { label: "小猫日常号", value: "月七的小猫存档" },
 ];
 
-export type StudCategory = "现役公猫" | "预备役公猫" | "现役母猫" | "退役种猫";
+export type StudCategory = "现役公猫" | "现役母猫" | "预备役种猫";
 
 export interface Stud {
   id: string;
