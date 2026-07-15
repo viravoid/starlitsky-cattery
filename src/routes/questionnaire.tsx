@@ -114,12 +114,10 @@ function RadioField({
 
 /** Longer commitment questions get their own calm block. */
 function CommitBlock({
-  no,
   text,
   value,
   onChange,
 }: {
-  no: string;
   text: string;
   value: string;
   onChange: (v: string) => void;
@@ -128,7 +126,6 @@ function CommitBlock({
   return (
     <div className="rounded-[1.25rem] border border-border bg-card/60 p-4">
       <p className="text-[13px] leading-[1.9] text-foreground">
-        <span className="mr-1 font-semibold text-violet/70">{no}</span>
         {text}
         <span className="ml-0.5 text-[#7A2F36]">*</span>
       </p>
