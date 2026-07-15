@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
-import { Section, Placeholder } from "@/components/mobile/ui";
+import { Section } from "@/components/mobile/ui";
 
 export const Route = createFileRoute("/philosophy")({
   component: Philosophy,
@@ -15,26 +15,26 @@ function P({ children }: { children: React.ReactNode }) {
 function Philosophy() {
   return (
     <PhoneFrame title="繁育理念" backTo="/">
-      {/* English label only — no repeated 中文标题 */}
+      {/* English label only */}
       <Section className="pb-1 pt-3 text-center">
         <p className="font-display text-[10px] uppercase tracking-[0.4em] text-[#8aa8c8]">
           Breeding Philosophy
         </p>
       </Section>
 
-      {/* Opening — lightweight, low-contrast frame */}
+      {/* Opening — lightweight card */}
       <Section className="mt-5">
-        <div className="rounded-xl border border-[#efe4cf]/70 bg-[#fbf5e8]/40 px-4 py-5">
+        <div className="rounded-xl border border-[#efe4cf]/70 bg-[#fbf5e8]/40 px-4 py-4">
           <P>
             我们的繁育理念是繁育体质好、抵抗力强，乖巧亲人、大方自信的小猫。从小猫出生开始记录到去新家，让家长不会缺席小猫成长的每一个阶段。
           </P>
-          <p className="mt-4 text-center font-display text-[16px] tracking-[0.15em] text-heading">
+          <p className="mt-3 text-center font-display text-[16px] tracking-[0.15em] text-heading">
             做一家有温度的猫舍
           </p>
         </div>
       </Section>
 
-      {/* Continuous self-narrative — no chapter heading */}
+      {/* Continuous self-narrative */}
       <Section className="mt-8 space-y-4">
         <P>
           这些年我们一直在不断努力，投入更多的精力陪伴小猫，从小进行社会化并记录日常，把主粮从 Halo 换成 NG 和百利高。
@@ -47,38 +47,22 @@ function Philosophy() {
         </P>
       </Section>
 
-      <Section className="mt-6">
-        <Placeholder
-          label="示例图片　小猫日常陪伴 / 社会化记录"
-          ratio="aspect-[4/3]"
-        />
-      </Section>
-
-      {/* New stage — no title, subtle left rule */}
-      <Section className="mt-8">
-        <div className="border-l border-[#d9b26a]/50 pl-4 space-y-4">
-          <P>
-            今年是我做繁育的第五年，月七做繁育的第七年。
-          </P>
-          <P>
-            我们终于搬进了和小猫共同的新家，我们的人生和猫舍也都迈向了一个新的阶段。
-          </P>
-          <P>
-            从一开始的迷茫从众，到现在有了清晰的目标。
-          </P>
-        </div>
-      </Section>
-
-      <Section className="mt-6">
-        <Placeholder
-          label="示例图片　猫舍新家 / 与小猫共同生活"
-          ratio="aspect-[4/3]"
-        />
+      {/* New stage — plain text, no left rule */}
+      <Section className="mt-10 space-y-4">
+        <P>
+          今年是我做繁育的第五年，月七做繁育的第七年。
+        </P>
+        <P>
+          我们终于搬进了和小猫共同的新家，我们的人生和猫舍也都迈向了一个新的阶段。
+        </P>
+        <P>
+          从一开始的迷茫从众，到现在有了清晰的目标。
+        </P>
       </Section>
 
       {/* One retained small heading */}
       <Section className="mt-10">
-        <h3 className="mb-4 text-[18px] font-semibold tracking-[0.04em] text-heading">
+        <h3 className="mb-4 text-[20px] font-semibold text-[#5b4a3a]">
           我们理解的缅因与风格
         </h3>
         <div className="space-y-4">
@@ -88,16 +72,6 @@ function Philosophy() {
           <P>
             因为缅因从不只有这两种风格。甜美小体、大体、大刷子、毛怪，都代表不了全部的缅因猫。
           </P>
-        </div>
-
-        <div className="my-6">
-          <Placeholder
-            label="示例图片　代表猫舍繁育风格的种猫"
-            ratio="aspect-[4/3]"
-          />
-        </div>
-
-        <div className="space-y-4">
           <P>
             在世界各地都有出色的缅因繁育人，很多繁育人的小猫都有着自己独特又有魅力的风格。
           </P>
@@ -107,7 +81,7 @@ function Philosophy() {
         </div>
       </Section>
 
-      {/* Closing — no title, natural continuation */}
+      {/* Closing — natural continuation */}
       <Section className="mt-10 space-y-4">
         <P>
           经过多年深耕，我们的生活早已和猫舍深度绑定，很多家长也都成为了我们的朋友。
@@ -119,7 +93,7 @@ function Philosophy() {
           我们希望以后也能遇到更多三观相符、科养爱猫的小猫家长，互相尊重、互相选择、互相信任，一起把每一只小猫照顾好。
         </P>
         <P>
-          有任何问题，我们都绝不推诿，认真做好售后，让每个宝宝都能健康长大，和新家长开心生活。
+          有任何问题，我们都绝不推诿，认真做好售后。
         </P>
       </Section>
 
