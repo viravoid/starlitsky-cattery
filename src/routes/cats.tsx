@@ -181,7 +181,6 @@ function Cats() {
                   { k: "生日", v: k.birthday },
                   { k: "价格", v: k.price },
                 ]}
-                intro={k.personality}
                 to="/kittens/$id"
                 params={{ id: k.id }}
               />
@@ -214,7 +213,6 @@ function Cats() {
                   { k: "身份", v: s.role },
                   { k: "颜色", v: s.color },
                 ]}
-                intro={s.trait}
                 to="/studs/$id"
                 params={{ id: s.id }}
               />
