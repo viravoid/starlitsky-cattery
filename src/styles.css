@@ -47,6 +47,7 @@
   --color-sky: var(--sky);
   --color-creamblue: var(--creamblue);
   --color-cream: var(--cream);
+  --color-mint: var(--mint);
 }
 
 :root {
