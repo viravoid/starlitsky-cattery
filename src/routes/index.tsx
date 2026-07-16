@@ -53,7 +53,7 @@ const GROUPS: Group[] = [
   {
     en: "About StarlitSky",
     cn: "关于星月",
-    lead: "了解星月缅因猫舍的成立时间、主理人、繁育理念与生活照顾方式。",
+    lead: "了解星月缅因猫舍的\n成立时间、主理人\n与繁育理念、生活照顾方式。",
     Art: CatProfile,
     tint: "text-violet/70",
     items: [
@@ -86,7 +86,7 @@ const GROUPS: Group[] = [
   {
     en: "Before You Adopt",
     cn: "接猫前了解",
-    lead: "在正式咨询和接猫前，可以先了解流程、保障、问卷和联系方式。",
+    lead: "在正式咨询和接猫前\n可以先了解流程、保障\n问卷和联系方式。",
     Art: WindingPath,
     tint: "text-violet/60",
     items: [
@@ -181,7 +181,7 @@ function Home() {
                 </p>
                 <h3 className="mt-1 text-[20px] font-bold text-heading">{cn}</h3>
                 <p
-                  className={`mt-2 max-w-[15rem] text-[12.5px] leading-[1.85] text-foreground ${
+                  className={`mt-2 max-w-[15rem] whitespace-pre-line text-[12.5px] leading-[1.85] text-foreground ${
                     gi % 2 === 1 ? "ml-auto" : ""
                   }`}
                 >
