@@ -109,7 +109,7 @@ export function PostCard({
               {post.authorRole}
             </Pill>
             {post.pinned && (
-              <span className="text-[10.5px] font-medium tracking-wide text-sunny/90">· 置顶</span>
+              <span className="rounded-full bg-[#fff0c4] px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-[#b48725]">置顶</span>
             )}
           </div>
           <p className="mt-0.5 text-[11px] text-warm">{formatTime(post.createdAt)}</p>
