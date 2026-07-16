@@ -55,7 +55,8 @@ const GROUPS: Group[] = [
     cn: "关于星月",
     lead: "了解星月缅因猫舍的\n成立时间、主理人\n与繁育理念、生活照顾方式。",
     Art: CatProfile,
-    tint: "text-violet/70",
+    tint: "text-lilac/70",
+
     items: [
       {
         no: "01",
