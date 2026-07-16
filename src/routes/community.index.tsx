@@ -98,7 +98,7 @@ function CommunityFeed() {
         )}
       </header>
 
-      {/* filters — small, quiet chips */}
+      {/* filters — warm cream selected state */}
       <div className="no-scrollbar mt-4 flex gap-1.5 overflow-x-auto px-5 pb-2">
         {(["全部", ...CATEGORIES] as const).map((c) => {
           const on = filter === c;
@@ -106,11 +106,16 @@ function CommunityFeed() {
             <button
               key={c}
               onClick={() => setFilter(c)}
-              className={`pressable shrink-0 rounded-full px-2.5 py-1 text-[11.5px] ${
+              className="pressable shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium"
+              style={
                 on
-                  ? "bg-heading/85 text-cream"
-                  : "text-warm hover:text-heading"
-              }`}
+                  ? {
+                      backgroundColor: "#fff2d0",
+                      color: "#3e668f",
+                      border: "1px solid rgba(62, 102, 143, 0.18)",
+                    }
+                  : { color: "#7188b5" }
+              }
             >
               {c}
             </button>
