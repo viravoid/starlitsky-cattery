@@ -261,3 +261,47 @@ export function LockIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function ChatBubbleIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4.5 6.5c0-1.1.9-2 2-2h11a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-3.5 3v-3H6.5a2 2 0 0 1-2-2z" />
+      <path d="M9 9.5h6M9 12.5h4" />
+    </svg>
+  );
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+export function XIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4.5 6.5h15M9 6.5V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v1.5M6 6.5l1 12a2 2 0 0 0 2 1.8h6a2 2 0 0 0 2-1.8l1-12" />
+      <path d="M10 10v6M14 10v6" />
+    </svg>
+  );
+}
+
+export function EditIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 20h4l11-11-4-4L4 16v4z" />
+      <path d="M14 5l4 4" />
+    </svg>
+  );
+}
+
