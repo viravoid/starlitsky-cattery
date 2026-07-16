@@ -181,7 +181,7 @@ function Home() {
                 </p>
                 <h3 className="mt-1 text-[20px] font-bold text-heading">{cn}</h3>
                 <p
-                  className={`mt-2 max-w-[15rem] text-[12.5px] leading-[1.85] text-foreground ${
+                  className={`mt-2 max-w-[15rem] whitespace-pre-line text-[12.5px] leading-[1.85] text-foreground ${
                     gi % 2 === 1 ? "ml-auto" : ""
                   }`}
                 >
