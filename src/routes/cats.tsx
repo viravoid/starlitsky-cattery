@@ -49,6 +49,7 @@ function Meta({ k, v }: { k: string; v: string }) {
 function CatCard({
   imageLabel,
   pill,
+  litter,
   name,
   meta,
   to,
@@ -56,6 +57,7 @@ function CatCard({
 }: {
   imageLabel: string;
   pill: { text: string; tone: string };
+  litter?: string;
   name: string;
   meta: { k: string; v: string }[];
   to: string;
@@ -69,8 +71,9 @@ function CatCard({
     >
       <div className="relative">
         <Placeholder label={imageLabel} ratio="aspect-[16/10]" rounded="rounded-none" />
-        <div className="absolute left-3 top-3">
+        <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           <Pill tone={pill.tone}>{pill.text}</Pill>
+          {litter && <Pill tone="sunny">{litter}</Pill>}
         </div>
       </div>
       <div className="space-y-2.5 p-4">
@@ -261,6 +264,7 @@ function Cats() {
                 key={k.id}
                 imageLabel="示例图片（小猫照片，待替换）"
                 pill={{ text: k.status, tone: statusTone(k.status) }}
+                litter={k.litter}
                 name={k.name}
                 meta={[
                   { k: "性别", v: k.gender },
