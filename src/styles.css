@@ -56,32 +56,31 @@
 :root {
   --radius: 1.25rem;
 
-  /* Page base — warmer cream */
+  /* Page base — warmer cream. Body is warm neutral, not blue. */
   --background: #fffaf2;
-  --foreground: #4b617a;
-  --heading: #3e668f;
+  --foreground: #6f655d;
+  --heading: #4d739f;
   --card: #fffdf8;
-  --card-foreground: #4b617a;
+  --card-foreground: #6f655d;
 
-  /* Brand primary — deep blue */
-  --primary: #3e668f;
+  /* Brand primary — softer mid blue (was deep navy) */
+  --primary: #4d739f;
   --primary-foreground: #fffaf2;
 
   /* Secondary — dreamy blue */
   --secondary: #81a9ee;
-  --secondary-foreground: #233e5c;
+  --secondary-foreground: #2f4a6a;
 
-  /* Muted — warm cream neutral surface (was cool lilac).
-     Drives filter tracks, chip rows, badge rows, tab tracks. */
+  /* Muted — warm cream neutral surface. */
   --muted: #fff4dd;
-  --muted-foreground: #6a7a92;
+  --muted-foreground: #9a9087;
 
   /* Accent — butter honey */
   --accent: #ffdb83;
-  --accent-foreground: #5e4d24;
+  --accent-foreground: #7a5f24;
 
   /* Brand palette */
-  --deep-blue: #3e668f;
+  --deep-blue: #4d739f;
   --dreamy-blue: #81a9ee;
   --silky-lilac: #aab4e7;
   --butter-honey: #ffdb83;
@@ -95,12 +94,12 @@
   --soft-white: #fffdf8;
 
   /* Semantic aliases. */
-  --sky: #3e668f;
+  --sky: #4d739f;
   --creamblue: #81a9ee;
   --sunny: #fff2d0;
   --sunflower: #ffdb83;
-  --warm: #7188b5;
-  --violet: #3e668f;
+  --warm: #8fa2c4;
+  --violet: #4d739f;
   --lilac: #aab4e7;
   --wine: #c46a6a;
   --cream: #fffdf8;
