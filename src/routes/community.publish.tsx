@@ -29,6 +29,7 @@ function Publish() {
   const [content, setContent] = useState("");
   const [imageCount, setImageCount] = useState(0);
   const [catIds, setCatIds] = useState<string[]>([]);
+  const [litterIds, setLitterIds] = useState<string[]>([]);
 
   if (!canPost) {
     return (
@@ -46,13 +47,21 @@ function Publish() {
 
   const toggleCat = (id: string) =>
     setCatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleLitter = (l: string) =>
+    setLitterIds((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
 
   const submit = () => {
     if (!content.trim()) {
       alert("请写点什么吧～");
       return;
     }
-    const id = actions.createPost({ category, content: content.trim(), imageCount, catIds });
+    const id = actions.createPost({
+      category,
+      content: content.trim(),
+      imageCount,
+      catIds,
+      litterIds: role === "keeper" ? litterIds : [],
+    });
     if (id) navigate({ to: "/community/post/$id", params: { id } });
   };
 
