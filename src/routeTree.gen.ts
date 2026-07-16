@@ -24,6 +24,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudsIdRouteImport } from './routes/studs.$id'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
+import { Route as CommunityPublishRouteImport } from './routes/community.publish'
 import { Route as CommunityMyPostsRouteImport } from './routes/community.my-posts'
 import { Route as CommunityMyCatsRouteImport } from './routes/community.my-cats'
 import { Route as CommunityPostIdRouteImport } from './routes/community.post.$id'
@@ -105,6 +106,11 @@ const KittensIdRoute = KittensIdRouteImport.update({
   path: '/kittens/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunityPublishRoute = CommunityPublishRouteImport.update({
+  id: '/publish',
+  path: '/publish',
+  getParentRoute: () => CommunityRoute,
+} as any)
 const CommunityMyPostsRoute = CommunityMyPostsRouteImport.update({
   id: '/my-posts',
   path: '/my-posts',
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/community/my-posts': typeof CommunityMyPostsRoute
+  '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/community/my-posts': typeof CommunityMyPostsRoute
+  '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/community/my-posts': typeof CommunityMyPostsRoute
+  '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/community/my-cats'
     | '/community/my-posts'
+    | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community/cat-edit/$id'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/community/my-cats'
     | '/community/my-posts'
+    | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community/cat-edit/$id'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/community/my-cats'
     | '/community/my-posts'
+    | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community/cat-edit/$id'
@@ -392,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KittensIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community/publish': {
+      id: '/community/publish'
+      path: '/publish'
+      fullPath: '/community/publish'
+      preLoaderRoute: typeof CommunityPublishRouteImport
+      parentRoute: typeof CommunityRoute
+    }
     '/community/my-posts': {
       id: '/community/my-posts'
       path: '/my-posts'
@@ -433,6 +452,7 @@ declare module '@tanstack/react-router' {
 interface CommunityRouteChildren {
   CommunityMyCatsRoute: typeof CommunityMyCatsRoute
   CommunityMyPostsRoute: typeof CommunityMyPostsRoute
+  CommunityPublishRoute: typeof CommunityPublishRoute
   CommunityCatEditIdRoute: typeof CommunityCatEditIdRoute
   CommunityCatIdRoute: typeof CommunityCatIdRoute
   CommunityPostIdRoute: typeof CommunityPostIdRoute
@@ -441,6 +461,7 @@ interface CommunityRouteChildren {
 const CommunityRouteChildren: CommunityRouteChildren = {
   CommunityMyCatsRoute: CommunityMyCatsRoute,
   CommunityMyPostsRoute: CommunityMyPostsRoute,
+  CommunityPublishRoute: CommunityPublishRoute,
   CommunityCatEditIdRoute: CommunityCatEditIdRoute,
   CommunityCatIdRoute: CommunityCatIdRoute,
   CommunityPostIdRoute: CommunityPostIdRoute,
