@@ -222,7 +222,7 @@ function Home() {
                 ))}
               </div>
             </Section>
-            {gi === 0 && <PawTrail className="mx-auto" />}
+            {gi === 0 && <PawTrail className="w-full" />}
           </Fragment>
         ))}
       </div>

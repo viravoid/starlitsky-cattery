@@ -226,13 +226,14 @@ export function Window(props: P) {
 /** A trail of three paw prints — walking through the content. */
 export function PawTrail({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-4 text-warm/45 ${className}`}>
+    <div className={`flex items-center gap-2 text-warm/45 ${className}`}>
+      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-border" />
       {[0, 1, 2].map((i) => (
         <svg
           key={i}
           viewBox="0 0 24 24"
           fill="currentColor"
-          className={`h-3 w-3 ${i === 1 ? "translate-y-1.5" : ""}`}
+          className={`h-3 w-3 ${i === 1 ? "translate-y-1" : ""}`}
         >
           <ellipse cx="12" cy="15" rx="5" ry="4" />
           <ellipse cx="6" cy="9" rx="1.8" ry="2.4" />
@@ -241,6 +242,7 @@ export function PawTrail({ className = "" }: { className?: string }) {
           <ellipse cx="15" cy="5.5" rx="1.6" ry="2.1" />
         </svg>
       ))}
+      <span className="h-px flex-1 bg-gradient-to-l from-transparent via-border to-border" />
     </div>
   );
 }
