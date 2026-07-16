@@ -88,12 +88,15 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
   const [content, setContent] = useState(post.content);
   const [imageCount, setImageCount] = useState(post.imageCount);
   const [catIds, setCatIds] = useState<string[]>(post.catIds);
+  const [litterIds, setLitterIds] = useState<string[]>(post.litterIds ?? []);
 
   const selectableCats = cats.filter((c) =>
     role === "keeper" ? true : c.ownerId === currentUserId,
   );
   const toggleCat = (id: string) =>
     setCatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleLitter = (l: string) =>
+    setLitterIds((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
 
   const save = () => {
     if (!content.trim()) {
@@ -104,6 +107,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
       content: content.trim(),
       imageCount,
       catIds,
+      litterIds: role === "keeper" ? litterIds : post.litterIds,
     });
     onClose();
   };
