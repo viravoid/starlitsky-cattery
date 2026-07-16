@@ -96,7 +96,38 @@ function CommunityFeed() {
             )}
           </nav>
         )}
+
+        {/* Demo 角色切换 —— 仅供预览，正式版可移除 */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-2xl border border-dashed border-border bg-cream/60 px-3 py-2 text-[11px] text-warm">
+          <span className="mr-1 opacity-70">Demo 登录：</span>
+          {[
+            { key: "guest", label: "未登录" },
+            { key: "parent", label: "家长（呼呼和奶油）" },
+            { key: "keeper", label: "主理人（月七）" },
+          ].map((opt) => {
+            const on = role === opt.key;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => {
+                  if (opt.key === "guest") actions.logout();
+                  else if (opt.key === "parent") actions.activateParent("DEMO");
+                  else actions.becomeKeeper();
+                }}
+                className="pressable rounded-full px-2.5 py-1"
+                style={{
+                  backgroundColor: on ? "#7a9ac0" : "transparent",
+                  color: on ? "#fff" : "#8c929a",
+                  border: on ? "none" : "1px solid var(--border)",
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
       </header>
+
 
       {/* filters — underline nav, no filled pills */}
       <div className="no-scrollbar mt-4 flex gap-5 overflow-x-auto border-b border-border/70 px-5">
