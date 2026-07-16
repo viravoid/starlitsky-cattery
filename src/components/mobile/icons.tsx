@@ -59,8 +59,8 @@ export function ApertureIcon(props: IconProps) {
       <path d="M12 12 L8.5 20.5" />
       <path d="M12 12 L3.5 14" />
       <path d="M12 12 L4.5 6.5" />
-      {/* center hub ring */}
-      <circle cx="12" cy="12" r="2.2" />
+      {/* center hub ring — hollow, matches the reference */}
+      <circle cx="12" cy="12" r="3.2" />
     </svg>
   );
 }
