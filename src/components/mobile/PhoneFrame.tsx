@@ -113,21 +113,30 @@ export function NavHeader({
 
 export function TabBar({ active }: { active: TabKey }) {
   return (
-    <nav className="relative z-20 shrink-0 border-t border-border bg-card/95 px-2 pb-6 pt-2 backdrop-blur">
-      <ul className="flex items-stretch justify-around">
-        {TABS.map(({ key, label, to, Icon, activeColor }) => {
+    <nav
+      className="relative z-20 shrink-0 border-t border-border px-2 pb-6 pt-1.5 backdrop-blur"
+      style={{ backgroundColor: "#fffaf0" }}
+    >
+      <ul className="flex items-stretch">
+        {TABS.map(({ key, label, to, Icon }) => {
           const on = key === active;
-          const activeClass = activeColor ?? "text-violet";
           return (
             <li key={key} className="flex-1">
               <Link
                 to={to as string}
-                className={`pressable flex flex-col items-center gap-1 rounded-2xl py-1.5 ${
-                  on ? activeClass : "text-muted-foreground"
+                className={`pressable flex flex-col items-center justify-center py-1.5 ${
+                  on ? "text-violet" : "text-[#8a94a8]"
                 }`}
               >
-                <Icon className={`h-6 w-6 ${on ? "opacity-100" : "opacity-80"}`} />
-                <span className="text-[11px] font-medium">{label}</span>
+                <span className="flex h-6 w-6 items-center justify-center">
+                  <Icon className="h-[22px] w-[22px]" />
+                </span>
+                <span
+                  className="mt-1 font-medium"
+                  style={{ fontSize: 11, lineHeight: "14px" }}
+                >
+                  {label}
+                </span>
               </Link>
             </li>
           );
