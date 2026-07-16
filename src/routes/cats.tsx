@@ -103,8 +103,11 @@ function Cats() {
         <div className="border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
           <Link
             to="/questionnaire"
-            className="pressable flex w-full items-center justify-center gap-2 rounded-full border border-primary/25 bg-pale-blue py-3.5 text-[15px] font-semibold text-primary"
-            style={{ backgroundColor: "#e8f0fc" }}
+            className="pressable flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold text-primary"
+            style={{
+              backgroundColor: "#fff2d0",
+              border: "1px solid rgba(62, 102, 143, 0.18)",
+            }}
           >
             <PaperIcon className="h-5 w-5" /> 填写选猫问卷
           </Link>
