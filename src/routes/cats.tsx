@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
 import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
@@ -7,9 +8,12 @@ import { CurledCat } from "@/components/mobile/illustrations";
 import {
   KITTENS,
   STUDS,
+  LITTERS,
   statusTone,
   type StudCategory,
+  type Litter,
 } from "@/lib/cattery-data";
+
 
 export const Route = createFileRoute("/cats")({
   head: () => ({
@@ -91,9 +95,14 @@ function Cats() {
   const [kFilter, setKFilter] =
     useState<(typeof KITTEN_FILTERS)[number]>("待找家");
   const [sFilter, setSFilter] = useState<StudCategory>("现役公猫");
+  const [litter, setLitter] = useState<Litter | "全部">("全部");
+  const [litterOpen, setLitterOpen] = useState(false);
 
-  const kittenList = KITTENS.filter((k) => k.status === kFilter);
+  const kittenList = KITTENS.filter(
+    (k) => k.status === kFilter && (litter === "全部" || k.litter === litter),
+  );
   const studList = STUDS.filter((s) => s.category === sFilter);
+
 
   return (
     <PhoneFrame
@@ -186,6 +195,63 @@ function Cats() {
       {/* ── Kittens ─────────────────────────────── */}
       {tab === "kittens" && (
         <Section className="mb-6 mt-2 space-y-4">
+          {/* 窝次 dropdown */}
+          <div>
+            <button
+              onClick={() => setLitterOpen((v) => !v)}
+              className="pressable flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold"
+              style={{
+                backgroundColor: litter === "全部" ? "#fffdf8" : "#7a9ac0",
+                color: litter === "全部" ? "#6b8db3" : "#fffdf8",
+                border:
+                  litter === "全部"
+                    ? "1px solid #e8dfcf"
+                    : "1px solid #7a9ac0",
+              }}
+              aria-expanded={litterOpen}
+            >
+              窝次{litter === "全部" ? "" : `：${litter}`}
+              <ChevronDown
+                className="h-3.5 w-3.5 transition-transform"
+                style={{
+                  transform: litterOpen ? "rotate(180deg)" : "none",
+                }}
+              />
+            </button>
+            {litterOpen && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(["全部", ...LITTERS] as const).map((l) => {
+                  const on = litter === l;
+                  return (
+                    <button
+                      key={l}
+                      onClick={() => {
+                        setLitter(l);
+                        setLitterOpen(false);
+                      }}
+                      className="pressable shrink-0 rounded-full px-3 py-1 text-[12px]"
+                      style={
+                        on
+                          ? {
+                              backgroundColor: "#7a9ac0",
+                              color: "#fffdf8",
+                              border: "1px solid #7a9ac0",
+                            }
+                          : {
+                              backgroundColor: "#fffdf8",
+                              color: "#6b8db3",
+                              border: "1px solid #e8dfcf",
+                            }
+                      }
+                    >
+                      {l}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {kittenList.length === 0 ? (
             <p className="mt-16 text-center text-[13px] text-muted-foreground">
               示例文字（暂无「{kFilter}」小猫）

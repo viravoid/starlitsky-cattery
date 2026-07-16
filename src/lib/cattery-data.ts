@@ -101,10 +101,15 @@ export interface Kitten {
   mother: string;
   status: KittenStatus;
   price: string;
+  litter?: string;
   personality: string;
   story?: string[]; // 主理人完整介绍（自然分段）
   structureRating?: StructureRating;
 }
+
+export const LITTERS = ["A窝", "B窝", "C窝"] as const;
+export type Litter = (typeof LITTERS)[number];
+
 
 export const KITTENS: Kitten[] = [
   {
@@ -117,8 +122,10 @@ export const KITTENS: Kitten[] = [
     mother: "示例文字（缺少母亲信息）",
     status: "待找家",
     price: "示例文字（缺少价格）",
+    litter: "A窝",
     personality: "示例文字（缺少性格介绍）",
     story: ["（示例文字：主理人的完整介绍待补充）"],
+
     structureRating: {
       face: { eyes: 5, ears: 6, muzzle: 6, profile: 5 },
       body: { length: 5, build: 5, overall: 5 },
@@ -135,8 +142,10 @@ export const KITTENS: Kitten[] = [
     mother: "示例文字（缺少母亲信息）",
     status: "找家中",
     price: "示例文字（缺少价格）",
+    litter: "B窝",
     personality: "示例文字（缺少性格介绍）",
     story: ["（示例文字：主理人的完整介绍待补充）"],
+
   },
   {
     id: "kitten-c",
@@ -148,8 +157,10 @@ export const KITTENS: Kitten[] = [
     mother: "示例文字（缺少母亲信息）",
     status: "已有家",
     price: "示例文字（缺少价格）",
+    litter: "C窝",
     personality: "示例文字（缺少性格介绍）",
     story: ["（示例文字：主理人的完整介绍待补充）"],
+
   },
 ];
 
