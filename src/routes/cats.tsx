@@ -201,9 +201,9 @@ function Cats() {
                 style={
                   on
                     ? {
-                        backgroundColor: "#7a9ac0",
-                        color: "#fffdf8",
-                        border: "1px solid #7a9ac0",
+                        backgroundColor: "#f9f0d4",
+                        color: "#b48725",
+                        border: "1px solid #e7c15d",
                       }
                     : {
                         backgroundColor: "#fffdf8",
