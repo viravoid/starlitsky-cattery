@@ -27,6 +27,7 @@ import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 import { Route as CommunityMyCatsRouteImport } from './routes/community.my-cats'
 import { Route as CommunityPostIdRouteImport } from './routes/community.post.$id'
 import { Route as CommunityCatIdRouteImport } from './routes/community.cat.$id'
+import { Route as CommunityCatEditIdRouteImport } from './routes/community.cat-edit.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -118,6 +119,11 @@ const CommunityCatIdRoute = CommunityCatIdRouteImport.update({
   path: '/cat/$id',
   getParentRoute: () => CommunityRoute,
 } as any)
+const CommunityCatEditIdRoute = CommunityCatEditIdRouteImport.update({
+  id: '/cat-edit/$id',
+  path: '/cat-edit/$id',
+  getParentRoute: () => CommunityRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/community/my-cats'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/post/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/community/my-cats'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/post/$id'
   id:
@@ -239,6 +250,7 @@ export interface FileRouteTypes {
     | '/community/my-cats'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/post/$id'
   fileRoutesById: FileRoutesById
@@ -389,17 +401,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityCatIdRouteImport
       parentRoute: typeof CommunityRoute
     }
+    '/community/cat-edit/$id': {
+      id: '/community/cat-edit/$id'
+      path: '/cat-edit/$id'
+      fullPath: '/community/cat-edit/$id'
+      preLoaderRoute: typeof CommunityCatEditIdRouteImport
+      parentRoute: typeof CommunityRoute
+    }
   }
 }
 
 interface CommunityRouteChildren {
   CommunityMyCatsRoute: typeof CommunityMyCatsRoute
+  CommunityCatEditIdRoute: typeof CommunityCatEditIdRoute
   CommunityCatIdRoute: typeof CommunityCatIdRoute
   CommunityPostIdRoute: typeof CommunityPostIdRoute
 }
 
 const CommunityRouteChildren: CommunityRouteChildren = {
   CommunityMyCatsRoute: CommunityMyCatsRoute,
+  CommunityCatEditIdRoute: CommunityCatEditIdRoute,
   CommunityCatIdRoute: CommunityCatIdRoute,
   CommunityPostIdRoute: CommunityPostIdRoute,
 }
