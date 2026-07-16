@@ -5,7 +5,6 @@ import { Carousel } from "@/components/mobile/Carousel";
 import { StarIcon, MoonIcon } from "@/components/mobile/icons";
 import {
   CatProfile,
-  Cottage,
   WindingPath,
   CurledCat,
   PawTrail,
@@ -54,7 +53,7 @@ const GROUPS: Group[] = [
   {
     en: "About StarlitSky",
     cn: "关于星月",
-    lead: "了解星月缅因猫舍的成立时间、主理人、繁育方向与我们希望坚持的猫舍理念。",
+    lead: "了解星月缅因猫舍的成立时间、主理人、繁育理念与生活照顾方式。",
     Art: CatProfile,
     tint: "text-violet/70",
     items: [
@@ -70,15 +69,6 @@ const GROUPS: Group[] = [
         desc: "繁育体质好、亲人自信的小猫，从出生记录到去新家的每一步。",
         to: "/philosophy",
       },
-    ],
-  },
-  {
-    en: "How We Care",
-    cn: "照顾方式",
-    lead: "从生活空间、母婴照护到日常喂养，了解小猫在星月的成长环境。",
-    Art: Cottage,
-    tint: "text-accent",
-    items: [
       {
         no: "03",
         label: "猫舍环境",
