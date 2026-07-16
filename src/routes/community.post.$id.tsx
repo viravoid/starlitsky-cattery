@@ -98,7 +98,17 @@ function PostDetail() {
               )}
               <span>{post.likes} 个爪印</span>
             </button>
-            <span>{post.comments.length} 条评论</span>
+            <button
+              type="button"
+              onClick={() =>
+                document
+                  .getElementById("comments-section")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+              className="pressable"
+            >
+              {post.comments.length} 条评论
+            </button>
           </footer>
 
           {isMine && (
