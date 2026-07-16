@@ -52,7 +52,10 @@ type SectionKey =
   | "content"
   | "aftercare"
   | "forms"
-  | "contact";
+  | "contact"
+  | "community"
+  | "comments"
+  | "parents";
 
 const NAV: { key: SectionKey; label: string; Icon: (p: { className?: string }) => React.ReactNode }[] = [
   { key: "overview", label: "数据概览", Icon: StarIcon },
@@ -64,7 +67,11 @@ const NAV: { key: SectionKey; label: string; Icon: (p: { className?: string }) =
   { key: "aftercare", label: "售后说明管理", Icon: ShieldIcon },
   { key: "forms", label: "问卷查看", Icon: PaperIcon },
   { key: "contact", label: "联系方式管理", Icon: RouteIcon },
+  { key: "community", label: "猫友圈内容管理", Icon: ChatBubbleIcon },
+  { key: "comments", label: "评论审核", Icon: ChatBubbleIcon },
+  { key: "parents", label: "家长身份管理", Icon: UserIcon },
 ];
+
 
 function Admin() {
   const [authed, setAuthed] = useState(false);
