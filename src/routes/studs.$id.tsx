@@ -59,7 +59,7 @@ function StudDetail() {
             </h1>
             <p className="mt-0.5 text-[12px] text-muted-foreground">{stud.color}</p>
           </div>
-          <Pill tone={stud.category.includes("母") ? "creamblue" : "sky"}>
+          <Pill tone="sunny">
             {stud.status}
           </Pill>
         </div>
