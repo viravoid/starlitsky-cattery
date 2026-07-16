@@ -37,9 +37,9 @@ function Star({ active, highlight }: { active: boolean; highlight?: boolean }) {
       className={`h-3.5 w-3.5 ${
         active
           ? highlight
-            ? "text-[#d4a24a]"
-            : "text-[#d9b46a]"
-          : "text-[#e8e0cf]"
+            ? "text-[#9bb8c8]"
+            : "text-[#d4b67a]"
+          : "text-[#e5e2d8]"
       }`}
       fill="currentColor"
       aria-hidden="true"
