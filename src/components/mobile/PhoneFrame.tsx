@@ -35,9 +35,10 @@ const TABS: {
   activeColor?: string;
 }[] = [
   { key: "home", label: "首页", to: "/", Icon: HouseIcon },
-  { key: "community", label: "猫友圈", to: "/community", Icon: ApertureImageIcon, activeColor: "text-sunflower" },
+  { key: "community", label: "猫友圈", to: "/community", Icon: ApertureImageIcon },
   { key: "cats", label: "我们的猫", to: "/cats", Icon: CatIcon },
 ];
+
 
 function StatusBar({ dark = false }: { dark?: boolean }) {
   return (
