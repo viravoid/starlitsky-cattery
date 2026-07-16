@@ -49,6 +49,15 @@ function StudDetail() {
           ]}
           ratio="aspect-square"
         />
+        <div className="mt-3">
+          <Link
+            to="/community/cat/$id"
+            params={{ id: stud.id }}
+            className="pressable inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-violet/40 bg-card px-3 py-2 text-[12.5px] font-medium text-violet"
+          >
+            TA 的猫友圈动态
+          </Link>
+        </div>
       </Section>
 
       <Section className="mt-4">
