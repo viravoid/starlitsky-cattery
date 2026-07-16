@@ -348,6 +348,7 @@ export const actions = {
     content: string;
     imageCount: number;
     catIds: string[];
+    litterIds?: string[];
   }): string | null {
     const me = state.users.find((u) => u.id === state.currentUserId);
     if (!me || state.role === "guest" || state.role === "user") return null;
@@ -362,6 +363,7 @@ export const actions = {
       content: input.content,
       imageCount: Math.max(0, Math.min(9, input.imageCount)),
       catIds: input.catIds,
+      litterIds: input.litterIds ?? [],
       createdAt: new Date().toISOString(),
       likes: 0,
       likedByMe: false,
