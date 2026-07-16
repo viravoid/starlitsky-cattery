@@ -1,43 +1,21 @@
 import type { ReactNode } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
-import { Signal, Wifi, BatteryFull } from "lucide-react";
-import { CatIcon, HouseIcon, ChevronLeftIcon } from "./icons";
-import apertureIcon from "@/assets/aperture-icon.png.asset.json";
+import { Signal, Wifi, BatteryFull, House, PawPrint, Cat } from "lucide-react";
+import { ChevronLeftIcon } from "./icons";
 
 type TabKey = "home" | "cats" | "community";
-
-function ApertureImageIcon({ className }: { className?: string }) {
-  return (
-    <div
-      className={`shrink-0 bg-current ${className ?? ""}`}
-      style={{
-        width: 22,
-        height: 22,
-        maskImage: `url(${apertureIcon.url})`,
-        WebkitMaskImage: `url(${apertureIcon.url})`,
-        maskSize: "contain",
-        WebkitMaskSize: "contain",
-        maskRepeat: "no-repeat",
-        WebkitMaskRepeat: "no-repeat",
-        maskPosition: "center",
-        WebkitMaskPosition: "center",
-      }}
-      aria-hidden="true"
-    />
-  );
-}
 
 const TABS: {
   key: TabKey;
   label: string;
   to: string;
-  Icon: (p: { className?: string }) => ReactNode;
-  activeColor?: string;
+  Icon: typeof House;
 }[] = [
-  { key: "home", label: "首页", to: "/", Icon: HouseIcon },
-  { key: "community", label: "猫友圈", to: "/community", Icon: ApertureImageIcon },
-  { key: "cats", label: "我们的猫", to: "/cats", Icon: CatIcon },
+  { key: "home", label: "首页", to: "/", Icon: House },
+  { key: "community", label: "猫友圈", to: "/community", Icon: PawPrint },
+  { key: "cats", label: "我们的猫", to: "/cats", Icon: Cat },
 ];
+
 
 
 function StatusBar({ dark = false }: { dark?: boolean }) {
@@ -124,16 +102,18 @@ export function TabBar({ active }: { active: TabKey }) {
             <li key={key} className="flex-1">
               <Link
                 to={to as string}
-                className={`pressable flex flex-col items-center justify-center py-1.5 ${
-                  on ? "text-violet" : "text-[#8a94a8]"
-                }`}
+                className="pressable flex flex-col items-center justify-center py-1.5"
+                style={{ color: on ? "#3e668f" : "#8a99aa" }}
               >
-                <span className="flex h-6 w-6 items-center justify-center">
-                  <Icon className="h-[22px] w-[22px]" />
+                <span
+                  className="flex items-center justify-center"
+                  style={{ width: 24, height: 24 }}
+                >
+                  <Icon size={22} strokeWidth={1.8} />
                 </span>
                 <span
-                  className="mt-1 font-medium"
-                  style={{ fontSize: 11, lineHeight: "14px" }}
+                  className="font-medium"
+                  style={{ fontSize: 11, lineHeight: 1, marginTop: 5 }}
                 >
                   {label}
                 </span>

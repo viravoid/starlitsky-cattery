@@ -103,16 +103,16 @@ function Cats() {
         <div className="border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
           <Link
             to="/questionnaire"
-            className="pressable flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold text-primary"
+            className="pressable flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
             style={{
-              backgroundColor: "#fff2d0",
-              border: "1px solid rgba(62, 102, 143, 0.18)",
+              backgroundColor: "#fffdf8",
+              color: "#3e668f",
+              border: "1px solid #81a9ee",
             }}
           >
             <PaperIcon className="h-5 w-5" /> 填写选猫问卷
           </Link>
         </div>
-
       }
     >
       {/* Header */}
@@ -123,32 +123,39 @@ function Cats() {
         <h1 className="mt-1 text-[22px] font-bold text-heading">我们的猫</h1>
       </div>
 
-      {/* Category switch: 小猫 / 种猫 */}
+      {/* Category switch: 小猫 / 种猫 — underline nav, no pills */}
       <div
-        className="sticky top-0 z-10 px-5 pb-2 pt-2.5 backdrop-blur"
+        className="sticky top-0 z-10 px-5 pt-2 backdrop-blur"
         style={{ backgroundColor: "rgba(255, 250, 242, 0.95)" }}
       >
-        <div
-          className="grid grid-cols-2 gap-1 rounded-full p-1"
-          style={{ backgroundColor: "#fff2d0" }}
-        >
-          {(["kittens", "studs"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`pressable rounded-full py-2 text-[13px] font-semibold ${
-                tab === t
-                  ? "bg-card text-heading shadow-card"
-                  : "text-[#64758a]"
-              }`}
-            >
-              {t === "kittens" ? "小猫" : "种猫"}
-            </button>
-          ))}
+        <div className="flex items-center gap-6 border-b border-border/70">
+          {(["kittens", "studs"] as const).map((t) => {
+            const on = tab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className="pressable relative py-2.5 text-[15px]"
+                style={{
+                  color: on ? "#3e668f" : "#75869a",
+                  fontWeight: on ? 600 : 500,
+                }}
+              >
+                {t === "kittens" ? "小猫" : "种猫"}
+                {on && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-8 rounded-full"
+                    style={{ backgroundColor: "#f4d477" }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Sub-filters */}
-        <div className="no-scrollbar mt-2.5 flex gap-2 overflow-x-auto">
+        {/* Sub-filters — deep blue filled selected, outlined unselected */}
+        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-2">
           {(tab === "kittens" ? KITTEN_FILTERS : STUD_FILTERS).map((f) => {
             const on = tab === "kittens" ? kFilter === f : sFilter === f;
             return (
@@ -159,18 +166,18 @@ function Cats() {
                     ? setKFilter(f as (typeof KITTEN_FILTERS)[number])
                     : setSFilter(f as StudCategory)
                 }
-                className="pressable shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+                className="pressable shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-semibold"
                 style={
                   on
                     ? {
-                        backgroundColor: "#fff2d0",
-                        color: "#3e668f",
-                        border: "1px solid rgba(62, 102, 143, 0.22)",
+                        backgroundColor: "#3e668f",
+                        color: "#fffdf8",
+                        border: "1px solid #3e668f",
                       }
                     : {
                         backgroundColor: "#fffdf8",
-                        color: "#7a8699",
-                        border: "1px solid var(--border)",
+                        color: "#50647b",
+                        border: "1px solid #e8dfcf",
                       }
                 }
               >

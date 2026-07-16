@@ -98,26 +98,28 @@ function CommunityFeed() {
         )}
       </header>
 
-      {/* filters — warm cream selected state */}
-      <div className="no-scrollbar mt-4 flex gap-1.5 overflow-x-auto px-5 pb-2">
+      {/* filters — underline nav, no filled pills */}
+      <div className="no-scrollbar mt-4 flex gap-5 overflow-x-auto border-b border-border/70 px-5">
         {(["全部", ...CATEGORIES] as const).map((c) => {
           const on = filter === c;
           return (
             <button
               key={c}
               onClick={() => setFilter(c)}
-              className="pressable shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium"
-              style={
-                on
-                  ? {
-                      backgroundColor: "#fff2d0",
-                      color: "#3e668f",
-                      border: "1px solid rgba(62, 102, 143, 0.18)",
-                    }
-                  : { color: "#7188b5" }
-              }
+              className="pressable relative shrink-0 py-2.5 text-[13px]"
+              style={{
+                color: on ? "#3e668f" : "#75869a",
+                fontWeight: on ? 600 : 500,
+              }}
             >
               {c}
+              {on && (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-8 rounded-full"
+                  style={{ backgroundColor: "#f4d477" }}
+                />
+              )}
             </button>
           );
         })}
