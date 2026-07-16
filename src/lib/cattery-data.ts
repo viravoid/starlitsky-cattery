@@ -101,10 +101,15 @@ export interface Kitten {
   mother: string;
   status: KittenStatus;
   price: string;
+  litter?: string;
   personality: string;
   story?: string[]; // 主理人完整介绍（自然分段）
   structureRating?: StructureRating;
 }
+
+export const LITTERS = ["A窝", "B窝", "C窝"] as const;
+export type Litter = (typeof LITTERS)[number];
+
 
 export const KITTENS: Kitten[] = [
   {
