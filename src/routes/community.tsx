@@ -172,5 +172,3 @@ function CommunityFeed() {
   );
 }
 
-// keep Pill referenced to avoid removal
-void Pill;
