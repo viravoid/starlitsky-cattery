@@ -59,11 +59,22 @@ export function NavHeader({
   showBack?: boolean;
   to?: string;
 }) {
+  const router = useRouter();
+  const handleBack = (e: React.MouseEvent) => {
+    if (to) return;
+    e.preventDefault();
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.history.back();
+    } else {
+      router.navigate({ to: "/" });
+    }
+  };
   return (
     <div className="relative flex h-12 shrink-0 items-center justify-center px-14">
       {showBack && (
         <Link
           to={(to ?? "/") as string}
+          onClick={handleBack}
           className="pressable absolute left-3 grid h-9 w-9 place-items-center rounded-full bg-card text-heading shadow-card"
           aria-label="返回"
         >
