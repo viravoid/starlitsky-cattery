@@ -1,10 +1,9 @@
 import { createFileRoute, useParams, Link, notFound } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill } from "@/components/mobile/ui";
-import { TrashIcon } from "@/components/mobile/icons";
+import { TrashIcon, PawIcon, PawFillIcon } from "@/components/mobile/icons";
 import {
   PostImages,
-  UserAvatar,
   LoginSheet,
   Lightbox,
   CommentComposer,
@@ -12,7 +11,6 @@ import {
 } from "@/components/mobile/community/CommunityBits";
 import {
   actions,
-  categoryTone,
   formatTime,
   useCommunity,
 } from "@/lib/community-store";
@@ -42,53 +40,56 @@ function PostDetail() {
 
   return (
     <PhoneFrame title="动态详情" showBack>
-      <Section className="space-y-4 py-4 pb-4">
-        <div className="soft-card space-y-3">
-          <header className="flex items-center gap-2.5">
-            <UserAvatar role={authorRoleKind} size={40} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate text-[14px] font-semibold text-heading">
-                  {post.authorName}
-                </span>
-                <Pill tone={authorRoleKind === "keeper" ? "violet" : "creamblue"}>
-                  {post.authorRole}
-                </Pill>
-              </div>
-              <p className="mt-0.5 text-[11px] text-warm">{formatTime(post.createdAt)}</p>
+      <Section className="space-y-6 py-5 pb-6">
+        <article className="space-y-4">
+          <header className="space-y-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[14.5px] font-semibold text-heading">
+                {post.authorName}
+              </span>
+              <Pill tone={authorRoleKind === "keeper" ? "violet" : "creamblue"}>
+                {post.authorRole}
+              </Pill>
+              <span className="text-[10.5px] text-warm/80">· {post.category}</span>
             </div>
-            <Pill tone={categoryTone(post.category)}>{post.category}</Pill>
+            <p className="text-[11.5px] text-warm">{formatTime(post.createdAt)}</p>
           </header>
 
-          <p className="whitespace-pre-line text-[14.5px] leading-relaxed text-card-foreground">
+          <p className="whitespace-pre-line text-[14.5px] leading-[1.85] text-card-foreground">
             {post.content}
           </p>
 
           <PostImages count={post.imageCount} postId={post.id} />
 
           {linkedCats.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-cream/60 px-3 py-2">
-              <span className="text-[11px] text-warm">关联</span>
+            <div className="flex flex-wrap items-center gap-2">
               {linkedCats.map((c) => (
                 <Link
                   key={c.id}
                   to="/community/cat/$id"
                   params={{ id: c.id }}
-                  className="pressable inline-flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 text-[12px] font-medium text-heading shadow-card"
+                  className="pressable inline-flex items-center gap-1.5 rounded-full bg-cream/70 py-1 pl-1 pr-3 text-[12px] font-medium text-heading"
                 >
-                  <CatAvatar size={20} />
+                  <CatAvatar size={22} name={c.name} />
                   {c.name}
                 </Link>
               ))}
             </div>
           )}
 
-          <footer className="flex items-center justify-between border-t border-border pt-3 text-[13px] text-muted-foreground">
+          <footer className="flex items-center gap-6 border-t border-border/60 pt-3 text-[13px] text-warm">
             <button
               onClick={() => actions.toggleLike(post.id)}
-              className={`pressable ${post.likedByMe ? "text-wine" : ""}`}
+              className={`pressable inline-flex items-center gap-1.5 ${
+                post.likedByMe ? "text-violet" : ""
+              }`}
             >
-              🐾 {post.likes} 个爪印
+              {post.likedByMe ? (
+                <PawFillIcon className="h-4 w-4" />
+              ) : (
+                <PawIcon className="h-4 w-4" />
+              )}
+              <span>{post.likes} 个爪印</span>
             </button>
             <span>{post.comments.length} 条评论</span>
           </footer>
@@ -109,14 +110,16 @@ function PostDetail() {
               </button>
             </div>
           )}
-        </div>
+        </article>
 
-        {/* comments */}
+        {/* comments — no avatars, just text blocks */}
         <div>
-          <h3 className="mb-2 text-[13px] font-semibold text-heading">评论</h3>
-          <div className="space-y-2.5">
+          <h3 className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.16em] text-warm">
+            评论
+          </h3>
+          <div className="divide-y divide-border/60">
             {post.comments.filter((c) => !c.hidden).length === 0 && (
-              <p className="rounded-2xl bg-card/60 px-4 py-6 text-center text-[12.5px] text-muted-foreground">
+              <p className="py-8 text-center text-[12.5px] text-warm">
                 还没有人评论，来说点什么吧～
               </p>
             )}
@@ -130,10 +133,9 @@ function PostDetail() {
                       ? "parent"
                       : "guest";
                 return (
-                  <div key={c.id} className="flex gap-2.5 rounded-2xl bg-card px-3 py-2.5 shadow-card">
-                    <UserAvatar role={kind === "keeper" ? "keeper" : "parent"} size={30} />
+                  <div key={c.id} className="flex items-start gap-3 py-3">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-[12.5px] font-semibold text-heading">
                           {c.authorName}
                         </span>
@@ -142,16 +144,18 @@ function PostDetail() {
                             {c.authorRole}
                           </Pill>
                         )}
+                        <span className="text-[10.5px] text-warm/80">
+                          · {formatTime(c.createdAt)}
+                        </span>
                       </div>
-                      <p className="mt-1 text-[13px] leading-relaxed text-card-foreground">
+                      <p className="mt-1 whitespace-pre-line text-[13px] leading-[1.75] text-card-foreground">
                         {c.content}
                       </p>
-                      <p className="mt-1 text-[11px] text-warm">{formatTime(c.createdAt)}</p>
                     </div>
                     {role === "keeper" && (
                       <button
                         onClick={() => actions.deleteComment(post.id, c.id)}
-                        className="pressable self-start text-[11px] text-wine"
+                        className="pressable text-[11px] text-wine"
                       >
                         删除
                       </button>
@@ -169,4 +173,5 @@ function PostDetail() {
     </PhoneFrame>
   );
 }
+
 

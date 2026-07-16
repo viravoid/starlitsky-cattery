@@ -2,12 +2,11 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
-import { PlusIcon, PawIcon, CatIcon, UserIcon } from "@/components/mobile/icons";
+import { PlusIcon, CatIcon, PawIcon, UserIcon } from "@/components/mobile/icons";
 import {
   PostCard,
   LoginSheet,
   Lightbox,
-  UserAvatar,
 } from "@/components/mobile/community/CommunityBits";
 import {
   actions,
@@ -49,92 +48,68 @@ function CommunityFeed() {
 
   return (
     <PhoneFrame activeTab="community" showTabBar>
-      {/* header */}
-      <header className="px-5 pb-3 pt-3">
+      {/* header — quieter, single line */}
+      <header className="px-5 pt-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[22px] font-bold leading-tight text-heading">猫友圈</h1>
-            <p className="mt-1 text-[12.5px] text-warm">
-              家长与猫舍的共同记事本
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {canPost && (
-              <Link
-                to="/community/publish"
-                className="pressable inline-flex items-center gap-1 rounded-full bg-violet px-3 py-1.5 text-[12px] font-semibold text-white shadow-card"
-              >
-                <PlusIcon className="h-4 w-4" />
-                发布
-              </Link>
-            )}
-            {role === "guest" ? (
+          <h1 className="text-[22px] font-bold leading-tight text-heading">猫友圈</h1>
+          {role === "guest" ? (
+            <button
+              onClick={() => actions.requireLogin("登录后可点赞、评论和关注小猫")}
+              className="pressable text-[12px] font-medium text-violet"
+            >
+              登录
+            </button>
+          ) : (
+            <span className="text-[12px] text-warm">
+              {me?.name ?? "已登录"}
               <button
-                onClick={() => actions.requireLogin("登录后可点赞、评论和关注小猫")}
-                className="pressable inline-flex items-center gap-1.5 rounded-full bg-mint/60 px-3 py-1.5 text-[12px] font-semibold text-[#3b5245]"
+                onClick={() => actions.logout()}
+                className="pressable ml-2 text-warm/70 underline underline-offset-2"
               >
-                <UserIcon className="h-4 w-4" />
-                登录
+                退出
               </button>
-            ) : (
-              <span className="inline-flex items-center gap-2 rounded-full bg-card px-2.5 py-1.5 text-[12px] text-heading shadow-card">
-                <UserAvatar role={role === "keeper" ? "keeper" : "parent"} size={22} />
-                <span className="max-w-[6em] truncate">{me?.name ?? "已登录"}</span>
-              </span>
-            )}
-          </div>
+            </span>
+          )}
         </div>
 
-        {/* my area entries */}
+        {/* my area entries — inline text links, no card墙 */}
         {role !== "guest" && (
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <nav className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-warm">
             {role === "parent" && (
-              <Link
-                to="/community/my-cats"
-                className="pressable rounded-2xl border border-border bg-card p-3 text-center shadow-card"
-              >
-                <CatIcon className="mx-auto h-6 w-6 text-violet" />
-                <p className="mt-1.5 text-[11.5px] font-medium text-heading">我的猫咪</p>
+              <Link to="/community/my-cats" className="pressable inline-flex items-center gap-1">
+                <CatIcon className="h-3.5 w-3.5" />
+                我的猫咪
               </Link>
             )}
-            <Link
-              to="/community/my-posts"
-              className="pressable rounded-2xl border border-border bg-card p-3 text-center shadow-card"
-            >
-              <PawIcon className="mx-auto h-6 w-6 text-violet" />
-              <p className="mt-1.5 text-[11.5px] font-medium text-heading">我的发布</p>
+            <Link to="/community/my-posts" className="pressable inline-flex items-center gap-1">
+              <PawIcon className="h-3.5 w-3.5" />
+              我的发布
             </Link>
             {role === "user" && (
               <Link
                 to="/community/parent-onboard"
-                className="pressable rounded-2xl border border-border bg-card p-3 text-center shadow-card"
+                className="pressable inline-flex items-center gap-1"
               >
-                <UserIcon className="mx-auto h-6 w-6 text-violet" />
-                <p className="mt-1.5 text-[11.5px] font-medium text-heading">开通家长</p>
+                <UserIcon className="h-3.5 w-3.5" />
+                开通家长
               </Link>
             )}
-            <button
-              onClick={() => actions.logout()}
-              className="pressable rounded-2xl border border-dashed border-border bg-card/60 p-3 text-center text-[11.5px] text-muted-foreground"
-            >
-              退出登录
-            </button>
-          </div>
+          </nav>
         )}
       </header>
 
-      {/* filters */}
-      <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-3">
+      {/* filters — small, quiet chips */}
+      <div className="no-scrollbar mt-4 flex gap-1.5 overflow-x-auto px-5 pb-2">
         {(["全部", ...CATEGORIES] as const).map((c) => {
           const on = filter === c;
           return (
             <button
               key={c}
               onClick={() => setFilter(c)}
-              className={`pressable shrink-0 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium ${
+              className={`pressable shrink-0 rounded-full px-2.5 py-1 text-[11.5px] ${
                 on
-                  ? "bg-violet text-white shadow-card"
-                  : "border border-border bg-card text-muted-foreground"
+                  ? "bg-heading/85 text-cream"
+                  : "text-warm hover:text-heading"
               }`}
             >
               {c}
@@ -143,10 +118,10 @@ function CommunityFeed() {
         })}
       </div>
 
-      {/* feed */}
-      <Section className="space-y-3 pb-24">
+      {/* feed — extra breathing room */}
+      <Section className="space-y-5 pb-28 pt-3">
         {filtered.length === 0 && (
-          <div className="soft-card text-center text-[13px] text-muted-foreground">
+          <div className="px-2 py-10 text-center text-[13px] text-warm">
             还没有相关动态～
           </div>
         )}
@@ -155,27 +130,36 @@ function CommunityFeed() {
         ))}
       </Section>
 
-      {/* not-post-permitted CTA */}
-      {!canPost && (
-        <div className="fixed bottom-24 left-1/2 z-30 -translate-x-1/2">
+      {/* floating publish FAB — small, corner */}
+      <div className="pointer-events-none absolute bottom-24 right-5 z-30">
+        {canPost ? (
+          <Link
+            to="/community/publish"
+            className="pressable pointer-events-auto grid h-11 w-11 place-items-center rounded-full bg-violet text-white shadow-float"
+            aria-label="发布动态"
+          >
+            <PlusIcon className="h-5 w-5" />
+          </Link>
+        ) : (
           <button
             onClick={() =>
               role === "guest"
                 ? actions.requireLogin("登录后可发布家长分享")
                 : actions.requireLogin("发布内容需要开通家长身份")
             }
-            className="pressable inline-flex items-center gap-1.5 rounded-full bg-violet px-4 py-2.5 text-[13px] font-semibold text-white shadow-float"
+            className="pressable pointer-events-auto grid h-11 w-11 place-items-center rounded-full bg-violet text-white shadow-float"
+            aria-label="发布动态"
           >
-            <PlusIcon className="h-4 w-4" />
-            发布动态
+            <PlusIcon className="h-5 w-5" />
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <LoginSheet />
       <Lightbox />
     </PhoneFrame>
   );
 }
+
 
 
