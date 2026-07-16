@@ -12,9 +12,9 @@ export const Route = createFileRoute("/community/my-cats")({
 function MyCats() {
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
-  const cats = useCommunity((s) =>
-    s.cats.filter((c) => c.ownerId === currentUserId),
-  );
+  const allCats = useCommunity((s) => s.cats);
+  const cats = allCats.filter((c) => c.ownerId === currentUserId);
+
 
   if (role !== "parent") {
     return (
