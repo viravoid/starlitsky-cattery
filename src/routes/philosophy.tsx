@@ -83,7 +83,7 @@ function Philosophy() {
         <p className="font-display text-[9px] uppercase tracking-[0.35em] text-[#4d739f]/80">
           Bloodline · Style · Breeding
         </p>
-        <h3 className="mt-2 text-[21px] font-semibold tracking-[0.04em] text-[#6f655d]">
+        <h3 className="mt-2 text-[21px] font-semibold tracking-[0.04em] text-[#5f7fa7]">
           我们理解的缅因与风格
         </h3>
         <div className="mx-auto mt-4 h-px w-12 bg-[#ffdb83]/40" />
