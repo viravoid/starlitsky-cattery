@@ -16,12 +16,12 @@ import { Route as PhilosophyRouteImport } from './routes/philosophy'
 import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
 import { Route as ContactRouteImport } from './routes/contact'
-import { Route as CommunityRouteImport } from './routes/community'
 import { Route as CatsRouteImport } from './routes/cats'
 import { Route as AftercareRouteImport } from './routes/aftercare'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CommunityIndexRouteImport } from './routes/community.index'
 import { Route as StudsIdRouteImport } from './routes/studs.$id'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 import { Route as CommunityPublishRouteImport } from './routes/community.publish'
@@ -67,11 +67,6 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CommunityRoute = CommunityRouteImport.update({
-  id: '/community',
-  path: '/community',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CatsRoute = CatsRouteImport.update({
   id: '/cats',
   path: '/cats',
@@ -97,6 +92,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunityIndexRoute = CommunityIndexRouteImport.update({
+  id: '/community/',
+  path: '/community/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudsIdRoute = StudsIdRouteImport.update({
   id: '/studs/$id',
   path: '/studs/$id',
@@ -108,39 +108,39 @@ const KittensIdRoute = KittensIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityPublishRoute = CommunityPublishRouteImport.update({
-  id: '/publish',
-  path: '/publish',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/publish',
+  path: '/community/publish',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityParentOnboardRoute = CommunityParentOnboardRouteImport.update({
-  id: '/parent-onboard',
-  path: '/parent-onboard',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/parent-onboard',
+  path: '/community/parent-onboard',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityMyPostsRoute = CommunityMyPostsRouteImport.update({
-  id: '/my-posts',
-  path: '/my-posts',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/my-posts',
+  path: '/community/my-posts',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityMyCatsRoute = CommunityMyCatsRouteImport.update({
-  id: '/my-cats',
-  path: '/my-cats',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/my-cats',
+  path: '/community/my-cats',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityPostIdRoute = CommunityPostIdRouteImport.update({
-  id: '/post/$id',
-  path: '/post/$id',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/post/$id',
+  path: '/community/post/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityCatIdRoute = CommunityCatIdRouteImport.update({
-  id: '/cat/$id',
-  path: '/cat/$id',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/cat/$id',
+  path: '/community/cat/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityCatEditIdRoute = CommunityCatEditIdRouteImport.update({
-  id: '/cat-edit/$id',
-  path: '/cat-edit/$id',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/cat-edit/$id',
+  path: '/community/cat-edit/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -149,7 +149,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
-  '/community': typeof CommunityRouteWithChildren
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
@@ -163,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community/': typeof CommunityIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
@@ -173,7 +173,6 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
-  '/community': typeof CommunityRouteWithChildren
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
@@ -187,6 +186,7 @@ export interface FileRoutesByTo {
   '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community': typeof CommunityIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
@@ -198,7 +198,6 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
-  '/community': typeof CommunityRouteWithChildren
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
@@ -212,6 +211,7 @@ export interface FileRoutesById {
   '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community/': typeof CommunityIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
@@ -224,7 +224,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/aftercare'
     | '/cats'
-    | '/community'
     | '/contact'
     | '/environment'
     | '/feeding'
@@ -238,6 +237,7 @@ export interface FileRouteTypes {
     | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community/'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/post/$id'
@@ -248,7 +248,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/aftercare'
     | '/cats'
-    | '/community'
     | '/contact'
     | '/environment'
     | '/feeding'
@@ -262,6 +261,7 @@ export interface FileRouteTypes {
     | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/post/$id'
@@ -272,7 +272,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/aftercare'
     | '/cats'
-    | '/community'
     | '/contact'
     | '/environment'
     | '/feeding'
@@ -286,6 +285,7 @@ export interface FileRouteTypes {
     | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community/'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/post/$id'
@@ -297,7 +297,6 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AftercareRoute: typeof AftercareRoute
   CatsRoute: typeof CatsRoute
-  CommunityRoute: typeof CommunityRouteWithChildren
   ContactRoute: typeof ContactRoute
   EnvironmentRoute: typeof EnvironmentRoute
   FeedingRoute: typeof FeedingRoute
@@ -305,8 +304,16 @@ export interface RootRouteChildren {
   ProcessRoute: typeof ProcessRoute
   QuestionnaireRoute: typeof QuestionnaireRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  CommunityMyCatsRoute: typeof CommunityMyCatsRoute
+  CommunityMyPostsRoute: typeof CommunityMyPostsRoute
+  CommunityParentOnboardRoute: typeof CommunityParentOnboardRoute
+  CommunityPublishRoute: typeof CommunityPublishRoute
   KittensIdRoute: typeof KittensIdRoute
   StudsIdRoute: typeof StudsIdRoute
+  CommunityIndexRoute: typeof CommunityIndexRoute
+  CommunityCatEditIdRoute: typeof CommunityCatEditIdRoute
+  CommunityCatIdRoute: typeof CommunityCatIdRoute
+  CommunityPostIdRoute: typeof CommunityPostIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -360,13 +367,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/community': {
-      id: '/community'
-      path: '/community'
-      fullPath: '/community'
-      preLoaderRoute: typeof CommunityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/cats': {
       id: '/cats'
       path: '/cats'
@@ -402,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community/': {
+      id: '/community/'
+      path: '/community'
+      fullPath: '/community/'
+      preLoaderRoute: typeof CommunityIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/studs/$id': {
       id: '/studs/$id'
       path: '/studs/$id'
@@ -418,79 +425,55 @@ declare module '@tanstack/react-router' {
     }
     '/community/publish': {
       id: '/community/publish'
-      path: '/publish'
+      path: '/community/publish'
       fullPath: '/community/publish'
       preLoaderRoute: typeof CommunityPublishRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/parent-onboard': {
       id: '/community/parent-onboard'
-      path: '/parent-onboard'
+      path: '/community/parent-onboard'
       fullPath: '/community/parent-onboard'
       preLoaderRoute: typeof CommunityParentOnboardRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/my-posts': {
       id: '/community/my-posts'
-      path: '/my-posts'
+      path: '/community/my-posts'
       fullPath: '/community/my-posts'
       preLoaderRoute: typeof CommunityMyPostsRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/my-cats': {
       id: '/community/my-cats'
-      path: '/my-cats'
+      path: '/community/my-cats'
       fullPath: '/community/my-cats'
       preLoaderRoute: typeof CommunityMyCatsRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/post/$id': {
       id: '/community/post/$id'
-      path: '/post/$id'
+      path: '/community/post/$id'
       fullPath: '/community/post/$id'
       preLoaderRoute: typeof CommunityPostIdRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/cat/$id': {
       id: '/community/cat/$id'
-      path: '/cat/$id'
+      path: '/community/cat/$id'
       fullPath: '/community/cat/$id'
       preLoaderRoute: typeof CommunityCatIdRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/cat-edit/$id': {
       id: '/community/cat-edit/$id'
-      path: '/cat-edit/$id'
+      path: '/community/cat-edit/$id'
       fullPath: '/community/cat-edit/$id'
       preLoaderRoute: typeof CommunityCatEditIdRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface CommunityRouteChildren {
-  CommunityMyCatsRoute: typeof CommunityMyCatsRoute
-  CommunityMyPostsRoute: typeof CommunityMyPostsRoute
-  CommunityParentOnboardRoute: typeof CommunityParentOnboardRoute
-  CommunityPublishRoute: typeof CommunityPublishRoute
-  CommunityCatEditIdRoute: typeof CommunityCatEditIdRoute
-  CommunityCatIdRoute: typeof CommunityCatIdRoute
-  CommunityPostIdRoute: typeof CommunityPostIdRoute
-}
-
-const CommunityRouteChildren: CommunityRouteChildren = {
-  CommunityMyCatsRoute: CommunityMyCatsRoute,
-  CommunityMyPostsRoute: CommunityMyPostsRoute,
-  CommunityParentOnboardRoute: CommunityParentOnboardRoute,
-  CommunityPublishRoute: CommunityPublishRoute,
-  CommunityCatEditIdRoute: CommunityCatEditIdRoute,
-  CommunityCatIdRoute: CommunityCatIdRoute,
-  CommunityPostIdRoute: CommunityPostIdRoute,
-}
-
-const CommunityRouteWithChildren = CommunityRoute._addFileChildren(
-  CommunityRouteChildren,
-)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -498,7 +481,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AftercareRoute: AftercareRoute,
   CatsRoute: CatsRoute,
-  CommunityRoute: CommunityRouteWithChildren,
   ContactRoute: ContactRoute,
   EnvironmentRoute: EnvironmentRoute,
   FeedingRoute: FeedingRoute,
@@ -506,8 +488,16 @@ const rootRouteChildren: RootRouteChildren = {
   ProcessRoute: ProcessRoute,
   QuestionnaireRoute: QuestionnaireRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  CommunityMyCatsRoute: CommunityMyCatsRoute,
+  CommunityMyPostsRoute: CommunityMyPostsRoute,
+  CommunityParentOnboardRoute: CommunityParentOnboardRoute,
+  CommunityPublishRoute: CommunityPublishRoute,
   KittensIdRoute: KittensIdRoute,
   StudsIdRoute: StudsIdRoute,
+  CommunityIndexRoute: CommunityIndexRoute,
+  CommunityCatEditIdRoute: CommunityCatEditIdRoute,
+  CommunityCatIdRoute: CommunityCatIdRoute,
+  CommunityPostIdRoute: CommunityPostIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
