@@ -102,16 +102,18 @@ export function TabBar({ active }: { active: TabKey }) {
             <li key={key} className="flex-1">
               <Link
                 to={to as string}
-                className={`pressable flex flex-col items-center justify-center py-1.5 ${
-                  on ? "text-violet" : "text-[#8a94a8]"
-                }`}
+                className="pressable flex flex-col items-center justify-center py-1.5"
+                style={{ color: on ? "#3e668f" : "#8a99aa" }}
               >
-                <span className="flex h-6 w-6 items-center justify-center">
-                  <Icon className="h-[22px] w-[22px]" />
+                <span
+                  className="flex items-center justify-center"
+                  style={{ width: 24, height: 24 }}
+                >
+                  <Icon size={22} strokeWidth={1.8} />
                 </span>
                 <span
-                  className="mt-1 font-medium"
-                  style={{ fontSize: 11, lineHeight: "14px" }}
+                  className="font-medium"
+                  style={{ fontSize: 11, lineHeight: 1, marginTop: 5 }}
                 >
                   {label}
                 </span>
