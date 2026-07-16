@@ -56,66 +56,69 @@
 :root {
   --radius: 1.25rem;
 
-  /* Page base — warmer cream. Body is warm neutral, not blue. */
-  --background: #fffaf2;
+  /* Page base — warm cream. Body text is neutral gray, not brown, not blue. */
+  --background: #fffaf1;
   --foreground: #58616c;
   --heading: #5b7fa8;
   --card: #fffdf8;
   --card-foreground: #58616c;
 
-  /* Brand primary — softer mid blue (was deep navy) */
+  /* Brand primary — softer mid blue */
   --primary: #5b7fa8;
-  --primary-foreground: #fffaf2;
+  --primary-foreground: #fffdf8;
 
-  /* Secondary — dreamy blue */
-  --secondary: #81a9ee;
-  --secondary-foreground: #2f4a6a;
+  /* Secondary — supporting blue */
+  --secondary: #86a6d2;
+  --secondary-foreground: #456d9a;
 
-  /* Muted — warm cream neutral surface. */
-  --muted: #fff4dd;
-  --muted-foreground: #9a9087;
+  /* Muted — warm cream surface. */
+  --muted: #fff8e8;
+  --muted-foreground: #8c929a;
 
-  /* Accent — butter honey */
+  /* Accent — honey yellow */
   --accent: #e7c15d;
-  --accent-foreground: #7a5f24;
+  --accent-foreground: #b48725;
 
   /* Brand palette */
   --deep-blue: #5b7fa8;
-  --dreamy-blue: #81a9ee;
+  --deep-blue-strong: #456d9a;
+  --dreamy-blue: #86a6d2;
   --silky-lilac: #aab4e7;
   --butter-honey: #e7c15d;
+  --honey-text: #b48725;
   --vanilla-milk: #fff2d0;
 
   /* Derived pales */
-  --pale-blue: #e8f0fc;
-  --pale-lilac: #eef0fb;
-  --pale-yellow: #fff7df;
-  --pale-cream: #fff8ea;
+  --pale-blue: #edf3fb;
+  --pale-lilac: #f0f1fb;
+  --pale-yellow: #fff0bc;
+  --pale-cream: #fff8e8;
+  --warm-cream: #fff8e8;
   --soft-white: #fffdf8;
 
-  /* Semantic aliases. */
+  /* Semantic aliases used across components. */
   --sky: #5b7fa8;
-  --creamblue: #81a9ee;
-  --sunny: #fff2d0;
+  --creamblue: #86a6d2;
+  --sunny: #fff0bc;
   --sunflower: #e7c15d;
-  --warm: #8fa2c4;
-  --violet: #5b7fa8;
+  --warm: #86a6d2;
+  --violet: #9aa3cf;
   --lilac: #aab4e7;
   --wine: #c46a6a;
   --cream: #fffdf8;
-  --mint: #fff7df;
+  --mint: #fff8e8;
 
+  /* Warm, low-contrast border */
+  --border: #e9ddbf;
+  --neutral-line: rgba(88, 97, 108, 0.12);
 
-  /* Softer, warmer border — reduces cold outlines around every card */
-  --border: #ece1cc;
-
-  --gradient-hero: linear-gradient(135deg, #fff2d0 0%, #fff7e8 24%, #e9ebfa 58%, #aab4e7 78%, #81a9ee 100%);
-  --gradient-sky: linear-gradient(150deg, #81a9ee 0%, #aab4e7 100%);
+  --gradient-hero: linear-gradient(135deg, #fff2d0 0%, #fff8e8 24%, #eef0fb 58%, #aab4e7 78%, #86a6d2 100%);
+  --gradient-sky: linear-gradient(150deg, #86a6d2 0%, #aab4e7 100%);
   --gradient-cream: linear-gradient(180deg, #fffdf8 0%, #fff7df 48%, #fff2d0 100%);
 
-  --shadow-soft: 0 8px 24px rgba(62, 102, 143, 0.06), 0 2px 8px rgba(180, 150, 90, 0.05);
-  --shadow-card: 0 8px 24px rgba(62, 102, 143, 0.06), 0 2px 8px rgba(180, 150, 90, 0.05);
-  --shadow-float: 0 12px 32px rgba(129, 169, 238, 0.10), 0 4px 12px rgba(224, 190, 120, 0.10);
+  --shadow-soft: 0 8px 22px rgba(88, 97, 108, 0.05), 0 2px 6px rgba(180, 135, 37, 0.04);
+  --shadow-card: 0 8px 22px rgba(88, 97, 108, 0.05), 0 2px 6px rgba(180, 135, 37, 0.04);
+  --shadow-float: 0 12px 32px rgba(91, 127, 168, 0.10), 0 4px 12px rgba(231, 193, 93, 0.10);
 }
 
 @layer base {
