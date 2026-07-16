@@ -166,7 +166,7 @@ function Home() {
         </div>
       </Section>
 
-      <div className="mt-9 space-y-14">
+      <div className="mt-6 space-y-12">
         {GROUPS.map(({ en, cn, lead, Art, tint, items }, gi) => (
           <Section key={en}>
             {/* group header — illustration alternates side for gentle rhythm */}
