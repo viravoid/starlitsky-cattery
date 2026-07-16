@@ -210,6 +210,21 @@ const seedPosts: Post[] = [
     likedByMe: false,
     comments: [],
   },
+  {
+    id: "p-6",
+    authorId: KEEPER_YUEQI,
+    authorName: "月七",
+    authorRole: "猫舍主理人",
+    category: "猫舍日常",
+    content: "A 窝的小朋友们今天开食啦，小家伙们吃相都特别可爱。",
+    imageCount: 2,
+    catIds: [],
+    litterIds: ["A窝"],
+    createdAt: "2026-07-02T10:15:00",
+    likes: 36,
+    likedByMe: false,
+    comments: [],
+  },
 ];
 
 /* ── Store ─────────────────────────────────────────────── */
