@@ -103,7 +103,7 @@ export function TabBar({ active }: { active: TabKey }) {
               <Link
                 to={to as string}
                 className="pressable flex flex-col items-center justify-center py-1.5"
-                style={{ color: on ? "#3e668f" : "#8a99aa" }}
+                style={{ color: on ? "#4d739f" : "#8a99aa" }}
               >
                 <span
                   className="flex items-center justify-center"

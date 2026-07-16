@@ -8,7 +8,7 @@ export const Route = createFileRoute("/philosophy")({
 
 function P({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={`text-[15px] leading-[1.9] text-[#4b617a] ${className ?? ""}`}>{children}</p>
+    <p className={`text-[15px] leading-[1.9] text-[#6f655d] ${className ?? ""}`}>{children}</p>
   );
 }
 
@@ -17,7 +17,7 @@ function Philosophy() {
     <PhoneFrame title="繁育理念" backTo="/">
       {/* English label */}
       <Section className="pt-4 text-center">
-        <p className="font-display text-[10px] uppercase tracking-[0.4em] text-[#3e668f]">
+        <p className="font-display text-[10px] uppercase tracking-[0.4em] text-[#4d739f]">
           Breeding Philosophy
         </p>
       </Section>
@@ -54,7 +54,7 @@ function Philosophy() {
             <div className="mt-1.5 font-display text-[9px] uppercase tracking-[0.3em] text-[#ffdb83]/60">
               Years
             </div>
-            <div className="mt-2 text-[13px] text-[#4b617a]">我做繁育的第五年</div>
+            <div className="mt-2 text-[13px] text-[#6f655d]">我做繁育的第五年</div>
           </div>
           <div className="text-center">
             <div className="font-display text-[34px] font-light leading-none tracking-[0.05em] text-[#ffdb83]/80">
@@ -63,7 +63,7 @@ function Philosophy() {
             <div className="mt-1.5 font-display text-[9px] uppercase tracking-[0.3em] text-[#ffdb83]/60">
               Years
             </div>
-            <div className="mt-2 text-[13px] text-[#4b617a]">月七做繁育的第七年</div>
+            <div className="mt-2 text-[13px] text-[#6f655d]">月七做繁育的第七年</div>
           </div>
         </div>
       </Section>
@@ -73,17 +73,17 @@ function Philosophy() {
         <P>
           我们终于搬进了和小猫共同的新家，我们的人生和猫舍也都迈向了一个新的阶段。
         </P>
-        <P className="font-medium tracking-[0.02em] text-[#4b617a]">
+        <P className="font-medium tracking-[0.02em] text-[#6f655d]">
           从一开始的迷茫从众，到现在有了清晰的目标。
         </P>
       </Section>
 
       {/* Theme transition */}
       <Section className="mt-12 text-center">
-        <p className="font-display text-[9px] uppercase tracking-[0.35em] text-[#3e668f]/80">
+        <p className="font-display text-[9px] uppercase tracking-[0.35em] text-[#4d739f]/80">
           Bloodline · Style · Breeding
         </p>
-        <h3 className="mt-2 text-[21px] font-semibold tracking-[0.04em] text-[#4b617a]">
+        <h3 className="mt-2 text-[21px] font-semibold tracking-[0.04em] text-[#5f7fa7]">
           我们理解的缅因与风格
         </h3>
         <div className="mx-auto mt-4 h-px w-12 bg-[#ffdb83]/40" />
@@ -103,7 +103,7 @@ function Philosophy() {
       <Section className="mt-8 px-8">
         <div className="flex flex-col items-center gap-3">
           <div className="h-px w-10 bg-[#ffdb83]/30" />
-          <p className="text-center text-[16px] font-medium leading-[1.8] tracking-[0.02em] text-[#4b617a]">
+          <p className="text-center text-[16px] font-medium leading-[1.8] tracking-[0.02em] text-[#6f655d]">
             甜美小体、大体、大刷子、毛怪，
             <br />
             都代表不了全部的缅因猫。
