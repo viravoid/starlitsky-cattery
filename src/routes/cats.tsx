@@ -24,6 +24,8 @@ const searchSchema = z
   })
   .catch({});
 
+type CatsSearch = z.infer<typeof searchSchema>;
+
 export const Route = createFileRoute("/cats")({
   validateSearch: searchSchema,
   head: () => ({
