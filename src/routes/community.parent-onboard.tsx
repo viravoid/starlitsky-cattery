@@ -33,7 +33,7 @@ function ParentOnboard() {
       <PhoneFrame title="家长身份" showBack>
         <Section className="py-10 text-center">
           <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-mint/50">
-            <CheckIcon className="h-7 w-7 text-[#233e5c]" />
+            <CheckIcon className="h-7 w-7 text-[#456d9a]" />
           </span>
           <p className="mt-3 text-[14px] font-semibold text-heading">你已开通家长身份</p>
           <p className="mt-1 text-[12.5px] text-muted-foreground">

@@ -50,7 +50,7 @@ export function CopyText({
       </span>
       <span
         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-          copied ? "bg-primary/30 text-[#233e5c]" : "bg-muted text-muted-foreground"
+          copied ? "bg-primary/30 text-[#456d9a]" : "bg-muted text-muted-foreground"
         }`}
       >
         {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}

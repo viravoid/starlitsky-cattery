@@ -128,13 +128,13 @@ function Home() {
         <div className="pointer-events-none absolute inset-x-3 bottom-0 z-10 flex flex-col items-center justify-end rounded-b-[1.75rem] px-4 pb-7 pt-12 text-center">
           <h1
             className="text-[27px] font-bold leading-tight drop-shadow-sm"
-            style={{ color: "#4d739f" }}
+            style={{ color: "#5b7fa8" }}
           >
             星月缅因猫舍
           </h1>
           <p
             className="mt-1 font-display text-[13px] italic drop-shadow-sm"
-            style={{ color: "#8193c8" }}
+            style={{ color: "#86a6d2" }}
           >
             StarlitSky Maine Coon Cattery
           </p>
