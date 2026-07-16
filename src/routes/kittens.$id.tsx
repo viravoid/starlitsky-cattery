@@ -3,7 +3,85 @@ import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill } from "@/components/mobile/ui";
 import { Carousel } from "@/components/mobile/Carousel";
 import { PaperIcon, CheckIcon } from "@/components/mobile/icons";
-import { KITTENS, statusTone } from "@/lib/cattery-data";
+import { KITTENS, statusTone, type StructureRating } from "@/lib/cattery-data";
+
+function StarRow({ label, value }: { label: string; value?: number }) {
+  const filled = Math.max(0, Math.min(6, value ?? 0));
+  const showSix = filled === 6;
+  const baseCount = 5;
+  return (
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <span className="text-[13px] text-foreground/80">{label}</span>
+      {value === undefined ? (
+        <span className="text-[11px] text-muted-foreground/70">待评估</span>
+      ) : (
+        <span className="flex items-center gap-[3px]">
+          {Array.from({ length: baseCount }).map((_, i) => (
+            <Star key={i} active={i < filled} />
+          ))}
+          {showSix && (
+            <span className="ml-1 inline-flex items-center">
+              <Star active highlight />
+            </span>
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function Star({ active, highlight }: { active: boolean; highlight?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-3.5 w-3.5 ${
+        active
+          ? highlight
+            ? "text-[#d4a24a]"
+            : "text-[#d9b46a]"
+          : "text-[#e8e0cf]"
+      }`}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 2.6l2.76 5.92 6.44.78-4.78 4.44 1.28 6.36L12 16.98l-5.7 3.12 1.28-6.36L2.8 9.3l6.44-.78L12 2.6z" />
+    </svg>
+  );
+}
+
+function StructureBlock({ rating }: { rating: StructureRating }) {
+  const face = rating.face || {};
+  const body = rating.body || {};
+  const faceEmpty = ![face.eyes, face.ears, face.muzzle, face.profile].some((v) => v !== undefined);
+  const bodyEmpty = ![body.length, body.build, body.overall].some((v) => v !== undefined);
+  if (faceEmpty && bodyEmpty) {
+    return (
+      <div className="rounded-[22px] border border-border/70 bg-cream/40 px-5 py-4 text-center text-[12px] text-muted-foreground">
+        结构评分待补充
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-[22px] border border-border/60 bg-cream/50 px-5 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] tracking-[0.24em] text-muted-foreground/80">面部结构</p>
+          <StarRow label="眼睛" value={face.eyes} />
+          <StarRow label="耳朵" value={face.ears} />
+          <StarRow label="嘴套" value={face.muzzle} />
+          <StarRow label="侧脸" value={face.profile} />
+        </div>
+        <div className="mt-4 border-t border-border/50 pt-3 sm:mt-0 sm:border-t-0 sm:pt-0">
+          <p className="mb-2 text-[11px] tracking-[0.24em] text-muted-foreground/80">身体结构</p>
+          <StarRow label="身长" value={body.length} />
+          <StarRow label="体格" value={body.build} />
+          <StarRow label="整体" value={body.overall} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 export const Route = createFileRoute("/kittens/$id")({
   component: KittenDetail,
