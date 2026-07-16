@@ -15,7 +15,7 @@ import {
   type Category,
 } from "@/lib/community-store";
 
-export const Route = createFileRoute("/community")({
+export const Route = createFileRoute("/community/")({
   head: () => ({
     meta: [
       { title: "猫友圈 — 星月缅因猫舍" },
