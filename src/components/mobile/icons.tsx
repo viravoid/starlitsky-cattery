@@ -49,10 +49,18 @@ export function PawIcon(props: IconProps) {
 export function ApertureIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>
+      {/* outer ring */}
       <circle cx="12" cy="12" r="9" />
-      <path d="M12 3 L14.5 12 L12 21" />
-      <path d="M20.8 7.5 L12 12 L3.2 7.5" />
-      <path d="M20.8 16.5 L12 12 L3.2 16.5" />
+      {/* aperture blades radiating from a small center, like the Moments icon */}
+      <path d="M12 12 L12 3" />
+      <path d="M12 12 L19.5 6.5" />
+      <path d="M12 12 L20.5 14" />
+      <path d="M12 12 L15.5 20.5" />
+      <path d="M12 12 L8.5 20.5" />
+      <path d="M12 12 L3.5 14" />
+      <path d="M12 12 L4.5 6.5" />
+      {/* tiny center hub */}
+      <circle cx="12" cy="12" r="1.2" />
     </svg>
   );
 }
