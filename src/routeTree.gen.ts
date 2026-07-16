@@ -25,6 +25,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudsIdRouteImport } from './routes/studs.$id'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 import { Route as CommunityPostIdRouteImport } from './routes/community.post.$id'
+import { Route as CommunityCatIdRouteImport } from './routes/community.cat.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -106,6 +107,11 @@ const CommunityPostIdRoute = CommunityPostIdRouteImport.update({
   path: '/post/$id',
   getParentRoute: () => CommunityRoute,
 } as any)
+const CommunityCatIdRoute = CommunityCatIdRouteImport.update({
+  id: '/cat/$id',
+  path: '/cat/$id',
+  getParentRoute: () => CommunityRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
 export interface FileRoutesByTo {
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
 export interface FileRoutesById {
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
+  '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
 export interface FileRouteTypes {
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community/cat/$id'
     | '/community/post/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community/cat/$id'
     | '/community/post/$id'
   id:
     | '__root__'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/kittens/$id'
     | '/studs/$id'
+    | '/community/cat/$id'
     | '/community/post/$id'
   fileRoutesById: FileRoutesById
 }
@@ -351,14 +363,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityPostIdRouteImport
       parentRoute: typeof CommunityRoute
     }
+    '/community/cat/$id': {
+      id: '/community/cat/$id'
+      path: '/cat/$id'
+      fullPath: '/community/cat/$id'
+      preLoaderRoute: typeof CommunityCatIdRouteImport
+      parentRoute: typeof CommunityRoute
+    }
   }
 }
 
 interface CommunityRouteChildren {
+  CommunityCatIdRoute: typeof CommunityCatIdRoute
   CommunityPostIdRoute: typeof CommunityPostIdRoute
 }
 
 const CommunityRouteChildren: CommunityRouteChildren = {
+  CommunityCatIdRoute: CommunityCatIdRoute,
   CommunityPostIdRoute: CommunityPostIdRoute,
 }
 
