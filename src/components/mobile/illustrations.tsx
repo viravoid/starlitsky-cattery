@@ -117,7 +117,7 @@ export function WindingPath(props: P) {
   return (
     <svg {...base} {...props}>
       <path d="M18 62c8 0 8-12 16-12s8-12 16-12 8-12 12-12" strokeDasharray="1 6" />
-      <circle cx="18" cy="62" r="3.5" />
+      <path d="M15 62 L18 58.5 L21 62 L21 65 L15 65 Z" />
       <circle cx="62" cy="26" r="3.5" />
       <path d="M62 12l1.6 3.4 3.6.4-2.7 2.5.7 3.6-3.2-1.8-3.2 1.8.7-3.6-2.7-2.5 3.6-.4z" />
     </svg>
