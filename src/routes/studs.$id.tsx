@@ -28,7 +28,7 @@ function StudDetail() {
 
   return (
     <PhoneFrame
-      title="种猫详情"
+      title={stud.name}
 
       bottomBar={
         <div className="flex gap-2.5 border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
