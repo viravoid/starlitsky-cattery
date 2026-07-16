@@ -49,7 +49,9 @@
   --color-creamblue: var(--creamblue);
   --color-cream: var(--cream);
   --color-mint: var(--mint);
+  --color-lilac: var(--lilac);
 }
+
 
 :root {
   --radius: 1.25rem;
