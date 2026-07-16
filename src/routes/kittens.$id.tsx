@@ -214,14 +214,6 @@ function KittenDetail() {
         </div>
       </Section>
 
-
-      <Section className="mb-8 mt-5">
-        <h3 className="mb-2.5 text-[14px] font-semibold text-heading">健康进度</h3>
-        <div className="space-y-2.5">
-          <Progress label="疫苗进度" value="示例文字（待更新）" done={false} />
-          <Progress label="驱虫进度" value="示例文字（待更新）" done={false} />
-        </div>
-      </Section>
     </PhoneFrame>
   );
 }
