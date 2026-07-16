@@ -142,8 +142,10 @@ export const KITTENS: Kitten[] = [
     mother: "示例文字（缺少母亲信息）",
     status: "找家中",
     price: "示例文字（缺少价格）",
+    litter: "B窝",
     personality: "示例文字（缺少性格介绍）",
     story: ["（示例文字：主理人的完整介绍待补充）"],
+
   },
   {
     id: "kitten-c",
