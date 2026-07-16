@@ -177,8 +177,8 @@ function Process() {
 
       <Section className="mb-10 mt-6">
         <div className="flex items-start gap-2 rounded-2xl bg-sunny/40 p-3.5">
-          <MoonIcon className="mt-0.5 h-5 w-5 shrink-0 text-[#6b5f2f]" />
-          <p className="text-[12px] leading-relaxed text-[#6b5f2f]">
+          <MoonIcon className="mt-0.5 h-5 w-5 shrink-0 text-[#5e4d24]" />
+          <p className="text-[12px] leading-relaxed text-[#5e4d24]">
             具体价格、接猫时间和售后内容以实际小猫情况及正式合同为准。
           </p>
         </div>

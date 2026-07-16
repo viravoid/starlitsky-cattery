@@ -157,7 +157,7 @@ export function PhoneFrame({
 }) {
   return (
     <div className="flex min-h-screen w-full items-start justify-center sm:py-8">
-      <div className="relative flex h-[100dvh] w-full max-w-[402px] flex-col overflow-hidden bg-background shadow-float sm:h-[860px] sm:rounded-[2.75rem] sm:border-8 sm:border-[#f0e7d5]">
+      <div className="relative flex h-[100dvh] w-full max-w-[402px] flex-col overflow-hidden bg-background shadow-float sm:h-[860px] sm:rounded-[2.75rem] sm:border-8 sm:border-[#e5ecf6]">
         <StatusBar dark={darkStatus} />
         <Capsule dark={darkStatus} />
         {title && <NavHeader title={title} showBack={showBack} to={backTo} />}

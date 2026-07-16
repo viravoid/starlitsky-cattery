@@ -8,7 +8,7 @@ export const Route = createFileRoute("/philosophy")({
 
 function P({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={`text-[15px] leading-[1.9] text-[#5b4a3a] ${className ?? ""}`}>{children}</p>
+    <p className={`text-[15px] leading-[1.9] text-[#4b617a] ${className ?? ""}`}>{children}</p>
   );
 }
 
@@ -24,7 +24,7 @@ function Philosophy() {
 
       {/* Opening — lightweight card */}
       <Section className="mt-3">
-        <div className="rounded-xl border border-[#e8dfd0]/80 bg-[#fbf6ec]/70 px-4 py-3.5">
+        <div className="rounded-xl border border-[#d5dfec]/80 bg-[#fff7df]/70 px-4 py-3.5">
           <P>
             我们的繁育理念是繁育体质好、抵抗力强，乖巧亲人、大方自信的小猫。从小猫出生开始记录到去新家，让家长不会缺席小猫成长的每一个阶段。做一家有温度的猫舍。
           </P>
@@ -48,22 +48,22 @@ function Philosophy() {
       <Section className="mt-10">
         <div className="flex items-baseline justify-center gap-10">
           <div className="text-center">
-            <div className="font-display text-[34px] font-light leading-none tracking-[0.05em] text-[#d9b26a]/80">
+            <div className="font-display text-[34px] font-light leading-none tracking-[0.05em] text-[#ffdb83]/80">
               05
             </div>
-            <div className="mt-1.5 font-display text-[9px] uppercase tracking-[0.3em] text-[#d9b26a]/60">
+            <div className="mt-1.5 font-display text-[9px] uppercase tracking-[0.3em] text-[#ffdb83]/60">
               Years
             </div>
-            <div className="mt-2 text-[13px] text-[#5b4a3a]">我做繁育的第五年</div>
+            <div className="mt-2 text-[13px] text-[#4b617a]">我做繁育的第五年</div>
           </div>
           <div className="text-center">
-            <div className="font-display text-[34px] font-light leading-none tracking-[0.05em] text-[#d9b26a]/80">
+            <div className="font-display text-[34px] font-light leading-none tracking-[0.05em] text-[#ffdb83]/80">
               07
             </div>
-            <div className="mt-1.5 font-display text-[9px] uppercase tracking-[0.3em] text-[#d9b26a]/60">
+            <div className="mt-1.5 font-display text-[9px] uppercase tracking-[0.3em] text-[#ffdb83]/60">
               Years
             </div>
-            <div className="mt-2 text-[13px] text-[#5b4a3a]">月七做繁育的第七年</div>
+            <div className="mt-2 text-[13px] text-[#4b617a]">月七做繁育的第七年</div>
           </div>
         </div>
       </Section>
@@ -73,7 +73,7 @@ function Philosophy() {
         <P>
           我们终于搬进了和小猫共同的新家，我们的人生和猫舍也都迈向了一个新的阶段。
         </P>
-        <P className="font-medium tracking-[0.02em] text-[#5b4a3a]">
+        <P className="font-medium tracking-[0.02em] text-[#4b617a]">
           从一开始的迷茫从众，到现在有了清晰的目标。
         </P>
       </Section>
@@ -83,10 +83,10 @@ function Philosophy() {
         <p className="font-display text-[9px] uppercase tracking-[0.35em] text-[#3e668f]/80">
           Bloodline · Style · Breeding
         </p>
-        <h3 className="mt-2 text-[21px] font-semibold tracking-[0.04em] text-[#5b4a3a]">
+        <h3 className="mt-2 text-[21px] font-semibold tracking-[0.04em] text-[#4b617a]">
           我们理解的缅因与风格
         </h3>
-        <div className="mx-auto mt-4 h-px w-12 bg-[#d9b26a]/40" />
+        <div className="mx-auto mt-4 h-px w-12 bg-[#ffdb83]/40" />
       </Section>
 
       {/* Style narrative */}
@@ -102,13 +102,13 @@ function Philosophy() {
       {/* Highlighted original sentence */}
       <Section className="mt-8 px-8">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-px w-10 bg-[#d9b26a]/30" />
-          <p className="text-center text-[16px] font-medium leading-[1.8] tracking-[0.02em] text-[#5b4a3a]">
+          <div className="h-px w-10 bg-[#ffdb83]/30" />
+          <p className="text-center text-[16px] font-medium leading-[1.8] tracking-[0.02em] text-[#4b617a]">
             甜美小体、大体、大刷子、毛怪，
             <br />
             都代表不了全部的缅因猫。
           </p>
-          <div className="h-px w-10 bg-[#d9b26a]/30" />
+          <div className="h-px w-10 bg-[#ffdb83]/30" />
         </div>
       </Section>
 
@@ -140,12 +140,12 @@ function Philosophy() {
       {/* Final closing node */}
       <Section className="mt-12 pb-12">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-px w-10 bg-[#d9b26a]/40" />
-          <div className="flex items-center gap-3 font-display text-[13px] tracking-[0.2em] text-[#d9b26a]/80">
+          <div className="h-px w-10 bg-[#ffdb83]/40" />
+          <div className="flex items-center gap-3 font-display text-[13px] tracking-[0.2em] text-[#ffdb83]/80">
             <span>互相尊重</span>
-            <span className="h-1 w-1 rounded-full bg-[#d9b26a]/60" />
+            <span className="h-1 w-1 rounded-full bg-[#ffdb83]/60" />
             <span>互相选择</span>
-            <span className="h-1 w-1 rounded-full bg-[#d9b26a]/60" />
+            <span className="h-1 w-1 rounded-full bg-[#ffdb83]/60" />
             <span>互相信任</span>
           </div>
         </div>
