@@ -5,6 +5,7 @@ import { Carousel } from "@/components/mobile/Carousel";
 import { StarIcon, MoonIcon } from "@/components/mobile/icons";
 import {
   CatProfile,
+  Cottage,
   WindingPath,
   CurledCat,
   PawTrail,
@@ -68,6 +69,27 @@ const GROUPS: Group[] = [
         label: "繁育理念",
         desc: "繁育体质好、亲人自信的小猫，从出生记录到去新家的每一步。",
         to: "/philosophy",
+      },
+    ],
+  },
+  {
+    en: "How We Care",
+    cn: "照顾方式",
+    lead: "从生活空间、母婴照护到日常喂养，了解小猫在星月的成长环境。",
+    Art: Cottage,
+    tint: "text-accent",
+    items: [
+      {
+        no: "03",
+        label: "猫舍环境",
+        desc: "600 余平别墅散养，科学分区、拒绝笼养，另有三个院子供奔跑。",
+        to: "/environment",
+      },
+      {
+        no: "04",
+        label: "喂养体系",
+        desc: "白天湿粮与熟自制，夜间猫粮自助并补充冻干、营养品，从小不挑食。",
+        to: "/feeding",
       },
     ],
   },
