@@ -197,6 +197,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         {section === "content" && <ContentPanel />}
         {section === "aftercare" && <AftercarePanel />}
         {section === "contact" && <ContactPanel />}
+        {section === "community" && <CommunityPanel />}
+        {section === "comments" && <CommentsPanel />}
+        {section === "parents" && <ParentsPanel />}
         {section === "forms" &&
           (selectedForm ? (
             <FormDetail
