@@ -43,6 +43,7 @@
   --color-violet: var(--violet);
   --color-wine: var(--wine);
   --color-sunny: var(--sunny);
+  --color-sunflower: var(--sunflower);
   --color-warm: var(--warm);
   --color-sky: var(--sky);
   --color-creamblue: var(--creamblue);
@@ -71,6 +72,7 @@
   --sky: #8aa8c8;
   --creamblue: #a8c4d8;
   --sunny: #ede7c8;
+  --sunflower: #e4c83a;
   --warm: #c8bca8;
   --violet: #6b7fb0;
   --wine: #7a2f36;
