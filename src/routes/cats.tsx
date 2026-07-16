@@ -106,7 +106,7 @@ function Cats() {
             className="pressable flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
             style={{
               backgroundColor: "#fffdf8",
-              color: "#3e668f",
+              color: "#4d739f",
               border: "1px solid #81a9ee",
             }}
           >
@@ -137,7 +137,7 @@ function Cats() {
                 onClick={() => setTab(t)}
                 className="pressable relative py-2.5 text-[15px]"
                 style={{
-                  color: on ? "#3e668f" : "#75869a",
+                  color: on ? "#4d739f" : "#75869a",
                   fontWeight: on ? 600 : 500,
                 }}
               >
@@ -170,9 +170,9 @@ function Cats() {
                 style={
                   on
                     ? {
-                        backgroundColor: "#3e668f",
+                        backgroundColor: "#4d739f",
                         color: "#fffdf8",
-                        border: "1px solid #3e668f",
+                        border: "1px solid #4d739f",
                       }
                     : {
                         backgroundColor: "#fffdf8",

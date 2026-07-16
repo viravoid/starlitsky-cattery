@@ -128,7 +128,7 @@ function Home() {
         <div className="pointer-events-none absolute inset-x-3 bottom-0 z-10 flex flex-col items-center justify-end rounded-b-[1.75rem] px-4 pb-7 pt-12 text-center">
           <h1
             className="text-[27px] font-bold leading-tight drop-shadow-sm"
-            style={{ color: "#3e668f" }}
+            style={{ color: "#4d739f" }}
           >
             星月缅因猫舍
           </h1>

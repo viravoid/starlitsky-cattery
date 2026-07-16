@@ -108,7 +108,7 @@ function CommunityFeed() {
               onClick={() => setFilter(c)}
               className="pressable relative shrink-0 py-2.5 text-[13px]"
               style={{
-                color: on ? "#3e668f" : "#75869a",
+                color: on ? "#4d739f" : "#75869a",
                 fontWeight: on ? 600 : 500,
               }}
             >
