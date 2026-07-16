@@ -200,7 +200,7 @@ export function LoginSheet() {
         </div>
         <button
           onClick={() => actions.wechatLogin()}
-          className="pressable mt-5 w-full rounded-full bg-mint px-4 py-3 text-[14px] font-semibold text-[#3b5245] shadow-card"
+          className="pressable mt-5 w-full rounded-full bg-mint px-4 py-3 text-[14px] font-semibold text-[#233e5c] shadow-card"
         >
           微信一键登录
         </button>

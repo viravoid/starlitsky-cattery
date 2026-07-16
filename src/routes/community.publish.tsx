@@ -144,7 +144,7 @@ function Publish() {
                     onClick={() => toggleCat(c.id)}
                     className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${
                       on
-                        ? "bg-mint/70 text-[#3b5245] shadow-card"
+                        ? "bg-mint/70 text-[#233e5c] shadow-card"
                         : "border border-border bg-card text-muted-foreground"
                     }`}
                   >

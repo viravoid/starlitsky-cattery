@@ -85,11 +85,11 @@ export function Card({
 }
 
 const TONE: Record<string, string> = {
-  sky: "bg-sky/22 text-[#4a5f6e]",
-  creamblue: "bg-creamblue/35 text-[#465c6c]",
-  mint: "bg-mint/40 text-[#4d665c]",
-  sunny: "bg-sunny/55 text-[#6b5f3a]",
-  warm: "bg-warm/35 text-[#6b5644]",
+  sky: "bg-sky/22 text-[#233e5c]",
+  creamblue: "bg-creamblue/35 text-[#233e5c]",
+  mint: "bg-mint/40 text-[#233e5c]",
+  sunny: "bg-sunny/55 text-[#5e4d24]",
+  warm: "bg-warm/35 text-[#5e4d24]",
   violet: "bg-violet/15 text-violet",
   wine: "bg-wine/12 text-wine",
 };
