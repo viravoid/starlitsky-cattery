@@ -11,10 +11,10 @@ export const Route = createFileRoute("/community/my-posts")({
 
 function MyPosts() {
   const currentUserId = useCommunity((s) => s.currentUserId);
-  const posts = useCommunity((s) =>
-    s.posts.filter((p) => p.authorId === currentUserId),
-  );
+  const allPosts = useCommunity((s) => s.posts);
   const role = useCommunity((s) => s.role);
+  const posts = allPosts.filter((p) => p.authorId === currentUserId);
+
 
   if (role === "guest") {
     return (
