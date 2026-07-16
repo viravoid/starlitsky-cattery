@@ -229,10 +229,11 @@ function Home() {
                     </span>
                     <span
                       aria-hidden
-                      className="mt-0.5 text-[15px] text-violet/55 transition-transform group-active:translate-x-0.5"
+                      className="mt-0.5 text-[15px] text-secondary transition-transform group-active:translate-x-0.5"
                     >
                       →
                     </span>
+
                   </Link>
                 ))}
               </div>
