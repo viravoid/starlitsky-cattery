@@ -5,7 +5,6 @@ import { Carousel } from "@/components/mobile/Carousel";
 import { StarIcon, MoonIcon } from "@/components/mobile/icons";
 import {
   CatProfile,
-  Cottage,
   WindingPath,
   CurledCat,
   PawTrail,
