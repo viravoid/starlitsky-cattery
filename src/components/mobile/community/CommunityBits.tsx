@@ -3,14 +3,13 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Placeholder, Pill } from "../ui";
 import {
-  HeartIcon,
   ChatBubbleIcon,
   CatIcon,
-  UserIcon,
   XIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PawIcon,
+  PawFillIcon,
 } from "../icons";
 import {
   actions,
@@ -20,10 +19,10 @@ import {
   type Post,
 } from "@/lib/community-store";
 
-/* ── CatAvatar ─────────────────────────────────────────── */
+/* ── CatAvatar — the only face on this page ────────────── */
 export function CatAvatar({
   name,
-  size = 36,
+  size = 32,
   className = "",
 }: {
   name?: string;
@@ -32,30 +31,11 @@ export function CatAvatar({
 }) {
   return (
     <span
-      className={`inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-cream ring-1 ring-border ${className}`}
+      className={`inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-cream ring-1 ring-border/70 ${className}`}
       style={{ width: size, height: size }}
       aria-label={name}
     >
       <CatIcon className="h-1/2 w-1/2 text-warm" />
-    </span>
-  );
-}
-
-export function UserAvatar({
-  role,
-  size = 40,
-}: {
-  role: "keeper" | "parent";
-  size?: number;
-}) {
-  return (
-    <span
-      className={`inline-grid shrink-0 place-items-center rounded-full ${
-        role === "keeper" ? "bg-violet/15 text-violet" : "bg-sky/25 text-[#4a5f6e]"
-      }`}
-      style={{ width: size, height: size }}
-    >
-      {role === "keeper" ? <PawIcon className="h-1/2 w-1/2" /> : <UserIcon className="h-1/2 w-1/2" />}
     </span>
   );
 }
@@ -101,7 +81,7 @@ export function PostImages({ count, postId }: { count: number; postId: string })
   );
 }
 
-/* ── Post card ─────────────────────────────────────────── */
+/* ── Post card — light, no author avatar ──────────────── */
 export function PostCard({
   post,
   showActions = true,
@@ -117,23 +97,26 @@ export function PostCard({
   const role = post.authorRole === "猫舍主理人" ? "keeper" : "parent";
 
   return (
-    <article className="soft-card space-y-2.5">
-      {/* header */}
-      <header className="flex items-center gap-2.5">
-        <UserAvatar role={role} size={38} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
+    <article className="rounded-3xl border border-border/60 bg-card px-5 py-4 space-y-3">
+      {/* header — text only, no avatars */}
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="truncate text-[13.5px] font-semibold text-heading">
               {post.authorName}
             </span>
             <Pill tone={role === "keeper" ? "violet" : "creamblue"}>
               {post.authorRole}
             </Pill>
-            {post.pinned && <Pill tone="sunny">置顶</Pill>}
+            {post.pinned && (
+              <span className="text-[10.5px] font-medium tracking-wide text-sunny/90">· 置顶</span>
+            )}
           </div>
           <p className="mt-0.5 text-[11px] text-warm">{formatTime(post.createdAt)}</p>
         </div>
-        <Pill tone={categoryTone(post.category)}>{post.category}</Pill>
+        <span className="shrink-0 text-[10.5px] font-medium tracking-wide text-warm/80">
+          {post.category}
+        </span>
       </header>
 
       {/* body */}
@@ -142,47 +125,51 @@ export function PostCard({
         params={{ id: post.id }}
         className="pressable block"
       >
-        <p className="whitespace-pre-line text-[14px] leading-relaxed text-card-foreground">
+        <p className="whitespace-pre-line text-[14px] leading-[1.75] text-card-foreground">
           {post.content}
         </p>
         <PostImages count={post.imageCount} postId={post.id} />
       </Link>
 
-      {/* linked cats */}
+      {/* linked cats — the main avatar surface */}
       {linkedCats.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-cream/60 px-3 py-2">
-          <span className="text-[11px] text-warm">关联</span>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {linkedCats.map((c) => (
             <Link
               key={c.id}
               to="/community/cat/$id"
               params={{ id: c.id }}
-              className="pressable inline-flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 text-[12px] font-medium text-heading shadow-card"
+              className="pressable inline-flex items-center gap-1.5 rounded-full bg-cream/70 py-1 pl-1 pr-3 text-[12px] font-medium text-heading"
             >
-              <CatAvatar size={20} />
+              <CatAvatar size={22} name={c.name} />
               {c.name}
             </Link>
           ))}
         </div>
       )}
 
-      {/* footer */}
+      {/* footer — paw like */}
       {showActions && (
-        <footer className="flex items-center justify-between pt-1 text-[12.5px] text-muted-foreground">
+        <footer className="flex items-center gap-5 pt-1 text-[12.5px] text-muted-foreground">
           <button
             type="button"
             onClick={() => actions.toggleLike(post.id)}
             className={`pressable inline-flex items-center gap-1.5 ${
-              post.likedByMe ? "text-wine" : ""
+              post.likedByMe ? "text-violet" : "text-warm"
             }`}
+            aria-label="爪印"
           >
-            <HeartIcon className="h-4 w-4" />
+            {post.likedByMe ? (
+              <PawFillIcon className="h-4 w-4" />
+            ) : (
+              <PawIcon className="h-4 w-4" />
+            )}
             <span>{post.likes}</span>
           </button>
           <Link
             to="/community/post/$id"
             params={{ id: post.id }}
-            className="pressable inline-flex items-center gap-1.5"
+            className="pressable inline-flex items-center gap-1.5 text-warm"
           >
             <ChatBubbleIcon className="h-4 w-4" />
             <span>{post.comments.length}</span>
