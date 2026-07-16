@@ -48,47 +48,49 @@ function MyCats() {
         )}
 
         {cats.map((c) => (
-          <div key={c.id} className="soft-card flex gap-3">
-            <Placeholder
-              label="头像"
-              ratio="aspect-square"
-              rounded="rounded-xl"
-              compact
-              className="h-20 w-20 shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <h3 className="truncate text-[15px] font-semibold text-heading">{c.name}</h3>
-                <Pill tone={c.gender === "妹妹" ? "warm" : "sky"}>{c.gender}</Pill>
+          <div key={c.id} className="soft-card">
+            <div className="flex gap-3">
+              <Placeholder
+                label="头像"
+                ratio="aspect-square"
+                rounded="rounded-xl"
+                compact
+                className="h-16 w-16 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h3 className="truncate text-[15px] font-semibold text-heading">{c.name}</h3>
+                  <Pill tone={c.gender === "妹妹" ? "warm" : "sky"}>{c.gender}</Pill>
+                </div>
+                <p className="mt-1 text-[12px] text-warm">{c.color}</p>
+                <p className="mt-1 line-clamp-2 text-[12.5px] leading-relaxed text-card-foreground">
+                  {c.personality}
+                </p>
               </div>
-              <p className="mt-1 text-[12px] text-warm">{c.color}</p>
-              <p className="mt-1 line-clamp-2 text-[12.5px] leading-relaxed text-card-foreground">
-                {c.personality}
-              </p>
-              <div className="mt-2 flex gap-2">
-                <Link
-                  to="/community/cat-edit/$id"
-                  params={{ id: c.id }}
-                  className="pressable inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-heading"
-                >
-                  <EditIcon className="h-3.5 w-3.5" />
-                  编辑
-                </Link>
-                <Link
-                  to="/community/cat/$id"
-                  params={{ id: c.id }}
-                  className="pressable inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-heading"
-                >
-                  时光轴
-                </Link>
-                <button
-                  onClick={() => confirm(`删除 ${c.name}？`) && actions.deleteCat(c.id)}
-                  className="pressable inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11.5px] font-medium text-wine"
-                >
-                  <TrashIcon className="h-3.5 w-3.5" />
-                  删除
-                </button>
-              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 border-t border-border/50 pt-3">
+              <Link
+                to="/community/cat-edit/$id"
+                params={{ id: c.id }}
+                className="pressable inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-heading"
+              >
+                <EditIcon className="h-3.5 w-3.5" />
+                编辑
+              </Link>
+              <Link
+                to="/community/cat/$id"
+                params={{ id: c.id }}
+                className="pressable inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-heading"
+              >
+                时光轴
+              </Link>
+              <button
+                onClick={() => confirm(`删除 ${c.name}？`) && actions.deleteCat(c.id)}
+                className="pressable ml-auto inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11.5px] font-medium text-wine"
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+                删除
+              </button>
             </div>
           </div>
         ))}
