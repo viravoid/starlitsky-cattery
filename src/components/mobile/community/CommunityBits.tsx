@@ -139,9 +139,9 @@ export function PostCard({
               key={c.id}
               to="/community/cat/$id"
               params={{ id: c.id }}
-              className="pressable inline-flex items-center gap-1.5 rounded-full bg-cream/70 py-1 pl-1 pr-3 text-[12px] font-medium text-heading"
+              className="pressable inline-flex items-center gap-2 rounded-full bg-cream/70 py-1 pl-1 pr-3.5 text-[12.5px] font-medium text-heading"
             >
-              <CatAvatar size={22} name={c.name} />
+              <CatAvatar size={32} name={c.name} />
               {c.name}
             </Link>
           ))}
