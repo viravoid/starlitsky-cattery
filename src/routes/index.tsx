@@ -150,7 +150,6 @@ function Home() {
         <p className="mx-auto mt-4 max-w-[19rem] whitespace-pre-line text-[13px] leading-[2] text-foreground">
           {"做一家有温度的缅因猫舍\n低频率繁育别墅散养专注小猫社会化\n记录小猫从出生到去新家的日常\n绝育找家，长期售后"}
         </p>
-        <PawTrail className="mx-auto mt-3" />
       </header>
 
       {/* ── chaptered editorial guide ─── */}
@@ -169,6 +168,7 @@ function Home() {
       <div className="mt-6 space-y-12">
         {GROUPS.map(({ en, cn, lead, Art, tint, items }, gi) => (
           <Section key={en}>
+            {gi === 1 && <PawTrail className="mx-auto mb-6" />}
             {/* group header — illustration alternates side for gentle rhythm */}
             <div
               className={`flex items-start gap-4 ${
