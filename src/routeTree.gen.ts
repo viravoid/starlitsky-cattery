@@ -16,6 +16,7 @@ import { Route as PhilosophyRouteImport } from './routes/philosophy'
 import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as CommunityRouteImport } from './routes/community'
 import { Route as CatsRouteImport } from './routes/cats'
 import { Route as AftercareRouteImport } from './routes/aftercare'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -57,6 +58,11 @@ const EnvironmentRoute = EnvironmentRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityRoute = CommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CatsRoute = CatsRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
+  '/community': typeof CommunityRoute
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
+  '/community': typeof CommunityRoute
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
   '/cats': typeof CatsRoute
+  '/community': typeof CommunityRoute
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/aftercare'
     | '/cats'
+    | '/community'
     | '/contact'
     | '/environment'
     | '/feeding'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/aftercare'
     | '/cats'
+    | '/community'
     | '/contact'
     | '/environment'
     | '/feeding'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/aftercare'
     | '/cats'
+    | '/community'
     | '/contact'
     | '/environment'
     | '/feeding'
@@ -201,6 +213,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AftercareRoute: typeof AftercareRoute
   CatsRoute: typeof CatsRoute
+  CommunityRoute: typeof CommunityRoute
   ContactRoute: typeof ContactRoute
   EnvironmentRoute: typeof EnvironmentRoute
   FeedingRoute: typeof FeedingRoute
@@ -263,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community': {
+      id: '/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof CommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cats': {
       id: '/cats'
       path: '/cats'
@@ -321,6 +341,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AftercareRoute: AftercareRoute,
   CatsRoute: CatsRoute,
+  CommunityRoute: CommunityRoute,
   ContactRoute: ContactRoute,
   EnvironmentRoute: EnvironmentRoute,
   FeedingRoute: FeedingRoute,

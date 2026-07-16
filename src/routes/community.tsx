@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
-import { Section, Pill } from "@/components/mobile/ui";
+import { Section } from "@/components/mobile/ui";
 import { PlusIcon, PawIcon, CatIcon, UserIcon } from "@/components/mobile/icons";
 import {
   PostCard,
