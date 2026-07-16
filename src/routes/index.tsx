@@ -9,7 +9,7 @@ import {
   CurledCat,
   PawTrail,
 } from "@/components/mobile/illustrations";
-import type { ComponentType, SVGProps } from "react";
+import { Fragment, type ComponentType, type SVGProps } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -167,61 +167,63 @@ function Home() {
 
       <div className="mt-6 space-y-12">
         {GROUPS.map(({ en, cn, lead, Art, tint, items }, gi) => (
-          <Section key={en}>
-            {gi === 1 && <PawTrail className="mx-auto mb-6" />}
-            {/* group header — illustration alternates side for gentle rhythm */}
-            <div
-              className={`flex items-start gap-4 ${
-                gi % 2 === 1 ? "flex-row-reverse text-right" : ""
-              }`}
-            >
-              <div className="min-w-0 flex-1">
-                <p className="font-display text-[10px] uppercase tracking-[0.26em] text-warm">
-                  {`Part ${["One", "Two", "Three"][gi]} · ${en}`}
-                </p>
-                <h3 className="mt-1 text-[20px] font-bold text-heading">{cn}</h3>
-                <p
-                  className={`mt-2 max-w-[15rem] whitespace-pre-line text-[12.5px] leading-[1.85] text-foreground ${
-                    gi % 2 === 1 ? "ml-auto" : ""
-                  }`}
-                >
-                  {lead}
-                </p>
-              </div>
-              <Art className={`-mt-1 h-[64px] w-[64px] shrink-0 ${tint}`} />
-            </div>
-
-            {/* items — light numbered index, no boxes */}
-            <div className="mt-4 pl-1">
-              {items.map((it, idx) => (
-                <Link
-                  key={it.no}
-                  to={it.to}
-                  className={`pressable group flex items-baseline gap-3.5 py-3.5 ${
-                    idx > 0 ? "border-t border-dashed border-border/70" : ""
-                  }`}
-                >
-                  <span className="font-display text-[13px] italic text-warm/70">
-                    {it.no}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="text-[15.5px] font-semibold text-heading">
-                      {it.label}
-                    </span>
-                    <span className="mt-1 block text-[12px] leading-[1.8] text-muted-foreground">
-                      {it.desc}
-                    </span>
-                  </span>
-                  <span
-                    aria-hidden
-                    className="mt-0.5 text-[15px] text-violet/55 transition-transform group-active:translate-x-0.5"
+          <Fragment key={en}>
+            <Section>
+              {/* group header — illustration alternates side for gentle rhythm */}
+              <div
+                className={`flex items-start gap-4 ${
+                  gi % 2 === 1 ? "flex-row-reverse text-right" : ""
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-[10px] uppercase tracking-[0.26em] text-warm">
+                    {`Part ${["One", "Two", "Three"][gi]} · ${en}`}
+                  </p>
+                  <h3 className="mt-1 text-[20px] font-bold text-heading">{cn}</h3>
+                  <p
+                    className={`mt-2 max-w-[15rem] whitespace-pre-line text-[12.5px] leading-[1.85] text-foreground ${
+                      gi % 2 === 1 ? "ml-auto" : ""
+                    }`}
                   >
-                    →
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </Section>
+                    {lead}
+                  </p>
+                </div>
+                <Art className={`-mt-1 h-[64px] w-[64px] shrink-0 ${tint}`} />
+              </div>
+
+              {/* items — light numbered index, no boxes */}
+              <div className="mt-4 pl-1">
+                {items.map((it, idx) => (
+                  <Link
+                    key={it.no}
+                    to={it.to}
+                    className={`pressable group flex items-baseline gap-3.5 py-3.5 ${
+                      idx > 0 ? "border-t border-dashed border-border/70" : ""
+                    }`}
+                  >
+                    <span className="font-display text-[13px] italic text-warm/70">
+                      {it.no}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="text-[15.5px] font-semibold text-heading">
+                        {it.label}
+                      </span>
+                      <span className="mt-1 block text-[12px] leading-[1.8] text-muted-foreground">
+                        {it.desc}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden
+                      className="mt-0.5 text-[15px] text-violet/55 transition-transform group-active:translate-x-0.5"
+                    >
+                      →
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </Section>
+            {gi === 0 && <PawTrail className="mx-auto" />}
+          </Fragment>
         ))}
       </div>
 
