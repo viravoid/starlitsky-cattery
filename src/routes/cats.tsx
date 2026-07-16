@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
 import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
@@ -7,9 +8,12 @@ import { CurledCat } from "@/components/mobile/illustrations";
 import {
   KITTENS,
   STUDS,
+  LITTERS,
   statusTone,
   type StudCategory,
+  type Litter,
 } from "@/lib/cattery-data";
+
 
 export const Route = createFileRoute("/cats")({
   head: () => ({
