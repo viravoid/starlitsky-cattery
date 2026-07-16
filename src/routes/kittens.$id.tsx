@@ -139,6 +139,24 @@ function KittenDetail() {
           ]}
           ratio="aspect-square"
         />
+        <div className="mt-3 flex gap-2">
+          <Link
+            to="/community/cat/$id"
+            params={{ id: kitten.id }}
+            className="pressable inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-violet/40 bg-card px-3 py-2 text-[12.5px] font-medium text-violet"
+          >
+            TA 的猫友圈动态
+          </Link>
+          {kitten.litter && (
+            <Link
+              to="/community/litter/$id"
+              params={{ id: kitten.litter }}
+              className="pressable inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-violet/40 bg-card px-3 py-2 text-[12.5px] font-medium text-violet"
+            >
+              {kitten.litter}的动态
+            </Link>
+          )}
+        </div>
       </Section>
 
       <Section className="mt-4">
