@@ -37,7 +37,7 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
   return (
     <span className="mb-1.5 block text-[13px] font-medium text-heading">
       {children}
-      {required && <span className="ml-0.5 text-[#7A2F36]">*</span>}
+      {required && <span className="ml-0.5 text-[#c46a6a]">*</span>}
     </span>
   );
 }
@@ -68,10 +68,10 @@ function TextField({
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={`w-full rounded-2xl border bg-card px-4 py-3 text-[14px] text-card-foreground outline-none placeholder:text-warm focus:border-primary ${
-          error ? "border-[#7A2F36]" : "border-border"
+          error ? "border-[#c46a6a]" : "border-border"
         }`}
       />
-      {error && <span className="mt-1 block text-[11px] text-[#7A2F36]">{error}</span>}
+      {error && <span className="mt-1 block text-[11px] text-[#c46a6a]">{error}</span>}
     </label>
   );
 }
@@ -127,7 +127,7 @@ function CommitBlock({
     <div className="rounded-[1.25rem] border border-border bg-card/60 p-4">
       <p className="text-[13px] leading-[1.9] text-foreground">
         {text}
-        <span className="ml-0.5 text-[#7A2F36]">*</span>
+        <span className="ml-0.5 text-[#c46a6a]">*</span>
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {options.map((o) => (
