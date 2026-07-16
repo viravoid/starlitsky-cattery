@@ -56,7 +56,7 @@
 :root {
   --radius: 1.25rem;
 
-  /* Page base */
+  /* Page base — warmer cream */
   --background: #fffaf2;
   --foreground: #4b617a;
   --heading: #3e668f;
@@ -71,11 +71,12 @@
   --secondary: #81a9ee;
   --secondary-foreground: #233e5c;
 
-  /* Muted — pale blue-lilac neutral surface (not yellow) */
-  --muted: #edf2fb;
-  --muted-foreground: #5f7084;
+  /* Muted — warm cream neutral surface (was cool lilac).
+     Drives filter tracks, chip rows, badge rows, tab tracks. */
+  --muted: #fff4dd;
+  --muted-foreground: #6a7a92;
 
-  /* Accent — butter honey (reserved for small warm touches) */
+  /* Accent — butter honey */
   --accent: #ffdb83;
   --accent-foreground: #5e4d24;
 
@@ -90,12 +91,10 @@
   --pale-blue: #e8f0fc;
   --pale-lilac: #eef0fb;
   --pale-yellow: #fff7df;
+  --pale-cream: #fff8ea;
   --soft-white: #fffdf8;
 
-  /* Semantic aliases used across the app.
-     `violet` is the strong CTA / active role (deep blue), NOT decorative purple.
-     `lilac` is the decorative purple. `warm` is muted slate-blue eyebrow text.
-     `sunny` / `sunflower` are small honey touches. */
+  /* Semantic aliases. */
   --sky: #3e668f;
   --creamblue: #81a9ee;
   --sunny: #fff2d0;
@@ -105,18 +104,19 @@
   --lilac: #aab4e7;
   --wine: #c46a6a;
   --cream: #fffdf8;
-  --mint: #eef0fb;
+  --mint: #fff7df;
 
 
-  --border: #d5dfec;
+  /* Softer, warmer border — reduces cold outlines around every card */
+  --border: #ece1cc;
 
   --gradient-hero: linear-gradient(135deg, #fff2d0 0%, #fff7e8 24%, #e9ebfa 58%, #aab4e7 78%, #81a9ee 100%);
   --gradient-sky: linear-gradient(150deg, #81a9ee 0%, #aab4e7 100%);
-  --gradient-cream: linear-gradient(180deg, #fffdf8 0%, #fff7df 48%, #eef2fb 100%);
+  --gradient-cream: linear-gradient(180deg, #fffdf8 0%, #fff7df 48%, #fff2d0 100%);
 
-  --shadow-soft: 0 8px 24px rgba(62, 102, 143, 0.08), 0 2px 8px rgba(62, 102, 143, 0.05);
-  --shadow-card: 0 8px 24px rgba(62, 102, 143, 0.08), 0 2px 8px rgba(62, 102, 143, 0.05);
-  --shadow-float: 0 12px 32px rgba(129, 169, 238, 0.12), 0 4px 12px rgba(170, 180, 231, 0.10);
+  --shadow-soft: 0 8px 24px rgba(62, 102, 143, 0.06), 0 2px 8px rgba(180, 150, 90, 0.05);
+  --shadow-card: 0 8px 24px rgba(62, 102, 143, 0.06), 0 2px 8px rgba(180, 150, 90, 0.05);
+  --shadow-float: 0 12px 32px rgba(129, 169, 238, 0.10), 0 4px 12px rgba(224, 190, 120, 0.10);
 }
 
 @layer base {
