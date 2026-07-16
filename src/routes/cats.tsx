@@ -116,15 +116,15 @@ function Cats() {
   const litterOpen = search.litterOpen ?? false;
 
   const setTab = (t: "kittens" | "studs") =>
-    navigate({ search: (prev) => ({ ...prev, tab: t }) });
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, tab: t }) });
   const setKFilter = (f: (typeof KITTEN_FILTERS)[number]) =>
-    navigate({ search: (prev) => ({ ...prev, kittenFilter: f }) });
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, kittenFilter: f }) });
   const setSFilter = (f: StudCategory) =>
-    navigate({ search: (prev) => ({ ...prev, studFilter: f }) });
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, studFilter: f }) });
   const setLitter = (l: Litter | "全部") =>
-    navigate({ search: (prev) => ({ ...prev, litter: l === "全部" ? undefined : l, litterOpen: false }) });
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, litter: l === "全部" ? undefined : l, litterOpen: false }) });
   const setLitterOpen = (open: boolean) =>
-    navigate({ search: (prev) => ({ ...prev, litterOpen: open }) });
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, litterOpen: open }) });
 
   const kittenList = KITTENS.filter(
     (k) => k.status === kFilter && (litter === "全部" || k.litter === litter),
