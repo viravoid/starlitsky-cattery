@@ -17,7 +17,7 @@ function Philosophy() {
     <PhoneFrame title="繁育理念" backTo="/">
       {/* English label */}
       <Section className="pt-4 text-center">
-        <p className="font-display text-[10px] uppercase tracking-[0.4em] text-[#5b7fa8]">
+        <p className="font-display text-[10px] uppercase tracking-[0.4em] text-[#7a9ac0]">
           Breeding Philosophy
         </p>
       </Section>
@@ -80,10 +80,10 @@ function Philosophy() {
 
       {/* Theme transition */}
       <Section className="mt-12 text-center">
-        <p className="font-display text-[9px] uppercase tracking-[0.35em] text-[#5b7fa8]/80">
+        <p className="font-display text-[9px] uppercase tracking-[0.35em] text-[#7a9ac0]/80">
           Bloodline · Style · Breeding
         </p>
-        <h3 className="mt-2 text-[21px] font-semibold tracking-[0.04em] text-[#5b7fa8]">
+        <h3 className="mt-2 text-[21px] font-semibold tracking-[0.04em] text-[#7a9ac0]">
           我们理解的缅因与风格
         </h3>
         <div className="mx-auto mt-4 h-px w-12 bg-[#e7c15d]/40" />
