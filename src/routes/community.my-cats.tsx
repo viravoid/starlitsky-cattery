@@ -48,8 +48,8 @@ function MyCats() {
         )}
 
         {cats.map((c) => (
-          <div key={c.id} className="soft-card space-y-3">
-            <div className="flex items-start gap-3">
+          <div key={c.id} className="soft-card space-y-4">
+            <div className="flex items-center gap-3">
               <Placeholder
                 label="头像"
                 ratio="aspect-square"
@@ -58,19 +58,14 @@ function MyCats() {
                 className="h-14 w-14 shrink-0"
               />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="truncate text-[15px] font-semibold text-heading">{c.name}</h3>
+                <h3 className="truncate text-[15px] font-semibold text-heading">{c.name}</h3>
+                <div className="mt-1">
                   <Pill tone={c.gender === "妹妹" ? "warm" : "sky"}>{c.gender}</Pill>
                 </div>
-                <p className="mt-0.5 truncate text-[12px] text-warm">{c.color}</p>
               </div>
             </div>
 
-            <p className="line-clamp-2 text-[12.5px] leading-relaxed text-card-foreground">
-              {c.personality}
-            </p>
-
-            <div className="grid grid-cols-3 gap-2 border-t border-border/50 pt-3">
+            <div className="grid grid-cols-3 gap-2">
               <Link
                 to="/community/cat-edit/$id"
                 params={{ id: c.id }}
@@ -79,6 +74,7 @@ function MyCats() {
                 <EditIcon className="h-3.5 w-3.5" />
                 编辑
               </Link>
+
               <Link
                 to="/community/cat/$id"
                 params={{ id: c.id }}
