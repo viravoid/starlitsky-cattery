@@ -201,6 +201,21 @@ function KittenDetail() {
         </div>
       </Section>
 
+      {kitten.structureRating && (
+        <Section className="mt-6">
+          <div className="mb-4 flex items-baseline gap-3">
+            <h3 className="text-[15px] font-semibold text-heading">结构评分</h3>
+            <span className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground/70">
+              Structure Review
+            </span>
+          </div>
+          <StructureBlock rating={kitten.structureRating} />
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/70">
+            由猫舍主理人根据实际观察给出的专业评价，仅供参考。
+          </p>
+        </Section>
+      )}
+
       <Section className="mb-8 mt-5">
         <h3 className="mb-2.5 text-[14px] font-semibold text-heading">健康进度</h3>
         <div className="space-y-2.5">
