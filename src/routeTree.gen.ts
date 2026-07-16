@@ -24,6 +24,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudsIdRouteImport } from './routes/studs.$id'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
+import { Route as CommunityMyPostsRouteImport } from './routes/community.my-posts'
 import { Route as CommunityMyCatsRouteImport } from './routes/community.my-cats'
 import { Route as CommunityPostIdRouteImport } from './routes/community.post.$id'
 import { Route as CommunityCatIdRouteImport } from './routes/community.cat.$id'
@@ -104,6 +105,11 @@ const KittensIdRoute = KittensIdRouteImport.update({
   path: '/kittens/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunityMyPostsRoute = CommunityMyPostsRouteImport.update({
+  id: '/my-posts',
+  path: '/my-posts',
+  getParentRoute: () => CommunityRoute,
+} as any)
 const CommunityMyCatsRoute = CommunityMyCatsRouteImport.update({
   id: '/my-cats',
   path: '/my-cats',
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
+  '/community/my-posts': typeof CommunityMyPostsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
+  '/community/my-posts': typeof CommunityMyPostsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/questionnaire': typeof QuestionnaireRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
+  '/community/my-posts': typeof CommunityMyPostsRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/questionnaire'
     | '/sitemap.xml'
     | '/community/my-cats'
+    | '/community/my-posts'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community/cat-edit/$id'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/questionnaire'
     | '/sitemap.xml'
     | '/community/my-cats'
+    | '/community/my-posts'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community/cat-edit/$id'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/questionnaire'
     | '/sitemap.xml'
     | '/community/my-cats'
+    | '/community/my-posts'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community/cat-edit/$id'
@@ -380,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KittensIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community/my-posts': {
+      id: '/community/my-posts'
+      path: '/my-posts'
+      fullPath: '/community/my-posts'
+      preLoaderRoute: typeof CommunityMyPostsRouteImport
+      parentRoute: typeof CommunityRoute
+    }
     '/community/my-cats': {
       id: '/community/my-cats'
       path: '/my-cats'
@@ -413,6 +432,7 @@ declare module '@tanstack/react-router' {
 
 interface CommunityRouteChildren {
   CommunityMyCatsRoute: typeof CommunityMyCatsRoute
+  CommunityMyPostsRoute: typeof CommunityMyPostsRoute
   CommunityCatEditIdRoute: typeof CommunityCatEditIdRoute
   CommunityCatIdRoute: typeof CommunityCatIdRoute
   CommunityPostIdRoute: typeof CommunityPostIdRoute
@@ -420,6 +440,7 @@ interface CommunityRouteChildren {
 
 const CommunityRouteChildren: CommunityRouteChildren = {
   CommunityMyCatsRoute: CommunityMyCatsRoute,
+  CommunityMyPostsRoute: CommunityMyPostsRoute,
   CommunityCatEditIdRoute: CommunityCatEditIdRoute,
   CommunityCatIdRoute: CommunityCatIdRoute,
   CommunityPostIdRoute: CommunityPostIdRoute,
