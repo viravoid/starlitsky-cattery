@@ -76,6 +76,21 @@ export const STUDS: Stud[] = [
 
 export type KittenStatus = "待找家" | "找家中" | "已有家";
 
+export interface StructureRating {
+  face: {
+    eyes?: number;    // 0-6
+    ears?: number;
+    muzzle?: number;
+    profile?: number;
+  };
+  body: {
+    length?: number;
+    build?: number;
+    overall?: number;
+  };
+  allowHighlightStar?: boolean;
+}
+
 export interface Kitten {
   id: string;
   name: string;
@@ -88,6 +103,7 @@ export interface Kitten {
   price: string;
   personality: string;
   story?: string[]; // 主理人完整介绍（自然分段）
+  structureRating?: StructureRating;
 }
 
 export const KITTENS: Kitten[] = [
@@ -103,6 +119,11 @@ export const KITTENS: Kitten[] = [
     price: "示例文字（缺少价格）",
     personality: "示例文字（缺少性格介绍）",
     story: ["（示例文字：主理人的完整介绍待补充）"],
+    structureRating: {
+      face: { eyes: 5, ears: 6, muzzle: 6, profile: 5 },
+      body: { length: 5, build: 5, overall: 5 },
+      allowHighlightStar: true,
+    },
   },
   {
     id: "kitten-b",
