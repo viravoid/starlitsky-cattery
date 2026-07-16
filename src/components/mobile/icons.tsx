@@ -51,7 +51,7 @@ export function ApertureIcon(props: IconProps) {
     <svg {...base} {...props}>
       {/* outer ring */}
       <circle cx="12" cy="12" r="9" />
-      {/* aperture blades radiating from a small center, like the Moments icon */}
+      {/* aperture blades radiating from the center hub */}
       <path d="M12 12 L12 3" />
       <path d="M12 12 L19.5 6.5" />
       <path d="M12 12 L20.5 14" />
@@ -59,8 +59,8 @@ export function ApertureIcon(props: IconProps) {
       <path d="M12 12 L8.5 20.5" />
       <path d="M12 12 L3.5 14" />
       <path d="M12 12 L4.5 6.5" />
-      {/* tiny center hub */}
-      <circle cx="12" cy="12" r="1.2" />
+      {/* center hub ring */}
+      <circle cx="12" cy="12" r="2.2" />
     </svg>
   );
 }
