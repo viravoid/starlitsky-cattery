@@ -154,7 +154,7 @@ function Home() {
       </header>
 
       {/* ── chaptered editorial guide ─── */}
-      <Section className="mt-10">
+      <Section className="mt-6">
         <div className="flex items-center gap-4">
           <span className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-border" />
           <div className="flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-2">
