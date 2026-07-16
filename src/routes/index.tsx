@@ -89,7 +89,8 @@ const GROUPS: Group[] = [
     cn: "接猫前了解",
     lead: "在正式咨询和接猫前\n可以先了解流程、保障\n问卷和联系方式。",
     Art: WindingPath,
-    tint: "text-violet/60",
+    tint: "text-lilac/60",
+
     items: [
       {
         no: "05",
