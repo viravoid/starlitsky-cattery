@@ -59,17 +59,17 @@
   /* Page base — warm cream. Body text is neutral gray, not brown, not blue. */
   --background: #fffaf1;
   --foreground: #58616c;
-  --heading: #5b7fa8;
+  --heading: #7a9ac0;
   --card: #fffdf8;
   --card-foreground: #58616c;
 
   /* Brand primary — softer mid blue */
-  --primary: #5b7fa8;
+  --primary: #7a9ac0;
   --primary-foreground: #fffdf8;
 
   /* Secondary — supporting blue */
   --secondary: #86a6d2;
-  --secondary-foreground: #456d9a;
+  --secondary-foreground: #6b8db3;
 
   /* Muted — warm cream surface. */
   --muted: #fff8e8;
@@ -80,8 +80,8 @@
   --accent-foreground: #b48725;
 
   /* Brand palette */
-  --deep-blue: #5b7fa8;
-  --deep-blue-strong: #456d9a;
+  --deep-blue: #7a9ac0;
+  --deep-blue-strong: #6b8db3;
   --dreamy-blue: #86a6d2;
   --silky-lilac: #aab4e7;
   --butter-honey: #e7c15d;
@@ -97,7 +97,7 @@
   --soft-white: #fffdf8;
 
   /* Semantic aliases used across components. */
-  --sky: #5b7fa8;
+  --sky: #7a9ac0;
   --creamblue: #86a6d2;
   --sunny: #fff0bc;
   --sunflower: #e7c15d;

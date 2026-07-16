@@ -98,7 +98,7 @@ function Progress({ label, value, done }: { label: string; value: string; done: 
       <span className="text-[13px] font-medium text-card-foreground">{label}</span>
       <span
         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-          done ? "bg-sky/30 text-[#456d9a]" : "bg-sunny/50 text-[#b48725]"
+          done ? "bg-sky/30 text-[#6b8db3]" : "bg-sunny/50 text-[#b48725]"
         }`}
       >
         {done && <CheckIcon className="h-3.5 w-3.5" />}

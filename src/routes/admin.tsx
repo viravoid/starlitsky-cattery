@@ -649,7 +649,7 @@ function ParentsPanel() {
     <div className="space-y-3">
       {users.map((u) => (
         <PanelCard key={u.id} className="flex flex-wrap items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-full bg-sky/25 text-[#456d9a]">
+          <span className="grid h-11 w-11 place-items-center rounded-full bg-sky/25 text-[#6b8db3]">
             <UserIcon className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
