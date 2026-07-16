@@ -9,9 +9,9 @@ export const Route = createFileRoute("/kittens/$id")({
   component: KittenDetail,
 });
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
-    <div className="rounded-2xl bg-muted px-3 py-2.5">
+    <div className={`rounded-2xl bg-muted px-3 py-2.5 ${className || ""}`}>
       <p className="text-[11px] text-muted-foreground">{label}</p>
       <p className="mt-0.5 text-[13px] font-medium text-card-foreground">{value}</p>
     </div>
@@ -76,12 +76,12 @@ function KittenDetail() {
           <Info label="性别" value={kitten.gender} />
           <Info label="颜色" value={kitten.color} />
           <Info label="出生日期 / 月龄" value={kitten.birthday} />
-          <Info label="价格" value={kitten.price} />
-          <Info label="父亲" value={kitten.father} />
-          <Info label="母亲" value={kitten.mother} />
           {kitten.status !== "已有家" && (
             <Info label="是否已绝育" value="示例文字（待更新）" />
           )}
+          <Info label="父亲" value={kitten.father} />
+          <Info label="母亲" value={kitten.mother} />
+          <Info label="价格" value={kitten.price} className="col-span-2" />
         </div>
       </Section>
 
