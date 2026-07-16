@@ -73,27 +73,6 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    en: "How We Care",
-    cn: "照顾方式",
-    lead: "从生活空间、母婴照护到日常喂养，了解小猫在星月的成长环境。",
-    Art: Cottage,
-    tint: "text-accent",
-    items: [
-      {
-        no: "03",
-        label: "猫舍环境",
-        desc: "600 余平别墅散养，科学分区、拒绝笼养，另有三个院子供奔跑。",
-        to: "/environment",
-      },
-      {
-        no: "04",
-        label: "喂养体系",
-        desc: "白天湿粮与熟自制，夜间猫粮自助并补充冻干、营养品，从小不挑食。",
-        to: "/feeding",
-      },
-    ],
-  },
-  {
     en: "Before You Adopt",
     cn: "接猫前了解",
     lead: "在正式咨询和接猫前，可以先了解流程、保障、问卷和联系方式。",
