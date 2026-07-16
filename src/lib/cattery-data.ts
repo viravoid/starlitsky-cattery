@@ -122,8 +122,10 @@ export const KITTENS: Kitten[] = [
     mother: "示例文字（缺少母亲信息）",
     status: "待找家",
     price: "示例文字（缺少价格）",
+    litter: "A窝",
     personality: "示例文字（缺少性格介绍）",
     story: ["（示例文字：主理人的完整介绍待补充）"],
+
     structureRating: {
       face: { eyes: 5, ears: 6, muzzle: 6, profile: 5 },
       body: { length: 5, build: 5, overall: 5 },
