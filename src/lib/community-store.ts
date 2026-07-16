@@ -25,6 +25,7 @@ export interface Post {
   content: string;
   imageCount: number; // 0-9
   catIds: string[];
+  litterIds?: string[]; // 关联窝次，例如 "A窝"
   createdAt: string; // ISO
   likes: number;
   likedByMe: boolean;
@@ -209,6 +210,21 @@ const seedPosts: Post[] = [
     likedByMe: false,
     comments: [],
   },
+  {
+    id: "p-6",
+    authorId: KEEPER_YUEQI,
+    authorName: "月七",
+    authorRole: "猫舍主理人",
+    category: "猫舍日常",
+    content: "A 窝的小朋友们今天开食啦，小家伙们吃相都特别可爱。",
+    imageCount: 2,
+    catIds: [],
+    litterIds: ["A窝"],
+    createdAt: "2026-07-02T10:15:00",
+    likes: 36,
+    likedByMe: false,
+    comments: [],
+  },
 ];
 
 /* ── Store ─────────────────────────────────────────────── */
@@ -347,6 +363,7 @@ export const actions = {
     content: string;
     imageCount: number;
     catIds: string[];
+    litterIds?: string[];
   }): string | null {
     const me = state.users.find((u) => u.id === state.currentUserId);
     if (!me || state.role === "guest" || state.role === "user") return null;
@@ -361,6 +378,7 @@ export const actions = {
       content: input.content,
       imageCount: Math.max(0, Math.min(9, input.imageCount)),
       catIds: input.catIds,
+      litterIds: input.litterIds ?? [],
       createdAt: new Date().toISOString(),
       likes: 0,
       likedByMe: false,

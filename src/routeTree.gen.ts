@@ -29,6 +29,7 @@ import { Route as CommunityParentOnboardRouteImport } from './routes/community.p
 import { Route as CommunityMyPostsRouteImport } from './routes/community.my-posts'
 import { Route as CommunityMyCatsRouteImport } from './routes/community.my-cats'
 import { Route as CommunityPostIdRouteImport } from './routes/community.post.$id'
+import { Route as CommunityLitterIdRouteImport } from './routes/community.litter.$id'
 import { Route as CommunityCatIdRouteImport } from './routes/community.cat.$id'
 import { Route as CommunityCatEditIdRouteImport } from './routes/community.cat-edit.$id'
 
@@ -132,6 +133,11 @@ const CommunityPostIdRoute = CommunityPostIdRouteImport.update({
   path: '/community/post/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommunityLitterIdRoute = CommunityLitterIdRouteImport.update({
+  id: '/community/litter/$id',
+  path: '/community/litter/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityCatIdRoute = CommunityCatIdRouteImport.update({
   id: '/community/cat/$id',
   path: '/community/cat/$id',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/community/': typeof CommunityIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
+  '/community/litter/$id': typeof CommunityLitterIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
 export interface FileRoutesByTo {
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/community': typeof CommunityIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
+  '/community/litter/$id': typeof CommunityLitterIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
 export interface FileRoutesById {
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/community/': typeof CommunityIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
+  '/community/litter/$id': typeof CommunityLitterIdRoute
   '/community/post/$id': typeof CommunityPostIdRoute
 }
 export interface FileRouteTypes {
@@ -240,6 +249,7 @@ export interface FileRouteTypes {
     | '/community/'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
+    | '/community/litter/$id'
     | '/community/post/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/community'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
+    | '/community/litter/$id'
     | '/community/post/$id'
   id:
     | '__root__'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/community/'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
+    | '/community/litter/$id'
     | '/community/post/$id'
   fileRoutesById: FileRoutesById
 }
@@ -313,6 +325,7 @@ export interface RootRouteChildren {
   CommunityIndexRoute: typeof CommunityIndexRoute
   CommunityCatEditIdRoute: typeof CommunityCatEditIdRoute
   CommunityCatIdRoute: typeof CommunityCatIdRoute
+  CommunityLitterIdRoute: typeof CommunityLitterIdRoute
   CommunityPostIdRoute: typeof CommunityPostIdRoute
 }
 
@@ -458,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityPostIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/community/litter/$id': {
+      id: '/community/litter/$id'
+      path: '/community/litter/$id'
+      fullPath: '/community/litter/$id'
+      preLoaderRoute: typeof CommunityLitterIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/community/cat/$id': {
       id: '/community/cat/$id'
       path: '/community/cat/$id'
@@ -497,18 +517,9 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityIndexRoute: CommunityIndexRoute,
   CommunityCatEditIdRoute: CommunityCatEditIdRoute,
   CommunityCatIdRoute: CommunityCatIdRoute,
+  CommunityLitterIdRoute: CommunityLitterIdRoute,
   CommunityPostIdRoute: CommunityPostIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

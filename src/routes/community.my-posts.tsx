@@ -5,6 +5,7 @@ import { Section, Placeholder } from "@/components/mobile/ui";
 import { PostCard, LoginSheet, Lightbox } from "@/components/mobile/community/CommunityBits";
 import { EditIcon, TrashIcon, PlusIcon, XIcon, CatIcon } from "@/components/mobile/icons";
 import { actions, useCommunity, type Post } from "@/lib/community-store";
+import { LITTERS } from "@/lib/cattery-data";
 
 export const Route = createFileRoute("/community/my-posts")({
   head: () => ({ meta: [{ title: "我的发布 — 猫友圈" }] }),
@@ -87,12 +88,15 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
   const [content, setContent] = useState(post.content);
   const [imageCount, setImageCount] = useState(post.imageCount);
   const [catIds, setCatIds] = useState<string[]>(post.catIds);
+  const [litterIds, setLitterIds] = useState<string[]>(post.litterIds ?? []);
 
   const selectableCats = cats.filter((c) =>
     role === "keeper" ? true : c.ownerId === currentUserId,
   );
   const toggleCat = (id: string) =>
     setCatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleLitter = (l: string) =>
+    setLitterIds((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
 
   const save = () => {
     if (!content.trim()) {
@@ -103,6 +107,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
       content: content.trim(),
       imageCount,
       catIds,
+      litterIds: role === "keeper" ? litterIds : post.litterIds,
     });
     onClose();
   };
@@ -191,6 +196,33 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
           </div>
         )}
       </div>
+
+      {role === "keeper" && (
+        <div>
+          <p className="mb-1.5 text-[12px] font-medium text-heading">
+            关联窝次 · 可选
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {LITTERS.map((l) => {
+              const on = litterIds.includes(l);
+              return (
+                <button
+                  key={l}
+                  onClick={() => toggleLitter(l)}
+                  className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
+                    on
+                      ? "bg-sunny/60 text-[#b48725] shadow-card"
+                      : "border border-border bg-background text-muted-foreground"
+                  }`}
+                >
+                  {l}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
 
       <div className="flex gap-2">
         <button

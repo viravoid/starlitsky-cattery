@@ -9,6 +9,7 @@ import {
   CATEGORIES,
   type Category,
 } from "@/lib/community-store";
+import { LITTERS } from "@/lib/cattery-data";
 
 export const Route = createFileRoute("/community/publish")({
   head: () => ({ meta: [{ title: "发布动态 — 猫友圈" }] }),
@@ -28,6 +29,7 @@ function Publish() {
   const [content, setContent] = useState("");
   const [imageCount, setImageCount] = useState(0);
   const [catIds, setCatIds] = useState<string[]>([]);
+  const [litterIds, setLitterIds] = useState<string[]>([]);
 
   if (!canPost) {
     return (
@@ -45,13 +47,21 @@ function Publish() {
 
   const toggleCat = (id: string) =>
     setCatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleLitter = (l: string) =>
+    setLitterIds((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
 
   const submit = () => {
     if (!content.trim()) {
       alert("请写点什么吧～");
       return;
     }
-    const id = actions.createPost({ category, content: content.trim(), imageCount, catIds });
+    const id = actions.createPost({
+      category,
+      content: content.trim(),
+      imageCount,
+      catIds,
+      litterIds: role === "keeper" ? litterIds : [],
+    });
     if (id) navigate({ to: "/community/post/$id", params: { id } });
   };
 
@@ -156,6 +166,34 @@ function Publish() {
             </div>
           )}
         </div>
+
+        {/* linked litter (keeper only) */}
+        {role === "keeper" && (
+          <div>
+            <p className="mb-2 text-[12.5px] font-semibold text-heading">
+              关联窝次 · 可选
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {LITTERS.map((l) => {
+                const on = litterIds.includes(l);
+                return (
+                  <button
+                    key={l}
+                    onClick={() => toggleLitter(l)}
+                    className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
+                      on
+                        ? "bg-sunny/60 text-[#b48725] shadow-card"
+                        : "border border-border bg-card text-muted-foreground"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
 
         <div className="text-[11px] leading-relaxed text-warm">
           <Pill tone="warm">发布须知</Pill>
