@@ -130,7 +130,7 @@ function PostDetail() {
         </article>
 
         {/* comments — no avatars, just text blocks */}
-        <div>
+        <div id="comments-section">
           <h3 className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.16em] text-warm">
             评论
           </h3>
