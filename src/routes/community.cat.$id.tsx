@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { createFileRoute, useParams, Link, notFound } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
@@ -15,11 +16,14 @@ export const Route = createFileRoute("/community/cat/$id")({
 
 function CatTimeline() {
   const { id } = useParams({ from: "/community/cat/$id" });
-  const cat = useCommunity((s) => s.cats.find((c) => c.id === id));
-  const posts = useCommunity((s) =>
-    s.posts.filter((p) => !p.hidden && p.catIds.includes(id)),
-  );
+  const cats = useCommunity((s) => s.cats);
+  const allPosts = useCommunity((s) => s.posts);
   const users = useCommunity((s) => s.users);
+  const cat = useMemo(() => cats.find((c) => c.id === id), [cats, id]);
+  const posts = useMemo(
+    () => allPosts.filter((p) => !p.hidden && p.catIds.includes(id)),
+    [allPosts, id],
+  );
   if (!cat) throw notFound();
   const owner = users.find((u) => u.id === cat.ownerId);
 

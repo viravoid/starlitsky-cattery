@@ -643,7 +643,8 @@ function CommentsPanel() {
 
 /* ── Parents panel ─────────────────────────────── */
 function ParentsPanel() {
-  const users = useCommunity((s) => s.users.filter((u) => u.role === "parent"));
+  const allUsers = useCommunity((s) => s.users);
+  const users = allUsers.filter((u) => u.role === "parent");
   return (
     <div className="space-y-3">
       {users.map((u) => (
