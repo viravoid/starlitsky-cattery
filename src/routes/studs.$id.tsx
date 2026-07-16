@@ -9,9 +9,9 @@ export const Route = createFileRoute("/studs/$id")({
   component: StudDetail,
 });
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ label, value, className = "" }: { label: string; value: string; className?: string }) {
   return (
-    <div className="rounded-2xl bg-muted px-3 py-2.5">
+    <div className={`rounded-2xl bg-muted px-3 py-2.5 ${className}`}>
       <p className="text-[11px] text-muted-foreground">{label}</p>
       <p className="mt-0.5 text-[13px] font-medium text-card-foreground">{value}</p>
     </div>
