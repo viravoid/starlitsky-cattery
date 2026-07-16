@@ -168,6 +168,7 @@ function Home() {
       <div className="mt-6 space-y-12">
         {GROUPS.map(({ en, cn, lead, Art, tint, items }, gi) => (
           <Section key={en}>
+            {gi === 1 && <PawTrail className="mx-auto mb-6" />}
             {/* group header — illustration alternates side for gentle rhythm */}
             <div
               className={`flex items-start gap-4 ${
