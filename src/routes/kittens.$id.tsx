@@ -155,7 +155,7 @@ function KittenDetail() {
           )}
           <Info label="父亲" value={kitten.father} />
           <Info label="母亲" value={kitten.mother} />
-          <Info label="窝次" value="示例文字（待更新）" />
+          <Info label="窝次" value={kitten.litter ?? "示例文字（待更新）"} />
           <Info label="价格" value={kitten.price} />
 
         </div>
