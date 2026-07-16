@@ -81,7 +81,7 @@ function KittenDetail() {
           )}
           <Info label="父亲" value={kitten.father} />
           <Info label="母亲" value={kitten.mother} />
-          <Info label="价格" value={kitten.price} className="col-span-2" />
+          <Info label="价格" value={kitten.price} className="col-span-2 text-center" />
         </div>
       </Section>
 
