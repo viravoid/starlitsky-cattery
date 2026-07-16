@@ -6,9 +6,6 @@ import { useCommunity, actions } from "@/lib/community-store";
 
 export const Route = createFileRoute("/community/my-cats")({
   head: () => ({ meta: [{ title: "我的猫咪 — 猫友圈" }] }),
-  beforeLoad: () => {
-    // no auth check on server; simple client gate handled in component
-  },
   component: MyCats,
 });
 
