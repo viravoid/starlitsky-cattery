@@ -123,7 +123,7 @@ function Cats() {
         className="sticky top-0 z-10 px-5 pt-2 backdrop-blur"
         style={{ backgroundColor: "rgba(255, 250, 242, 0.95)" }}
       >
-        <div className="flex items-center gap-6 border-b border-border/70">
+        <div className="grid grid-cols-2 border-b border-border/70">
           {(["kittens", "studs"] as const).map((t) => {
             const on = tab === t;
             return (
