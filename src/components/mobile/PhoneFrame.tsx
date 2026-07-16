@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { Signal, Wifi, BatteryFull } from "lucide-react";
-import { CatIcon, HouseIcon, ChevronLeftIcon, PawIcon } from "./icons";
+import { CatIcon, HouseIcon, ChevronLeftIcon, ApertureIcon } from "./icons";
 
 type TabKey = "home" | "cats" | "community";
 
@@ -10,9 +10,10 @@ const TABS: {
   label: string;
   to: string;
   Icon: (p: { className?: string }) => ReactNode;
+  activeColor?: string;
 }[] = [
   { key: "home", label: "首页", to: "/", Icon: HouseIcon },
-  { key: "community", label: "猫友圈", to: "/community", Icon: PawIcon },
+  { key: "community", label: "猫友圈", to: "/community", Icon: ApertureIcon, activeColor: "text-sunflower" },
   { key: "cats", label: "我们的猫", to: "/cats", Icon: CatIcon },
 ];
 
