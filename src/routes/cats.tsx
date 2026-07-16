@@ -95,9 +95,14 @@ function Cats() {
   const [kFilter, setKFilter] =
     useState<(typeof KITTEN_FILTERS)[number]>("待找家");
   const [sFilter, setSFilter] = useState<StudCategory>("现役公猫");
+  const [litter, setLitter] = useState<Litter | "全部">("全部");
+  const [litterOpen, setLitterOpen] = useState(false);
 
-  const kittenList = KITTENS.filter((k) => k.status === kFilter);
+  const kittenList = KITTENS.filter(
+    (k) => k.status === kFilter && (litter === "全部" || k.litter === litter),
+  );
   const studList = STUDS.filter((s) => s.category === sFilter);
+
 
   return (
     <PhoneFrame
