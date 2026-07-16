@@ -155,29 +155,27 @@ function CommunityFeed() {
         ))}
       </Section>
 
-      {/* FAB */}
-      <button
-        onClick={() => {
-          if (!canPost) {
-            if (role === "guest") {
-              actions.requireLogin("发布内容需要登录，家长身份可发布家长分享");
-            } else {
-              // logged in but not parent/keeper
-              actions.requireLogin("发布内容需要开通家长身份");
+      {/* not-post-permitted CTA */}
+      {!canPost && (
+        <div className="fixed bottom-24 left-1/2 z-30 -translate-x-1/2">
+          <button
+            onClick={() =>
+              role === "guest"
+                ? actions.requireLogin("登录后可发布家长分享")
+                : actions.requireLogin("发布内容需要开通家长身份")
             }
-            return;
-          }
-          window.location.href = "/community/publish";
-        }}
-        className="pressable fixed bottom-24 right-1/2 z-30 grid h-14 w-14 translate-x-[calc(50vw-1.5rem)] place-items-center rounded-full bg-violet text-white shadow-float sm:translate-x-[calc(200px-2.25rem)]"
-        aria-label="发布"
-      >
-        <PlusIcon className="h-7 w-7" />
-      </button>
+            className="pressable inline-flex items-center gap-1.5 rounded-full bg-violet px-4 py-2.5 text-[13px] font-semibold text-white shadow-float"
+          >
+            <PlusIcon className="h-4 w-4" />
+            发布动态
+          </button>
+        </div>
+      )}
 
       <LoginSheet />
       <Lightbox />
     </PhoneFrame>
   );
 }
+
 
