@@ -66,8 +66,7 @@ function StudDetail() {
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           <Info label="身份" value={stud.role} />
           <Info label="颜色" value={stud.color} />
-          <Info label="当前状态" value={stud.status} />
-          <Info label="来源 / 血线" value={stud.source} />
+          <Info label="来源 / 血线" value={stud.source} className="col-span-2" />
         </div>
       </Section>
 
