@@ -78,7 +78,7 @@ function CatCard({
             <Meta key={m.k} k={m.k} v={m.v} />
           ))}
         </div>
-        <span className="mt-1 flex items-center justify-center gap-1 rounded-full bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground shadow-card">
+        <span className="mt-1 flex items-center justify-center gap-1 rounded-full border border-primary bg-card py-2.5 text-[13px] font-semibold text-primary shadow-card">
           了解详情 <ChevronRightIcon className="h-3.5 w-3.5" />
         </span>
       </div>
@@ -103,12 +103,7 @@ function Cats() {
         <div className="border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
           <Link
             to="/questionnaire"
-            className="pressable flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
-            style={{
-              backgroundColor: "#fffdf8",
-              color: "#7a9ac0",
-              border: "1px solid #81a9ee",
-            }}
+            className="pressable flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground"
           >
             <PaperIcon className="h-5 w-5" /> 填写选猫问卷
           </Link>
