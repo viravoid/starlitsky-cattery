@@ -9,9 +9,9 @@ export const Route = createFileRoute("/studs/$id")({
   component: StudDetail,
 });
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ label, value, className = "" }: { label: string; value: string; className?: string }) {
   return (
-    <div className="rounded-2xl bg-muted px-3 py-2.5">
+    <div className={`rounded-2xl bg-muted px-3 py-2.5 ${className}`}>
       <p className="text-[11px] text-muted-foreground">{label}</p>
       <p className="mt-0.5 text-[13px] font-medium text-card-foreground">{value}</p>
     </div>
@@ -66,8 +66,7 @@ function StudDetail() {
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           <Info label="身份" value={stud.role} />
           <Info label="颜色" value={stud.color} />
-          <Info label="当前状态" value={stud.status} />
-          <Info label="来源 / 血线" value={stud.source} />
+          <Info label="来源 / 血线" value={stud.source} className="col-span-2" />
         </div>
       </Section>
 
