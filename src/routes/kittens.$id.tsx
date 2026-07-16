@@ -10,12 +10,12 @@ function StarRow({ label, value }: { label: string; value?: number }) {
   const showSix = filled === 6;
   const baseCount = 5;
   return (
-    <div className="flex items-center justify-between gap-3 py-1.5">
-      <span className="text-[13px] text-foreground/80">{label}</span>
+    <div className="flex items-center justify-between gap-3 py-1.5 whitespace-nowrap">
+      <span className="shrink-0 text-[13px] text-foreground/80">{label}</span>
       {value === undefined ? (
-        <span className="text-[11px] text-muted-foreground/70">待评估</span>
+        <span className="shrink-0 text-[11px] text-muted-foreground/70">待评估</span>
       ) : (
-        <span className="flex items-center gap-[3px]">
+        <span className="flex shrink-0 items-center gap-[3px]">
           {showSix && <Star active highlight />}
           {Array.from({ length: baseCount }).map((_, i) => (
             <Star key={i} active={i < filled} />
