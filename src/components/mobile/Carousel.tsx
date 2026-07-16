@@ -54,7 +54,7 @@ export function Carousel({
               aria-label={`第 ${i + 1} 张`}
               onClick={() => setIndex(i)}
               className={`h-1.5 rounded-full transition-all ${
-                i === index ? "w-5 bg-violet" : "w-1.5 bg-card/80"
+                i === index ? "w-5 bg-sunflower" : "w-1.5 bg-card/80"
               }`}
             />
           ))}
