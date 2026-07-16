@@ -46,6 +46,18 @@ export function PawIcon(props: IconProps) {
   );
 }
 
+export function PawFillIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <ellipse cx="12" cy="16" rx="4" ry="3.2" />
+      <ellipse cx="6.5" cy="11.5" rx="1.5" ry="2" />
+      <ellipse cx="17.5" cy="11.5" rx="1.5" ry="2" />
+      <ellipse cx="9.3" cy="8.2" rx="1.4" ry="1.9" />
+      <ellipse cx="14.7" cy="8.2" rx="1.4" ry="1.9" />
+    </svg>
+  );
+}
+
 export function MoonIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>
