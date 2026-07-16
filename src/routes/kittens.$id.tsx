@@ -149,7 +149,7 @@ function KittenDetail() {
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           <Info label="性别" value={kitten.gender} />
           <Info label="颜色" value={kitten.color} />
-          <Info label="出生日期 / 月龄" value={kitten.birthday} />
+          <Info label="出生日期" value={kitten.birthday} />
           {kitten.status !== "已有家" && (
             <Info label="是否已绝育" value="示例文字（待更新）" />
           )}
