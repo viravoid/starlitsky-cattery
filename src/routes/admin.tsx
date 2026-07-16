@@ -12,6 +12,9 @@ import {
   ShieldIcon,
   LockIcon,
   ChevronLeftIcon,
+  ChatBubbleIcon,
+  UserIcon,
+  TrashIcon,
 } from "@/components/mobile/icons";
 import {
   KITTENS,
@@ -24,6 +27,11 @@ import {
   type FormEntry,
   type FormStatus,
 } from "@/lib/cattery-data";
+import {
+  useCommunity,
+  actions as communityActions,
+  formatTime,
+} from "@/lib/community-store";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -44,7 +52,10 @@ type SectionKey =
   | "content"
   | "aftercare"
   | "forms"
-  | "contact";
+  | "contact"
+  | "community"
+  | "comments"
+  | "parents";
 
 const NAV: { key: SectionKey; label: string; Icon: (p: { className?: string }) => React.ReactNode }[] = [
   { key: "overview", label: "数据概览", Icon: StarIcon },
@@ -56,7 +67,11 @@ const NAV: { key: SectionKey; label: string; Icon: (p: { className?: string }) =
   { key: "aftercare", label: "售后说明管理", Icon: ShieldIcon },
   { key: "forms", label: "问卷查看", Icon: PaperIcon },
   { key: "contact", label: "联系方式管理", Icon: RouteIcon },
+  { key: "community", label: "猫友圈内容管理", Icon: ChatBubbleIcon },
+  { key: "comments", label: "评论审核", Icon: ChatBubbleIcon },
+  { key: "parents", label: "家长身份管理", Icon: UserIcon },
 ];
+
 
 function Admin() {
   const [authed, setAuthed] = useState(false);
@@ -182,6 +197,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         {section === "content" && <ContentPanel />}
         {section === "aftercare" && <AftercarePanel />}
         {section === "contact" && <ContactPanel />}
+        {section === "community" && <CommunityPanel />}
+        {section === "comments" && <CommentsPanel />}
+        {section === "parents" && <ParentsPanel />}
         {section === "forms" &&
           (selectedForm ? (
             <FormDetail
@@ -504,3 +522,188 @@ function FormDetail({
     </div>
   );
 }
+
+/* ── Community panel ───────────────────────────── */
+function CommunityPanel() {
+  const posts = useCommunity((s) => s.posts);
+  return (
+    <div className="space-y-3">
+      {posts.map((p) => (
+        <PanelCard key={p.id} className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone={p.authorRole === "猫舍主理人" ? "violet" : "creamblue"}>
+              {p.authorRole}
+            </Pill>
+            <span className="text-[13px] font-semibold text-heading">{p.authorName}</span>
+            <Pill tone="sky">{p.category}</Pill>
+            {p.pinned && <Pill tone="sunny">置顶</Pill>}
+            {p.hidden && <Pill tone="wine">已隐藏</Pill>}
+            <span className="ml-auto text-[11px] text-warm">{formatTime(p.createdAt)}</span>
+          </div>
+          <p className="line-clamp-3 text-[13px] leading-relaxed text-card-foreground">
+            {p.content}
+          </p>
+          <div className="flex flex-wrap gap-2 text-[11.5px] text-muted-foreground">
+            <span>图片 {p.imageCount}</span>
+            <span>爪印 {p.likes}</span>
+            <span>评论 {p.comments.length}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => communityActions.togglePin(p.id)}
+              className="pressable rounded-full bg-primary px-3.5 py-1.5 text-[12px] font-semibold text-primary-foreground"
+            >
+              {p.pinned ? "取消置顶" : "置顶"}
+            </button>
+            <button
+              onClick={() => communityActions.toggleHidePost(p.id)}
+              className="pressable rounded-full border border-border px-3.5 py-1.5 text-[12px] font-semibold text-muted-foreground"
+            >
+              {p.hidden ? "取消隐藏" : "隐藏"}
+            </button>
+            <button
+              onClick={() => confirm("确认删除？") && communityActions.deletePost(p.id)}
+              className="pressable inline-flex items-center gap-1 rounded-full border border-wine/40 px-3.5 py-1.5 text-[12px] font-semibold text-wine"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+              删除
+            </button>
+          </div>
+        </PanelCard>
+      ))}
+    </div>
+  );
+}
+
+/* ── Comments panel ────────────────────────────── */
+function CommentsPanel() {
+  const posts = useCommunity((s) => s.posts);
+  const all = posts.flatMap((p) =>
+    p.comments.map((c) => ({ post: p, comment: c })),
+  );
+  if (all.length === 0)
+    return (
+      <PanelCard>
+        <p className="text-center text-[13px] text-muted-foreground">暂无评论</p>
+      </PanelCard>
+    );
+  return (
+    <div className="space-y-3">
+      {all.map(({ post, comment }) => (
+        <PanelCard key={comment.id} className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[13px] font-semibold text-heading">
+              {comment.authorName}
+            </span>
+            <Pill
+              tone={
+                comment.authorRole === "猫舍主理人"
+                  ? "violet"
+                  : comment.authorRole === "星月家长"
+                    ? "creamblue"
+                    : "warm"
+              }
+            >
+              {comment.authorRole}
+            </Pill>
+            {comment.hidden && <Pill tone="wine">已隐藏</Pill>}
+            <span className="ml-auto text-[11px] text-warm">
+              {formatTime(comment.createdAt)}
+            </span>
+          </div>
+          <p className="text-[13px] leading-relaxed text-card-foreground">
+            {comment.content}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            于「{post.authorName}」的动态下留言
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => communityActions.toggleHideComment(post.id, comment.id)}
+              className="pressable rounded-full border border-border px-3.5 py-1.5 text-[12px] font-semibold text-muted-foreground"
+            >
+              {comment.hidden ? "恢复显示" : "隐藏"}
+            </button>
+            <button
+              onClick={() =>
+                confirm("确认删除该评论？") &&
+                communityActions.deleteComment(post.id, comment.id)
+              }
+              className="pressable inline-flex items-center gap-1 rounded-full border border-wine/40 px-3.5 py-1.5 text-[12px] font-semibold text-wine"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+              删除
+            </button>
+          </div>
+        </PanelCard>
+      ))}
+    </div>
+  );
+}
+
+/* ── Parents panel ─────────────────────────────── */
+function ParentsPanel() {
+  const users = useCommunity((s) => s.users.filter((u) => u.role === "parent"));
+  return (
+    <div className="space-y-3">
+      {users.map((u) => (
+        <PanelCard key={u.id} className="flex flex-wrap items-center gap-3">
+          <span className="grid h-11 w-11 place-items-center rounded-full bg-sky/25 text-[#4a5f6e]">
+            <UserIcon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-semibold text-heading">{u.name}</p>
+            <p className="text-[11.5px] text-muted-foreground">
+              邀请码：{u.inviteCode ?? "—"}
+              {u.activatedAt ? ` · 开通于 ${u.activatedAt}` : " · 未开通"}
+            </p>
+            {u.note && <p className="text-[11px] text-warm">{u.note}</p>}
+          </div>
+          <button
+            onClick={() => communityActions.toggleParentActive(u.id)}
+            className="pressable rounded-full bg-primary px-3.5 py-1.5 text-[12px] font-semibold text-primary-foreground"
+          >
+            {u.activatedAt ? "停用" : "启用"}
+          </button>
+        </PanelCard>
+      ))}
+      <AddParentBlock />
+    </div>
+  );
+}
+
+function AddParentBlock() {
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  return (
+    <PanelCard className="space-y-2">
+      <p className="text-[13px] font-semibold text-heading">+ 新增家长</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="家长昵称，例：呼呼和奶油的家长"
+          className="rounded-xl border border-border bg-background px-3 py-2 text-[13px] outline-none focus:border-primary"
+        />
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="邀请码，例：XY-XXXX-2025"
+          className="rounded-xl border border-border bg-background px-3 py-2 text-[13px] outline-none focus:border-primary"
+        />
+      </div>
+      <button
+        onClick={() => {
+          if (!name.trim() || !code.trim()) return;
+          communityActions.addParent(name.trim(), code.trim());
+          setName("");
+          setCode("");
+        }}
+        className="pressable rounded-full bg-violet px-4 py-1.5 text-[12px] font-semibold text-white"
+      >
+        添加
+      </button>
+    </PanelCard>
+  );
+}
+
