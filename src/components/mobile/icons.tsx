@@ -46,6 +46,17 @@ export function PawIcon(props: IconProps) {
   );
 }
 
+export function ApertureIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3 L14.5 12 L12 21" />
+      <path d="M20.8 7.5 L12 12 L3.2 7.5" />
+      <path d="M20.8 16.5 L12 12 L3.2 16.5" />
+    </svg>
+  );
+}
+
 export function PawFillIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
