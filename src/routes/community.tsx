@@ -59,6 +59,15 @@ function CommunityFeed() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {canPost && (
+              <Link
+                to="/community/publish"
+                className="pressable inline-flex items-center gap-1 rounded-full bg-violet px-3 py-1.5 text-[12px] font-semibold text-white shadow-card"
+              >
+                <PlusIcon className="h-4 w-4" />
+                发布
+              </Link>
+            )}
             {role === "guest" ? (
               <button
                 onClick={() => actions.requireLogin("登录后可点赞、评论和关注小猫")}
@@ -70,7 +79,7 @@ function CommunityFeed() {
             ) : (
               <span className="inline-flex items-center gap-2 rounded-full bg-card px-2.5 py-1.5 text-[12px] text-heading shadow-card">
                 <UserAvatar role={role === "keeper" ? "keeper" : "parent"} size={22} />
-                <span className="max-w-[8em] truncate">{me?.name ?? "已登录"}</span>
+                <span className="max-w-[6em] truncate">{me?.name ?? "已登录"}</span>
               </span>
             )}
           </div>
