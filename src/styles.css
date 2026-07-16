@@ -49,7 +49,9 @@
   --color-creamblue: var(--creamblue);
   --color-cream: var(--cream);
   --color-mint: var(--mint);
+  --color-lilac: var(--lilac);
 }
+
 
 :root {
   --radius: 1.25rem;
@@ -69,11 +71,11 @@
   --secondary: #81a9ee;
   --secondary-foreground: #233e5c;
 
-  /* Muted — vanilla milk */
-  --muted: #fff2d0;
+  /* Muted — pale blue-lilac neutral surface (not yellow) */
+  --muted: #edf2fb;
   --muted-foreground: #5f7084;
 
-  /* Accent — butter honey */
+  /* Accent — butter honey (reserved for small warm touches) */
   --accent: #ffdb83;
   --accent-foreground: #5e4d24;
 
@@ -90,16 +92,21 @@
   --pale-yellow: #fff7df;
   --soft-white: #fffdf8;
 
-  /* Legacy aliases kept for compatibility with existing components */
+  /* Semantic aliases used across the app.
+     `violet` is the strong CTA / active role (deep blue), NOT decorative purple.
+     `lilac` is the decorative purple. `warm` is muted slate-blue eyebrow text.
+     `sunny` / `sunflower` are small honey touches. */
   --sky: #3e668f;
   --creamblue: #81a9ee;
   --sunny: #fff2d0;
   --sunflower: #ffdb83;
-  --warm: #aab4e7;
-  --violet: #aab4e7;
+  --warm: #7188b5;
+  --violet: #3e668f;
+  --lilac: #aab4e7;
   --wine: #c46a6a;
   --cream: #fffdf8;
   --mint: #eef0fb;
+
 
   --border: #d5dfec;
 

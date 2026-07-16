@@ -55,7 +55,8 @@ const GROUPS: Group[] = [
     cn: "关于星月",
     lead: "了解星月缅因猫舍的\n成立时间、主理人\n与繁育理念、生活照顾方式。",
     Art: CatProfile,
-    tint: "text-violet/70",
+    tint: "text-lilac/70",
+
     items: [
       {
         no: "01",
@@ -88,7 +89,8 @@ const GROUPS: Group[] = [
     cn: "接猫前了解",
     lead: "在正式咨询和接猫前\n可以先了解流程、保障\n问卷和联系方式。",
     Art: WindingPath,
-    tint: "text-violet/60",
+    tint: "text-lilac/60",
+
     items: [
       {
         no: "05",
@@ -124,13 +126,25 @@ function Home() {
       {/* ── Photo carousel hero ─────────────────── */}
       <div className="relative px-3 pt-3">
         <div className="pointer-events-none absolute inset-x-3 bottom-0 z-10 flex flex-col items-center justify-end rounded-b-[1.75rem] px-4 pb-7 pt-12 text-center">
-          <h1 className="text-[27px] font-bold leading-tight text-violet drop-shadow-sm">
+          <h1
+            className="text-[27px] font-bold leading-tight drop-shadow-sm"
+            style={{
+              background: "linear-gradient(90deg, #3e668f 0%, #6f91ca 65%, #aab4e7 100%)",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+            }}
+          >
             星月缅因猫舍
           </h1>
-          <p className="mt-1 font-display text-[13px] italic text-violet/90 drop-shadow-sm">
+          <p
+            className="mt-1 font-display text-[13px] italic drop-shadow-sm"
+            style={{ color: "#8193c8" }}
+          >
             StarlitSky Maine Coon Cattery
           </p>
         </div>
+
         <Carousel
           slides={[
             { label: "示例图片（首页轮播照片 1，待替换）" },
@@ -156,11 +170,12 @@ function Home() {
       <Section className="mt-6">
         <div className="flex items-center gap-4">
           <span className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-border" />
-          <div className="flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-2">
+          <div className="flex items-center gap-1.5 rounded-full bg-muted/70 px-3 py-2">
             <StarIcon className="h-3.5 w-3.5 text-sunflower" />
-            <MoonIcon className="h-3.5 w-3.5 text-violet" />
+            <MoonIcon className="h-3.5 w-3.5 text-lilac" />
             <StarIcon className="h-2.5 w-2.5 text-sunflower" />
           </div>
+
           <span className="h-px flex-1 bg-gradient-to-l from-transparent via-border to-border" />
         </div>
       </Section>
@@ -214,10 +229,11 @@ function Home() {
                     </span>
                     <span
                       aria-hidden
-                      className="mt-0.5 text-[15px] text-violet/55 transition-transform group-active:translate-x-0.5"
+                      className="mt-0.5 text-[15px] text-secondary transition-transform group-active:translate-x-0.5"
                     >
                       →
                     </span>
+
                   </Link>
                 ))}
               </div>
