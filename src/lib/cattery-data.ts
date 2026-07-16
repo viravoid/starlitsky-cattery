@@ -164,17 +164,9 @@ export const KITTENS: Kitten[] = [
   },
 ];
 
-export function statusTone(status: KittenStatus) {
-  switch (status) {
-    case "待找家":
-      return "sunny";
-    case "找家中":
-      return "sky";
-    case "已有家":
-      return "warm";
-    default:
-      return "warm";
-  }
+export function statusTone(_status: KittenStatus) {
+  // 状态标签统一使用蜂蜜奶油黄，保持全站视觉一致
+  return "sunny";
 }
 
 // ── Questionnaire submissions (admin only) ────────────────────
