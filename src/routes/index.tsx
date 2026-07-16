@@ -9,7 +9,7 @@ import {
   CurledCat,
   PawTrail,
 } from "@/components/mobile/illustrations";
-import type { ComponentType, SVGProps } from "react";
+import { Fragment, type ComponentType, type SVGProps } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
