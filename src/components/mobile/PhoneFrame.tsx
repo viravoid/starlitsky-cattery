@@ -1,9 +1,31 @@
 import type { ReactNode } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { Signal, Wifi, BatteryFull } from "lucide-react";
-import { CatIcon, HouseIcon, ChevronLeftIcon, ApertureIcon } from "./icons";
+import { CatIcon, HouseIcon, ChevronLeftIcon } from "./icons";
+import apertureIcon from "@/assets/aperture-icon.png.asset.json";
 
 type TabKey = "home" | "cats" | "community";
+
+function ApertureImageIcon({ className }: { className?: string }) {
+  return (
+    <div
+      className={`shrink-0 bg-current ${className ?? ""}`}
+      style={{
+        width: 24,
+        height: 24,
+        maskImage: `url(${apertureIcon.url})`,
+        WebkitMaskImage: `url(${apertureIcon.url})`,
+        maskSize: "contain",
+        WebkitMaskSize: "contain",
+        maskRepeat: "no-repeat",
+        WebkitMaskRepeat: "no-repeat",
+        maskPosition: "center",
+        WebkitMaskPosition: "center",
+      }}
+      aria-hidden="true"
+    />
+  );
+}
 
 const TABS: {
   key: TabKey;
@@ -13,7 +35,7 @@ const TABS: {
   activeColor?: string;
 }[] = [
   { key: "home", label: "首页", to: "/", Icon: HouseIcon },
-  { key: "community", label: "猫友圈", to: "/community", Icon: ApertureIcon, activeColor: "text-sunflower" },
+  { key: "community", label: "猫友圈", to: "/community", Icon: ApertureImageIcon, activeColor: "text-sunflower" },
   { key: "cats", label: "我们的猫", to: "/cats", Icon: CatIcon },
 ];
 

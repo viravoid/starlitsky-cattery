@@ -46,25 +46,6 @@ export function PawIcon(props: IconProps) {
   );
 }
 
-export function ApertureIcon(props: IconProps) {
-  return (
-    <svg {...base} {...props}>
-      {/* outer ring */}
-      <circle cx="12" cy="12" r="9" />
-      {/* aperture blades radiating from the center hub */}
-      <path d="M12 12 L12 3" />
-      <path d="M12 12 L19.5 6.5" />
-      <path d="M12 12 L20.5 14" />
-      <path d="M12 12 L15.5 20.5" />
-      <path d="M12 12 L8.5 20.5" />
-      <path d="M12 12 L3.5 14" />
-      <path d="M12 12 L4.5 6.5" />
-      {/* center hub ring — hollow, matches the reference */}
-      <circle cx="12" cy="12" r="3.2" />
-    </svg>
-  );
-}
-
 export function PawFillIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
