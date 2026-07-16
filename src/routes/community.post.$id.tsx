@@ -170,5 +170,3 @@ function PostDetail() {
   );
 }
 
-// avoid unused
-void useState;
