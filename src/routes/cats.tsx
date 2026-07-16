@@ -264,6 +264,7 @@ function Cats() {
                 key={k.id}
                 imageLabel="示例图片（小猫照片，待替换）"
                 pill={{ text: k.status, tone: statusTone(k.status) }}
+                litter={k.litter}
                 name={k.name}
                 meta={[
                   { k: "性别", v: k.gender },
