@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { Signal, Wifi, BatteryFull } from "lucide-react";
 import { CatIcon, HouseIcon, ChevronLeftIcon } from "./icons";
 
