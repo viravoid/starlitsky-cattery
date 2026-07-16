@@ -25,6 +25,7 @@ export interface Post {
   content: string;
   imageCount: number; // 0-9
   catIds: string[];
+  litterIds?: string[]; // 关联窝次，例如 "A窝"
   createdAt: string; // ISO
   likes: number;
   likedByMe: boolean;
