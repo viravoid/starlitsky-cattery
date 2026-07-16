@@ -124,8 +124,14 @@ function Cats() {
       </div>
 
       {/* Category switch: 小猫 / 种猫 */}
-      <div className="sticky top-0 z-10 bg-background/95 px-5 pb-2 pt-2.5 backdrop-blur">
-        <div className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1">
+      <div
+        className="sticky top-0 z-10 px-5 pb-2 pt-2.5 backdrop-blur"
+        style={{ backgroundColor: "rgba(255, 250, 242, 0.95)" }}
+      >
+        <div
+          className="grid grid-cols-2 gap-1 rounded-full p-1"
+          style={{ backgroundColor: "#fff2d0" }}
+        >
           {(["kittens", "studs"] as const).map((t) => (
             <button
               key={t}
@@ -133,7 +139,7 @@ function Cats() {
               className={`pressable rounded-full py-2 text-[13px] font-semibold ${
                 tab === t
                   ? "bg-card text-heading shadow-card"
-                  : "text-muted-foreground"
+                  : "text-[#64758a]"
               }`}
             >
               {t === "kittens" ? "小猫" : "种猫"}
@@ -153,11 +159,20 @@ function Cats() {
                     ? setKFilter(f as (typeof KITTEN_FILTERS)[number])
                     : setSFilter(f as StudCategory)
                 }
-                className={`pressable shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold ${
+                className="pressable shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+                style={
                   on
-                    ? "bg-violet text-white shadow-card"
-                    : "border border-border bg-card text-muted-foreground"
-                }`}
+                    ? {
+                        backgroundColor: "#fff2d0",
+                        color: "#3e668f",
+                        border: "1px solid rgba(62, 102, 143, 0.22)",
+                      }
+                    : {
+                        backgroundColor: "#fffdf8",
+                        color: "#7a8699",
+                        border: "1px solid var(--border)",
+                      }
+                }
               >
                 {f}
               </button>
