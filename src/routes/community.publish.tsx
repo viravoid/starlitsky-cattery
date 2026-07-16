@@ -9,6 +9,7 @@ import {
   CATEGORIES,
   type Category,
 } from "@/lib/community-store";
+import { LITTERS } from "@/lib/cattery-data";
 
 export const Route = createFileRoute("/community/publish")({
   head: () => ({ meta: [{ title: "发布动态 — 猫友圈" }] }),
