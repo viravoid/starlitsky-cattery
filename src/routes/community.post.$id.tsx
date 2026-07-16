@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { createFileRoute, useParams, Link, notFound } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill } from "@/components/mobile/ui";
