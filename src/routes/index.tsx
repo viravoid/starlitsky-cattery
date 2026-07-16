@@ -157,9 +157,9 @@ function Home() {
         <div className="flex items-center gap-4">
           <span className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-border" />
           <div className="flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-2">
-            <StarIcon className="h-3.5 w-3.5 text-violet" />
+            <StarIcon className="h-3.5 w-3.5 text-sunny" />
             <MoonIcon className="h-3.5 w-3.5 text-violet" />
-            <StarIcon className="h-2.5 w-2.5 text-violet" />
+            <StarIcon className="h-2.5 w-2.5 text-sunny" />
           </div>
           <span className="h-px flex-1 bg-gradient-to-l from-transparent via-border to-border" />
         </div>
