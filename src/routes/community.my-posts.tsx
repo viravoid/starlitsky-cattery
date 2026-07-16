@@ -197,6 +197,33 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
         )}
       </div>
 
+      {role === "keeper" && (
+        <div>
+          <p className="mb-1.5 text-[12px] font-medium text-heading">
+            关联窝次 · 可选
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {LITTERS.map((l) => {
+              const on = litterIds.includes(l);
+              return (
+                <button
+                  key={l}
+                  onClick={() => toggleLitter(l)}
+                  className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
+                    on
+                      ? "bg-sunny/60 text-[#b48725] shadow-card"
+                      : "border border-border bg-background text-muted-foreground"
+                  }`}
+                >
+                  {l}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+
       <div className="flex gap-2">
         <button
           onClick={onClose}
