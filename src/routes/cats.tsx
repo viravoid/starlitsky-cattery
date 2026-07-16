@@ -221,12 +221,12 @@ function Cats() {
               onClick={() => setLitterOpen(!litterOpen)}
               className="pressable flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold"
               style={{
-                backgroundColor: litter === "全部" ? "#fffdf8" : "#7a9ac0",
-                color: litter === "全部" ? "#6b8db3" : "#fffdf8",
+                backgroundColor: litter === "全部" ? "#fffdf8" : "#f9f0d4",
+                color: litter === "全部" ? "#6b8db3" : "#b48725",
                 border:
                   litter === "全部"
                     ? "1px solid #e8dfcf"
-                    : "1px solid #7a9ac0",
+                    : "1px solid #e7c15d",
               }}
               aria-expanded={litterOpen}
             >
@@ -235,6 +235,7 @@ function Cats() {
                 className="h-3.5 w-3.5 transition-transform"
                 style={{
                   transform: litterOpen ? "rotate(180deg)" : "none",
+                  color: litter === "全部" ? "#6b8db3" : "#b48725",
                 }}
               />
             </button>
