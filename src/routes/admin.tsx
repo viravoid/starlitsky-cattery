@@ -12,6 +12,9 @@ import {
   ShieldIcon,
   LockIcon,
   ChevronLeftIcon,
+  ChatBubbleIcon,
+  UserIcon,
+  TrashIcon,
 } from "@/components/mobile/icons";
 import {
   KITTENS,
@@ -24,6 +27,11 @@ import {
   type FormEntry,
   type FormStatus,
 } from "@/lib/cattery-data";
+import {
+  useCommunity,
+  actions as communityActions,
+  formatTime,
+} from "@/lib/community-store";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
