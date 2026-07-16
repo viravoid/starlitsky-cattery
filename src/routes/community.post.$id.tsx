@@ -62,18 +62,25 @@ function PostDetail() {
           <PostImages count={post.imageCount} postId={post.id} />
 
           {linkedCats.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {linkedCats.map((c) => (
-                <Link
-                  key={c.id}
-                  to="/community/cat/$id"
-                  params={{ id: c.id }}
-                  className="pressable inline-flex items-center gap-1.5 rounded-full bg-cream/70 py-1 pl-1 pr-3 text-[12px] font-medium text-heading"
-                >
-                  <CatAvatar size={22} name={c.name} />
-                  {c.name}
-                </Link>
-              ))}
+            <div className="pt-1">
+              <p className="mb-2 text-[11px] uppercase tracking-[0.18em] text-warm/80">
+                关联猫咪
+              </p>
+              <div className="flex flex-wrap gap-4">
+                {linkedCats.map((c) => (
+                  <Link
+                    key={c.id}
+                    to="/community/cat/$id"
+                    params={{ id: c.id }}
+                    className="pressable flex flex-col items-center gap-1.5"
+                  >
+                    <CatAvatar size={64} name={c.name} />
+                    <span className="text-[12px] font-medium text-heading">
+                      {c.name}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
 
