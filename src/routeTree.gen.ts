@@ -25,6 +25,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudsIdRouteImport } from './routes/studs.$id'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
 import { Route as CommunityPublishRouteImport } from './routes/community.publish'
+import { Route as CommunityParentOnboardRouteImport } from './routes/community.parent-onboard'
 import { Route as CommunityMyPostsRouteImport } from './routes/community.my-posts'
 import { Route as CommunityMyCatsRouteImport } from './routes/community.my-cats'
 import { Route as CommunityPostIdRouteImport } from './routes/community.post.$id'
@@ -111,6 +112,11 @@ const CommunityPublishRoute = CommunityPublishRouteImport.update({
   path: '/publish',
   getParentRoute: () => CommunityRoute,
 } as any)
+const CommunityParentOnboardRoute = CommunityParentOnboardRouteImport.update({
+  id: '/parent-onboard',
+  path: '/parent-onboard',
+  getParentRoute: () => CommunityRoute,
+} as any)
 const CommunityMyPostsRoute = CommunityMyPostsRouteImport.update({
   id: '/my-posts',
   path: '/my-posts',
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/community/my-posts': typeof CommunityMyPostsRoute
+  '/community/parent-onboard': typeof CommunityParentOnboardRoute
   '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/community/my-posts': typeof CommunityMyPostsRoute
+  '/community/parent-onboard': typeof CommunityParentOnboardRoute
   '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/community/my-cats': typeof CommunityMyCatsRoute
   '/community/my-posts': typeof CommunityMyPostsRoute
+  '/community/parent-onboard': typeof CommunityParentOnboardRoute
   '/community/publish': typeof CommunityPublishRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/community/my-cats'
     | '/community/my-posts'
+    | '/community/parent-onboard'
     | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/community/my-cats'
     | '/community/my-posts'
+    | '/community/parent-onboard'
     | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/community/my-cats'
     | '/community/my-posts'
+    | '/community/parent-onboard'
     | '/community/publish'
     | '/kittens/$id'
     | '/studs/$id'
@@ -411,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityPublishRouteImport
       parentRoute: typeof CommunityRoute
     }
+    '/community/parent-onboard': {
+      id: '/community/parent-onboard'
+      path: '/parent-onboard'
+      fullPath: '/community/parent-onboard'
+      preLoaderRoute: typeof CommunityParentOnboardRouteImport
+      parentRoute: typeof CommunityRoute
+    }
     '/community/my-posts': {
       id: '/community/my-posts'
       path: '/my-posts'
@@ -452,6 +471,7 @@ declare module '@tanstack/react-router' {
 interface CommunityRouteChildren {
   CommunityMyCatsRoute: typeof CommunityMyCatsRoute
   CommunityMyPostsRoute: typeof CommunityMyPostsRoute
+  CommunityParentOnboardRoute: typeof CommunityParentOnboardRoute
   CommunityPublishRoute: typeof CommunityPublishRoute
   CommunityCatEditIdRoute: typeof CommunityCatEditIdRoute
   CommunityCatIdRoute: typeof CommunityCatIdRoute
@@ -461,6 +481,7 @@ interface CommunityRouteChildren {
 const CommunityRouteChildren: CommunityRouteChildren = {
   CommunityMyCatsRoute: CommunityMyCatsRoute,
   CommunityMyPostsRoute: CommunityMyPostsRoute,
+  CommunityParentOnboardRoute: CommunityParentOnboardRoute,
   CommunityPublishRoute: CommunityPublishRoute,
   CommunityCatEditIdRoute: CommunityCatEditIdRoute,
   CommunityCatIdRoute: CommunityCatIdRoute,
