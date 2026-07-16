@@ -109,4 +109,3 @@ function MyCats() {
   );
 }
 
-void redirect;
