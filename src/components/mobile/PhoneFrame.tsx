@@ -11,8 +11,8 @@ function ApertureImageIcon({ className }: { className?: string }) {
     <div
       className={`shrink-0 bg-current ${className ?? ""}`}
       style={{
-        width: 24,
-        height: 24,
+        width: 22,
+        height: 22,
         maskImage: `url(${apertureIcon.url})`,
         WebkitMaskImage: `url(${apertureIcon.url})`,
         maskSize: "contain",
