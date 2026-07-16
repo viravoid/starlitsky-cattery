@@ -34,7 +34,7 @@ function Star({ active, highlight }: { active: boolean; highlight?: boolean }) {
         active
           ? highlight
             ? "text-[#f1b84b] drop-shadow-[0_0_2.5px_rgba(241,184,75,0.45)]"
-            : "text-[#ffdb83]"
+            : "text-[#e7c15d]"
           : "text-[#dce3ed]"
       }`}
       fill="currentColor"
@@ -98,7 +98,7 @@ function Progress({ label, value, done }: { label: string; value: string; done: 
       <span className="text-[13px] font-medium text-card-foreground">{label}</span>
       <span
         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-          done ? "bg-sky/30 text-[#233e5c]" : "bg-sunny/50 text-[#5e4d24]"
+          done ? "bg-sky/30 text-[#456d9a]" : "bg-sunny/50 text-[#b48725]"
         }`}
       >
         {done && <CheckIcon className="h-3.5 w-3.5" />}

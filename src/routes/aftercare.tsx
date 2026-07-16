@@ -79,8 +79,8 @@ function Aftercare() {
 
       <Section className="mb-10 mt-6">
         <div className="flex items-start gap-2 rounded-2xl bg-sunny/40 p-3.5">
-          <MoonIcon className="mt-0.5 h-5 w-5 shrink-0 text-[#5e4d24]" />
-          <p className="text-[12px] leading-relaxed text-[#5e4d24]">
+          <MoonIcon className="mt-0.5 h-5 w-5 shrink-0 text-[#b48725]" />
+          <p className="text-[12px] leading-relaxed text-[#b48725]">
             售后页面仅为摘要，具体内容以《合同模板 2026》为准。
           </p>
         </div>

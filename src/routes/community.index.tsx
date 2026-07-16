@@ -108,7 +108,7 @@ function CommunityFeed() {
               onClick={() => setFilter(c)}
               className="pressable relative shrink-0 py-2.5 text-[13px]"
               style={{
-                color: on ? "#4d739f" : "#75869a",
+                color: on ? "#5b7fa8" : "#8c929a",
                 fontWeight: on ? 600 : 500,
               }}
             >
@@ -117,7 +117,7 @@ function CommunityFeed() {
                 <span
                   aria-hidden
                   className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-8 rounded-full"
-                  style={{ backgroundColor: "#f4d477" }}
+                  style={{ backgroundColor: "#e7c15d" }}
                 />
               )}
             </button>

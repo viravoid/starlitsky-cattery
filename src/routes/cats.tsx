@@ -106,7 +106,7 @@ function Cats() {
             className="pressable flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-semibold"
             style={{
               backgroundColor: "#fffdf8",
-              color: "#4d739f",
+              color: "#5b7fa8",
               border: "1px solid #81a9ee",
             }}
           >
@@ -137,7 +137,7 @@ function Cats() {
                 onClick={() => setTab(t)}
                 className="pressable relative py-2.5 text-[15px]"
                 style={{
-                  color: on ? "#4d739f" : "#75869a",
+                  color: on ? "#5b7fa8" : "#8c929a",
                   fontWeight: on ? 600 : 500,
                 }}
               >
@@ -146,7 +146,7 @@ function Cats() {
                   <span
                     aria-hidden
                     className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-8 rounded-full"
-                    style={{ backgroundColor: "#f4d477" }}
+                    style={{ backgroundColor: "#e7c15d" }}
                   />
                 )}
               </button>
@@ -170,13 +170,13 @@ function Cats() {
                 style={
                   on
                     ? {
-                        backgroundColor: "#4d739f",
+                        backgroundColor: "#5b7fa8",
                         color: "#fffdf8",
-                        border: "1px solid #4d739f",
+                        border: "1px solid #5b7fa8",
                       }
                     : {
                         backgroundColor: "#fffdf8",
-                        color: "#50647b",
+                        color: "#456d9a",
                         border: "1px solid #e8dfcf",
                       }
                 }
