@@ -5,6 +5,7 @@ import { Section, Placeholder } from "@/components/mobile/ui";
 import { PostCard, LoginSheet, Lightbox } from "@/components/mobile/community/CommunityBits";
 import { EditIcon, TrashIcon, PlusIcon, XIcon, CatIcon } from "@/components/mobile/icons";
 import { actions, useCommunity, type Post } from "@/lib/community-store";
+import { LITTERS } from "@/lib/cattery-data";
 
 export const Route = createFileRoute("/community/my-posts")({
   head: () => ({ meta: [{ title: "我的发布 — 猫友圈" }] }),
