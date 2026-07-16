@@ -33,7 +33,7 @@ function Star({ active, highlight }: { active: boolean; highlight?: boolean }) {
       className={`h-3.5 w-3.5 ${
         active
           ? highlight
-            ? "text-[#9bb8c8]"
+            ? "text-[#e8bd56] drop-shadow-[0_0_2.5px_rgba(232,189,86,0.5)]"
             : "text-[#d4b67a]"
           : "text-[#e5e2d8]"
       }`}
