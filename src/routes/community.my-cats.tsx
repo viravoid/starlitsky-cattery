@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Placeholder, Pill } from "@/components/mobile/ui";
 import { PlusIcon, EditIcon, TrashIcon } from "@/components/mobile/icons";
