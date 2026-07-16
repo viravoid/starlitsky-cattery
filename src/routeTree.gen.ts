@@ -108,24 +108,24 @@ const KittensIdRoute = KittensIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityPublishRoute = CommunityPublishRouteImport.update({
-  id: '/publish',
-  path: '/publish',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/publish',
+  path: '/community/publish',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityParentOnboardRoute = CommunityParentOnboardRouteImport.update({
-  id: '/parent-onboard',
-  path: '/parent-onboard',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/parent-onboard',
+  path: '/community/parent-onboard',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityMyPostsRoute = CommunityMyPostsRouteImport.update({
-  id: '/my-posts',
-  path: '/my-posts',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/my-posts',
+  path: '/community/my-posts',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityMyCatsRoute = CommunityMyCatsRouteImport.update({
-  id: '/my-cats',
-  path: '/my-cats',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/my-cats',
+  path: '/community/my-cats',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityPostIdRoute = CommunityPostIdRouteImport.update({
   id: '/community/post/$id',
@@ -133,14 +133,14 @@ const CommunityPostIdRoute = CommunityPostIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityCatIdRoute = CommunityCatIdRouteImport.update({
-  id: '/cat/$id',
-  path: '/cat/$id',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/cat/$id',
+  path: '/community/cat/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CommunityCatEditIdRoute = CommunityCatEditIdRouteImport.update({
-  id: '/cat-edit/$id',
-  path: '/cat-edit/$id',
-  getParentRoute: () => CommunityRoute,
+  id: '/community/cat-edit/$id',
+  path: '/community/cat-edit/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -304,9 +304,15 @@ export interface RootRouteChildren {
   ProcessRoute: typeof ProcessRoute
   QuestionnaireRoute: typeof QuestionnaireRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  CommunityMyCatsRoute: typeof CommunityMyCatsRoute
+  CommunityMyPostsRoute: typeof CommunityMyPostsRoute
+  CommunityParentOnboardRoute: typeof CommunityParentOnboardRoute
+  CommunityPublishRoute: typeof CommunityPublishRoute
   KittensIdRoute: typeof KittensIdRoute
   StudsIdRoute: typeof StudsIdRoute
   CommunityIndexRoute: typeof CommunityIndexRoute
+  CommunityCatEditIdRoute: typeof CommunityCatEditIdRoute
+  CommunityCatIdRoute: typeof CommunityCatIdRoute
   CommunityPostIdRoute: typeof CommunityPostIdRoute
 }
 
@@ -419,31 +425,31 @@ declare module '@tanstack/react-router' {
     }
     '/community/publish': {
       id: '/community/publish'
-      path: '/publish'
+      path: '/community/publish'
       fullPath: '/community/publish'
       preLoaderRoute: typeof CommunityPublishRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/parent-onboard': {
       id: '/community/parent-onboard'
-      path: '/parent-onboard'
+      path: '/community/parent-onboard'
       fullPath: '/community/parent-onboard'
       preLoaderRoute: typeof CommunityParentOnboardRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/my-posts': {
       id: '/community/my-posts'
-      path: '/my-posts'
+      path: '/community/my-posts'
       fullPath: '/community/my-posts'
       preLoaderRoute: typeof CommunityMyPostsRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/my-cats': {
       id: '/community/my-cats'
-      path: '/my-cats'
+      path: '/community/my-cats'
       fullPath: '/community/my-cats'
       preLoaderRoute: typeof CommunityMyCatsRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/post/$id': {
       id: '/community/post/$id'
@@ -454,17 +460,17 @@ declare module '@tanstack/react-router' {
     }
     '/community/cat/$id': {
       id: '/community/cat/$id'
-      path: '/cat/$id'
+      path: '/community/cat/$id'
       fullPath: '/community/cat/$id'
       preLoaderRoute: typeof CommunityCatIdRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
     '/community/cat-edit/$id': {
       id: '/community/cat-edit/$id'
-      path: '/cat-edit/$id'
+      path: '/community/cat-edit/$id'
       fullPath: '/community/cat-edit/$id'
       preLoaderRoute: typeof CommunityCatEditIdRouteImport
-      parentRoute: typeof CommunityRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -482,21 +488,17 @@ const rootRouteChildren: RootRouteChildren = {
   ProcessRoute: ProcessRoute,
   QuestionnaireRoute: QuestionnaireRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  CommunityMyCatsRoute: CommunityMyCatsRoute,
+  CommunityMyPostsRoute: CommunityMyPostsRoute,
+  CommunityParentOnboardRoute: CommunityParentOnboardRoute,
+  CommunityPublishRoute: CommunityPublishRoute,
   KittensIdRoute: KittensIdRoute,
   StudsIdRoute: StudsIdRoute,
   CommunityIndexRoute: CommunityIndexRoute,
+  CommunityCatEditIdRoute: CommunityCatEditIdRoute,
+  CommunityCatIdRoute: CommunityCatIdRoute,
   CommunityPostIdRoute: CommunityPostIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
