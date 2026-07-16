@@ -58,7 +58,7 @@ function StructureBlock({ rating }: { rating: StructureRating }) {
     );
   }
   return (
-    <div className="rounded-[22px] border border-border/60 bg-cream/50 px-5 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <div className="rounded-[22px] border border-border/60 bg-sunny/35 px-5 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
       <div className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
         <div>
           <p className="mb-2 text-[11px] tracking-[0.24em] text-muted-foreground/80">面部结构</p>
