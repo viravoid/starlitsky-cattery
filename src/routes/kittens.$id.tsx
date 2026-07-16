@@ -16,14 +16,10 @@ function StarRow({ label, value }: { label: string; value?: number }) {
         <span className="text-[11px] text-muted-foreground/70">待评估</span>
       ) : (
         <span className="flex items-center gap-[3px]">
+          {showSix && <Star active highlight />}
           {Array.from({ length: baseCount }).map((_, i) => (
             <Star key={i} active={i < filled} />
           ))}
-          {showSix && (
-            <span className="ml-1 inline-flex items-center">
-              <Star active highlight />
-            </span>
-          )}
         </span>
       )}
     </div>
