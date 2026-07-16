@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
+import { z } from "zod";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
 import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
@@ -14,8 +14,20 @@ import {
   type Litter,
 } from "@/lib/cattery-data";
 
+const searchSchema = z
+  .object({
+    tab: z.enum(["kittens", "studs"]).optional(),
+    kittenFilter: z.enum(["待找家", "找家中", "已有家"]).optional(),
+    studFilter: z.enum(["现役公猫", "现役母猫", "预备役种猫"]).optional(),
+    litter: z.enum(["A窝", "B窝", "C窝"]).optional(),
+    litterOpen: z.boolean().optional(),
+  })
+  .catch({});
+
+type CatsSearch = z.infer<typeof searchSchema>;
 
 export const Route = createFileRoute("/cats")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "我们的猫 — 星月缅因猫舍" },
@@ -94,18 +106,30 @@ function CatCard({
 }
 
 function Cats() {
-  const [tab, setTab] = useState<"kittens" | "studs">("kittens");
-  const [kFilter, setKFilter] =
-    useState<(typeof KITTEN_FILTERS)[number]>("待找家");
-  const [sFilter, setSFilter] = useState<StudCategory>("现役公猫");
-  const [litter, setLitter] = useState<Litter | "全部">("全部");
-  const [litterOpen, setLitterOpen] = useState(false);
+  const search = useSearch({ from: "/cats" });
+  const navigate = useNavigate({ from: "/cats" });
+
+  const tab = search.tab ?? "kittens";
+  const kFilter = search.kittenFilter ?? "待找家";
+  const sFilter = search.studFilter ?? "现役公猫";
+  const litter = search.litter ?? "全部";
+  const litterOpen = search.litterOpen ?? false;
+
+  const setTab = (t: "kittens" | "studs") =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, tab: t }) });
+  const setKFilter = (f: (typeof KITTEN_FILTERS)[number]) =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, kittenFilter: f }) });
+  const setSFilter = (f: StudCategory) =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, studFilter: f }) });
+  const setLitter = (l: Litter | "全部") =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, litter: l === "全部" ? undefined : l, litterOpen: false }) });
+  const setLitterOpen = (open: boolean) =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, litterOpen: open }) });
 
   const kittenList = KITTENS.filter(
     (k) => k.status === kFilter && (litter === "全部" || k.litter === litter),
   );
   const studList = STUDS.filter((s) => s.category === sFilter);
-
 
   return (
     <PhoneFrame
@@ -194,7 +218,7 @@ function Cats() {
           })}
           {tab === "kittens" && (
             <button
-              onClick={() => setLitterOpen((v) => !v)}
+              onClick={() => setLitterOpen(!litterOpen)}
               className="pressable flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold"
               style={{
                 backgroundColor: litter === "全部" ? "#fffdf8" : "#7a9ac0",
@@ -228,10 +252,7 @@ function Cats() {
                 return (
                   <button
                     key={l}
-                    onClick={() => {
-                      setLitter(l);
-                      setLitterOpen(false);
-                    }}
+                    onClick={() => setLitter(l)}
                     className="pressable shrink-0 rounded-full px-3 py-1 text-[12px]"
                     style={
                       on
@@ -297,7 +318,7 @@ function Cats() {
                 imageLabel="示例图片（种猫照片，待替换）"
                 pill={{
                   text: s.status,
-                  tone: s.category.includes("母") ? "creamblue" : "sky",
+                  tone: "sunny",
                 }}
                 name={s.name}
                 meta={[
