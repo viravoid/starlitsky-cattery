@@ -58,6 +58,8 @@ const KEEPER_YUEQI = "keeper-yueqi";
 const KEEPER_XINGXIA = "keeper-xingxia";
 const PARENT_TOAST = "parent-toast";
 const PARENT_HUHU = "parent-huhu";
+const KEEPERS_ALLOWED_CATEGORIES: Category[] = ["猫舍日常", "碎碎念", "家长分享"];
+const PARENTS_ALLOWED_CATEGORIES: Category[] = ["家长分享", "碎碎念"];
 
 const seedUsers: ParentUser[] = [
   { id: KEEPER_YUEQI, name: "月七", role: "keeper", note: "猫舍主理人" },
@@ -370,6 +372,13 @@ export const actions = {
     if (!me || state.role === "guest" || state.role === "user") return null;
     const role = state.role === "keeper" ? "猫舍主理人" : "星月家长";
     const id = `p-${Date.now()}`;
+    const allowedCategories =
+      state.role === "keeper" ? KEEPERS_ALLOWED_CATEGORIES : PARENTS_ALLOWED_CATEGORIES;
+    const category = allowedCategories.includes(input.category)
+      ? input.category
+      : state.role === "parent"
+        ? "家长分享"
+        : "猫舍日常";
     const catIds =
       state.role === "keeper"
         ? input.catIds
@@ -381,7 +390,7 @@ export const actions = {
       authorId: me.id,
       authorName: me.name,
       authorRole: role,
-      category: state.role === "parent" ? "家长分享" : input.category,
+      category,
       content: input.content,
       imageCount: Math.max(0, Math.min(9, input.imageCount)),
       catIds,

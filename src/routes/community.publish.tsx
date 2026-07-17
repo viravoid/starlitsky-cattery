@@ -65,7 +65,8 @@ function Publish() {
     if (id) navigate({ to: "/community/post/$id", params: { id } });
   };
 
-  const availableCats = role === "keeper" ? CATEGORIES : (["家长分享"] as const);
+  const availableCategories =
+    role === "keeper" ? CATEGORIES : (["家长分享", "碎碎念"] as const);
 
   return (
     <PhoneFrame title="发布动态" showBack>
@@ -74,7 +75,7 @@ function Publish() {
         <div>
           <p className="mb-2 text-[12.5px] font-semibold text-heading">分类</p>
           <div className="flex flex-wrap gap-2">
-            {availableCats.map((c) => (
+            {availableCategories.map((c) => (
               <button
                 key={c}
                 onClick={() => setCategory(c as Category)}
