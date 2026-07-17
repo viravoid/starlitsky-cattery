@@ -7,6 +7,12 @@ import { EditIcon, TrashIcon, PlusIcon, XIcon, CatIcon } from "@/components/mobi
 import { actions, useCommunity, type Post } from "@/lib/community-store";
 import { LITTERS } from "@/lib/cattery-data";
 
+function getLinkedOptionClass(selected: boolean) {
+  return selected
+    ? "bg-sunny/60 text-[#b48725] shadow-card"
+    : "border border-border bg-background text-muted-foreground";
+}
+
 export const Route = createFileRoute("/community/my-posts")({
   head: () => ({ meta: [{ title: "我的发布 — 猫友圈" }] }),
   component: MyPosts,
@@ -192,9 +198,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
                   key={c.id}
                   onClick={() => toggleCat(c.id)}
                   className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${
-                    on
-                      ? "bg-mint/70 text-[#6b8db3] shadow-card"
-                      : "border border-border bg-background text-muted-foreground"
+                    getLinkedOptionClass(on)
                   }`}
                 >
                   <CatIcon className="h-3.5 w-3.5" />
@@ -218,9 +222,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
                 key={l}
                 onClick={() => toggleLitter(l)}
                 className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
-                  on
-                    ? "bg-sunny/60 text-[#b48725] shadow-card"
-                    : "border border-border bg-background text-muted-foreground"
+                  getLinkedOptionClass(on)
                 }`}
               >
                 {l}

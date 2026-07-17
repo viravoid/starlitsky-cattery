@@ -11,6 +11,12 @@ import {
 } from "@/lib/community-store";
 import { LITTERS } from "@/lib/cattery-data";
 
+function getLinkedOptionClass(selected: boolean) {
+  return selected
+    ? "bg-sunny/60 text-[#b48725] shadow-card"
+    : "border border-border bg-card text-muted-foreground";
+}
+
 export const Route = createFileRoute("/community/publish")({
   head: () => ({ meta: [{ title: "发布动态 — 猫友圈" }] }),
   component: Publish,
@@ -154,9 +160,7 @@ function Publish() {
                     key={c.id}
                     onClick={() => toggleCat(c.id)}
                     className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${
-                      on
-                        ? "bg-mint/70 text-[#6b8db3] shadow-card"
-                        : "border border-border bg-card text-muted-foreground"
+                      getLinkedOptionClass(on)
                     }`}
                   >
                     <CatIcon className="h-3.5 w-3.5" />
@@ -181,9 +185,7 @@ function Publish() {
                   key={l}
                   onClick={() => toggleLitter(l)}
                   className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
-                    on
-                      ? "bg-sunny/60 text-[#b48725] shadow-card"
-                      : "border border-border bg-card text-muted-foreground"
+                    getLinkedOptionClass(on)
                   }`}
                 >
                   {l}
