@@ -152,7 +152,7 @@ export function PostCard({
               tone="sunny"
               className="px-3 py-1 text-[12px] font-medium"
             >
-              çªæ¬¡ {litter}
+              {litter}
             </Pill>
           ))}
         </div>
