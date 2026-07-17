@@ -84,6 +84,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
   const cats = useCommunity((s) => s.cats);
+  const canEdit = post.authorId === currentUserId;
 
   const [content, setContent] = useState(post.content);
   const [imageCount, setImageCount] = useState(post.imageCount);
@@ -107,10 +108,18 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
       content: content.trim(),
       imageCount,
       catIds,
-      litterIds: role === "keeper" ? litterIds : post.litterIds,
+      litterIds,
     });
     onClose();
   };
+
+  if (!canEdit) {
+    return (
+      <div className="rounded-2xl border border-border bg-card/70 p-4 text-[12.5px] text-muted-foreground">
+        只能编辑自己发布的动态。
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 rounded-2xl border border-border bg-card/70 p-4">
@@ -197,31 +206,29 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
         )}
       </div>
 
-      {role === "keeper" && (
-        <div>
-          <p className="mb-1.5 text-[12px] font-medium text-heading">
-            关联窝次 · 可选
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {LITTERS.map((l) => {
-              const on = litterIds.includes(l);
-              return (
-                <button
-                  key={l}
-                  onClick={() => toggleLitter(l)}
-                  className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
-                    on
-                      ? "bg-sunny/60 text-[#b48725] shadow-card"
-                      : "border border-border bg-background text-muted-foreground"
-                  }`}
-                >
-                  {l}
-                </button>
-              );
-            })}
-          </div>
+      <div>
+        <p className="mb-1.5 text-[12px] font-medium text-heading">
+          关联窝次 · 可选
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {LITTERS.map((l) => {
+            const on = litterIds.includes(l);
+            return (
+              <button
+                key={l}
+                onClick={() => toggleLitter(l)}
+                className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
+                  on
+                    ? "bg-sunny/60 text-[#b48725] shadow-card"
+                    : "border border-border bg-background text-muted-foreground"
+                }`}
+              >
+                {l}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
 
       <div className="flex gap-2">

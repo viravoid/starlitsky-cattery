@@ -60,7 +60,7 @@ function Publish() {
       content: content.trim(),
       imageCount,
       catIds,
-      litterIds: role === "keeper" ? litterIds : [],
+      litterIds,
     });
     if (id) navigate({ to: "/community/post/$id", params: { id } });
   };
@@ -167,32 +167,30 @@ function Publish() {
           )}
         </div>
 
-        {/* linked litter (keeper only) */}
-        {role === "keeper" && (
-          <div>
-            <p className="mb-2 text-[12.5px] font-semibold text-heading">
-              关联窝次 · 可选
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {LITTERS.map((l) => {
-                const on = litterIds.includes(l);
-                return (
-                  <button
-                    key={l}
-                    onClick={() => toggleLitter(l)}
-                    className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
-                      on
-                        ? "bg-sunny/60 text-[#b48725] shadow-card"
-                        : "border border-border bg-card text-muted-foreground"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                );
-              })}
-            </div>
+        {/* linked litter */}
+        <div>
+          <p className="mb-2 text-[12.5px] font-semibold text-heading">
+            关联窝次 · 可选
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {LITTERS.map((l) => {
+              const on = litterIds.includes(l);
+              return (
+                <button
+                  key={l}
+                  onClick={() => toggleLitter(l)}
+                  className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
+                    on
+                      ? "bg-sunny/60 text-[#b48725] shadow-card"
+                      : "border border-border bg-card text-muted-foreground"
+                  }`}
+                >
+                  {l}
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
 
 
         <div className="text-[11px] leading-relaxed text-warm">

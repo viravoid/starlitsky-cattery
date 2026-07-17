@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
 import { PlusIcon, CatIcon, PawIcon, UserIcon } from "@/components/mobile/icons";
@@ -14,6 +15,7 @@ import {
   CATEGORIES,
   type Category,
 } from "@/lib/community-store";
+import { LITTERS, type Litter } from "@/lib/cattery-data";
 
 export const Route = createFileRoute("/community/")({
   head: () => ({
@@ -31,6 +33,8 @@ export const Route = createFileRoute("/community/")({
 
 function CommunityFeed() {
   const [filter, setFilter] = useState<Category | "全部">("全部");
+  const [litterFilter, setLitterFilter] = useState<Litter | "全部">("全部");
+  const [litterOpen, setLitterOpen] = useState(false);
   const posts = useCommunity((s) => s.posts).filter((p) => !p.hidden);
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
@@ -38,7 +42,11 @@ function CommunityFeed() {
   const me = users.find((u) => u.id === currentUserId);
 
   const filtered = posts
-    .filter((p) => filter === "全部" || p.category === filter)
+    .filter(
+      (p) =>
+        (filter === "全部" || p.category === filter) &&
+        (litterFilter === "全部" || (p.litterIds ?? []).includes(litterFilter)),
+    )
     .sort((a, b) => {
       if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
       return b.createdAt.localeCompare(a.createdAt);
@@ -154,7 +162,65 @@ function CommunityFeed() {
             </button>
           );
         })}
+        <button
+          onClick={() => setLitterOpen((open) => !open)}
+          className="pressable relative flex shrink-0 items-center gap-1.5 py-2.5 text-[13px]"
+          style={{
+            color: litterFilter === "全部" ? "#8c929a" : "#b48725",
+            fontWeight: litterFilter === "全部" ? 500 : 600,
+          }}
+          aria-expanded={litterOpen}
+        >
+          窝次{litterFilter === "全部" ? "" : `：${litterFilter}`}
+          <ChevronDown
+            className="h-3.5 w-3.5 transition-transform"
+            style={{
+              transform: litterOpen ? "rotate(180deg)" : "none",
+              color: litterFilter === "全部" ? "#6b8db3" : "#b48725",
+            }}
+          />
+          {litterFilter !== "全部" && (
+            <span
+              aria-hidden
+              className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-8 rounded-full"
+              style={{ backgroundColor: "#e7c15d" }}
+            />
+          )}
+        </button>
       </div>
+
+      {litterOpen && (
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-3">
+          {(["全部", ...LITTERS] as const).map((l) => {
+            const on = litterFilter === l;
+            return (
+              <button
+                key={l}
+                onClick={() => {
+                  setLitterFilter(l);
+                  setLitterOpen(false);
+                }}
+                className="pressable shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold"
+                style={
+                  on
+                    ? {
+                        backgroundColor: "#f9f0d4",
+                        color: "#b48725",
+                        border: "1px solid #e7c15d",
+                      }
+                    : {
+                        backgroundColor: "#fffdf8",
+                        color: "#6b8db3",
+                        border: "1px solid #e8dfcf",
+                      }
+                }
+              >
+                {l}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* feed — extra breathing room */}
       <Section className="space-y-5 pb-28 pt-3">
