@@ -71,7 +71,7 @@ function PostDetail() {
                       tone="sunny"
                       className="px-3 py-1 text-[12px] font-medium"
                     >
-                      窝次 {litter}
+                      {litter}
                     </Pill>
                   ))}
                 </div>
