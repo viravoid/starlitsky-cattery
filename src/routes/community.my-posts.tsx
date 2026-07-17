@@ -7,6 +7,12 @@ import { EditIcon, TrashIcon, PlusIcon, XIcon, CatIcon } from "@/components/mobi
 import { actions, useCommunity, type Post } from "@/lib/community-store";
 import { LITTERS } from "@/lib/cattery-data";
 
+function getLinkedOptionClass(selected: boolean) {
+  return selected
+    ? "bg-sunny/60 text-[#b48725] shadow-card"
+    : "border border-border bg-background text-muted-foreground";
+}
+
 export const Route = createFileRoute("/community/my-posts")({
   head: () => ({ meta: [{ title: "我的发布 — 猫友圈" }] }),
   component: MyPosts,
@@ -84,6 +90,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
   const cats = useCommunity((s) => s.cats);
+  const canEdit = post.authorId === currentUserId;
 
   const [content, setContent] = useState(post.content);
   const [imageCount, setImageCount] = useState(post.imageCount);
@@ -107,10 +114,18 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
       content: content.trim(),
       imageCount,
       catIds,
-      litterIds: role === "keeper" ? litterIds : post.litterIds,
+      litterIds,
     });
     onClose();
   };
+
+  if (!canEdit) {
+    return (
+      <div className="rounded-2xl border border-border bg-card/70 p-4 text-[12.5px] text-muted-foreground">
+        只能编辑自己发布的动态。
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 rounded-2xl border border-border bg-card/70 p-4">
@@ -183,9 +198,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
                   key={c.id}
                   onClick={() => toggleCat(c.id)}
                   className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${
-                    on
-                      ? "bg-mint/70 text-[#6b8db3] shadow-card"
-                      : "border border-border bg-background text-muted-foreground"
+                    getLinkedOptionClass(on)
                   }`}
                 >
                   <CatIcon className="h-3.5 w-3.5" />
@@ -197,31 +210,27 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
         )}
       </div>
 
-      {role === "keeper" && (
-        <div>
-          <p className="mb-1.5 text-[12px] font-medium text-heading">
-            关联窝次 · 可选
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {LITTERS.map((l) => {
-              const on = litterIds.includes(l);
-              return (
-                <button
-                  key={l}
-                  onClick={() => toggleLitter(l)}
-                  className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
-                    on
-                      ? "bg-sunny/60 text-[#b48725] shadow-card"
-                      : "border border-border bg-background text-muted-foreground"
-                  }`}
-                >
-                  {l}
-                </button>
-              );
-            })}
-          </div>
+      <div>
+        <p className="mb-1.5 text-[12px] font-medium text-heading">
+          关联窝次 · 可选
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {LITTERS.map((l) => {
+            const on = litterIds.includes(l);
+            return (
+              <button
+                key={l}
+                onClick={() => toggleLitter(l)}
+                className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
+                  getLinkedOptionClass(on)
+                }`}
+              >
+                {l}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
 
       <div className="flex gap-2">

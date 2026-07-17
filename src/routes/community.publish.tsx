@@ -11,6 +11,12 @@ import {
 } from "@/lib/community-store";
 import { LITTERS } from "@/lib/cattery-data";
 
+function getLinkedOptionClass(selected: boolean) {
+  return selected
+    ? "bg-sunny/60 text-[#b48725] shadow-card"
+    : "border border-border bg-card text-muted-foreground";
+}
+
 export const Route = createFileRoute("/community/publish")({
   head: () => ({ meta: [{ title: "发布动态 — 猫友圈" }] }),
   component: Publish,
@@ -60,12 +66,13 @@ function Publish() {
       content: content.trim(),
       imageCount,
       catIds,
-      litterIds: role === "keeper" ? litterIds : [],
+      litterIds,
     });
     if (id) navigate({ to: "/community/post/$id", params: { id } });
   };
 
-  const availableCats = role === "keeper" ? CATEGORIES : (["家长分享"] as const);
+  const availableCategories =
+    role === "keeper" ? CATEGORIES : (["家长分享", "碎碎念"] as const);
 
   return (
     <PhoneFrame title="发布动态" showBack>
@@ -74,7 +81,7 @@ function Publish() {
         <div>
           <p className="mb-2 text-[12.5px] font-semibold text-heading">分类</p>
           <div className="flex flex-wrap gap-2">
-            {availableCats.map((c) => (
+            {availableCategories.map((c) => (
               <button
                 key={c}
                 onClick={() => setCategory(c as Category)}
@@ -153,9 +160,7 @@ function Publish() {
                     key={c.id}
                     onClick={() => toggleCat(c.id)}
                     className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${
-                      on
-                        ? "bg-mint/70 text-[#6b8db3] shadow-card"
-                        : "border border-border bg-card text-muted-foreground"
+                      getLinkedOptionClass(on)
                     }`}
                   >
                     <CatIcon className="h-3.5 w-3.5" />
@@ -167,32 +172,28 @@ function Publish() {
           )}
         </div>
 
-        {/* linked litter (keeper only) */}
-        {role === "keeper" && (
-          <div>
-            <p className="mb-2 text-[12.5px] font-semibold text-heading">
-              关联窝次 · 可选
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {LITTERS.map((l) => {
-                const on = litterIds.includes(l);
-                return (
-                  <button
-                    key={l}
-                    onClick={() => toggleLitter(l)}
-                    className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
-                      on
-                        ? "bg-sunny/60 text-[#b48725] shadow-card"
-                        : "border border-border bg-card text-muted-foreground"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                );
-              })}
-            </div>
+        {/* linked litter */}
+        <div>
+          <p className="mb-2 text-[12.5px] font-semibold text-heading">
+            关联窝次 · 可选
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {LITTERS.map((l) => {
+              const on = litterIds.includes(l);
+              return (
+                <button
+                  key={l}
+                  onClick={() => toggleLitter(l)}
+                  className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
+                    getLinkedOptionClass(on)
+                  }`}
+                >
+                  {l}
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
 
 
         <div className="text-[11px] leading-relaxed text-warm">

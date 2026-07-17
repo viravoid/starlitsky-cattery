@@ -93,6 +93,7 @@ export function PostCard({
   const linkedCats = post.catIds
     .map((id) => cats.find((c) => c.id === id))
     .filter(Boolean) as { id: string; name: string }[];
+  const linkedLitters = post.litterIds ?? [];
 
   const role = post.authorRole === "猫舍主理人" ? "keeper" : "parent";
 
@@ -132,7 +133,7 @@ export function PostCard({
       </Link>
 
       {/* linked cats — the main avatar surface */}
-      {linkedCats.length > 0 && (
+      {(linkedCats.length > 0 || linkedLitters.length > 0) && (
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {linkedCats.map((c) => (
             <Link
@@ -144,6 +145,15 @@ export function PostCard({
               <CatAvatar size={32} name={c.name} />
               {c.name}
             </Link>
+          ))}
+          {linkedLitters.map((litter) => (
+            <Pill
+              key={`${post.id}-${litter}`}
+              tone="sunny"
+              className="px-3 py-1 text-[12px] font-medium"
+            >
+              çªæ¬¡ {litter}
+            </Pill>
           ))}
         </div>
       )}

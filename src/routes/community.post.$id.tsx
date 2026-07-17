@@ -9,11 +9,7 @@ import {
   CommentComposer,
   CatAvatar,
 } from "@/components/mobile/community/CommunityBits";
-import {
-  actions,
-  formatTime,
-  useCommunity,
-} from "@/lib/community-store";
+import { actions, formatTime, useCommunity } from "@/lib/community-store";
 
 export const Route = createFileRoute("/community/post/$id")({
   head: () => ({
@@ -34,6 +30,7 @@ function PostDetail() {
   const linkedCats = post.catIds
     .map((cid) => cats.find((c) => c.id === cid))
     .filter(Boolean) as { id: string; name: string }[];
+  const linkedLitters = post.litterIds ?? [];
 
   const authorRoleKind = post.authorRole === "猫舍主理人" ? "keeper" : "parent";
   const isMine = currentUserId === post.authorId;
@@ -61,26 +58,41 @@ function PostDetail() {
 
           <PostImages count={post.imageCount} postId={post.id} />
 
-          {linkedCats.length > 0 && (
+          {(linkedCats.length > 0 || linkedLitters.length > 0) && (
             <div className="pt-1">
               <p className="mb-2 text-[11px] uppercase tracking-[0.18em] text-warm/80">
-                关联猫咪
+                关联信息
               </p>
-              <div className="flex flex-wrap gap-4">
-                {linkedCats.map((c) => (
-                  <Link
-                    key={c.id}
-                    to="/community/cat/$id"
-                    params={{ id: c.id }}
-                    className="pressable flex flex-col items-center gap-1.5"
-                  >
-                    <CatAvatar size={64} name={c.name} />
-                    <span className="text-[12px] font-medium text-heading">
-                      {c.name}
-                    </span>
-                  </Link>
-                ))}
-              </div>
+              {linkedLitters.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {linkedLitters.map((litter) => (
+                    <Pill
+                      key={`${post.id}-${litter}`}
+                      tone="sunny"
+                      className="px-3 py-1 text-[12px] font-medium"
+                    >
+                      窝次 {litter}
+                    </Pill>
+                  ))}
+                </div>
+              )}
+              {linkedCats.length > 0 && (
+                <div className="flex flex-wrap gap-4">
+                  {linkedCats.map((c) => (
+                    <Link
+                      key={c.id}
+                      to="/community/cat/$id"
+                      params={{ id: c.id }}
+                      className="pressable flex flex-col items-center gap-1.5"
+                    >
+                      <CatAvatar size={64} name={c.name} />
+                      <span className="text-[12px] font-medium text-heading">
+                        {c.name}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -129,7 +141,6 @@ function PostDetail() {
           )}
         </article>
 
-        {/* comments — no avatars, just text blocks */}
         <div id="comments-section">
           <h3 className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.16em] text-warm">
             评论
@@ -190,5 +201,3 @@ function PostDetail() {
     </PhoneFrame>
   );
 }
-
-
