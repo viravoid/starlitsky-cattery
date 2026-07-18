@@ -265,38 +265,58 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const activeCopy = SECTION_COPY[section];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col border-r border-border bg-card lg:flex">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] flex-col border-r border-border bg-card lg:flex">
         <SidebarHeader onLogout={onLogout} />
         <AdminNav active={section} onSelect={selectSection} />
       </aside>
 
       <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="flex h-14 items-center justify-between px-4">
+        <div className="flex h-12 items-center justify-between px-3">
           <div>
-            <p className="text-[13px] font-bold text-heading">星月后台</p>
-            <p className="text-[11px] text-muted-foreground">{activeCopy.title}</p>
+            <p className="text-[13px] font-bold text-heading">{activeCopy.title}</p>
+            <p className="text-[10.5px] text-muted-foreground">星月后台</p>
           </div>
           <button
             onClick={() => setMobileNavOpen((open) => !open)}
-            className="pressable inline-flex h-9 items-center justify-center gap-1.5 rounded-[7px] border border-border bg-background px-2.5 text-[12px] font-semibold text-heading"
+            className="pressable inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] border border-border bg-background px-2.5 text-[12px] font-semibold text-heading"
             aria-label={mobileNavOpen ? "关闭菜单" : "打开菜单"}
           >
-            {mobileNavOpen ? <XIcon className="size-4" /> : null}
             <span>菜单</span>
           </button>
         </div>
-        {mobileNavOpen && (
-          <div className="max-h-[72vh] overflow-y-auto border-t border-border bg-card px-3 py-3">
-            <AdminNav active={section} onSelect={selectSection} compact />
-          </div>
-        )}
       </header>
 
-      <main className="lg:pl-72">
-        <div className="mx-auto flex min-h-screen max-w-[1180px] flex-col gap-3 px-3 py-3 sm:px-5 lg:gap-4 lg:px-8 lg:py-6">
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-40 bg-heading/20 lg:hidden" role="presentation">
+          <div className="absolute inset-y-0 right-0 flex w-[min(340px,88vw)] flex-col border-l border-border bg-card shadow-card">
+            <div className="flex h-12 items-center justify-between border-b border-border px-3">
+              <div>
+                <p className="text-[13px] font-bold text-heading">后台菜单</p>
+                <p className="text-[10.5px] text-muted-foreground">{activeCopy.title}</p>
+              </div>
+              <button
+                onClick={() => setMobileNavOpen(false)}
+                className="pressable grid size-8 place-items-center rounded-[6px] border border-border bg-background text-heading"
+                aria-label="关闭菜单"
+              >
+                <XIcon className="size-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+              <AdminNav active={section} onSelect={selectSection} compact />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="lg:pl-[240px]">
+        <DemoNotice />
+      </div>
+
+      <main className="lg:pl-[240px]">
+        <div className="flex min-h-screen w-full max-w-[1600px] flex-col gap-2.5 px-3 py-2.5 sm:px-5 lg:gap-5 lg:px-8 lg:py-6 2xl:max-w-none">
           <PageHeader title={activeCopy.title} desc={activeCopy.desc} />
-          <DemoNotice />
           {notice && <ActionNotice message={notice} />}
 
           {section === "overview" && (
@@ -352,9 +372,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
 function SidebarHeader({ onLogout }: { onLogout: () => void }) {
   return (
-    <div className="border-b border-border px-5 py-4">
+    <div className="border-b border-border px-4 py-4">
       <div className="flex items-center gap-3">
-        <span className="grid size-10 place-items-center rounded-[8px] bg-primary/12 text-primary">
+        <span className="grid size-9 place-items-center rounded-[7px] bg-primary/12 text-primary">
           <CatIcon className="size-5" />
         </span>
         <div>
@@ -366,7 +386,7 @@ function SidebarHeader({ onLogout }: { onLogout: () => void }) {
       </div>
       <button
         onClick={onLogout}
-        className="pressable mt-4 h-8 w-full rounded-[8px] border border-border bg-background text-[12px] font-semibold text-muted-foreground"
+        className="pressable mt-4 h-8 w-full rounded-[7px] border border-border bg-background text-[13px] font-semibold text-muted-foreground"
       >
         退出登录
       </button>
@@ -384,10 +404,10 @@ function AdminNav({
   compact?: boolean;
 }) {
   return (
-    <nav className={cn("flex flex-col gap-4 overflow-y-auto", compact ? "" : "px-4 py-4")}>
+    <nav className={cn("flex flex-col gap-4 overflow-y-auto", compact ? "" : "px-3 py-4")}>
       {NAV_GROUPS.map((group) => (
         <div key={group.title} className="flex flex-col gap-1">
-          <p className="px-2 text-[11px] font-semibold text-muted-foreground">{group.title}</p>
+          <p className="px-2 text-[11.5px] font-semibold text-muted-foreground">{group.title}</p>
           <div className="flex flex-col gap-1">
             {group.items.map(({ key, label, Icon }) => {
               const on = active === key;
@@ -396,7 +416,7 @@ function AdminNav({
                   key={key}
                   onClick={() => onSelect(key)}
                   className={cn(
-                    "pressable flex h-9 items-center gap-2 rounded-[8px] px-2.5 text-left text-[13px] font-medium",
+                    "pressable flex h-9 items-center gap-2 rounded-[7px] px-2.5 text-left text-[13px] font-medium lg:text-[13.5px]",
                     on ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-muted",
                   )}
                 >
@@ -414,10 +434,10 @@ function AdminNav({
 
 function PageHeader({ title, desc }: { title: string; desc: string }) {
   return (
-    <div className="border-b border-border pb-3 lg:pb-4">
+    <div className="border-b border-border pb-2.5 lg:pb-4">
       <div>
-        <h1 className="text-[18px] font-bold text-heading lg:text-[20px]">{title}</h1>
-        <p className="mt-0.5 text-[12px] text-muted-foreground lg:mt-1 lg:text-[12.5px]">{desc}</p>
+        <h1 className="text-[17px] font-bold text-heading lg:text-[26px]">{title}</h1>
+        <p className="mt-0.5 text-[12px] text-muted-foreground lg:mt-1.5 lg:text-[14px]">{desc}</p>
       </div>
     </div>
   );
@@ -425,7 +445,7 @@ function PageHeader({ title, desc }: { title: string; desc: string }) {
 
 function DemoNotice() {
   return (
-    <div className="rounded-[6px] border border-sunflower/35 bg-sunny/30 px-3 py-1.5 text-[12px] font-medium text-[#9b7927]">
+    <div className="border-b border-sunflower/35 bg-sunny/25 px-3 py-1.5 text-[12px] font-medium text-[#9b7927] sm:px-5 lg:px-8 lg:text-[13px]">
       当前为视觉 Demo，数据修改不会真实保存。
     </div>
   );
@@ -433,7 +453,7 @@ function DemoNotice() {
 
 function ActionNotice({ message }: { message: string }) {
   return (
-    <div className="rounded-[6px] border border-creamblue/60 bg-creamblue/15 px-3 py-1.5 text-[12px] text-muted-foreground">
+    <div className="rounded-[6px] border border-creamblue/60 bg-creamblue/15 px-3 py-1.5 text-[12px] text-muted-foreground lg:text-[13px]">
       {message}
     </div>
   );
@@ -449,14 +469,14 @@ function Panel({ children, className = "" }: { children: ReactNode; className?: 
 
 function PanelTitle({ title, desc, action }: { title: string; desc?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 border-b border-border/80 px-3 py-2.5 md:flex-row md:items-center md:justify-between lg:px-4 lg:py-3">
+    <div className="flex flex-row items-start justify-between gap-2 border-b border-border/80 px-3 py-2.5 lg:px-4 lg:py-3">
       <div>
-        <h2 className="text-[14px] font-semibold text-heading">{title}</h2>
+        <h2 className="text-[14px] font-semibold text-heading lg:text-[16px]">{title}</h2>
         {desc && (
-          <p className="mt-0.5 text-[11.5px] text-muted-foreground lg:text-[12px]">{desc}</p>
+          <p className="mt-0.5 text-[11.5px] text-muted-foreground lg:text-[13px]">{desc}</p>
         )}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
@@ -474,7 +494,7 @@ function ActionButton({
     <button
       onClick={onClick}
       className={cn(
-        "pressable inline-flex h-7 items-center justify-center rounded-[6px] px-2.5 text-[11.5px] font-semibold",
+        "pressable inline-flex h-7 items-center justify-center rounded-[6px] px-2.5 text-[11.5px] font-semibold lg:h-8 lg:px-3 lg:text-[13px]",
         tone === "default" && "bg-primary text-primary-foreground",
         tone === "quiet" && "border border-border bg-background text-muted-foreground",
         tone === "danger" && "border border-wine/35 bg-wine/10 text-wine",
@@ -498,7 +518,7 @@ function StatusBadge({ children, tone = "sky" }: { children: ReactNode; tone?: s
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-[5px] px-1.5 py-0.5 text-[11px] font-semibold",
+        "inline-flex items-center rounded-[5px] px-1.5 py-0.5 text-[11.5px] font-semibold lg:px-2 lg:text-[12.5px]",
         tones[tone] ?? tones.sky,
       )}
     >
@@ -509,7 +529,7 @@ function StatusBadge({ children, tone = "sky" }: { children: ReactNode; tone?: s
 
 function FieldLine({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-border/60 py-1.5 text-[12px] last:border-0 lg:grid-cols-[96px_minmax(0,1fr)] lg:py-2 lg:text-[12.5px]">
+    <div className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-border/60 py-1.5 text-[12px] last:border-0 lg:grid-cols-[100px_minmax(0,1fr)] lg:py-2.5 lg:text-[13.5px]">
       <span className="text-muted-foreground">{label}</span>
       <span className="min-w-0 text-card-foreground">{value}</span>
     </div>
@@ -519,11 +539,11 @@ function FieldLine({ label, value }: { label: string; value: ReactNode }) {
 function TableShell({ columns, children }: { columns: string[]; children: ReactNode }) {
   return (
     <div className="hidden overflow-x-auto md:block">
-      <table className="w-full min-w-[760px] border-collapse text-left text-[12.5px]">
+      <table className="w-full min-w-[920px] border-collapse text-left text-[13.5px]">
         <thead>
-          <tr className="border-b border-border bg-muted/45 text-[11px] font-semibold text-muted-foreground">
+          <tr className="border-b border-border bg-muted/45 text-[12.5px] font-semibold text-muted-foreground">
             {columns.map((column) => (
-              <th key={column} className="px-3 py-2">
+              <th key={column} className="px-3 py-2.5">
                 {column}
               </th>
             ))}
@@ -608,22 +628,24 @@ function OverviewPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
         {stats.map((stat) => (
           <button
             key={stat.label}
             onClick={() => onJump(stat.target)}
-            className="pressable rounded-[6px] border border-border/80 bg-card px-3 py-2.5 text-left"
+            className="pressable rounded-[6px] border border-border/80 bg-card px-3 py-2.5 text-left lg:px-4 lg:py-3"
           >
-            <p className="text-[20px] font-bold text-heading">{stat.value}</p>
-            <p className="mt-0.5 text-[11.5px] text-muted-foreground">{stat.label}</p>
+            <p className="text-[20px] font-bold text-heading lg:text-[24px]">{stat.value}</p>
+            <p className="mt-0.5 text-[11.5px] text-muted-foreground lg:text-[13px]">
+              {stat.label}
+            </p>
           </button>
         ))}
       </div>
-      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.45fr)]">
         <Panel>
           <PanelTitle title="待处理事项" desc="Demo 中仅做入口和状态提示。" />
-          <div className="grid gap-0 divide-y divide-border/70 px-4 py-1 text-[12.5px]">
+          <div className="grid gap-0 divide-y divide-border/70 px-4 py-1 text-[12.5px] lg:text-[13.5px]">
             <OverviewTodo
               title="未查看问卷"
               value={`${pendingForms.length} 条`}
@@ -643,7 +665,7 @@ function OverviewPanel({
         </Panel>
         <Panel>
           <PanelTitle title="后台范围提醒" />
-          <div className="flex flex-col gap-2 px-4 py-3 text-[12.5px] leading-relaxed text-card-foreground">
+          <div className="flex flex-col gap-2 px-4 py-3 text-[13px] leading-relaxed text-card-foreground lg:text-[13.5px]">
             <p>本轮保留视觉 Demo，不接数据库、不做真实鉴权、不做图片上传。</p>
             <p>“喂养体系 / 文章”已从导航和页面中删除。</p>
             <p>窝次、家长详情、猫咪关联仅作为页面结构和操作路径演示。</p>
@@ -690,7 +712,7 @@ function KittensPanel({
   const selectedKitten = KITTENS.find((kitten) => kitten.id === selectedKittenId) ?? null;
 
   return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
       <Panel className={cn(selectedKitten ? "hidden md:block" : "")}>
         <PanelTitle
           title="在售小猫列表"
@@ -899,7 +921,7 @@ function LittersPanel({
   const [showAdd, setShowAdd] = useState(false);
 
   return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
       <Panel className={cn(selected ? "hidden md:block" : "")}>
         <PanelTitle
           title="窝次列表"
@@ -1083,7 +1105,7 @@ function ParentsPanel({
   };
 
   return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
       <Panel className={cn(selectedParent ? "hidden md:block" : "")}>
         <PanelTitle
           title="家长列表"
@@ -1251,7 +1273,7 @@ function FormsPanel({
   };
 
   return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(400px,1fr)]">
       <Panel className={cn(mobileDetailOpen ? "hidden md:block" : "")}>
         <PanelTitle title="问卷列表" desc="用户端提交尚未真实入库；此处仍为示例数据。" />
         <TableShell columns={["提交时间", "姓名", "电话", "城市", "预算", "偏好", "状态", "操作"]}>
