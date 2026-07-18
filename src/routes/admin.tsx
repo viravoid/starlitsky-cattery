@@ -236,23 +236,25 @@ function Login({ onLogin }: { onLogin: () => void }) {
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [section, setSection] = useState<SectionKey>("overview");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [notice, setNotice] = useState("当前为视觉 Demo，数据修改不会真实保存。");
+  const [notice, setNotice] = useState("");
   const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
   const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
   const [selectedParentId, setSelectedParentId] = useState<string>("");
-  const [selectedLitter, setSelectedLitter] = useState<LitterName>(LITTERS[0]);
+  const [selectedLitter, setSelectedLitter] = useState<LitterName | "">("");
 
   const posts = useCommunity((s) => s.posts);
   const users = useCommunity((s) => s.users);
   const cats = useCommunity((s) => s.cats);
   const parentUsers = users.filter((u) => u.role === "parent");
-  const selectedParent =
-    parentUsers.find((u) => u.id === selectedParentId) ?? parentUsers[0] ?? null;
+  const selectedParent = parentUsers.find((u) => u.id === selectedParentId) ?? null;
   const selectedForm = forms.find((f) => f.id === selectedFormId) ?? forms[0] ?? null;
 
   const selectSection = (key: SectionKey) => {
     setSection(key);
     setMobileNavOpen(false);
+    setNotice("");
+    setSelectedParentId("");
+    setSelectedLitter("");
   };
 
   const setFormStatus = (id: string, status: FormStatus) => {
@@ -277,10 +279,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
           <button
             onClick={() => setMobileNavOpen((open) => !open)}
-            className="pressable grid size-9 place-items-center rounded-[8px] border border-border bg-background text-heading"
+            className="pressable inline-flex h-9 items-center justify-center gap-1.5 rounded-[7px] border border-border bg-background px-2.5 text-[12px] font-semibold text-heading"
             aria-label={mobileNavOpen ? "关闭菜单" : "打开菜单"}
           >
-            {mobileNavOpen ? <XIcon className="size-4" /> : <RouteIcon className="size-4" />}
+            {mobileNavOpen ? <XIcon className="size-4" /> : null}
+            <span>菜单</span>
           </button>
         </div>
         {mobileNavOpen && (
@@ -291,13 +294,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       </header>
 
       <main className="lg:pl-72">
-        <div className="mx-auto flex min-h-screen max-w-[1180px] flex-col gap-4 px-4 py-4 sm:px-5 lg:px-8 lg:py-6">
-          <PageHeader
-            title={activeCopy.title}
-            desc={activeCopy.desc}
-            onPrimary={() => setNotice("已触发 Demo 主操作；本轮不做真实保存。")}
-          />
-          <DemoNotice message={notice} />
+        <div className="mx-auto flex min-h-screen max-w-[1180px] flex-col gap-3 px-3 py-3 sm:px-5 lg:gap-4 lg:px-8 lg:py-6">
+          <PageHeader title={activeCopy.title} desc={activeCopy.desc} />
+          <DemoNotice />
+          {notice && <ActionNotice message={notice} />}
 
           {section === "overview" && (
             <OverviewPanel
@@ -412,45 +412,36 @@ function AdminNav({
   );
 }
 
-function PageHeader({
-  title,
-  desc,
-  onPrimary,
-}: {
-  title: string;
-  desc: string;
-  onPrimary: () => void;
-}) {
+function PageHeader({ title, desc }: { title: string; desc: string }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
+    <div className="border-b border-border pb-3 lg:pb-4">
       <div>
-        <h1 className="text-[20px] font-bold text-heading">{title}</h1>
-        <p className="mt-1 text-[12.5px] text-muted-foreground">{desc}</p>
+        <h1 className="text-[18px] font-bold text-heading lg:text-[20px]">{title}</h1>
+        <p className="mt-0.5 text-[12px] text-muted-foreground lg:mt-1 lg:text-[12.5px]">{desc}</p>
       </div>
-      <button
-        onClick={onPrimary}
-        className="pressable inline-flex h-9 items-center justify-center gap-1.5 rounded-[8px] bg-primary px-3 text-[12px] font-semibold text-primary-foreground md:w-auto"
-      >
-        <PlusIcon className="size-3.5" />
-        Demo 主操作
-      </button>
     </div>
   );
 }
 
-function DemoNotice({ message }: { message: string }) {
+function DemoNotice() {
   return (
-    <div className="rounded-[8px] border border-sunflower/45 bg-sunny/45 px-3 py-2 text-[12.5px] font-medium text-[#9b7927]">
-      当前为视觉 Demo，数据修改不会真实保存。{message ? ` ${message}` : ""}
+    <div className="rounded-[6px] border border-sunflower/35 bg-sunny/30 px-3 py-1.5 text-[12px] font-medium text-[#9b7927]">
+      当前为视觉 Demo，数据修改不会真实保存。
+    </div>
+  );
+}
+
+function ActionNotice({ message }: { message: string }) {
+  return (
+    <div className="rounded-[6px] border border-creamblue/60 bg-creamblue/15 px-3 py-1.5 text-[12px] text-muted-foreground">
+      {message}
     </div>
   );
 }
 
 function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section
-      className={cn("min-w-0 rounded-[8px] border border-border bg-card shadow-card", className)}
-    >
+    <section className={cn("min-w-0 rounded-[6px] border border-border/80 bg-card", className)}>
       {children}
     </section>
   );
@@ -458,10 +449,12 @@ function Panel({ children, className = "" }: { children: ReactNode; className?: 
 
 function PanelTitle({ title, desc, action }: { title: string; desc?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-2 border-b border-border/80 px-3 py-2.5 md:flex-row md:items-center md:justify-between lg:px-4 lg:py-3">
       <div>
         <h2 className="text-[14px] font-semibold text-heading">{title}</h2>
-        {desc && <p className="mt-0.5 text-[12px] text-muted-foreground">{desc}</p>}
+        {desc && (
+          <p className="mt-0.5 text-[11.5px] text-muted-foreground lg:text-[12px]">{desc}</p>
+        )}
       </div>
       {action}
     </div>
@@ -481,7 +474,7 @@ function ActionButton({
     <button
       onClick={onClick}
       className={cn(
-        "pressable inline-flex h-7 items-center justify-center rounded-[7px] px-2.5 text-[11.5px] font-semibold",
+        "pressable inline-flex h-7 items-center justify-center rounded-[6px] px-2.5 text-[11.5px] font-semibold",
         tone === "default" && "bg-primary text-primary-foreground",
         tone === "quiet" && "border border-border bg-background text-muted-foreground",
         tone === "danger" && "border border-wine/35 bg-wine/10 text-wine",
@@ -505,7 +498,7 @@ function StatusBadge({ children, tone = "sky" }: { children: ReactNode; tone?: s
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11px] font-semibold",
+        "inline-flex items-center rounded-[5px] px-1.5 py-0.5 text-[11px] font-semibold",
         tones[tone] ?? tones.sky,
       )}
     >
@@ -516,7 +509,7 @@ function StatusBadge({ children, tone = "sky" }: { children: ReactNode; tone?: s
 
 function FieldLine({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 border-b border-border/70 py-2 text-[12.5px] last:border-0">
+    <div className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-border/60 py-1.5 text-[12px] last:border-0 lg:grid-cols-[96px_minmax(0,1fr)] lg:py-2 lg:text-[12.5px]">
       <span className="text-muted-foreground">{label}</span>
       <span className="min-w-0 text-card-foreground">{value}</span>
     </div>
@@ -554,17 +547,33 @@ function MobileRecord({
   actions?: ReactNode;
 }) {
   return (
-    <div className="rounded-[8px] border border-border bg-card px-3 py-3 md:hidden">
+    <div className="border-b border-border/70 bg-card px-3 py-2 last:border-b-0 md:hidden">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold text-heading">{title}</p>
-          {meta && <div className="mt-1 text-[11.5px] text-muted-foreground">{meta}</div>}
+          <p className="truncate text-[12.5px] font-semibold text-heading">{title}</p>
+          {meta && <div className="mt-0.5 text-[11px] text-muted-foreground">{meta}</div>}
         </div>
         {actions && <div className="flex shrink-0 gap-1">{actions}</div>}
       </div>
-      {children && <div className="mt-2 flex flex-col gap-1 text-[12px]">{children}</div>}
+      {children && <div className="mt-1.5 flex flex-col gap-0.5 text-[11.5px]">{children}</div>}
     </div>
   );
+}
+
+function BackToListButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="pressable inline-flex h-8 items-center gap-1.5 rounded-[6px] border border-border bg-background px-2.5 text-[12px] font-semibold text-muted-foreground md:hidden"
+    >
+      <ChevronLeftIcon className="size-3.5" />
+      返回列表
+    </button>
+  );
+}
+
+function DemoAddBox({ children }: { children: ReactNode }) {
+  return <div className="border-t border-border/70 bg-muted/20 px-3 py-3 lg:px-4">{children}</div>;
 }
 
 function OverviewPanel({
@@ -604,10 +613,10 @@ function OverviewPanel({
           <button
             key={stat.label}
             onClick={() => onJump(stat.target)}
-            className="pressable rounded-[8px] border border-border bg-card px-3 py-3 text-left shadow-card"
+            className="pressable rounded-[6px] border border-border/80 bg-card px-3 py-2.5 text-left"
           >
-            <p className="text-[22px] font-bold text-heading">{stat.value}</p>
-            <p className="mt-1 text-[12px] text-muted-foreground">{stat.label}</p>
+            <p className="text-[20px] font-bold text-heading">{stat.value}</p>
+            <p className="mt-0.5 text-[11.5px] text-muted-foreground">{stat.label}</p>
           </button>
         ))}
       </div>
@@ -676,82 +685,144 @@ function KittensPanel({
   posts: Post[];
   users: ParentUser[];
 }) {
+  const [selectedKittenId, setSelectedKittenId] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const selectedKitten = KITTENS.find((kitten) => kitten.id === selectedKittenId) ?? null;
+
+  return (
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <Panel className={cn(selectedKitten ? "hidden md:block" : "")}>
+        <PanelTitle
+          title="在售小猫列表"
+          desc="字段重点展示状态、价格、窝次和家长关联；操作仅为 Demo 反馈。"
+          action={
+            <ActionButton onClick={() => setShowAdd((open) => !open)}>
+              {showAdd ? "收起" : "新增小猫"}
+            </ActionButton>
+          }
+        />
+        {showAdd && (
+          <DemoAddBox>
+            <div className="grid gap-2 md:grid-cols-4">
+              {["小猫名字", "颜色", "价格", "窝次"].map((placeholder) => (
+                <input
+                  key={placeholder}
+                  placeholder={placeholder}
+                  className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
+                />
+              ))}
+            </div>
+            <div className="mt-2">
+              <ActionButton onClick={() => onNotice("已模拟提交新增小猫，刷新后恢复。")}>
+                保存 Demo
+              </ActionButton>
+            </div>
+          </DemoAddBox>
+        )}
+        <TableShell
+          columns={["名字", "性别", "颜色", "状态", "价格", "父母", "窝次", "家长", "展示", "操作"]}
+        >
+          {KITTENS.map((kitten) => (
+            <tr key={kitten.id} className="align-top text-card-foreground">
+              <td className="px-3 py-2.5 font-semibold text-heading">{kitten.name}</td>
+              <td className="px-3 py-2.5">{kitten.gender}</td>
+              <td className="px-3 py-2.5">{kitten.color}</td>
+              <td className="px-3 py-2.5">
+                <StatusBadge tone={statusTone(kitten.status)}>{kitten.status}</StatusBadge>
+              </td>
+              <td className="px-3 py-2.5">{kitten.price}</td>
+              <td className="px-3 py-2.5">
+                {kitten.father} × {kitten.mother}
+              </td>
+              <td className="px-3 py-2.5">{kitten.litter ?? "未分配"}</td>
+              <td className="px-3 py-2.5">{kittenParentName(kitten, users)}</td>
+              <td className="px-3 py-2.5">
+                <StatusBadge tone="creamblue">已展示</StatusBadge>
+              </td>
+              <td className="px-3 py-2.5">
+                <RowActions
+                  actions={[
+                    ["详情", () => setSelectedKittenId(kitten.id)],
+                    ["编辑", () => onNotice(`已打开 ${kitten.name} 的编辑 Demo。`)],
+                    ["关联", () => onNotice(`猫咪与家长关联入口位于 ${kitten.name} 详情中。`)],
+                  ]}
+                />
+              </td>
+            </tr>
+          ))}
+        </TableShell>
+        <div className="md:hidden">
+          {KITTENS.map((kitten) => (
+            <MobileRecord
+              key={kitten.id}
+              title={kitten.name}
+              meta={`${kitten.gender} · ${kitten.color} · ${kitten.status}`}
+              actions={
+                <ActionButton onClick={() => setSelectedKittenId(kitten.id)} tone="quiet">
+                  详情
+                </ActionButton>
+              }
+            >
+              <span>
+                {kitten.price} / {kitten.litter ?? "未分配"}
+              </span>
+              <span>
+                {kitten.father} × {kitten.mother}
+              </span>
+              <span>{kittenParentName(kitten, users)}</span>
+            </MobileRecord>
+          ))}
+        </div>
+      </Panel>
+
+      <KittenDetail
+        kitten={selectedKitten}
+        users={users}
+        posts={posts}
+        onBack={() => setSelectedKittenId("")}
+      />
+    </div>
+  );
+}
+
+function KittenDetail({
+  kitten,
+  users,
+  posts,
+  onBack,
+}: {
+  kitten: Kitten | null;
+  users: ParentUser[];
+  posts: Post[];
+  onBack: () => void;
+}) {
+  if (!kitten) {
+    return (
+      <Panel className="hidden xl:block">
+        <PanelTitle title="小猫详情" desc="桌面端选择左侧小猫后查看关联信息。" />
+        <p className="px-4 py-6 text-[13px] text-muted-foreground">请选择一只小猫。</p>
+      </Panel>
+    );
+  }
+
   return (
     <Panel>
       <PanelTitle
-        title="在售小猫列表"
-        desc="字段重点展示状态、价格、窝次和家长关联；操作仅为 Demo 反馈。"
-        action={
-          <ActionButton onClick={() => onNotice("已打开新增小猫 Demo。")}>新增小猫</ActionButton>
-        }
+        title={`${kitten.name} 详情`}
+        desc="展示窝次、父母、家长和猫友圈关联。"
+        action={<BackToListButton onClick={onBack} />}
       />
-      <TableShell
-        columns={[
-          "名字",
-          "性别",
-          "颜色",
-          "状态",
-          "价格",
-          "父亲",
-          "母亲",
-          "窝次",
-          "家长",
-          "展示",
-          "操作",
-        ]}
-      >
-        {KITTENS.map((kitten) => (
-          <tr key={kitten.id} className="align-top text-card-foreground">
-            <td className="px-3 py-3 font-semibold text-heading">{kitten.name}</td>
-            <td className="px-3 py-3">{kitten.gender}</td>
-            <td className="px-3 py-3">{kitten.color}</td>
-            <td className="px-3 py-3">
-              <StatusBadge tone={statusTone(kitten.status)}>{kitten.status}</StatusBadge>
-            </td>
-            <td className="px-3 py-3">{kitten.price}</td>
-            <td className="px-3 py-3">{kitten.father}</td>
-            <td className="px-3 py-3">{kitten.mother}</td>
-            <td className="px-3 py-3">{kitten.litter ?? "未分配"}</td>
-            <td className="px-3 py-3">{kittenParentName(kitten, users)}</td>
-            <td className="px-3 py-3">
-              <StatusBadge tone="creamblue">已展示</StatusBadge>
-            </td>
-            <td className="px-3 py-3">
-              <RowActions
-                actions={[
-                  ["查看", () => onNotice(`正在查看 ${kitten.name} 的 Demo 详情。`)],
-                  ["编辑", () => onNotice(`已打开 ${kitten.name} 的编辑 Demo。`)],
-                  ["关联", () => onNotice(`猫咪与家长关联入口位于 ${kitten.name} 详情中。`)],
-                ]}
-              />
-            </td>
-          </tr>
-        ))}
-      </TableShell>
-      <div className="flex flex-col gap-2 p-3 md:hidden">
-        {KITTENS.map((kitten) => (
-          <MobileRecord
-            key={kitten.id}
-            title={kitten.name}
-            meta={`${kitten.gender} · ${kitten.color}`}
-            actions={
-              <ActionButton onClick={() => onNotice(`正在查看 ${kitten.name}。`)} tone="quiet">
-                查看
-              </ActionButton>
-            }
-          >
-            <span>
-              状态：{kitten.status} / 价格：{kitten.price}
-            </span>
-            <span>
-              父母：{kitten.father} × {kitten.mother}
-            </span>
-            <span>
-              窝次：{kitten.litter ?? "未分配"} / 家长：{kittenParentName(kitten, users)}
-            </span>
-            <span>关联动态：{linkedPostCount(posts, kitten.id)} 条 / 展示：已展示</span>
-          </MobileRecord>
-        ))}
+      <div className="px-3 py-2 lg:px-4 lg:py-3">
+        <FieldLine
+          label="状态"
+          value={<StatusBadge tone={statusTone(kitten.status)}>{kitten.status}</StatusBadge>}
+        />
+        <FieldLine label="性别 / 颜色" value={`${kitten.gender} / ${kitten.color}`} />
+        <FieldLine label="价格" value={kitten.price} />
+        <FieldLine label="窝次" value={kitten.litter ?? "未分配"} />
+        <FieldLine label="父母" value={`${kitten.father} × ${kitten.mother}`} />
+        <FieldLine label="家长" value={kittenParentName(kitten, users)} />
+        <FieldLine label="关联动态" value={`${linkedPostCount(posts, kitten.id)} 条`} />
       </div>
     </Panel>
   );
@@ -761,28 +832,22 @@ function StudsPanel({ onNotice }: { onNotice: (message: string) => void }) {
   const grouped = useMemo(() => STUDS, []);
   return (
     <Panel>
-      <PanelTitle
-        title="种猫资料"
-        desc="保留用户端当前种猫字段，改为后台密集列表。"
-        action={
-          <ActionButton onClick={() => onNotice("已打开新增种猫 Demo。")}>新增种猫</ActionButton>
-        }
-      />
+      <PanelTitle title="种猫资料" desc="保留用户端当前种猫字段，改为后台密集列表。" />
       <TableShell columns={["名字", "类别", "颜色", "状态", "来源/血线", "简介", "展示", "操作"]}>
         {grouped.map((stud) => (
           <tr key={stud.id} className="text-card-foreground">
-            <td className="px-3 py-3 font-semibold text-heading">{stud.name}</td>
-            <td className="px-3 py-3">{stud.category}</td>
-            <td className="px-3 py-3">{stud.color}</td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5 font-semibold text-heading">{stud.name}</td>
+            <td className="px-3 py-2.5">{stud.category}</td>
+            <td className="px-3 py-2.5">{stud.color}</td>
+            <td className="px-3 py-2.5">
               <StatusBadge tone="sky">{stud.status}</StatusBadge>
             </td>
-            <td className="px-3 py-3">{stud.source}</td>
-            <td className="max-w-[220px] px-3 py-3">{stud.trait}</td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">{stud.source}</td>
+            <td className="max-w-[220px] px-3 py-2.5">{stud.trait}</td>
+            <td className="px-3 py-2.5">
               <StatusBadge tone="creamblue">已展示</StatusBadge>
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">
               <RowActions
                 actions={[
                   ["查看", () => onNotice(`正在查看种猫 ${stud.name}。`)],
@@ -793,7 +858,7 @@ function StudsPanel({ onNotice }: { onNotice: (message: string) => void }) {
           </tr>
         ))}
       </TableShell>
-      <div className="flex flex-col gap-2 p-3 md:hidden">
+      <div className="md:hidden">
         {grouped.map((stud) => (
           <StudMobile key={stud.id} stud={stud} onNotice={onNotice} />
         ))}
@@ -826,24 +891,43 @@ function LittersPanel({
   posts,
   onNotice,
 }: {
-  selected: LitterName;
-  onSelected: (name: LitterName) => void;
+  selected: LitterName | "";
+  onSelected: (name: LitterName | "") => void;
   posts: Post[];
   onNotice: (message: string) => void;
 }) {
-  const selectedKittens = KITTENS.filter((kitten) => kitten.litter === selected);
-  const selectedPosts = posts.filter((post) => (post.litterIds ?? []).includes(selected));
+  const [showAdd, setShowAdd] = useState(false);
 
   return (
-    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
-      <Panel>
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <Panel className={cn(selected ? "hidden md:block" : "")}>
         <PanelTitle
           title="窝次列表"
           desc="新增 Demo 模块：以窝次为中心关联父母、小猫和猫友圈动态。"
           action={
-            <ActionButton onClick={() => onNotice("已打开新增窝次 Demo。")}>新增窝次</ActionButton>
+            <ActionButton onClick={() => setShowAdd((open) => !open)}>
+              {showAdd ? "收起" : "新增窝次"}
+            </ActionButton>
           }
         />
+        {showAdd && (
+          <DemoAddBox>
+            <div className="grid gap-2 md:grid-cols-4">
+              {["窝次名称", "出生日期", "父亲", "母亲"].map((placeholder) => (
+                <input
+                  key={placeholder}
+                  placeholder={placeholder}
+                  className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
+                />
+              ))}
+            </div>
+            <div className="mt-2">
+              <ActionButton onClick={() => onNotice("已模拟提交新增窝次，刷新后恢复。")}>
+                保存 Demo
+              </ActionButton>
+            </div>
+          </DemoAddBox>
+        )}
         <TableShell
           columns={[
             "窝次名称",
@@ -865,25 +949,23 @@ function LittersPanel({
             const first = kittens[0];
             return (
               <tr key={litter} className="text-card-foreground">
-                <td className="px-3 py-3 font-semibold text-heading">{litter}</td>
-                <td className="px-3 py-3">{LITTER_META[litter].birthday}</td>
-                <td className="px-3 py-3">{first?.father ?? "待补充"}</td>
-                <td className="px-3 py-3">{first?.mother ?? "待补充"}</td>
-                <td className="px-3 py-3">{kittens.length}</td>
-                <td className="px-3 py-3">
+                <td className="px-3 py-2.5 font-semibold text-heading">{litter}</td>
+                <td className="px-3 py-2.5">{LITTER_META[litter].birthday}</td>
+                <td className="px-3 py-2.5">{first?.father ?? "待补充"}</td>
+                <td className="px-3 py-2.5">{first?.mother ?? "待补充"}</td>
+                <td className="px-3 py-2.5">{kittens.length}</td>
+                <td className="px-3 py-2.5">
                   <StatusBadge tone="sunny">{LITTER_META[litter].status}</StatusBadge>
                 </td>
-                <td className="max-w-[220px] px-3 py-3">
+                <td className="max-w-[220px] px-3 py-2.5">
                   {kittens.map((kitten) => kitten.name).join("、") || "暂无"}
                 </td>
-                <td className="px-3 py-3">{postCount}</td>
-                <td className="px-3 py-3">
+                <td className="px-3 py-2.5">{postCount}</td>
+                <td className="px-3 py-2.5">
                   <RowActions
                     actions={[
-                      ["查看", () => onSelected(litter)],
+                      ["详情", () => onSelected(litter)],
                       ["编辑", () => onNotice(`已打开 ${litter} 编辑 Demo。`)],
-                      ["小猫", () => onNotice(`正在查看 ${litter} 关联小猫。`)],
-                      ["动态", () => onNotice(`正在查看 ${litter} 关联动态。`)],
                     ]}
                   />
                 </td>
@@ -891,7 +973,7 @@ function LittersPanel({
             );
           })}
         </TableShell>
-        <div className="flex flex-col gap-2 p-3 md:hidden">
+        <div className="md:hidden">
           {LITTERS.map((litter) => {
             const kittens = KITTENS.filter((kitten) => kitten.litter === litter);
             const postCount = posts.filter((post) =>
@@ -904,12 +986,12 @@ function LittersPanel({
                 meta={`${LITTER_META[litter].birthday} · ${LITTER_META[litter].status}`}
                 actions={
                   <ActionButton onClick={() => onSelected(litter)} tone="quiet">
-                    查看
+                    详情
                   </ActionButton>
                 }
               >
                 <span>
-                  小猫数量：{kittens.length} / 动态：{postCount}
+                  小猫 {kittens.length} / 动态 {postCount}
                 </span>
                 <span>关联小猫：{kittens.map((kitten) => kitten.name).join("、") || "暂无"}</span>
               </MobileRecord>
@@ -918,24 +1000,54 @@ function LittersPanel({
         </div>
       </Panel>
 
-      <Panel>
-        <PanelTitle title={`${selected} 详情`} desc={LITTER_META[selected].note} />
-        <div className="px-4 py-3">
-          <FieldLine label="出生日期" value={LITTER_META[selected].birthday} />
-          <FieldLine
-            label="当前状态"
-            value={<StatusBadge tone="sunny">{LITTER_META[selected].status}</StatusBadge>}
-          />
-          <FieldLine label="父亲" value={selectedKittens[0]?.father ?? "待补充"} />
-          <FieldLine label="母亲" value={selectedKittens[0]?.mother ?? "待补充"} />
-          <FieldLine
-            label="关联小猫"
-            value={selectedKittens.map((kitten) => kitten.name).join("、") || "暂无"}
-          />
-          <FieldLine label="关联动态" value={`${selectedPosts.length} 条`} />
-        </div>
-      </Panel>
+      <LitterDetail selected={selected} posts={posts} onBack={() => onSelected("")} />
     </div>
+  );
+}
+
+function LitterDetail({
+  selected,
+  posts,
+  onBack,
+}: {
+  selected: LitterName | "";
+  posts: Post[];
+  onBack: () => void;
+}) {
+  if (!selected) {
+    return (
+      <Panel className="hidden xl:block">
+        <PanelTitle title="窝次详情" desc="桌面端选择左侧窝次后查看关联信息。" />
+        <p className="px-4 py-6 text-[13px] text-muted-foreground">请选择一个窝次。</p>
+      </Panel>
+    );
+  }
+
+  const selectedKittens = KITTENS.filter((kitten) => kitten.litter === selected);
+  const selectedPosts = posts.filter((post) => (post.litterIds ?? []).includes(selected));
+
+  return (
+    <Panel>
+      <PanelTitle
+        title={`${selected} 详情`}
+        desc={LITTER_META[selected].note}
+        action={<BackToListButton onClick={onBack} />}
+      />
+      <div className="px-3 py-2 lg:px-4 lg:py-3">
+        <FieldLine label="出生日期" value={LITTER_META[selected].birthday} />
+        <FieldLine
+          label="当前状态"
+          value={<StatusBadge tone="sunny">{LITTER_META[selected].status}</StatusBadge>}
+        />
+        <FieldLine label="父亲" value={selectedKittens[0]?.father ?? "待补充"} />
+        <FieldLine label="母亲" value={selectedKittens[0]?.mother ?? "待补充"} />
+        <FieldLine
+          label="关联小猫"
+          value={selectedKittens.map((kitten) => kitten.name).join("、") || "暂无"}
+        />
+        <FieldLine label="关联动态" value={`${selectedPosts.length} 条`} />
+      </div>
+    </Panel>
   );
 }
 
@@ -956,6 +1068,7 @@ function ParentsPanel({
 }) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
 
   const addParent = () => {
     if (!name.trim() || !code.trim()) {
@@ -965,28 +1078,37 @@ function ParentsPanel({
     communityActions.addParent(name.trim(), code.trim());
     setName("");
     setCode("");
+    setShowAdd(false);
     onNotice("已新增家长 Demo 记录，刷新后会恢复。");
   };
 
   return (
-    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
-      <Panel>
-        <PanelTitle title="家长列表" desc="猫咪与家长关联入口放在家长详情中，不单独建导航。" />
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <Panel className={cn(selectedParent ? "hidden md:block" : "")}>
+        <PanelTitle
+          title="家长列表"
+          desc="猫咪与家长关联入口放在家长详情中，不单独建导航。"
+          action={
+            <ActionButton onClick={() => setShowAdd((open) => !open)}>
+              {showAdd ? "收起" : "添加家长"}
+            </ActionButton>
+          }
+        />
         <TableShell columns={["昵称", "邀请码", "启用状态", "开通时间", "名下猫咪", "操作"]}>
           {users.map((user) => {
             const ownedCats = cats.filter((cat) => cat.ownerId === user.id);
             return (
               <tr key={user.id} className="text-card-foreground">
-                <td className="px-3 py-3 font-semibold text-heading">{user.name}</td>
-                <td className="px-3 py-3">{user.inviteCode ?? "未设置"}</td>
-                <td className="px-3 py-3">
+                <td className="px-3 py-2.5 font-semibold text-heading">{user.name}</td>
+                <td className="px-3 py-2.5">{user.inviteCode ?? "未设置"}</td>
+                <td className="px-3 py-2.5">
                   <StatusBadge tone={user.activatedAt ? "creamblue" : "muted"}>
                     {user.activatedAt ? "已启用" : "未启用"}
                   </StatusBadge>
                 </td>
-                <td className="px-3 py-3">{user.activatedAt ?? "未开通"}</td>
-                <td className="px-3 py-3">{ownedCats.length}</td>
-                <td className="px-3 py-3">
+                <td className="px-3 py-2.5">{user.activatedAt ?? "未开通"}</td>
+                <td className="px-3 py-2.5">{ownedCats.length}</td>
+                <td className="px-3 py-2.5">
                   <RowActions
                     actions={[
                       ["详情", () => onSelectedParent(user.id)],
@@ -1004,7 +1126,7 @@ function ParentsPanel({
             );
           })}
         </TableShell>
-        <div className="flex flex-col gap-2 p-3 md:hidden">
+        <div className="md:hidden">
           {users.map((user) => {
             const ownedCats = cats.filter((cat) => cat.ownerId === user.id);
             return (
@@ -1019,29 +1141,38 @@ function ParentsPanel({
                 }
               >
                 <span>开通时间：{user.activatedAt ?? "未开通"}</span>
-                <span>名下猫咪：{ownedCats.length}</span>
+                <span>名下猫咪：{ownedCats.length} 只</span>
               </MobileRecord>
             );
           })}
         </div>
-        <div className="grid gap-2 border-t border-border px-4 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="家长昵称"
-            className="h-9 rounded-[8px] border border-border bg-background px-3 text-[12.5px] outline-none focus:border-primary"
-          />
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="邀请码"
-            className="h-9 rounded-[8px] border border-border bg-background px-3 text-[12.5px] outline-none focus:border-primary"
-          />
-          <ActionButton onClick={addParent}>添加家长</ActionButton>
-        </div>
+        {showAdd && (
+          <DemoAddBox>
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="家长昵称"
+                className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
+              />
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="邀请码"
+                className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
+              />
+              <ActionButton onClick={addParent}>保存 Demo</ActionButton>
+            </div>
+          </DemoAddBox>
+        )}
       </Panel>
 
-      <ParentDetail parent={selectedParent} cats={cats} posts={posts} />
+      <ParentDetail
+        parent={selectedParent}
+        cats={cats}
+        posts={posts}
+        onBack={() => onSelectedParent("")}
+      />
     </div>
   );
 }
@@ -1050,16 +1181,18 @@ function ParentDetail({
   parent,
   cats,
   posts,
+  onBack,
 }: {
   parent: ParentUser | null;
   cats: CommunityCat[];
   posts: Post[];
+  onBack: () => void;
 }) {
   if (!parent) {
     return (
-      <Panel>
-        <PanelTitle title="家长详情" />
-        <p className="px-4 py-6 text-[13px] text-muted-foreground">暂无家长数据。</p>
+      <Panel className="hidden xl:block">
+        <PanelTitle title="家长详情" desc="桌面端选择左侧家长后查看关联信息。" />
+        <p className="px-4 py-6 text-[13px] text-muted-foreground">请选择一位家长。</p>
       </Panel>
     );
   }
@@ -1072,8 +1205,12 @@ function ParentDetail({
 
   return (
     <Panel>
-      <PanelTitle title="家长详情" desc="包含基础信息、名下猫咪、相关动态和备注。" />
-      <div className="px-4 py-3">
+      <PanelTitle
+        title="家长详情"
+        desc="包含基础信息、名下猫咪、相关动态和备注。"
+        action={<BackToListButton onClick={onBack} />}
+      />
+      <div className="px-3 py-2 lg:px-4 lg:py-3">
         <FieldLine label="昵称" value={parent.name} />
         <FieldLine label="邀请码" value={parent.inviteCode ?? "未设置"} />
         <FieldLine
@@ -1107,40 +1244,46 @@ function FormsPanel({
   onSelect: (id: string) => void;
   onStatus: (id: string, status: FormStatus) => void;
 }) {
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const selectForm = (id: string) => {
+    onSelect(id);
+    setMobileDetailOpen(true);
+  };
+
   return (
-    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_420px]">
-      <Panel>
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <Panel className={cn(mobileDetailOpen ? "hidden md:block" : "")}>
         <PanelTitle title="问卷列表" desc="用户端提交尚未真实入库；此处仍为示例数据。" />
         <TableShell columns={["提交时间", "姓名", "电话", "城市", "预算", "偏好", "状态", "操作"]}>
           {forms.map((form) => (
             <tr key={form.id} className="text-card-foreground">
-              <td className="px-3 py-3">{form.time}</td>
-              <td className="px-3 py-3 font-semibold text-heading">{form.name}</td>
-              <td className="px-3 py-3">{form.phone}</td>
-              <td className="px-3 py-3">{form.city}</td>
-              <td className="px-3 py-3">{form.budget}</td>
-              <td className="px-3 py-3">
+              <td className="px-3 py-2.5">{form.time}</td>
+              <td className="px-3 py-2.5 font-semibold text-heading">{form.name}</td>
+              <td className="px-3 py-2.5">{form.phone}</td>
+              <td className="px-3 py-2.5">{form.city}</td>
+              <td className="px-3 py-2.5">{form.budget}</td>
+              <td className="px-3 py-2.5">
                 {form.wantGender} / {form.wantColor}
               </td>
-              <td className="px-3 py-3">
+              <td className="px-3 py-2.5">
                 <StatusBadge tone={formStatusTone(form.status)}>{form.status}</StatusBadge>
               </td>
-              <td className="px-3 py-3">
-                <ActionButton onClick={() => onSelect(form.id)} tone="quiet">
+              <td className="px-3 py-2.5">
+                <ActionButton onClick={() => selectForm(form.id)} tone="quiet">
                   详情
                 </ActionButton>
               </td>
             </tr>
           ))}
         </TableShell>
-        <div className="flex flex-col gap-2 p-3 md:hidden">
+        <div className="md:hidden">
           {forms.map((form) => (
             <MobileRecord
               key={form.id}
               title={form.name}
-              meta={`${form.city} · ${form.phone}`}
+              meta={`${form.city} · ${form.phone} · ${form.status}`}
               actions={
-                <ActionButton onClick={() => onSelect(form.id)} tone="quiet">
+                <ActionButton onClick={() => selectForm(form.id)} tone="quiet">
                   详情
                 </ActionButton>
               }
@@ -1155,9 +1298,13 @@ function FormsPanel({
         </div>
       </Panel>
 
-      <Panel>
-        <PanelTitle title="问卷详情" desc="处理状态只保存在当前 React 会话。" />
-        <div className="flex flex-wrap gap-2 border-b border-border px-4 py-3">
+      <Panel className={cn(!mobileDetailOpen ? "hidden md:block" : "")}>
+        <PanelTitle
+          title="问卷详情"
+          desc="处理状态只保存在当前 React 会话。"
+          action={<BackToListButton onClick={() => setMobileDetailOpen(false)} />}
+        />
+        <div className="flex flex-wrap gap-2 border-b border-border/70 px-3 py-2 lg:px-4 lg:py-3">
           {FORM_STATUSES.map((status) => (
             <button
               key={status}
@@ -1173,7 +1320,7 @@ function FormsPanel({
             </button>
           ))}
         </div>
-        <div className="px-4 py-3">
+        <div className="px-3 py-2 lg:px-4 lg:py-3">
           <FieldLine label="提交时间" value={selected.time} />
           <FieldLine label="姓名" value={selected.name} />
           <FieldLine label="电话" value={selected.phone} />
@@ -1205,23 +1352,23 @@ function CommunityPanel({
       >
         {posts.map((post) => (
           <tr key={post.id} className="text-card-foreground">
-            <td className="px-3 py-3 font-semibold text-heading">{post.authorName}</td>
-            <td className="px-3 py-3">{post.authorRole}</td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5 font-semibold text-heading">{post.authorName}</td>
+            <td className="px-3 py-2.5">{post.authorRole}</td>
+            <td className="px-3 py-2.5">
               <StatusBadge tone="sky">{post.category}</StatusBadge>
             </td>
-            <td className="max-w-[260px] px-3 py-3">{post.content}</td>
-            <td className="px-3 py-3">{post.imageCount}</td>
-            <td className="px-3 py-3">{post.likes}</td>
-            <td className="px-3 py-3">{post.comments.length}</td>
-            <td className="px-3 py-3">
+            <td className="max-w-[260px] px-3 py-2.5">{post.content}</td>
+            <td className="px-3 py-2.5">{post.imageCount}</td>
+            <td className="px-3 py-2.5">{post.likes}</td>
+            <td className="px-3 py-2.5">{post.comments.length}</td>
+            <td className="px-3 py-2.5">
               <div className="flex flex-wrap gap-1">
                 {post.pinned && <StatusBadge tone="sunny">置顶</StatusBadge>}
                 {post.hidden && <StatusBadge tone="wine">隐藏</StatusBadge>}
                 {!post.pinned && !post.hidden && <StatusBadge tone="muted">普通</StatusBadge>}
               </div>
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">
               <RowActions
                 actions={[
                   [
@@ -1252,7 +1399,7 @@ function CommunityPanel({
           </tr>
         ))}
       </TableShell>
-      <div className="flex flex-col gap-2 p-3 md:hidden">
+      <div className="md:hidden">
         {posts.map((post) => (
           <MobileRecord
             key={post.id}
@@ -1294,17 +1441,17 @@ function CommentsPanel({
           <TableShell columns={["评论人", "身份", "评论内容", "所属动态", "时间", "状态", "操作"]}>
             {allComments.map(({ post, comment }) => (
               <tr key={comment.id} className="text-card-foreground">
-                <td className="px-3 py-3 font-semibold text-heading">{comment.authorName}</td>
-                <td className="px-3 py-3">{comment.authorRole}</td>
-                <td className="max-w-[260px] px-3 py-3">{comment.content}</td>
-                <td className="max-w-[180px] px-3 py-3">{post.authorName} 的动态</td>
-                <td className="px-3 py-3">{formatTime(comment.createdAt)}</td>
-                <td className="px-3 py-3">
+                <td className="px-3 py-2.5 font-semibold text-heading">{comment.authorName}</td>
+                <td className="px-3 py-2.5">{comment.authorRole}</td>
+                <td className="max-w-[260px] px-3 py-2.5">{comment.content}</td>
+                <td className="max-w-[180px] px-3 py-2.5">{post.authorName} 的动态</td>
+                <td className="px-3 py-2.5">{formatTime(comment.createdAt)}</td>
+                <td className="px-3 py-2.5">
                   <StatusBadge tone={comment.hidden ? "wine" : "creamblue"}>
                     {comment.hidden ? "已隐藏" : "显示中"}
                   </StatusBadge>
                 </td>
-                <td className="px-3 py-3">
+                <td className="px-3 py-2.5">
                   <RowActions
                     actions={[
                       [
@@ -1328,7 +1475,7 @@ function CommentsPanel({
               </tr>
             ))}
           </TableShell>
-          <div className="flex flex-col gap-2 p-3 md:hidden">
+          <div className="md:hidden">
             {allComments.map(({ post, comment }) => (
               <MobileRecord
                 key={comment.id}
@@ -1375,9 +1522,9 @@ function CarouselPanel({ onNotice }: { onNotice: (message: string) => void }) {
       <TableShell columns={["排序", "标题", "图片", "关联页面", "状态", "操作"]}>
         {items.map((item) => (
           <tr key={item.id} className="text-card-foreground">
-            <td className="px-3 py-3">{item.sort}</td>
-            <td className="px-3 py-3 font-semibold text-heading">{item.title}</td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">{item.sort}</td>
+            <td className="px-3 py-2.5 font-semibold text-heading">{item.title}</td>
+            <td className="px-3 py-2.5">
               <div className="w-24">
                 <Placeholder
                   label="轮播占位"
@@ -1387,11 +1534,11 @@ function CarouselPanel({ onNotice }: { onNotice: (message: string) => void }) {
                 />
               </div>
             </td>
-            <td className="px-3 py-3">{item.link}</td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">{item.link}</td>
+            <td className="px-3 py-2.5">
               <StatusBadge tone="creamblue">{item.status}</StatusBadge>
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">
               <RowActions
                 actions={[
                   ["编辑", () => onNotice("已打开轮播编辑 Demo。")],
@@ -1402,7 +1549,7 @@ function CarouselPanel({ onNotice }: { onNotice: (message: string) => void }) {
           </tr>
         ))}
       </TableShell>
-      <div className="flex flex-col gap-2 p-3 md:hidden">
+      <div className="md:hidden">
         {items.map((item) => (
           <MobileRecord key={item.id} title={item.title} meta={`排序 ${item.sort} · ${item.link}`}>
             <span>状态：{item.status}</span>
@@ -1435,10 +1582,10 @@ function EnvironmentPanel({ onNotice }: { onNotice: (message: string) => void })
       <TableShell columns={["排序", "板块", "说明", "图片", "状态", "操作"]}>
         {rows.map((row) => (
           <tr key={row.name} className="text-card-foreground">
-            <td className="px-3 py-3">{row.sort}</td>
-            <td className="px-3 py-3 font-semibold text-heading">{row.name}</td>
-            <td className="max-w-[360px] px-3 py-3">{row.desc}</td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">{row.sort}</td>
+            <td className="px-3 py-2.5 font-semibold text-heading">{row.name}</td>
+            <td className="max-w-[360px] px-3 py-2.5">{row.desc}</td>
+            <td className="px-3 py-2.5">
               <div className="w-24">
                 <Placeholder
                   label="环境占位"
@@ -1448,10 +1595,10 @@ function EnvironmentPanel({ onNotice }: { onNotice: (message: string) => void })
                 />
               </div>
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">
               <StatusBadge tone="creamblue">{row.status}</StatusBadge>
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">
               <RowActions
                 actions={[
                   ["编辑", () => onNotice(`已打开 ${row.name} 编辑 Demo。`)],
@@ -1462,7 +1609,7 @@ function EnvironmentPanel({ onNotice }: { onNotice: (message: string) => void })
           </tr>
         ))}
       </TableShell>
-      <div className="flex flex-col gap-2 p-3 md:hidden">
+      <div className="md:hidden">
         {rows.map((row) => (
           <MobileRecord key={row.name} title={row.name} meta={`排序 ${row.sort} · ${row.status}`}>
             <span>{row.desc}</span>
@@ -1507,17 +1654,17 @@ function ContactPanel({ onNotice }: { onNotice: (message: string) => void }) {
       <TableShell columns={["渠道", "账号 / 链接", "展示状态", "操作"]}>
         {SOCIALS.map((social) => (
           <tr key={social.label} className="text-card-foreground">
-            <td className="px-3 py-3 font-semibold text-heading">{social.label}</td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5 font-semibold text-heading">{social.label}</td>
+            <td className="px-3 py-2.5">
               <input
                 defaultValue={social.value}
                 className="h-8 w-full rounded-[8px] border border-border bg-background px-2.5 text-[12.5px] outline-none focus:border-primary"
               />
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">
               <StatusBadge tone="creamblue">显示中</StatusBadge>
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-2.5">
               <RowActions
                 actions={[
                   ["保存", () => onNotice(`已模拟保存 ${social.label}。`)],
@@ -1528,7 +1675,7 @@ function ContactPanel({ onNotice }: { onNotice: (message: string) => void }) {
           </tr>
         ))}
       </TableShell>
-      <div className="flex flex-col gap-2 p-3 md:hidden">
+      <div className="md:hidden">
         {SOCIALS.map((social) => (
           <MobileRecord key={social.label} title={social.label} meta={social.value}>
             <span>展示状态：显示中</span>
