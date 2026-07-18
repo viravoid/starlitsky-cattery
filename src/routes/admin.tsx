@@ -21,7 +21,6 @@ import {
 import {
   KITTENS,
   STUDS,
-  SOCIALS,
   LITTERS,
   statusTone,
   FORM_ENTRIES,
@@ -52,14 +51,19 @@ type SectionKey =
   | "overview"
   | "kittens"
   | "studs"
-  | "litters"
   | "parents"
   | "forms"
   | "community"
   | "comments"
-  | "carousel"
+  | "home"
+  | "about"
+  | "philosophy"
   | "environment"
+  | "feeding"
+  | "process"
+  | "breedingPlan"
   | "aftercare"
+  | "questionnairePage"
   | "contact";
 
 type NavItem = {
@@ -76,32 +80,34 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: "猫咪管理",
     items: [
-      { key: "kittens", label: "在售小猫", Icon: CatIcon },
+      { key: "kittens", label: "小猫", Icon: CatIcon },
       { key: "studs", label: "种猫", Icon: PawIcon },
-      { key: "litters", label: "窝次管理", Icon: HouseIcon },
     ],
   },
   {
-    title: "家长管理",
-    items: [{ key: "parents", label: "家长列表", Icon: UserIcon }],
-  },
-  {
     title: "问卷管理",
-    items: [{ key: "forms", label: "问卷管理", Icon: PaperIcon }],
+    items: [{ key: "forms", label: "问卷提交", Icon: PaperIcon }],
   },
   {
     title: "猫友圈管理",
     items: [
       { key: "community", label: "动态管理", Icon: ChatBubbleIcon },
       { key: "comments", label: "评论管理", Icon: ChatBubbleIcon },
+      { key: "parents", label: "家长列表", Icon: UserIcon },
     ],
   },
   {
     title: "站点内容",
     items: [
-      { key: "carousel", label: "首页轮播", Icon: StarIcon },
+      { key: "home", label: "首页", Icon: StarIcon },
+      { key: "about", label: "猫舍介绍", Icon: HouseIcon },
+      { key: "philosophy", label: "繁育理念", Icon: PawIcon },
       { key: "environment", label: "猫舍环境", Icon: HouseIcon },
-      { key: "aftercare", label: "售后说明", Icon: ShieldIcon },
+      { key: "feeding", label: "喂养体系", Icon: PaperIcon },
+      { key: "process", label: "价格与接猫流程", Icon: RouteIcon },
+      { key: "breedingPlan", label: "繁育计划", Icon: CatIcon },
+      { key: "aftercare", label: "售后保障", Icon: ShieldIcon },
+      { key: "questionnairePage", label: "选猫问卷页面", Icon: PaperIcon },
       { key: "contact", label: "联系方式", Icon: RouteIcon },
     ],
   },
@@ -113,24 +119,20 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
     desc: "用最少信息判断当前 Demo 内容状态和待处理事项。",
   },
   kittens: {
-    title: "在售小猫",
-    desc: "维护小猫展示、状态、价格、窝次和家长关联的 Demo 表格。",
+    title: "小猫",
+    desc: "统一管理小猫列表与窝次管理；当前仍为视觉 Demo。",
   },
   studs: {
     title: "种猫",
     desc: "管理种猫资料、类别、状态和用户端展示信息。",
   },
-  litters: {
-    title: "窝次管理",
-    desc: "把窝次、小猫、父母和猫友圈动态串起来。",
-  },
   parents: {
     title: "家长列表",
-    desc: "查看家长身份、邀请码、名下猫咪和相关动态。",
+    desc: "猫友圈家长身份、邀请码、名下猫咪和相关动态。",
   },
   forms: {
-    title: "问卷管理",
-    desc: "查看用户端选猫问卷示例，并做 Demo 级处理标记。",
+    title: "问卷提交",
+    desc: "查看用户实际提交的选猫问卷答案，并做 Demo 级处理标记。",
   },
   community: {
     title: "动态管理",
@@ -140,25 +142,84 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
     title: "评论管理",
     desc: "查看评论并做隐藏、恢复和删除 Demo 操作。",
   },
-  carousel: {
-    title: "首页轮播",
-    desc: "管理首页轮播位的展示顺序和占位图片。",
+  home: {
+    title: "首页",
+    desc: "管理用户端首页的表面框架、轮播、分组入口和预览文案。",
+  },
+  about: {
+    title: "猫舍介绍",
+    desc: "管理 /about 页面正文内容；首页上的入口文案归首页管理。",
+  },
+  philosophy: {
+    title: "繁育理念",
+    desc: "管理 /philosophy 页面正文内容；不影响首页入口文案。",
   },
   environment: {
     title: "猫舍环境",
-    desc: "维护猫舍环境页图文占位内容。",
+    desc: "管理 /environment 页面正文内容、图片和说明占位。",
+  },
+  feeding: {
+    title: "喂养体系",
+    desc: "管理 /feeding 单页内容，不恢复文章列表或发布系统。",
+  },
+  process: {
+    title: "价格与接猫流程",
+    desc: "管理 /process 页面标题、说明、流程分区和按钮文案。",
+  },
+  breedingPlan: {
+    title: "繁育计划",
+    desc: "预留繁育计划后台入口；用户端页面和正式内容待补充。",
   },
   aftercare: {
-    title: "售后说明",
-    desc: "维护售后保障摘要和条目文案。",
+    title: "售后保障",
+    desc: "管理 /aftercare 页面正文内容，不改变现有用户端页面。",
+  },
+  questionnairePage: {
+    title: "选猫问卷页面",
+    desc: "管理 /questionnaire 页面标题、说明和提示文案；问卷答案在问卷提交中查看。",
   },
   contact: {
     title: "联系方式",
-    desc: "维护用户端展示的微信、小红书、微博等渠道信息。",
+    desc: "管理 /contact 页面标题、介绍、内容分区和页面底部文案。",
   },
 };
 
 type LitterName = (typeof LITTERS)[number];
+type KittenAdminTab = "list" | "litters";
+
+type SiteContentPage = {
+  key: Exclude<
+    SectionKey,
+    "overview" | "kittens" | "studs" | "parents" | "forms" | "community" | "comments" | "home"
+  >;
+  title: string;
+  path: string;
+  eyebrow: string;
+  note?: string;
+};
+
+const SITE_CONTENT_PAGES: SiteContentPage[] = [
+  { key: "about", title: "猫舍介绍", path: "/about", eyebrow: "About" },
+  { key: "philosophy", title: "繁育理念", path: "/philosophy", eyebrow: "Philosophy" },
+  { key: "environment", title: "猫舍环境", path: "/environment", eyebrow: "Environment" },
+  { key: "feeding", title: "喂养体系", path: "/feeding", eyebrow: "Feeding" },
+  { key: "process", title: "价格与接猫流程", path: "/process", eyebrow: "Process" },
+  {
+    key: "breedingPlan",
+    title: "繁育计划",
+    path: "用户端页面待创建",
+    eyebrow: "Breeding Plan",
+    note: "正式内容待猫舍提供；当前仅预留信息架构，不创建用户端路由或页面。",
+  },
+  { key: "aftercare", title: "售后保障", path: "/aftercare", eyebrow: "Aftercare" },
+  {
+    key: "questionnairePage",
+    title: "选猫问卷页面",
+    path: "/questionnaire",
+    eyebrow: "Questionnaire",
+  },
+  { key: "contact", title: "联系方式", path: "/contact", eyebrow: "Contact" },
+];
 
 const LITTER_META: Record<LitterName, { birthday: string; status: string; note: string }> = {
   A窝: {
@@ -240,7 +301,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
   const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
   const [selectedParentId, setSelectedParentId] = useState<string>("");
-  const [selectedLitter, setSelectedLitter] = useState<LitterName | "">("");
 
   const posts = useCommunity((s) => s.posts);
   const users = useCommunity((s) => s.users);
@@ -254,7 +314,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setMobileNavOpen(false);
     setNotice("");
     setSelectedParentId("");
-    setSelectedLitter("");
   };
 
   const setFormStatus = (id: string, status: FormStatus) => {
@@ -332,14 +391,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <KittensPanel onNotice={setNotice} posts={posts} users={parentUsers} />
           )}
           {section === "studs" && <StudsPanel onNotice={setNotice} />}
-          {section === "litters" && (
-            <LittersPanel
-              selected={selectedLitter}
-              onSelected={setSelectedLitter}
-              posts={posts}
-              onNotice={setNotice}
-            />
-          )}
           {section === "parents" && (
             <ParentsPanel
               users={parentUsers}
@@ -360,10 +411,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
           {section === "community" && <CommunityPanel posts={posts} onNotice={setNotice} />}
           {section === "comments" && <CommentsPanel posts={posts} onNotice={setNotice} />}
-          {section === "carousel" && <CarouselPanel onNotice={setNotice} />}
-          {section === "environment" && <EnvironmentPanel onNotice={setNotice} />}
-          {section === "aftercare" && <AftercarePanel onNotice={setNotice} />}
-          {section === "contact" && <ContactPanel onNotice={setNotice} />}
+          {section === "home" && <HomeContentPanel onNotice={setNotice} />}
+          {section !== "home" && SITE_CONTENT_PAGES.some((page) => page.key === section) && (
+            <SitePageShell
+              page={SITE_CONTENT_PAGES.find((page) => page.key === section)!}
+              onNotice={setNotice}
+            />
+          )}
         </div>
       </main>
     </div>
@@ -617,7 +671,7 @@ function OverviewPanel({
       target: "kittens" as const,
     },
     { label: "种猫数量", value: STUDS.length, target: "studs" as const },
-    { label: "窝次数", value: LITTERS.length, target: "litters" as const },
+    { label: "窝次数", value: LITTERS.length, target: "kittens" as const },
     { label: "家长数", value: users.length, target: "parents" as const },
     { label: "家长猫咪", value: cats.length, target: "parents" as const },
     { label: "问卷数", value: forms.length, target: "forms" as const },
@@ -659,7 +713,7 @@ function OverviewPanel({
             <OverviewTodo
               title="已有关联窝次动态"
               value={`${posts.filter((p) => (p.litterIds ?? []).length > 0).length} 条`}
-              action={() => onJump("litters")}
+              action={() => onJump("kittens")}
             />
           </div>
         </Panel>
@@ -707,102 +761,155 @@ function KittensPanel({
   posts: Post[];
   users: ParentUser[];
 }) {
+  const [activeTab, setActiveTab] = useState<KittenAdminTab>("list");
   const [selectedKittenId, setSelectedKittenId] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [selectedLitter, setSelectedLitter] = useState<LitterName | "">("");
   const selectedKitten = KITTENS.find((kitten) => kitten.id === selectedKittenId) ?? null;
 
   return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
-      <Panel className={cn(selectedKitten ? "hidden md:block" : "")}>
-        <PanelTitle
-          title="在售小猫列表"
-          desc="字段重点展示状态、价格、窝次和家长关联；操作仅为 Demo 反馈。"
-          action={
-            <ActionButton onClick={() => setShowAdd((open) => !open)}>
-              {showAdd ? "收起" : "新增小猫"}
-            </ActionButton>
-          }
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
+        {[
+          ["list", "小猫列表"],
+          ["litters", "窝次管理"],
+        ].map(([key, label]) => {
+          const on = activeTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => {
+                setActiveTab(key as KittenAdminTab);
+                setSelectedKittenId("");
+                setSelectedLitter("");
+              }}
+              className={cn(
+                "pressable h-8 rounded-[6px] px-3 text-[12.5px] font-semibold lg:text-[13px]",
+                on
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-card text-muted-foreground",
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "litters" && (
+        <LittersPanel
+          selected={selectedLitter}
+          onSelected={setSelectedLitter}
+          posts={posts}
+          onNotice={onNotice}
         />
-        {showAdd && (
-          <DemoAddBox>
-            <div className="grid gap-2 md:grid-cols-4">
-              {["小猫名字", "颜色", "价格", "窝次"].map((placeholder) => (
-                <input
-                  key={placeholder}
-                  placeholder={placeholder}
-                  className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
-                />
-              ))}
-            </div>
-            <div className="mt-2">
-              <ActionButton onClick={() => onNotice("已模拟提交新增小猫，刷新后恢复。")}>
-                保存 Demo
-              </ActionButton>
-            </div>
-          </DemoAddBox>
-        )}
-        <TableShell
-          columns={["名字", "性别", "颜色", "状态", "价格", "父母", "窝次", "家长", "展示", "操作"]}
-        >
-          {KITTENS.map((kitten) => (
-            <tr key={kitten.id} className="align-top text-card-foreground">
-              <td className="px-3 py-2.5 font-semibold text-heading">{kitten.name}</td>
-              <td className="px-3 py-2.5">{kitten.gender}</td>
-              <td className="px-3 py-2.5">{kitten.color}</td>
-              <td className="px-3 py-2.5">
-                <StatusBadge tone={statusTone(kitten.status)}>{kitten.status}</StatusBadge>
-              </td>
-              <td className="px-3 py-2.5">{kitten.price}</td>
-              <td className="px-3 py-2.5">
-                {kitten.father} × {kitten.mother}
-              </td>
-              <td className="px-3 py-2.5">{kitten.litter ?? "未分配"}</td>
-              <td className="px-3 py-2.5">{kittenParentName(kitten, users)}</td>
-              <td className="px-3 py-2.5">
-                <StatusBadge tone="creamblue">已展示</StatusBadge>
-              </td>
-              <td className="px-3 py-2.5">
-                <RowActions
-                  actions={[
-                    ["详情", () => setSelectedKittenId(kitten.id)],
-                    ["编辑", () => onNotice(`已打开 ${kitten.name} 的编辑 Demo。`)],
-                    ["关联", () => onNotice(`猫咪与家长关联入口位于 ${kitten.name} 详情中。`)],
-                  ]}
-                />
-              </td>
-            </tr>
-          ))}
-        </TableShell>
-        <div className="md:hidden">
-          {KITTENS.map((kitten) => (
-            <MobileRecord
-              key={kitten.id}
-              title={kitten.name}
-              meta={`${kitten.gender} · ${kitten.color} · ${kitten.status}`}
-              actions={
-                <ActionButton onClick={() => setSelectedKittenId(kitten.id)} tone="quiet">
-                  详情
+      )}
+
+      {activeTab === "list" && (
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
+          <Panel className={cn(selectedKitten ? "hidden md:block" : "")}>
+            <PanelTitle
+              title="小猫列表"
+              desc="字段重点展示状态、价格、窝次和家长关联；操作仅为 Demo 反馈。"
+              action={
+                <ActionButton onClick={() => setShowAdd((open) => !open)}>
+                  {showAdd ? "收起" : "新增小猫"}
                 </ActionButton>
               }
+            />
+            {showAdd && (
+              <DemoAddBox>
+                <div className="grid gap-2 md:grid-cols-4">
+                  {["小猫名字", "颜色", "价格", "窝次"].map((placeholder) => (
+                    <input
+                      key={placeholder}
+                      placeholder={placeholder}
+                      className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
+                    />
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <ActionButton onClick={() => onNotice("已模拟提交新增小猫，刷新后恢复。")}>
+                    保存 Demo
+                  </ActionButton>
+                </div>
+              </DemoAddBox>
+            )}
+            <TableShell
+              columns={[
+                "名字",
+                "性别",
+                "颜色",
+                "状态",
+                "价格",
+                "父母",
+                "窝次",
+                "家长",
+                "展示",
+                "操作",
+              ]}
             >
-              <span>
-                {kitten.price} / {kitten.litter ?? "未分配"}
-              </span>
-              <span>
-                {kitten.father} × {kitten.mother}
-              </span>
-              <span>{kittenParentName(kitten, users)}</span>
-            </MobileRecord>
-          ))}
-        </div>
-      </Panel>
+              {KITTENS.map((kitten) => (
+                <tr key={kitten.id} className="align-top text-card-foreground">
+                  <td className="px-3 py-2.5 font-semibold text-heading">{kitten.name}</td>
+                  <td className="px-3 py-2.5">{kitten.gender}</td>
+                  <td className="px-3 py-2.5">{kitten.color}</td>
+                  <td className="px-3 py-2.5">
+                    <StatusBadge tone={statusTone(kitten.status)}>{kitten.status}</StatusBadge>
+                  </td>
+                  <td className="px-3 py-2.5">{kitten.price}</td>
+                  <td className="px-3 py-2.5">
+                    {kitten.father} × {kitten.mother}
+                  </td>
+                  <td className="px-3 py-2.5">{kitten.litter ?? "未分配"}</td>
+                  <td className="px-3 py-2.5">{kittenParentName(kitten, users)}</td>
+                  <td className="px-3 py-2.5">
+                    <StatusBadge tone="creamblue">已展示</StatusBadge>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <RowActions
+                      actions={[
+                        ["详情", () => setSelectedKittenId(kitten.id)],
+                        ["编辑", () => onNotice(`已打开 ${kitten.name} 的编辑 Demo。`)],
+                        ["关联", () => onNotice(`猫咪与家长关联入口位于 ${kitten.name} 详情中。`)],
+                      ]}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </TableShell>
+            <div className="md:hidden">
+              {KITTENS.map((kitten) => (
+                <MobileRecord
+                  key={kitten.id}
+                  title={kitten.name}
+                  meta={`${kitten.gender} · ${kitten.color} · ${kitten.status}`}
+                  actions={
+                    <ActionButton onClick={() => setSelectedKittenId(kitten.id)} tone="quiet">
+                      详情
+                    </ActionButton>
+                  }
+                >
+                  <span>
+                    {kitten.price} / {kitten.litter ?? "未分配"}
+                  </span>
+                  <span>
+                    {kitten.father} × {kitten.mother}
+                  </span>
+                  <span>{kittenParentName(kitten, users)}</span>
+                </MobileRecord>
+              ))}
+            </div>
+          </Panel>
 
-      <KittenDetail
-        kitten={selectedKitten}
-        users={users}
-        posts={posts}
-        onBack={() => setSelectedKittenId("")}
-      />
+          <KittenDetail
+            kitten={selectedKitten}
+            users={users}
+            posts={posts}
+            onBack={() => setSelectedKittenId("")}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -1523,188 +1630,223 @@ function CommentsPanel({
   );
 }
 
-function CarouselPanel({ onNotice }: { onNotice: (message: string) => void }) {
+function HomeContentPanel({ onNotice }: { onNotice: (message: string) => void }) {
   const items = [1, 2, 3].map((sort) => ({
     id: `hero-${sort}`,
     sort,
     title: `首页轮播图 ${sort}`,
     status: "展示中",
-    link: sort === 1 ? "首页" : sort === 2 ? "在售小猫" : "猫舍环境",
+    link: sort === 1 ? "首页" : sort === 2 ? "小猫" : "猫舍环境",
   }));
+  const entryPages = [
+    ["01", "猫舍介绍", "了解星月的成立方式、主营业务、发展理念。"],
+    ["02", "繁育理念", "查看猫舍繁育原则、健康筛查和长期规划。"],
+    ["03", "猫舍环境", "预览猫舍空间、生活区域和环境图文。"],
+    ["04", "喂养体系", "进入喂养理念、日常照护和基础说明。"],
+    ["05", "价格与接猫流程", "了解预算、预约、接猫和合同流程。"],
+    ["06", "繁育计划", "预留未来繁育计划入口，正式内容待提供。"],
+    ["07", "售后保障", "查看接猫后的保障、咨询和注意事项。"],
+    ["08", "选猫问卷页面", "进入问卷说明和填写提示页面。"],
+    ["09", "联系方式", "查看微信、小红书等联系渠道。"],
+  ];
 
   return (
-    <Panel>
-      <PanelTitle
-        title="首页轮播"
-        desc="图片为占位；本轮不做真实上传和媒体库。"
-        action={
-          <ActionButton onClick={() => onNotice("已打开新增轮播 Demo。")}>新增轮播</ActionButton>
-        }
-      />
-      <TableShell columns={["排序", "标题", "图片", "关联页面", "状态", "操作"]}>
-        {items.map((item) => (
-          <tr key={item.id} className="text-card-foreground">
-            <td className="px-3 py-2.5">{item.sort}</td>
-            <td className="px-3 py-2.5 font-semibold text-heading">{item.title}</td>
-            <td className="px-3 py-2.5">
-              <div className="w-24">
-                <Placeholder
-                  label="轮播占位"
-                  ratio="aspect-[4/3]"
-                  rounded="rounded-[8px]"
-                  compact
-                />
-              </div>
-            </td>
-            <td className="px-3 py-2.5">{item.link}</td>
-            <td className="px-3 py-2.5">
-              <StatusBadge tone="creamblue">{item.status}</StatusBadge>
-            </td>
-            <td className="px-3 py-2.5">
-              <RowActions
-                actions={[
-                  ["编辑", () => onNotice("已打开轮播编辑 Demo。")],
-                  ["停用", () => onNotice("已模拟停用轮播。")],
-                ]}
-              />
-            </td>
-          </tr>
-        ))}
-      </TableShell>
-      <div className="md:hidden">
-        {items.map((item) => (
-          <MobileRecord key={item.id} title={item.title} meta={`排序 ${item.sort} · ${item.link}`}>
-            <span>状态：{item.status}</span>
-          </MobileRecord>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
-function EnvironmentPanel({ onNotice }: { onNotice: (message: string) => void }) {
-  const rows = ["公区", "猫房", "院子"].map((name, index) => ({
-    name,
-    sort: index + 1,
-    status: "展示中",
-    desc: index === 0 ? "600 余平室内空间，别墅散养。" : "示例图文区域，待补充真实资料。",
-  }));
-
-  return (
-    <Panel>
-      <PanelTitle
-        title="猫舍环境图文"
-        desc="维护环境页图文结构，不做真实图片上传。"
-        action={
-          <ActionButton onClick={() => onNotice("已打开新增环境图文 Demo。")}>
-            新增图文
-          </ActionButton>
-        }
-      />
-      <TableShell columns={["排序", "板块", "说明", "图片", "状态", "操作"]}>
-        {rows.map((row) => (
-          <tr key={row.name} className="text-card-foreground">
-            <td className="px-3 py-2.5">{row.sort}</td>
-            <td className="px-3 py-2.5 font-semibold text-heading">{row.name}</td>
-            <td className="max-w-[360px] px-3 py-2.5">{row.desc}</td>
-            <td className="px-3 py-2.5">
-              <div className="w-24">
-                <Placeholder
-                  label="环境占位"
-                  ratio="aspect-[4/3]"
-                  rounded="rounded-[8px]"
-                  compact
-                />
-              </div>
-            </td>
-            <td className="px-3 py-2.5">
-              <StatusBadge tone="creamblue">{row.status}</StatusBadge>
-            </td>
-            <td className="px-3 py-2.5">
-              <RowActions
-                actions={[
-                  ["编辑", () => onNotice(`已打开 ${row.name} 编辑 Demo。`)],
-                  ["排序", () => onNotice("已模拟排序操作。")],
-                ]}
-              />
-            </td>
-          </tr>
-        ))}
-      </TableShell>
-      <div className="md:hidden">
-        {rows.map((row) => (
-          <MobileRecord key={row.name} title={row.name} meta={`排序 ${row.sort} · ${row.status}`}>
-            <span>{row.desc}</span>
-          </MobileRecord>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
-function AftercarePanel({ onNotice }: { onNotice: (message: string) => void }) {
-  return (
-    <Panel>
-      <PanelTitle title="售后说明" desc="使用更接近后台编辑的分组表单，不接持久化。" />
-      <div className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <label className="flex flex-col gap-2">
-          <span className="text-[12px] font-semibold text-heading">售后说明摘要</span>
-          <textarea
-            rows={8}
-            defaultValue="种猫全部做遗传病检查，结果 all n/n。科学繁育，根据母猫状态每窝间隔 8–16 个月。窝次清晰透明。所有小猫均为猫舍自己繁育。具体内容以《合同模板 2026》为准。"
-            className="w-full resize-none rounded-[8px] border border-border bg-background px-3 py-2 text-[12.5px] leading-relaxed outline-none focus:border-primary"
-          />
-        </label>
-        <div className="flex flex-col gap-2">
-          {["遗传病筛查", "疫苗与体检", "绝育后接猫", "合同说明"].map((item) => (
-            <div key={item} className="rounded-[8px] border border-border bg-background px-3 py-2">
-              <p className="text-[12.5px] font-semibold text-heading">{item}</p>
-              <p className="mt-1 text-[11.5px] text-muted-foreground">条目文案 Demo</p>
-            </div>
-          ))}
-          <ActionButton onClick={() => onNotice("已模拟保存售后说明。")}>保存 Demo</ActionButton>
+    <div className="flex flex-col gap-4">
+      <Panel>
+        <PanelTitle
+          title="首页头图区域"
+          desc="管理首页首屏标题、英文副标题、轮播图片和轮播顺序。"
+          action={
+            <ActionButton onClick={() => onNotice("已打开新增轮播 Demo。")}>新增轮播</ActionButton>
+          }
+        />
+        <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
+          <div className="grid gap-2">
+            <DemoInput label="中文主标题" value="星月缅因猫舍" />
+            <DemoInput label="英文副标题" value="Starlit Sky Maine Coon Cattery" />
+          </div>
+          <TableShell columns={["排序", "标题", "图片", "链接目标", "状态", "操作"]}>
+            {items.map((item) => (
+              <tr key={item.id} className="text-card-foreground">
+                <td className="px-3 py-2.5">{item.sort}</td>
+                <td className="px-3 py-2.5 font-semibold text-heading">{item.title}</td>
+                <td className="px-3 py-2.5">
+                  <div className="w-24">
+                    <Placeholder
+                      label="轮播占位"
+                      ratio="aspect-[4/3]"
+                      rounded="rounded-[8px]"
+                      compact
+                    />
+                  </div>
+                </td>
+                <td className="px-3 py-2.5">{item.link}</td>
+                <td className="px-3 py-2.5">
+                  <StatusBadge tone="creamblue">{item.status}</StatusBadge>
+                </td>
+                <td className="px-3 py-2.5">
+                  <RowActions
+                    actions={[
+                      ["编辑", () => onNotice("已打开轮播编辑 Demo。")],
+                      ["停用", () => onNotice("已模拟停用轮播。")],
+                    ]}
+                  />
+                </td>
+              </tr>
+            ))}
+          </TableShell>
         </div>
+      </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <HomeBlock
+          title="首页品牌简介"
+          desc="标题前小字、成立年份、城市、注册协会和首页简介正文。"
+          fields={["标题前的小字", "成立年份 / 城市 / 注册协会", "首页简介正文"]}
+        />
+        <HomeBlock
+          title="首页内容分组"
+          desc="例如“了解星月的成立方式、主营业务、发展理念”等首页表面介绍。"
+          fields={["分组小字或英文标题", "分组中文标题", "分组介绍文字"]}
+        />
+      </div>
+
+      <Panel>
+        <PanelTitle
+          title="首页二级页面入口"
+          desc="入口标题、小字编号、简短介绍、展示顺序、是否展示；链接目标本轮固定。"
+        />
+        <TableShell columns={["顺序", "小字 / 编号", "入口标题", "简短介绍", "展示", "链接目标"]}>
+          {entryPages.map(([code, title, desc], index) => (
+            <tr key={title} className="text-card-foreground">
+              <td className="px-3 py-2.5">{index + 1}</td>
+              <td className="px-3 py-2.5">{code}</td>
+              <td className="px-3 py-2.5 font-semibold text-heading">{title}</td>
+              <td className="max-w-[460px] px-3 py-2.5">{desc}</td>
+              <td className="px-3 py-2.5">
+                <StatusBadge tone="creamblue">展示</StatusBadge>
+              </td>
+              <td className="px-3 py-2.5">固定</td>
+            </tr>
+          ))}
+        </TableShell>
+      </Panel>
+
+      <HomeBlock
+        title="首页其他入口文案"
+        desc="例如“我们的猫”预览区域的小标题、主标题、简介和按钮文字。"
+        fields={["预览区域小标题", "预览区域主标题", "简介文字", "按钮文字"]}
+      />
+    </div>
+  );
+}
+
+function HomeBlock({ title, desc, fields }: { title: string; desc: string; fields: string[] }) {
+  return (
+    <Panel>
+      <PanelTitle title={title} desc={desc} />
+      <div className="grid gap-2 px-4 py-3">
+        {fields.map((field) => (
+          <DemoInput
+            key={field}
+            label={field}
+            value={`${field} Demo 占位`}
+            multiline={field.includes("正文") || field.includes("介绍")}
+          />
+        ))}
       </div>
     </Panel>
   );
 }
 
-function ContactPanel({ onNotice }: { onNotice: (message: string) => void }) {
+function SitePageShell({
+  page,
+  onNotice,
+}: {
+  page: SiteContentPage;
+  onNotice: (message: string) => void;
+}) {
   return (
-    <Panel>
-      <PanelTitle title="联系方式" desc="与用户端联系方式展示共用当前静态数据源。" />
-      <TableShell columns={["渠道", "账号 / 链接", "展示状态", "操作"]}>
-        {SOCIALS.map((social) => (
-          <tr key={social.label} className="text-card-foreground">
-            <td className="px-3 py-2.5 font-semibold text-heading">{social.label}</td>
-            <td className="px-3 py-2.5">
-              <input
-                defaultValue={social.value}
-                className="h-8 w-full rounded-[8px] border border-border bg-background px-2.5 text-[12.5px] outline-none focus:border-primary"
-              />
-            </td>
-            <td className="px-3 py-2.5">
-              <StatusBadge tone="creamblue">显示中</StatusBadge>
-            </td>
-            <td className="px-3 py-2.5">
-              <RowActions
-                actions={[
-                  ["保存", () => onNotice(`已模拟保存 ${social.label}。`)],
-                  ["隐藏", () => onNotice(`已模拟隐藏 ${social.label}。`)],
-                ]}
-              />
-            </td>
-          </tr>
-        ))}
-      </TableShell>
-      <div className="md:hidden">
-        {SOCIALS.map((social) => (
-          <MobileRecord key={social.label} title={social.label} meta={social.value}>
-            <span>展示状态：显示中</span>
-          </MobileRecord>
-        ))}
-      </div>
-    </Panel>
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.8fr)]">
+      <Panel>
+        <PanelTitle
+          title={`${page.title}内容管理`}
+          desc="本轮只建立页面壳和编辑占位，后续逐页精进字段。"
+          action={
+            <ActionButton onClick={() => onNotice(`已模拟保存 ${page.title} 页面壳。`)}>
+              保存 Demo
+            </ActionButton>
+          }
+        />
+        <div className="grid gap-3 px-4 py-3">
+          <FieldLine label="页面名称" value={page.title} />
+          <FieldLine label="用户端路径" value={page.path} />
+          {page.note && (
+            <div className="rounded-[6px] border border-sunflower/40 bg-sunny/25 px-3 py-2 text-[12.5px] text-[#9b7927]">
+              {page.note}
+            </div>
+          )}
+          <DemoInput label="页面主标题编辑区域" value={`${page.title} 主标题 Demo`} />
+          <DemoInput label="标题前的小字或英文标题编辑区域" value={page.eyebrow} />
+          <DemoInput
+            label="开头介绍编辑区域"
+            value={`${page.title} 开头介绍 Demo 占位`}
+            multiline
+          />
+          <DemoInput label="页面底部提示或按钮文案的编辑占位" value="按钮 / 提示文案 Demo 占位" />
+        </div>
+      </Panel>
+
+      <Panel>
+        <PanelTitle title="内容分区与图片占位" desc="先保留结构入口，不做完整编辑器。" />
+        <div className="grid gap-3 px-4 py-3">
+          <DemoInput label="内容分区标题" value="分区标题 Demo 占位" />
+          <DemoInput
+            label="内容分区正文"
+            value="分区正文 Demo 占位，后续按页面单独细化。"
+            multiline
+          />
+          <div className="grid gap-2">
+            <span className="text-[12px] font-semibold text-heading lg:text-[13px]">
+              图片及图片说明的编辑占位
+            </span>
+            <Placeholder label="页面图片占位" ratio="aspect-[4/3]" rounded="rounded-[8px]" />
+            <input
+              defaultValue="图片说明 Demo 占位"
+              className="h-9 rounded-[7px] border border-border bg-background px-3 text-[13px] outline-none focus:border-primary"
+            />
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function DemoInput({
+  label,
+  value,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-[12px] font-semibold text-heading lg:text-[13px]">{label}</span>
+      {multiline ? (
+        <textarea
+          rows={4}
+          defaultValue={value}
+          className="w-full resize-none rounded-[7px] border border-border bg-background px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-primary"
+        />
+      ) : (
+        <input
+          defaultValue={value}
+          className="h-9 rounded-[7px] border border-border bg-background px-3 text-[13px] outline-none focus:border-primary"
+        />
+      )}
+    </label>
   );
 }
 
