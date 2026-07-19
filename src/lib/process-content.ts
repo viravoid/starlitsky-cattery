@@ -154,11 +154,12 @@ function normalizePriceCards(
 ): ProcessPriceCard[] {
   if (!Array.isArray(value)) return fallback;
 
+  const reservedIds = collectCanonicalIds(value);
   const usedIds = new Set<string>();
   return value.map((item, index) => {
     const input = item && typeof item === "object" ? (item as Partial<ProcessPriceCard>) : {};
     return {
-      id: normalizeItemId(input.id, section, index, usedIds),
+      id: normalizeItemId(input.id, section, index, usedIds, reservedIds),
       label: typeof input.label === "string" ? input.label : "",
       value: typeof input.value === "string" ? input.value : "",
       note: typeof input.note === "string" ? input.note : "",
@@ -173,11 +174,12 @@ function normalizeSimpleCards(
 ): ProcessSimpleCard[] {
   if (!Array.isArray(value)) return fallback;
 
+  const reservedIds = collectCanonicalIds(value);
   const usedIds = new Set<string>();
   return value.map((item, index) => {
     const input = item && typeof item === "object" ? (item as Partial<ProcessSimpleCard>) : {};
     return {
-      id: normalizeItemId(input.id, section, index, usedIds),
+      id: normalizeItemId(input.id, section, index, usedIds, reservedIds),
       label: typeof input.label === "string" ? input.label : "",
       value: typeof input.value === "string" ? input.value : "",
     };
@@ -187,11 +189,12 @@ function normalizeSimpleCards(
 function normalizeSteps(value: unknown, fallback: ProcessStep[], section: string): ProcessStep[] {
   if (!Array.isArray(value)) return fallback;
 
+  const reservedIds = collectCanonicalIds(value);
   const usedIds = new Set<string>();
   return value.map((item, index) => {
     const input = item && typeof item === "object" ? (item as Partial<ProcessStep>) : {};
     return {
-      id: normalizeItemId(input.id, section, index, usedIds),
+      id: normalizeItemId(input.id, section, index, usedIds, reservedIds),
       title: typeof input.title === "string" ? input.title : "",
       description: typeof input.description === "string" ? input.description : "",
     };
@@ -205,26 +208,46 @@ function normalizeTextList(
 ): TextListItem[] {
   if (!Array.isArray(value)) return fallback;
 
+  const reservedIds = collectCanonicalIds(value);
   const usedIds = new Set<string>();
   return value.map((item, index) => {
     const input = item && typeof item === "object" ? (item as Partial<TextListItem>) : {};
     return {
-      id: normalizeItemId(input.id, section, index, usedIds),
+      id: normalizeItemId(input.id, section, index, usedIds, reservedIds),
       text: typeof input.text === "string" ? input.text : "",
     };
   });
 }
 
-function normalizeItemId(value: unknown, section: string, index: number, usedIds: Set<string>) {
-  if (typeof value === "string" && value.trim() && !usedIds.has(value)) {
-    usedIds.add(value);
-    return value;
+function collectCanonicalIds(items: unknown[]) {
+  const ids = new Set<string>();
+  items.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const id = (item as { id?: unknown }).id;
+    if (typeof id !== "string") return;
+    const canonicalId = id.trim();
+    if (canonicalId) ids.add(canonicalId);
+  });
+  return ids;
+}
+
+function normalizeItemId(
+  value: unknown,
+  section: string,
+  index: number,
+  usedIds: Set<string>,
+  reservedIds: Set<string>,
+) {
+  const canonicalId = typeof value === "string" ? value.trim() : "";
+  if (canonicalId && !usedIds.has(canonicalId)) {
+    usedIds.add(canonicalId);
+    return canonicalId;
   }
 
   const baseId = `${section}-${index + 1}`;
   let candidate = baseId;
   let suffix = 2;
-  while (usedIds.has(candidate)) {
+  while (usedIds.has(candidate) || reservedIds.has(candidate)) {
     candidate = `${baseId}-${suffix}`;
     suffix += 1;
   }

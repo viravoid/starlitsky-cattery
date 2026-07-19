@@ -122,7 +122,7 @@ export function AftercareContentPanel({
 
           <EditorSection
             title="繁育与售后承诺"
-            desc="分区标题、英文小字和 Paw 图标固定；这里只编辑承诺文字。"
+            desc="分区标题和英文小字固定；承诺卡图标按当前位置固定轮换，后台不编辑图标。"
             open={openPanels.promises}
             onToggle={() => togglePanel("promises")}
           >
