@@ -1,7 +1,9 @@
 import { PhoneFrame } from "./PhoneFrame";
 import { Section, SectionTitle, Card } from "./ui";
-import { ShieldIcon, PawIcon, CrossIcon, MoonIcon } from "./icons";
+import { ShieldIcon, CrossIcon, MoonIcon, DnaIcon, HeartIcon, CatIcon } from "./icons";
 import type { AftercareContent } from "@/lib/aftercare-content";
+
+const PROMISE_ICONS = [DnaIcon, HeartIcon, CatIcon, ShieldIcon];
 
 export function AftercareView({
   content,
@@ -29,14 +31,17 @@ export function AftercareView({
             icon={<ShieldIcon className="h-5 w-5" />}
           />
           <div className="space-y-2.5">
-            {promises.map((promise) => (
-              <Card key={promise.id} className="flex items-start gap-3 p-3.5">
-                <PawIcon className="mt-0.5 h-4 w-4 shrink-0 text-violet/70" />
-                <p className="whitespace-pre-line text-[13px] leading-relaxed text-card-foreground">
-                  {promise.text}
-                </p>
-              </Card>
-            ))}
+            {promises.map((promise, index) => {
+              const PromiseIcon = PROMISE_ICONS[index % PROMISE_ICONS.length];
+              return (
+                <Card key={promise.id} className="flex items-start gap-3 p-3.5">
+                  <PromiseIcon className="mt-0.5 h-4 w-4 shrink-0 text-violet/70" />
+                  <p className="whitespace-pre-line text-[13px] leading-relaxed text-card-foreground">
+                    {promise.text}
+                  </p>
+                </Card>
+              );
+            })}
           </div>
         </Section>
       )}
