@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import catMotif from "@/assets/placeholder-cat.png";
 
 /**
@@ -12,16 +12,19 @@ export function Placeholder({
   ratio = "aspect-[4/3]",
   rounded = "rounded-2xl",
   compact = false,
+  style,
 }: {
   label: string;
   className?: string;
   ratio?: string;
   rounded?: string;
   compact?: boolean;
+  style?: CSSProperties;
 }) {
   return (
     <div
       className={`relative flex ${ratio} w-full flex-col items-center justify-center gap-2.5 overflow-hidden ${rounded} bg-gradient-cream ${className}`}
+      style={style}
     >
       <img
         src={catMotif}
@@ -39,48 +42,25 @@ export function Placeholder({
   );
 }
 
-
-export function Section({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+export function Section({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`px-5 ${className}`}>{children}</section>;
 }
 
-export function SectionTitle({
-  cn,
-  en,
-  icon,
-}: {
-  cn: string;
-  en?: string;
-  icon?: ReactNode;
-}) {
+export function SectionTitle({ cn, en, icon }: { cn: string; en?: string; icon?: ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-2">
       {icon && <span className="text-violet">{icon}</span>}
       <div>
         <h2 className="text-[17px] font-semibold leading-tight text-heading">{cn}</h2>
         {en && (
-          <p className="font-display text-[11px] uppercase tracking-[0.25em] text-warm">
-            {en}
-          </p>
+          <p className="font-display text-[11px] uppercase tracking-[0.25em] text-warm">{en}</p>
         )}
       </div>
     </div>
   );
 }
 
-export function Card({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`soft-card ${className}`}>{children}</div>;
 }
 

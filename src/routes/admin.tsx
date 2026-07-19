@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { AboutContentPanel } from "@/components/admin/AboutContentPanel";
 import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
 import { Placeholder } from "@/components/mobile/ui";
 import {
@@ -300,6 +301,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [homeDirty, setHomeDirty] = useState(false);
+  const [aboutDirty, setAboutDirty] = useState(false);
   const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
   const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
   const [selectedParentId, setSelectedParentId] = useState<string>("");
@@ -310,13 +312,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const parentUsers = users.filter((u) => u.role === "parent");
   const selectedParent = parentUsers.find((u) => u.id === selectedParentId) ?? null;
   const selectedForm = forms.find((f) => f.id === selectedFormId) ?? forms[0] ?? null;
+  const activeDirty = section === "home" ? homeDirty : section === "about" ? aboutDirty : false;
+  const activeDirtyLabel = section === "home" ? "首页" : section === "about" ? "猫舍介绍" : "";
 
   const selectSection = (key: SectionKey) => {
     if (
-      section === "home" &&
-      key !== "home" &&
-      homeDirty &&
-      !window.confirm("首页存在未保存修改，确定要离开当前模块吗？")
+      key !== section &&
+      activeDirty &&
+      !window.confirm(`${activeDirtyLabel}存在未保存修改，确定要离开当前模块吗？`)
     ) {
       return;
     }
@@ -325,22 +328,24 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setNotice("");
     setSelectedParentId("");
     if (section === "home" && key !== "home") setHomeDirty(false);
+    if (section === "about" && key !== "about") setAboutDirty(false);
   };
 
   const handleLogout = () => {
-    if (
-      section === "home" &&
-      homeDirty &&
-      !window.confirm("首页存在未保存修改，确定要退出后台吗？")
-    ) {
+    if (activeDirty && !window.confirm(`${activeDirtyLabel}存在未保存修改，确定要退出后台吗？`)) {
       return;
     }
     setHomeDirty(false);
+    setAboutDirty(false);
     onLogout();
   };
 
   const handleHomeDirtyChange = useCallback((dirty: boolean) => {
     setHomeDirty(dirty);
+  }, []);
+
+  const handleAboutDirtyChange = useCallback((dirty: boolean) => {
+    setAboutDirty(dirty);
   }, []);
 
   const setFormStatus = (id: string, status: FormStatus) => {
@@ -441,12 +446,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           {section === "home" && (
             <HomepageContentPanel onNotice={setNotice} onDirtyChange={handleHomeDirtyChange} />
           )}
-          {section !== "home" && SITE_CONTENT_PAGES.some((page) => page.key === section) && (
-            <SitePageShell
-              page={SITE_CONTENT_PAGES.find((page) => page.key === section)!}
-              onNotice={setNotice}
-            />
+          {section === "about" && (
+            <AboutContentPanel onNotice={setNotice} onDirtyChange={handleAboutDirtyChange} />
           )}
+          {section !== "home" &&
+            section !== "about" &&
+            SITE_CONTENT_PAGES.some((page) => page.key === section) && (
+              <SitePageShell
+                page={SITE_CONTENT_PAGES.find((page) => page.key === section)!}
+                onNotice={setNotice}
+              />
+            )}
         </div>
       </main>
     </div>

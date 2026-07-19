@@ -1,80 +1,32 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { PhoneFrame } from "@/components/mobile/PhoneFrame";
-import { Section, SectionTitle, Card, Placeholder } from "@/components/mobile/ui";
-
+import { AboutView } from "@/components/mobile/AboutView";
+import { cloneAboutContent, type AboutContent } from "@/lib/about-content";
 import {
-  MoonStars,
-  Cottage,
-  Rosette,
-  HeartPaw,
-  CurledCat,
-  DnaHelix,
-} from "@/components/mobile/illustrations";
+  loadDraftPreviewAboutContent,
+  loadSavedAboutContent,
+  subscribeToSavedAboutContent,
+} from "@/lib/site-page-storage";
 
 export const Route = createFileRoute("/about")({
   component: About,
 });
 
-const FACTS = [
-  { label: "2019 年成立", Art: MoonStars },
-  { label: "西安", Art: Cottage },
-  { label: "WCF / CFA 注册", Art: Rosette },
-  { label: "全职猫家长", Art: HeartPaw },
-  { label: "自繁自养", Art: CurledCat },
-  { label: "遗传病筛查 all n/n", Art: DnaHelix },
-];
-
 function About() {
-  return (
-    <PhoneFrame title="关于星月" backTo="/">
-      <Section className="pt-1">
-        <Placeholder label="示例图片（猫舍介绍主图，待替换）" ratio="aspect-[16/10]" rounded="rounded-3xl" />
-      </Section>
+  const [content, setContent] = useState<AboutContent>(() => cloneAboutContent());
 
-      <Section className="mt-2">
-        <SectionTitle cn="猫舍名片" en="At a glance" />
-        <div className="grid grid-cols-2 gap-2.5">
-          {FACTS.map(({ label, Art }) => (
-            <Card key={label} className="flex items-center gap-2.5 p-3">
-              <Art className="h-9 w-9 shrink-0 text-violet/80" />
-              <span className="text-[13px] font-medium leading-snug text-card-foreground">
-                {label}
-              </span>
-            </Card>
-          ))}
-        </div>
-      </Section>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const previewDraft = params.get("sitePagePreview") === "about-draft";
 
-      <Section className="mt-6">
-        <Card className="space-y-2 bg-gradient-cream p-4">
-          <h3 className="text-[15px] font-semibold text-heading">主理人 · 星下 & 月七</h3>
-          <p className="text-[13px] leading-relaxed text-foreground">
-            两位主理人全职经营猫舍，持续陪伴小猫成长，也在不断学习和完善繁育与行为学知识。
-          </p>
-        </Card>
-      </Section>
+    if (previewDraft) {
+      setContent(loadDraftPreviewAboutContent());
+      return;
+    }
 
-      <Section className="mb-10 mt-10">
-        <p className="font-display text-[12px] uppercase tracking-[0.25em] text-warm">
-          About StarlitSky
-        </p>
-        <div className="mt-4 space-y-5 text-[14px] leading-[2] text-foreground">
-          <p>
-            欢迎了解我们的猫舍~我们的猫舍成立于2019年位于十三朝古都西安，注册于WCF、CFA协会。由主理人星下和月七两人全职经营，作为全职“猫家长”，我们每天最重要的事就是陪伴小猫成长。
-          </p>
-          <p>
-            我们会从小猫出生开始记录日常逐步完成各项社会化训练，会有窝次群给蹲猫家长更新这些。同时我们非常重视小猫的健康、喂养和生活环境；小猫均为别墅散养每天都会打扫消毒。
-          </p>
-          <p>
-            目前主理人已完成繁育课g1课程和九月的行为学课程以及邓俊的响片课，仍在不断学习中。
-          </p>
-          <p>
-            所有小猫均为自己繁育，种猫均来自国内外知名猫舍血线清晰透明，经健康筛查无先天问题，遗传病筛选（all n/n)，注重动物福利，低频率繁育保证种猫身心健康。
-          </p>
-        </div>
-      </Section>
+    setContent(loadSavedAboutContent());
+    return subscribeToSavedAboutContent(() => setContent(loadSavedAboutContent()));
+  }, []);
 
-
-    </PhoneFrame>
-  );
+  return <AboutView content={content} />;
 }
