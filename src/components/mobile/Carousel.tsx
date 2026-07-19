@@ -1,20 +1,28 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Placeholder } from "./ui";
+
+type SlideFocalPoint = {
+  x: number;
+  y: number;
+};
 
 export interface Slide {
   label: string;
   imageUrl?: string;
   overlay?: ReactNode;
+  focalPoint?: SlideFocalPoint;
 }
 
 export function Carousel({
   slides,
   ratio = "aspect-[16/10]",
+  aspectRatio,
   rounded = "rounded-3xl",
   auto = true,
 }: {
   slides: Slide[];
   ratio?: string;
+  aspectRatio?: string;
   rounded?: string;
   auto?: boolean;
 }) {
@@ -31,6 +39,9 @@ export function Carousel({
     if (index >= slides.length) setIndex(0);
   }, [index, slides.length]);
 
+  const frameStyle: CSSProperties | undefined = aspectRatio ? { aspectRatio } : undefined;
+  const ratioClass = aspectRatio ? "" : ratio;
+
   return (
     <div className={`relative overflow-hidden ${rounded}`}>
       <div
@@ -40,16 +51,27 @@ export function Carousel({
         {slides.map((s, i) => (
           <div key={i} className="relative w-full shrink-0">
             {s.imageUrl ? (
-              <div className={`relative ${ratio} w-full overflow-hidden ${rounded} bg-muted`}>
+              <div
+                className={`relative ${ratioClass} w-full overflow-hidden ${rounded} bg-muted`}
+                style={frameStyle}
+              >
                 <img
                   src={s.imageUrl}
                   alt=""
                   className="h-full w-full object-cover"
+                  style={{
+                    objectPosition: `${s.focalPoint?.x ?? 50}% ${s.focalPoint?.y ?? 50}%`,
+                  }}
                   draggable={false}
                 />
               </div>
             ) : (
-              <Placeholder label={s.label} ratio={ratio} rounded={rounded} />
+              <Placeholder
+                label={s.label}
+                ratio={ratioClass}
+                rounded={rounded}
+                style={frameStyle}
+              />
             )}
             {s.overlay && (
               <div className="pointer-events-none absolute inset-0 flex flex-col justify-end p-4">
