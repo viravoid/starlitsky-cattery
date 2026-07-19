@@ -5,6 +5,8 @@ import { AboutContentPanel } from "@/components/admin/AboutContentPanel";
 import { EnvironmentContentPanel } from "@/components/admin/EnvironmentContentPanel";
 import { FeedingContentPanel } from "@/components/admin/FeedingContentPanel";
 import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
+import { AftercareContentPanel } from "@/components/admin/AftercareContentPanel";
+import { ProcessContentPanel } from "@/components/admin/ProcessContentPanel";
 import { Placeholder } from "@/components/mobile/ui";
 import {
   CatIcon,
@@ -168,7 +170,7 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   },
   process: {
     title: "价格与接猫流程",
-    desc: "管理 /process 页面标题、说明、流程分区和按钮文案。",
+    desc: "管理 /process 页面价格、繁育权、老家长福利、流程和礼包内容。",
   },
   breedingPlan: {
     title: "繁育计划",
@@ -176,7 +178,7 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   },
   aftercare: {
     title: "售后保障",
-    desc: "管理 /aftercare 页面正文内容，不改变现有用户端页面。",
+    desc: "管理 /aftercare 页面承诺、去新家前项目和底部合同提示。",
   },
   questionnairePage: {
     title: "选猫问卷页面",
@@ -306,6 +308,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [aboutDirty, setAboutDirty] = useState(false);
   const [environmentDirty, setEnvironmentDirty] = useState(false);
   const [feedingDirty, setFeedingDirty] = useState(false);
+  const [processDirty, setProcessDirty] = useState(false);
+  const [aftercareDirty, setAftercareDirty] = useState(false);
   const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
   const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
   const [selectedParentId, setSelectedParentId] = useState<string>("");
@@ -325,7 +329,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           ? environmentDirty
           : section === "feeding"
             ? feedingDirty
-            : false;
+            : section === "process"
+              ? processDirty
+              : section === "aftercare"
+                ? aftercareDirty
+                : false;
   const activeDirtyLabel =
     section === "home"
       ? "首页"
@@ -335,7 +343,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           ? "猫舍环境"
           : section === "feeding"
             ? "喂养体系"
-            : "";
+            : section === "process"
+              ? "价格与接猫流程"
+              : section === "aftercare"
+                ? "售后保障"
+                : "";
 
   const selectSection = (key: SectionKey) => {
     if (
@@ -353,6 +365,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     if (section === "about" && key !== "about") setAboutDirty(false);
     if (section === "environment" && key !== "environment") setEnvironmentDirty(false);
     if (section === "feeding" && key !== "feeding") setFeedingDirty(false);
+    if (section === "process" && key !== "process") setProcessDirty(false);
+    if (section === "aftercare" && key !== "aftercare") setAftercareDirty(false);
   };
 
   const handleLogout = () => {
@@ -363,6 +377,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setAboutDirty(false);
     setEnvironmentDirty(false);
     setFeedingDirty(false);
+    setProcessDirty(false);
+    setAftercareDirty(false);
     onLogout();
   };
 
@@ -380,6 +396,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleFeedingDirtyChange = useCallback((dirty: boolean) => {
     setFeedingDirty(dirty);
+  }, []);
+
+  const handleProcessDirtyChange = useCallback((dirty: boolean) => {
+    setProcessDirty(dirty);
+  }, []);
+
+  const handleAftercareDirtyChange = useCallback((dirty: boolean) => {
+    setAftercareDirty(dirty);
   }, []);
 
   const setFormStatus = (id: string, status: FormStatus) => {
@@ -492,10 +516,21 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           {section === "feeding" && (
             <FeedingContentPanel onNotice={setNotice} onDirtyChange={handleFeedingDirtyChange} />
           )}
+          {section === "process" && (
+            <ProcessContentPanel onNotice={setNotice} onDirtyChange={handleProcessDirtyChange} />
+          )}
+          {section === "aftercare" && (
+            <AftercareContentPanel
+              onNotice={setNotice}
+              onDirtyChange={handleAftercareDirtyChange}
+            />
+          )}
           {section !== "home" &&
             section !== "about" &&
             section !== "environment" &&
             section !== "feeding" &&
+            section !== "process" &&
+            section !== "aftercare" &&
             SITE_CONTENT_PAGES.some((page) => page.key === section) && (
               <SitePageShell
                 page={SITE_CONTENT_PAGES.find((page) => page.key === section)!}

@@ -9,6 +9,16 @@ import {
   normalizeFeedingContent,
   type FeedingContent,
 } from "./feeding-content";
+import {
+  cloneAftercareContent,
+  normalizeAftercareContent,
+  type AftercareContent,
+} from "./aftercare-content";
+import {
+  cloneProcessContent,
+  normalizeProcessContent,
+  type ProcessContent,
+} from "./process-content";
 
 const ABOUT_SAVED_KEY = "starlitsky.site-page.about.saved.v1";
 const ABOUT_DRAFT_PREVIEW_KEY = "starlitsky.site-page.about.draft-preview.v1";
@@ -19,6 +29,12 @@ const ENVIRONMENT_SAVED_EVENT = "starlitsky:site-page-environment-saved";
 const FEEDING_SAVED_KEY = "starlitsky.site-page.feeding.saved.v1";
 const FEEDING_DRAFT_PREVIEW_KEY = "starlitsky.site-page.feeding.draft-preview.v1";
 const FEEDING_SAVED_EVENT = "starlitsky:site-page-feeding-saved";
+const AFTERCARE_SAVED_KEY = "starlitsky.site-page.aftercare.saved.v1";
+const AFTERCARE_DRAFT_PREVIEW_KEY = "starlitsky.site-page.aftercare.draft-preview.v1";
+const AFTERCARE_SAVED_EVENT = "starlitsky:site-page-aftercare-saved";
+const PROCESS_SAVED_KEY = "starlitsky.site-page.process.saved.v1";
+const PROCESS_DRAFT_PREVIEW_KEY = "starlitsky.site-page.process.draft-preview.v1";
+const PROCESS_SAVED_EVENT = "starlitsky:site-page-process-saved";
 const DB_NAME = "starlitsky-site-pages";
 const DB_VERSION = 1;
 const IMAGE_STORE = "images";
@@ -59,6 +75,22 @@ function readFeedingContent(key: string): FeedingContent {
 
 function writeFeedingContent(key: string, content: FeedingContent) {
   writeContent(key, content, normalizeFeedingContent);
+}
+
+function readAftercareContent(key: string): AftercareContent {
+  return readContent(key, cloneAftercareContent, normalizeAftercareContent);
+}
+
+function writeAftercareContent(key: string, content: AftercareContent) {
+  writeContent(key, content, normalizeAftercareContent);
+}
+
+function readProcessContent(key: string): ProcessContent {
+  return readContent(key, cloneProcessContent, normalizeProcessContent);
+}
+
+function writeProcessContent(key: string, content: ProcessContent) {
+  writeContent(key, content, normalizeProcessContent);
 }
 
 function readContent<T>(key: string, cloneDefault: () => T, normalize: (value: unknown) => T): T {
@@ -146,6 +178,50 @@ export function saveDraftPreviewFeedingContent(content: FeedingContent) {
 
 export function subscribeToSavedFeedingContent(callback: () => void) {
   return subscribeToSavedContent(FEEDING_SAVED_KEY, FEEDING_SAVED_EVENT, callback);
+}
+
+export function loadSavedAftercareContent() {
+  return readAftercareContent(AFTERCARE_SAVED_KEY);
+}
+
+export function saveAftercareContent(content: AftercareContent) {
+  if (!isBrowser()) return;
+  writeAftercareContent(AFTERCARE_SAVED_KEY, content);
+  window.dispatchEvent(new CustomEvent(AFTERCARE_SAVED_EVENT));
+}
+
+export function loadDraftPreviewAftercareContent() {
+  return readAftercareContent(AFTERCARE_DRAFT_PREVIEW_KEY);
+}
+
+export function saveDraftPreviewAftercareContent(content: AftercareContent) {
+  writeAftercareContent(AFTERCARE_DRAFT_PREVIEW_KEY, content);
+}
+
+export function subscribeToSavedAftercareContent(callback: () => void) {
+  return subscribeToSavedContent(AFTERCARE_SAVED_KEY, AFTERCARE_SAVED_EVENT, callback);
+}
+
+export function loadSavedProcessContent() {
+  return readProcessContent(PROCESS_SAVED_KEY);
+}
+
+export function saveProcessContent(content: ProcessContent) {
+  if (!isBrowser()) return;
+  writeProcessContent(PROCESS_SAVED_KEY, content);
+  window.dispatchEvent(new CustomEvent(PROCESS_SAVED_EVENT));
+}
+
+export function loadDraftPreviewProcessContent() {
+  return readProcessContent(PROCESS_DRAFT_PREVIEW_KEY);
+}
+
+export function saveDraftPreviewProcessContent(content: ProcessContent) {
+  writeProcessContent(PROCESS_DRAFT_PREVIEW_KEY, content);
+}
+
+export function subscribeToSavedProcessContent(callback: () => void) {
+  return subscribeToSavedContent(PROCESS_SAVED_KEY, PROCESS_SAVED_EVENT, callback);
 }
 
 function subscribeToSavedContent(key: string, eventName: string, callback: () => void) {

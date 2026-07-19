@@ -354,6 +354,97 @@ export function ImageListEditor<TImage extends EditablePageImage>({
   );
 }
 
+export function SortableListEditor<TItem extends { id: string }>({
+  items,
+  addLabel,
+  emptyLabel,
+  deleteConfirm,
+  onAdd,
+  onItemsChange,
+  renderItem,
+}: {
+  items: TItem[];
+  addLabel: string;
+  emptyLabel: string;
+  deleteConfirm: string;
+  onAdd: () => void;
+  onItemsChange: (items: TItem[]) => void;
+  renderItem: (
+    item: TItem,
+    index: number,
+    updateItem: (patch: Partial<TItem>) => void,
+  ) => ReactNode;
+}) {
+  const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
+
+  const updateItem = (id: string, patch: Partial<TItem>) => {
+    onItemsChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
+  const deleteItem = (id: string) => {
+    if (!window.confirm(deleteConfirm)) return;
+    onItemsChange(items.filter((item) => item.id !== id));
+  };
+
+  const moveItem = (id: string, direction: -1 | 1) => {
+    onItemsChange(moveById(items, id, direction));
+  };
+
+  const dropItem = (targetId: string) => {
+    if (!draggingItemId) return;
+    onItemsChange(moveToId(items, draggingItemId, targetId));
+    setDraggingItemId(null);
+  };
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex justify-end">
+        <EditorButton onClick={onAdd}>{addLabel}</EditorButton>
+      </div>
+      {items.length === 0 && (
+        <p className="rounded-[6px] border border-dashed border-border px-3 py-6 text-center text-[13px] text-muted-foreground">
+          {emptyLabel}
+        </p>
+      )}
+      {items.map((item, index) => (
+        <div
+          key={item.id}
+          draggable
+          onDragStart={() => setDraggingItemId(item.id)}
+          onDragEnd={() => setDraggingItemId(null)}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={() => dropItem(item.id)}
+          className="grid gap-3 rounded-[6px] border border-border/80 bg-background p-3"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-display text-[13px] italic text-warm/80">#{index + 1}</span>
+            <div className="flex flex-wrap gap-1.5">
+              <EditorButton
+                tone="quiet"
+                onClick={() => moveItem(item.id, -1)}
+                disabled={index === 0}
+              >
+                上移
+              </EditorButton>
+              <EditorButton
+                tone="quiet"
+                onClick={() => moveItem(item.id, 1)}
+                disabled={index === items.length - 1}
+              >
+                下移
+              </EditorButton>
+              <EditorButton tone="danger" onClick={() => deleteItem(item.id)}>
+                删除
+              </EditorButton>
+            </div>
+          </div>
+          {renderItem(item, index, (patch) => updateItem(item.id, patch))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FocalPointEditor({
   label,
   imageUrl,
