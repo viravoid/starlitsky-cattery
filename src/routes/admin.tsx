@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { AboutContentPanel } from "@/components/admin/AboutContentPanel";
+import { EnvironmentContentPanel } from "@/components/admin/EnvironmentContentPanel";
+import { FeedingContentPanel } from "@/components/admin/FeedingContentPanel";
 import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
 import { Placeholder } from "@/components/mobile/ui";
 import {
@@ -302,6 +304,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [notice, setNotice] = useState("");
   const [homeDirty, setHomeDirty] = useState(false);
   const [aboutDirty, setAboutDirty] = useState(false);
+  const [environmentDirty, setEnvironmentDirty] = useState(false);
+  const [feedingDirty, setFeedingDirty] = useState(false);
   const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
   const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
   const [selectedParentId, setSelectedParentId] = useState<string>("");
@@ -312,8 +316,26 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const parentUsers = users.filter((u) => u.role === "parent");
   const selectedParent = parentUsers.find((u) => u.id === selectedParentId) ?? null;
   const selectedForm = forms.find((f) => f.id === selectedFormId) ?? forms[0] ?? null;
-  const activeDirty = section === "home" ? homeDirty : section === "about" ? aboutDirty : false;
-  const activeDirtyLabel = section === "home" ? "首页" : section === "about" ? "猫舍介绍" : "";
+  const activeDirty =
+    section === "home"
+      ? homeDirty
+      : section === "about"
+        ? aboutDirty
+        : section === "environment"
+          ? environmentDirty
+          : section === "feeding"
+            ? feedingDirty
+            : false;
+  const activeDirtyLabel =
+    section === "home"
+      ? "首页"
+      : section === "about"
+        ? "猫舍介绍"
+        : section === "environment"
+          ? "猫舍环境"
+          : section === "feeding"
+            ? "喂养体系"
+            : "";
 
   const selectSection = (key: SectionKey) => {
     if (
@@ -329,6 +351,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setSelectedParentId("");
     if (section === "home" && key !== "home") setHomeDirty(false);
     if (section === "about" && key !== "about") setAboutDirty(false);
+    if (section === "environment" && key !== "environment") setEnvironmentDirty(false);
+    if (section === "feeding" && key !== "feeding") setFeedingDirty(false);
   };
 
   const handleLogout = () => {
@@ -337,6 +361,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     }
     setHomeDirty(false);
     setAboutDirty(false);
+    setEnvironmentDirty(false);
+    setFeedingDirty(false);
     onLogout();
   };
 
@@ -346,6 +372,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleAboutDirtyChange = useCallback((dirty: boolean) => {
     setAboutDirty(dirty);
+  }, []);
+
+  const handleEnvironmentDirtyChange = useCallback((dirty: boolean) => {
+    setEnvironmentDirty(dirty);
+  }, []);
+
+  const handleFeedingDirtyChange = useCallback((dirty: boolean) => {
+    setFeedingDirty(dirty);
   }, []);
 
   const setFormStatus = (id: string, status: FormStatus) => {
@@ -449,8 +483,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           {section === "about" && (
             <AboutContentPanel onNotice={setNotice} onDirtyChange={handleAboutDirtyChange} />
           )}
+          {section === "environment" && (
+            <EnvironmentContentPanel
+              onNotice={setNotice}
+              onDirtyChange={handleEnvironmentDirtyChange}
+            />
+          )}
+          {section === "feeding" && (
+            <FeedingContentPanel onNotice={setNotice} onDirtyChange={handleFeedingDirtyChange} />
+          )}
           {section !== "home" &&
             section !== "about" &&
+            section !== "environment" &&
+            section !== "feeding" &&
             SITE_CONTENT_PAGES.some((page) => page.key === section) && (
               <SitePageShell
                 page={SITE_CONTENT_PAGES.find((page) => page.key === section)!}
