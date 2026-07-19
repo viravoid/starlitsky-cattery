@@ -3,6 +3,7 @@ import { Placeholder } from "./ui";
 
 export interface Slide {
   label: string;
+  imageUrl?: string;
   overlay?: ReactNode;
 }
 
@@ -22,12 +23,13 @@ export function Carousel({
 
   useEffect(() => {
     if (!auto || slides.length <= 1) return;
-    timer.current = setInterval(
-      () => setIndex((i) => (i + 1) % slides.length),
-      3800,
-    );
+    timer.current = setInterval(() => setIndex((i) => (i + 1) % slides.length), 3800);
     return () => clearInterval(timer.current);
   }, [auto, slides.length]);
+
+  useEffect(() => {
+    if (index >= slides.length) setIndex(0);
+  }, [index, slides.length]);
 
   return (
     <div className={`relative overflow-hidden ${rounded}`}>
@@ -37,7 +39,18 @@ export function Carousel({
       >
         {slides.map((s, i) => (
           <div key={i} className="relative w-full shrink-0">
-            <Placeholder label={s.label} ratio={ratio} rounded={rounded} />
+            {s.imageUrl ? (
+              <div className={`relative ${ratio} w-full overflow-hidden ${rounded} bg-muted`}>
+                <img
+                  src={s.imageUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  draggable={false}
+                />
+              </div>
+            ) : (
+              <Placeholder label={s.label} ratio={ratio} rounded={rounded} />
+            )}
             {s.overlay && (
               <div className="pointer-events-none absolute inset-0 flex flex-col justify-end p-4">
                 {s.overlay}
