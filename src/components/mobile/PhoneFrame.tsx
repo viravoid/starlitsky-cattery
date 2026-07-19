@@ -16,8 +16,6 @@ const TABS: {
   { key: "cats", label: "我们的猫", to: "/cats", Icon: Cat },
 ];
 
-
-
 function StatusBar({ dark = false }: { dark?: boolean }) {
   return (
     <div
@@ -39,9 +37,7 @@ function Capsule({ dark = false }: { dark?: boolean }) {
   return (
     <div
       className={`absolute right-3 top-[46px] z-30 flex h-8 items-center gap-1 rounded-full border px-2.5 backdrop-blur ${
-        dark
-          ? "border-white/30 bg-white/15 text-white"
-          : "border-border bg-card/80 text-heading"
+        dark ? "border-white/30 bg-white/15 text-white" : "border-border bg-card/80 text-heading"
       }`}
     >
       <span className="text-lg leading-none">···</span>
@@ -112,10 +108,7 @@ export function TabBar({ active }: { active: TabKey }) {
                 >
                   <Icon size={22} strokeWidth={1.8} />
                 </span>
-                <span
-                  className="font-medium"
-                  style={{ fontSize: 11, lineHeight: 1, marginTop: 5 }}
-                >
+                <span className="font-medium" style={{ fontSize: 11, lineHeight: 1, marginTop: 5 }}>
                   {label}
                 </span>
               </Link>
@@ -136,6 +129,8 @@ export function PhoneFrame({
   showTabBar = false,
   bottomBar,
   darkStatus = false,
+  outerClassName = "",
+  frameClassName = "",
 }: {
   children: ReactNode;
   title?: string;
@@ -145,16 +140,20 @@ export function PhoneFrame({
   showTabBar?: boolean;
   bottomBar?: ReactNode;
   darkStatus?: boolean;
+  outerClassName?: string;
+  frameClassName?: string;
 }) {
   return (
-    <div className="flex min-h-screen w-full items-start justify-center sm:py-8">
-      <div className="relative flex h-[100dvh] w-full max-w-[402px] flex-col overflow-hidden bg-background shadow-float sm:h-[860px] sm:rounded-[2.75rem] sm:border-8 sm:border-[#e5ecf6]">
+    <div
+      className={`flex min-h-screen w-full items-start justify-center sm:py-8 ${outerClassName}`}
+    >
+      <div
+        className={`relative flex h-[100dvh] w-full max-w-[402px] flex-col overflow-hidden bg-background shadow-float sm:h-[860px] sm:rounded-[2.75rem] sm:border-8 sm:border-[#e5ecf6] ${frameClassName}`}
+      >
         <StatusBar dark={darkStatus} />
         <Capsule dark={darkStatus} />
         {title && <NavHeader title={title} showBack={showBack} to={backTo} />}
-        <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain">
-          {children}
-        </div>
+        <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain">{children}</div>
         {bottomBar}
         {showTabBar && activeTab && <TabBar active={activeTab} />}
       </div>

@@ -1,6 +1,7 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
 import { Placeholder } from "@/components/mobile/ui";
 import {
   CatIcon,
@@ -298,6 +299,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [section, setSection] = useState<SectionKey>("overview");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [homeDirty, setHomeDirty] = useState(false);
   const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
   const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
   const [selectedParentId, setSelectedParentId] = useState<string>("");
@@ -310,11 +312,36 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const selectedForm = forms.find((f) => f.id === selectedFormId) ?? forms[0] ?? null;
 
   const selectSection = (key: SectionKey) => {
+    if (
+      section === "home" &&
+      key !== "home" &&
+      homeDirty &&
+      !window.confirm("首页存在未保存修改，确定要离开当前模块吗？")
+    ) {
+      return;
+    }
     setSection(key);
     setMobileNavOpen(false);
     setNotice("");
     setSelectedParentId("");
+    if (section === "home" && key !== "home") setHomeDirty(false);
   };
+
+  const handleLogout = () => {
+    if (
+      section === "home" &&
+      homeDirty &&
+      !window.confirm("首页存在未保存修改，确定要退出后台吗？")
+    ) {
+      return;
+    }
+    setHomeDirty(false);
+    onLogout();
+  };
+
+  const handleHomeDirtyChange = useCallback((dirty: boolean) => {
+    setHomeDirty(dirty);
+  }, []);
 
   const setFormStatus = (id: string, status: FormStatus) => {
     setForms((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
@@ -326,7 +353,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] flex-col border-r border-border bg-card lg:flex">
-        <SidebarHeader onLogout={onLogout} />
+        <SidebarHeader onLogout={handleLogout} />
         <AdminNav active={section} onSelect={selectSection} />
       </aside>
 
@@ -411,7 +438,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
           {section === "community" && <CommunityPanel posts={posts} onNotice={setNotice} />}
           {section === "comments" && <CommentsPanel posts={posts} onNotice={setNotice} />}
-          {section === "home" && <HomeContentPanel onNotice={setNotice} />}
+          {section === "home" && (
+            <HomepageContentPanel onNotice={setNotice} onDirtyChange={handleHomeDirtyChange} />
+          )}
           {section !== "home" && SITE_CONTENT_PAGES.some((page) => page.key === section) && (
             <SitePageShell
               page={SITE_CONTENT_PAGES.find((page) => page.key === section)!}
@@ -500,7 +529,7 @@ function PageHeader({ title, desc }: { title: string; desc: string }) {
 function DemoNotice() {
   return (
     <div className="border-b border-sunflower/35 bg-sunny/25 px-3 py-1.5 text-[12px] font-medium text-[#9b7927] sm:px-5 lg:px-8 lg:text-[13px]">
-      当前为视觉 Demo，数据修改不会真实保存。
+      当前为高保真 Demo，首页内容仅保存到当前浏览器本地。
     </div>
   );
 }
@@ -1626,135 +1655,6 @@ function CommentsPanel({
           </div>
         </>
       )}
-    </Panel>
-  );
-}
-
-function HomeContentPanel({ onNotice }: { onNotice: (message: string) => void }) {
-  const items = [1, 2, 3].map((sort) => ({
-    id: `hero-${sort}`,
-    sort,
-    title: `首页轮播图 ${sort}`,
-    status: "展示中",
-    link: sort === 1 ? "首页" : sort === 2 ? "小猫" : "猫舍环境",
-  }));
-  const entryPages = [
-    ["01", "猫舍介绍", "了解星月的成立方式、主营业务、发展理念。"],
-    ["02", "繁育理念", "查看猫舍繁育原则、健康筛查和长期规划。"],
-    ["03", "猫舍环境", "预览猫舍空间、生活区域和环境图文。"],
-    ["04", "喂养体系", "进入喂养理念、日常照护和基础说明。"],
-    ["05", "价格与接猫流程", "了解预算、预约、接猫和合同流程。"],
-    ["06", "繁育计划", "预留未来繁育计划入口，正式内容待提供。"],
-    ["07", "售后保障", "查看接猫后的保障、咨询和注意事项。"],
-    ["08", "选猫问卷页面", "进入问卷说明和填写提示页面。"],
-    ["09", "联系方式", "查看微信、小红书等联系渠道。"],
-  ];
-
-  return (
-    <div className="flex flex-col gap-4">
-      <Panel>
-        <PanelTitle
-          title="首页头图区域"
-          desc="管理首页首屏标题、英文副标题、轮播图片和轮播顺序。"
-          action={
-            <ActionButton onClick={() => onNotice("已打开新增轮播 Demo。")}>新增轮播</ActionButton>
-          }
-        />
-        <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
-          <div className="grid gap-2">
-            <DemoInput label="中文主标题" value="星月缅因猫舍" />
-            <DemoInput label="英文副标题" value="Starlit Sky Maine Coon Cattery" />
-          </div>
-          <TableShell columns={["排序", "标题", "图片", "链接目标", "状态", "操作"]}>
-            {items.map((item) => (
-              <tr key={item.id} className="text-card-foreground">
-                <td className="px-3 py-2.5">{item.sort}</td>
-                <td className="px-3 py-2.5 font-semibold text-heading">{item.title}</td>
-                <td className="px-3 py-2.5">
-                  <div className="w-24">
-                    <Placeholder
-                      label="轮播占位"
-                      ratio="aspect-[4/3]"
-                      rounded="rounded-[8px]"
-                      compact
-                    />
-                  </div>
-                </td>
-                <td className="px-3 py-2.5">{item.link}</td>
-                <td className="px-3 py-2.5">
-                  <StatusBadge tone="creamblue">{item.status}</StatusBadge>
-                </td>
-                <td className="px-3 py-2.5">
-                  <RowActions
-                    actions={[
-                      ["编辑", () => onNotice("已打开轮播编辑 Demo。")],
-                      ["停用", () => onNotice("已模拟停用轮播。")],
-                    ]}
-                  />
-                </td>
-              </tr>
-            ))}
-          </TableShell>
-        </div>
-      </Panel>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <HomeBlock
-          title="首页品牌简介"
-          desc="标题前小字、成立年份、城市、注册协会和首页简介正文。"
-          fields={["标题前的小字", "成立年份 / 城市 / 注册协会", "首页简介正文"]}
-        />
-        <HomeBlock
-          title="首页内容分组"
-          desc="例如“了解星月的成立方式、主营业务、发展理念”等首页表面介绍。"
-          fields={["分组小字或英文标题", "分组中文标题", "分组介绍文字"]}
-        />
-      </div>
-
-      <Panel>
-        <PanelTitle
-          title="首页二级页面入口"
-          desc="入口标题、小字编号、简短介绍、展示顺序、是否展示；链接目标本轮固定。"
-        />
-        <TableShell columns={["顺序", "小字 / 编号", "入口标题", "简短介绍", "展示", "链接目标"]}>
-          {entryPages.map(([code, title, desc], index) => (
-            <tr key={title} className="text-card-foreground">
-              <td className="px-3 py-2.5">{index + 1}</td>
-              <td className="px-3 py-2.5">{code}</td>
-              <td className="px-3 py-2.5 font-semibold text-heading">{title}</td>
-              <td className="max-w-[460px] px-3 py-2.5">{desc}</td>
-              <td className="px-3 py-2.5">
-                <StatusBadge tone="creamblue">展示</StatusBadge>
-              </td>
-              <td className="px-3 py-2.5">固定</td>
-            </tr>
-          ))}
-        </TableShell>
-      </Panel>
-
-      <HomeBlock
-        title="首页其他入口文案"
-        desc="例如“我们的猫”预览区域的小标题、主标题、简介和按钮文字。"
-        fields={["预览区域小标题", "预览区域主标题", "简介文字", "按钮文字"]}
-      />
-    </div>
-  );
-}
-
-function HomeBlock({ title, desc, fields }: { title: string; desc: string; fields: string[] }) {
-  return (
-    <Panel>
-      <PanelTitle title={title} desc={desc} />
-      <div className="grid gap-2 px-4 py-3">
-        {fields.map((field) => (
-          <DemoInput
-            key={field}
-            label={field}
-            value={`${field} Demo 占位`}
-            multiline={field.includes("正文") || field.includes("介绍")}
-          />
-        ))}
-      </div>
     </Panel>
   );
 }
