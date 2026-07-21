@@ -4,7 +4,7 @@ import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
 import { PawIcon, CheckIcon } from "@/components/mobile/icons";
 import { actions, useCommunity } from "@/lib/community-store";
-import { cloneContactContent, findWechatAccount, type ContactContent } from "@/lib/contact-content";
+import { findWechatAccount, type ContactContent } from "@/lib/contact-content";
 import { loadSavedContactContent, subscribeToSavedContactContent } from "@/lib/site-page-storage";
 
 export const Route = createFileRoute("/community/parent-onboard")({
@@ -17,8 +17,8 @@ function ParentOnboard() {
   const role = useCommunity((s) => s.role);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [contactContent, setContactContent] = useState<ContactContent>(() => cloneContactContent());
-  const wechatAccount = findWechatAccount(contactContent);
+  const [contactContent, setContactContent] = useState<ContactContent | null>(null);
+  const wechatAccount = contactContent ? findWechatAccount(contactContent) : null;
   const wechatValue = wechatAccount?.value.trim() ?? "";
 
   useEffect(() => {

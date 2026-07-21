@@ -47,28 +47,59 @@ export const STUDS: Stud[] = [
     ],
   ),
   stud("hupo", "琥珀", "棕虎斑麻纹加白 n2509", "现役公猫", "现役公猫", "在配", "骨量足，纹路清晰"),
-  stud("shulongyin", "水龙吟", "黑银鱼骨纹 ns23", "现役公猫", "现役公猫", "在配", "银度高，性格温柔"),
+  stud(
+    "shulongyin",
+    "水龙吟",
+    "黑银鱼骨纹 ns23",
+    "现役公猫",
+    "现役公猫",
+    "在配",
+    "银度高，性格温柔",
+  ),
   stud("tianhe", "天河", "银虎斑加白 ns2203", "现役公猫", "现役公猫", "在配", "大方亲人，表情甜"),
-  stud("sanmingzhi", "三明治", "棕虎斑 n22", "预备役种猫", "预备役种猫", "成长中", "潜力款，正在成长"),
+  stud(
+    "sanmingzhi",
+    "三明治",
+    "棕虎斑 n22",
+    "预备役种猫",
+    "预备役种猫",
+    "成长中",
+    "潜力款，正在成长",
+  ),
   stud("yunmu", "云母", "黑银麻纹加白 ns2503", "现役母猫", "现役母猫", "在舍", "五官柔和，母性强"),
   stud("niaotuan", "尿团", "银玳瑁虎斑 fs22", "现役母猫", "现役母猫", "在舍", "颜色特别，活泼"),
-  stud("guihuagao", "桂花糕", "玳瑁麻纹加白 f2509", "现役母猫", "现役母猫", "在舍", "花色甜美，亲人"),
+  stud(
+    "guihuagao",
+    "桂花糕",
+    "玳瑁麻纹加白 f2509",
+    "现役母猫",
+    "现役母猫",
+    "在舍",
+    "花色甜美，亲人",
+  ),
   stud("zhaoyue", "昭月", "黑银鱼骨纹 ns23", "现役母猫", "现役母猫", "在舍", "纹路利落，安静"),
   stud("jingzhe", "惊蛰", "蓝银虎斑 as22", "现役母猫", "现役母猫", "在舍", "蓝调稀有，优雅"),
   stud("xiongmao", "小熊猫", "棕麻纹加白 n2509", "现役母猫", "现役母猫", "在舍", "圆脸，表情丰富"),
   stud("yunyue", "云玥", "银玳瑁虎斑 fs22", "现役母猫", "现役母猫", "在舍", "色块干净，稳重"),
-  stud("xiaoxiaxian", "小虾线", "银玳瑁麻纹 fs25", "现役母猫", "现役母猫", "成长中", "年轻小母，灵动"),
+  stud(
+    "xiaoxiaxian",
+    "小虾线",
+    "银玳瑁麻纹 fs25",
+    "现役母猫",
+    "现役母猫",
+    "成长中",
+    "年轻小母，灵动",
+  ),
   stud("manao", "玛瑙", "玳瑁虎斑加白 f2209", "现役母猫", "现役母猫", "在舍", "加白匀称，甜美"),
   stud("xiaobianmu", "小边牧", "玳瑁虎斑 f22", "现役母猫", "现役母猫", "在舍", "花纹俏皮，亲人"),
   stud("xiaotao", "小桃", "玳瑁麻纹 f25", "现役母猫", "现役母猫", "成长中", "粉嫩气质，温柔"),
 ];
 
-
 export type KittenStatus = "待找家" | "找家中" | "已有家";
 
 export interface StructureRating {
   face: {
-    eyes?: number;    // 0-6
+    eyes?: number; // 0-6
     ears?: number;
     muzzle?: number;
     profile?: number;
@@ -99,7 +130,6 @@ export interface Kitten {
 
 export const LITTERS = ["A窝", "B窝", "C窝"] as const;
 export type Litter = (typeof LITTERS)[number];
-
 
 export const KITTENS: Kitten[] = [
   {
@@ -135,7 +165,6 @@ export const KITTENS: Kitten[] = [
     litter: "B窝",
     personality: "示例文字（缺少性格介绍）",
     story: ["（示例文字：主理人的完整介绍待补充）"],
-
   },
   {
     id: "kitten-c",
@@ -150,7 +179,6 @@ export const KITTENS: Kitten[] = [
     litter: "C窝",
     personality: "示例文字（缺少性格介绍）",
     story: ["（示例文字：主理人的完整介绍待补充）"],
-
   },
 ];
 
@@ -160,12 +188,7 @@ export function statusTone(_status: KittenStatus) {
 }
 
 // ── Questionnaire submissions (admin only) ────────────────────
-export type FormStatus =
-  | "未查看"
-  | "已联系"
-  | "适合继续沟通"
-  | "暂不合适"
-  | "已完成";
+export type FormStatus = "未查看" | "已联系" | "适合继续沟通" | "暂不合适" | "已完成";
 
 export const FORM_STATUSES: FormStatus[] = [
   "未查看",
