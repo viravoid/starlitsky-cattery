@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { PhoneFrame } from "@/components/mobile/PhoneFrame";
-import { Section, Card } from "@/components/mobile/ui";
-import { CopyText } from "@/components/mobile/CopyText";
-import { HeartPaw } from "@/components/mobile/illustrations";
-import { SOCIALS } from "@/lib/cattery-data";
+import { ContactView } from "@/components/mobile/ContactView";
+import { cloneContactContent, type ContactContent } from "@/lib/contact-content";
+import {
+  loadDraftPreviewContactContent,
+  loadSavedContactContent,
+  subscribeToSavedContactContent,
+} from "@/lib/site-page-storage";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -25,29 +28,20 @@ export const Route = createFileRoute("/contact")({
 });
 
 function Contact() {
-  return (
-    <PhoneFrame title="联系方式" backTo="/">
-      <Section className="pt-2 text-center">
-        <HeartPaw className="mx-auto h-12 w-12 text-violet/45" />
-        <h1 className="mt-3 text-[20px] font-bold text-heading">在这些地方找到星月</h1>
-        <p className="mx-auto mt-2 max-w-[17rem] text-[12.5px] leading-[1.9] text-foreground">
-          点击即可复制账号，欢迎来聊聊猫、看看小猫日常。
-        </p>
-      </Section>
+  const [content, setContent] = useState<ContactContent>(() => cloneContactContent());
 
-      <Section className="mt-6 space-y-2.5">
-        {SOCIALS.map((s) => (
-          <CopyText key={s.label} label={s.label} value={s.value} />
-        ))}
-      </Section>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const previewDraft = params.get("sitePagePreview") === "contact-draft";
 
-      <Section className="mb-10 mt-8">
-        <Card className="p-4">
-          <p className="text-center text-[12px] leading-[1.95] text-muted-foreground">
-            咨询前建议先读完接猫流程、填写选猫问卷，方便我们更好地了解你的需求。
-          </p>
-        </Card>
-      </Section>
-    </PhoneFrame>
-  );
+    if (previewDraft) {
+      setContent(loadDraftPreviewContactContent());
+      return;
+    }
+
+    setContent(loadSavedContactContent());
+    return subscribeToSavedContactContent(() => setContent(loadSavedContactContent()));
+  }, []);
+
+  return <ContactView content={content} />;
 }

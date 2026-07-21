@@ -19,6 +19,11 @@ import {
   normalizeProcessContent,
   type ProcessContent,
 } from "./process-content";
+import {
+  cloneContactContent,
+  normalizeContactContent,
+  type ContactContent,
+} from "./contact-content";
 
 const ABOUT_SAVED_KEY = "starlitsky.site-page.about.saved.v1";
 const ABOUT_DRAFT_PREVIEW_KEY = "starlitsky.site-page.about.draft-preview.v1";
@@ -35,6 +40,9 @@ const AFTERCARE_SAVED_EVENT = "starlitsky:site-page-aftercare-saved";
 const PROCESS_SAVED_KEY = "starlitsky.site-page.process.saved.v1";
 const PROCESS_DRAFT_PREVIEW_KEY = "starlitsky.site-page.process.draft-preview.v1";
 const PROCESS_SAVED_EVENT = "starlitsky:site-page-process-saved";
+const CONTACT_SAVED_KEY = "starlitsky.site-page.contact.saved.v1";
+const CONTACT_DRAFT_PREVIEW_KEY = "starlitsky.site-page.contact.draft-preview.v1";
+const CONTACT_SAVED_EVENT = "starlitsky:site-page-contact-saved";
 const DB_NAME = "starlitsky-site-pages";
 const DB_VERSION = 1;
 const IMAGE_STORE = "images";
@@ -91,6 +99,14 @@ function readProcessContent(key: string): ProcessContent {
 
 function writeProcessContent(key: string, content: ProcessContent) {
   writeContent(key, content, normalizeProcessContent);
+}
+
+function readContactContent(key: string): ContactContent {
+  return readContent(key, cloneContactContent, normalizeContactContent);
+}
+
+function writeContactContent(key: string, content: ContactContent) {
+  writeContent(key, content, normalizeContactContent);
 }
 
 function readContent<T>(key: string, cloneDefault: () => T, normalize: (value: unknown) => T): T {
@@ -222,6 +238,28 @@ export function saveDraftPreviewProcessContent(content: ProcessContent) {
 
 export function subscribeToSavedProcessContent(callback: () => void) {
   return subscribeToSavedContent(PROCESS_SAVED_KEY, PROCESS_SAVED_EVENT, callback);
+}
+
+export function loadSavedContactContent() {
+  return readContactContent(CONTACT_SAVED_KEY);
+}
+
+export function saveContactContent(content: ContactContent) {
+  if (!isBrowser()) return;
+  writeContactContent(CONTACT_SAVED_KEY, content);
+  window.dispatchEvent(new CustomEvent(CONTACT_SAVED_EVENT));
+}
+
+export function loadDraftPreviewContactContent() {
+  return readContactContent(CONTACT_DRAFT_PREVIEW_KEY);
+}
+
+export function saveDraftPreviewContactContent(content: ContactContent) {
+  writeContactContent(CONTACT_DRAFT_PREVIEW_KEY, content);
+}
+
+export function subscribeToSavedContactContent(callback: () => void) {
+  return subscribeToSavedContent(CONTACT_SAVED_KEY, CONTACT_SAVED_EVENT, callback);
 }
 
 function subscribeToSavedContent(key: string, eventName: string, callback: () => void) {

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { AboutContentPanel } from "@/components/admin/AboutContentPanel";
+import { ContactContentPanel } from "@/components/admin/ContactContentPanel";
 import { EnvironmentContentPanel } from "@/components/admin/EnvironmentContentPanel";
 import { FeedingContentPanel } from "@/components/admin/FeedingContentPanel";
 import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
@@ -186,7 +187,7 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   },
   contact: {
     title: "联系方式",
-    desc: "管理 /contact 页面标题、介绍、内容分区和页面底部文案。",
+    desc: "管理 /contact 页面的介绍、联系方式账号和底部提示；页面标题与视觉结构固定。",
   },
 };
 
@@ -310,6 +311,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [feedingDirty, setFeedingDirty] = useState(false);
   const [processDirty, setProcessDirty] = useState(false);
   const [aftercareDirty, setAftercareDirty] = useState(false);
+  const [contactDirty, setContactDirty] = useState(false);
   const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
   const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
   const [selectedParentId, setSelectedParentId] = useState<string>("");
@@ -333,7 +335,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               ? processDirty
               : section === "aftercare"
                 ? aftercareDirty
-                : false;
+                : section === "contact"
+                  ? contactDirty
+                  : false;
   const activeDirtyLabel =
     section === "home"
       ? "首页"
@@ -347,7 +351,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               ? "价格与接猫流程"
               : section === "aftercare"
                 ? "售后保障"
-                : "";
+                : section === "contact"
+                  ? "联系方式"
+                  : "";
 
   const selectSection = (key: SectionKey) => {
     if (
@@ -367,6 +373,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     if (section === "feeding" && key !== "feeding") setFeedingDirty(false);
     if (section === "process" && key !== "process") setProcessDirty(false);
     if (section === "aftercare" && key !== "aftercare") setAftercareDirty(false);
+    if (section === "contact" && key !== "contact") setContactDirty(false);
   };
 
   const handleLogout = () => {
@@ -379,6 +386,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setFeedingDirty(false);
     setProcessDirty(false);
     setAftercareDirty(false);
+    setContactDirty(false);
     onLogout();
   };
 
@@ -404,6 +412,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleAftercareDirtyChange = useCallback((dirty: boolean) => {
     setAftercareDirty(dirty);
+  }, []);
+
+  const handleContactDirtyChange = useCallback((dirty: boolean) => {
+    setContactDirty(dirty);
   }, []);
 
   const setFormStatus = (id: string, status: FormStatus) => {
@@ -525,12 +537,16 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               onDirtyChange={handleAftercareDirtyChange}
             />
           )}
+          {section === "contact" && (
+            <ContactContentPanel onNotice={setNotice} onDirtyChange={handleContactDirtyChange} />
+          )}
           {section !== "home" &&
             section !== "about" &&
             section !== "environment" &&
             section !== "feeding" &&
             section !== "process" &&
             section !== "aftercare" &&
+            section !== "contact" &&
             SITE_CONTENT_PAGES.some((page) => page.key === section) && (
               <SitePageShell
                 page={SITE_CONTENT_PAGES.find((page) => page.key === section)!}
