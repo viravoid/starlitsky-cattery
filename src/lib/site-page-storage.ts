@@ -137,7 +137,7 @@ export function loadSavedAboutContent() {
 export function saveAboutContent(content: AboutContent) {
   if (!isBrowser()) return;
   writeAboutContent(ABOUT_SAVED_KEY, content);
-  window.dispatchEvent(new CustomEvent(ABOUT_SAVED_EVENT));
+  dispatchSavedContentEvent(ABOUT_SAVED_EVENT);
 }
 
 export function loadDraftPreviewAboutContent() {
@@ -159,7 +159,7 @@ export function loadSavedEnvironmentContent() {
 export function saveEnvironmentContent(content: EnvironmentContent) {
   if (!isBrowser()) return;
   writeEnvironmentContent(ENVIRONMENT_SAVED_KEY, content);
-  window.dispatchEvent(new CustomEvent(ENVIRONMENT_SAVED_EVENT));
+  dispatchSavedContentEvent(ENVIRONMENT_SAVED_EVENT);
 }
 
 export function loadDraftPreviewEnvironmentContent() {
@@ -181,7 +181,7 @@ export function loadSavedFeedingContent() {
 export function saveFeedingContent(content: FeedingContent) {
   if (!isBrowser()) return;
   writeFeedingContent(FEEDING_SAVED_KEY, content);
-  window.dispatchEvent(new CustomEvent(FEEDING_SAVED_EVENT));
+  dispatchSavedContentEvent(FEEDING_SAVED_EVENT);
 }
 
 export function loadDraftPreviewFeedingContent() {
@@ -203,7 +203,7 @@ export function loadSavedAftercareContent() {
 export function saveAftercareContent(content: AftercareContent) {
   if (!isBrowser()) return;
   writeAftercareContent(AFTERCARE_SAVED_KEY, content);
-  window.dispatchEvent(new CustomEvent(AFTERCARE_SAVED_EVENT));
+  dispatchSavedContentEvent(AFTERCARE_SAVED_EVENT);
 }
 
 export function loadDraftPreviewAftercareContent() {
@@ -225,7 +225,7 @@ export function loadSavedProcessContent() {
 export function saveProcessContent(content: ProcessContent) {
   if (!isBrowser()) return;
   writeProcessContent(PROCESS_SAVED_KEY, content);
-  window.dispatchEvent(new CustomEvent(PROCESS_SAVED_EVENT));
+  dispatchSavedContentEvent(PROCESS_SAVED_EVENT);
 }
 
 export function loadDraftPreviewProcessContent() {
@@ -247,7 +247,7 @@ export function loadSavedContactContent() {
 export function saveContactContent(content: ContactContent) {
   if (!isBrowser()) return;
   writeContactContent(CONTACT_SAVED_KEY, content);
-  window.dispatchEvent(new CustomEvent(CONTACT_SAVED_EVENT));
+  dispatchSavedContentEvent(CONTACT_SAVED_EVENT);
 }
 
 export function loadDraftPreviewContactContent() {
@@ -269,13 +269,33 @@ function subscribeToSavedContent(key: string, eventName: string, callback: () =>
     if (event.key === key) callback();
   };
   const onSaved = () => callback();
+  const channel = createSavedContentChannel(eventName);
+  if (channel) channel.onmessage = onSaved;
 
   window.addEventListener("storage", onStorage);
   window.addEventListener(eventName, onSaved);
   return () => {
     window.removeEventListener("storage", onStorage);
     window.removeEventListener(eventName, onSaved);
+    channel?.close();
   };
+}
+
+function dispatchSavedContentEvent(eventName: string) {
+  window.dispatchEvent(new CustomEvent(eventName));
+  const channel = createSavedContentChannel(eventName);
+  if (!channel) return;
+  channel.postMessage({ type: "saved" });
+  window.setTimeout(() => channel.close(), 250);
+}
+
+function createSavedContentChannel(eventName: string) {
+  try {
+    if (typeof BroadcastChannel === "undefined") return null;
+    return new BroadcastChannel(eventName);
+  } catch {
+    return null;
+  }
 }
 
 function openImageDb(): Promise<IDBDatabase> {

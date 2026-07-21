@@ -80,7 +80,7 @@ export function ContactContentPanel({
 
   const openDraftPreview = () => {
     saveDraftPreviewContactContent(draft);
-    window.open("/contact?sitePagePreview=contact-draft", "_blank", "noopener,noreferrer");
+    window.open("/contact?sitePagePreview=contact-draft", "_blank");
   };
 
   const updateAccounts = (accounts: ContactAccount[]) => {
