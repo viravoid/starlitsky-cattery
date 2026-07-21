@@ -137,7 +137,7 @@ export function loadSavedAboutContent() {
 export function saveAboutContent(content: AboutContent) {
   if (!isBrowser()) return;
   writeAboutContent(ABOUT_SAVED_KEY, content);
-  dispatchSavedContentEvent(ABOUT_SAVED_EVENT);
+  window.dispatchEvent(new CustomEvent(ABOUT_SAVED_EVENT));
 }
 
 export function loadDraftPreviewAboutContent() {
@@ -159,7 +159,7 @@ export function loadSavedEnvironmentContent() {
 export function saveEnvironmentContent(content: EnvironmentContent) {
   if (!isBrowser()) return;
   writeEnvironmentContent(ENVIRONMENT_SAVED_KEY, content);
-  dispatchSavedContentEvent(ENVIRONMENT_SAVED_EVENT);
+  window.dispatchEvent(new CustomEvent(ENVIRONMENT_SAVED_EVENT));
 }
 
 export function loadDraftPreviewEnvironmentContent() {
@@ -181,7 +181,7 @@ export function loadSavedFeedingContent() {
 export function saveFeedingContent(content: FeedingContent) {
   if (!isBrowser()) return;
   writeFeedingContent(FEEDING_SAVED_KEY, content);
-  dispatchSavedContentEvent(FEEDING_SAVED_EVENT);
+  window.dispatchEvent(new CustomEvent(FEEDING_SAVED_EVENT));
 }
 
 export function loadDraftPreviewFeedingContent() {
@@ -203,7 +203,7 @@ export function loadSavedAftercareContent() {
 export function saveAftercareContent(content: AftercareContent) {
   if (!isBrowser()) return;
   writeAftercareContent(AFTERCARE_SAVED_KEY, content);
-  dispatchSavedContentEvent(AFTERCARE_SAVED_EVENT);
+  window.dispatchEvent(new CustomEvent(AFTERCARE_SAVED_EVENT));
 }
 
 export function loadDraftPreviewAftercareContent() {
@@ -225,7 +225,7 @@ export function loadSavedProcessContent() {
 export function saveProcessContent(content: ProcessContent) {
   if (!isBrowser()) return;
   writeProcessContent(PROCESS_SAVED_KEY, content);
-  dispatchSavedContentEvent(PROCESS_SAVED_EVENT);
+  window.dispatchEvent(new CustomEvent(PROCESS_SAVED_EVENT));
 }
 
 export function loadDraftPreviewProcessContent() {
@@ -247,7 +247,7 @@ export function loadSavedContactContent() {
 export function saveContactContent(content: ContactContent) {
   if (!isBrowser()) return;
   writeContactContent(CONTACT_SAVED_KEY, content);
-  dispatchSavedContentEvent(CONTACT_SAVED_EVENT);
+  dispatchContactSavedContentEvent();
 }
 
 export function loadDraftPreviewContactContent() {
@@ -259,7 +259,7 @@ export function saveDraftPreviewContactContent(content: ContactContent) {
 }
 
 export function subscribeToSavedContactContent(callback: () => void) {
-  return subscribeToSavedContent(CONTACT_SAVED_KEY, CONTACT_SAVED_EVENT, callback);
+  return subscribeToSavedContactContentWithBroadcast(callback);
 }
 
 function subscribeToSavedContent(key: string, eventName: string, callback: () => void) {
@@ -269,30 +269,50 @@ function subscribeToSavedContent(key: string, eventName: string, callback: () =>
     if (event.key === key) callback();
   };
   const onSaved = () => callback();
-  const channel = createSavedContentChannel(eventName);
-  if (channel) channel.onmessage = onSaved;
 
   window.addEventListener("storage", onStorage);
   window.addEventListener(eventName, onSaved);
   return () => {
     window.removeEventListener("storage", onStorage);
     window.removeEventListener(eventName, onSaved);
+  };
+}
+
+function subscribeToSavedContactContentWithBroadcast(callback: () => void) {
+  if (!isBrowser()) return () => {};
+
+  const channel = createContactSavedChannel();
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === CONTACT_SAVED_KEY) callback();
+  };
+  const onSaved = () => callback();
+
+  if (channel) {
+    channel.onmessage = onSaved;
+  } else {
+    window.addEventListener("storage", onStorage);
+  }
+  window.addEventListener(CONTACT_SAVED_EVENT, onSaved);
+
+  return () => {
+    if (!channel) window.removeEventListener("storage", onStorage);
+    window.removeEventListener(CONTACT_SAVED_EVENT, onSaved);
     channel?.close();
   };
 }
 
-function dispatchSavedContentEvent(eventName: string) {
-  window.dispatchEvent(new CustomEvent(eventName));
-  const channel = createSavedContentChannel(eventName);
+function dispatchContactSavedContentEvent() {
+  window.dispatchEvent(new CustomEvent(CONTACT_SAVED_EVENT));
+  const channel = createContactSavedChannel();
   if (!channel) return;
   channel.postMessage({ type: "saved" });
   window.setTimeout(() => channel.close(), 250);
 }
 
-function createSavedContentChannel(eventName: string) {
+function createContactSavedChannel() {
   try {
     if (typeof BroadcastChannel === "undefined") return null;
-    return new BroadcastChannel(eventName);
+    return new BroadcastChannel(CONTACT_SAVED_EVENT);
   } catch {
     return null;
   }
