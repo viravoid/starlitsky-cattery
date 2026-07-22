@@ -137,9 +137,8 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       id: "breedingPlan",
       fixedGroupId: "about",
       title: "繁育计划",
-      desc: "预留未来繁育计划入口，正式内容待提供。",
-      to: null,
-      statusLabel: "内容准备中",
+      desc: "查看 2026 下半年繁育组合、预计时间与预计花色。",
+      to: "/breeding-plan",
     },
     feeding: {
       id: "feeding",
@@ -199,7 +198,16 @@ export function normalizeHomepageContent(value: unknown): HomepageContent {
 
   const input = value as Partial<HomepageContent>;
   const base = cloneHomepageContent();
-  const entries = { ...base.entries, ...(input.entries ?? {}) };
+  const mergedEntries = { ...base.entries, ...(input.entries ?? {}) };
+  const { statusLabel: _breedingPlanStatusLabel, ...breedingPlanEntry } =
+    mergedEntries.breedingPlan;
+  const entries = {
+    ...mergedEntries,
+    breedingPlan: {
+      ...breedingPlanEntry,
+      to: "/breeding-plan",
+    },
+  };
   const groups = (input.groups ?? base.groups)
     .filter((group): group is HomepageGroup => HOMEPAGE_GROUP_IDS.includes(group.id))
     .map((group) => {
