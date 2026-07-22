@@ -1,5 +1,10 @@
 import { cloneAboutContent, normalizeAboutContent, type AboutContent } from "./about-content";
 import {
+  clonePhilosophyContent,
+  normalizePhilosophyContent,
+  type PhilosophyContent,
+} from "./philosophy-content";
+import {
   cloneEnvironmentContent,
   normalizeEnvironmentContent,
   type EnvironmentContent,
@@ -28,6 +33,9 @@ import {
 const ABOUT_SAVED_KEY = "starlitsky.site-page.about.saved.v1";
 const ABOUT_DRAFT_PREVIEW_KEY = "starlitsky.site-page.about.draft-preview.v1";
 const ABOUT_SAVED_EVENT = "starlitsky:site-page-about-saved";
+const PHILOSOPHY_SAVED_KEY = "starlitsky.site-page.philosophy.saved.v1";
+const PHILOSOPHY_DRAFT_PREVIEW_KEY = "starlitsky.site-page.philosophy.draft-preview.v1";
+const PHILOSOPHY_SAVED_EVENT = "starlitsky:site-page-philosophy-saved";
 const ENVIRONMENT_SAVED_KEY = "starlitsky.site-page.environment.saved.v1";
 const ENVIRONMENT_DRAFT_PREVIEW_KEY = "starlitsky.site-page.environment.draft-preview.v1";
 const ENVIRONMENT_SAVED_EVENT = "starlitsky:site-page-environment-saved";
@@ -67,6 +75,14 @@ function readAboutContent(key: string): AboutContent {
 
 function writeAboutContent(key: string, content: AboutContent) {
   writeContent(key, content, normalizeAboutContent);
+}
+
+function readPhilosophyContent(key: string): PhilosophyContent {
+  return readContent(key, clonePhilosophyContent, normalizePhilosophyContent);
+}
+
+function writePhilosophyContent(key: string, content: PhilosophyContent) {
+  writeContent(key, content, normalizePhilosophyContent);
 }
 
 function readEnvironmentContent(key: string): EnvironmentContent {
@@ -150,6 +166,28 @@ export function saveDraftPreviewAboutContent(content: AboutContent) {
 
 export function subscribeToSavedAboutContent(callback: () => void) {
   return subscribeToSavedContent(ABOUT_SAVED_KEY, ABOUT_SAVED_EVENT, callback);
+}
+
+export function loadSavedPhilosophyContent() {
+  return readPhilosophyContent(PHILOSOPHY_SAVED_KEY);
+}
+
+export function savePhilosophyContent(content: PhilosophyContent) {
+  if (!isBrowser()) return;
+  writePhilosophyContent(PHILOSOPHY_SAVED_KEY, content);
+  window.dispatchEvent(new CustomEvent(PHILOSOPHY_SAVED_EVENT));
+}
+
+export function loadDraftPreviewPhilosophyContent() {
+  return readPhilosophyContent(PHILOSOPHY_DRAFT_PREVIEW_KEY);
+}
+
+export function saveDraftPreviewPhilosophyContent(content: PhilosophyContent) {
+  writePhilosophyContent(PHILOSOPHY_DRAFT_PREVIEW_KEY, content);
+}
+
+export function subscribeToSavedPhilosophyContent(callback: () => void) {
+  return subscribeToSavedContent(PHILOSOPHY_SAVED_KEY, PHILOSOPHY_SAVED_EVENT, callback);
 }
 
 export function loadSavedEnvironmentContent() {
