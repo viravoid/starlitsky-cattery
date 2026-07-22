@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
 import { PawIcon, CheckIcon } from "@/components/mobile/icons";
 import { actions, useCommunity } from "@/lib/community-store";
+import { findWechatAccount, type ContactContent } from "@/lib/contact-content";
+import { loadSavedContactContent, subscribeToSavedContactContent } from "@/lib/site-page-storage";
 
 export const Route = createFileRoute("/community/parent-onboard")({
   head: () => ({ meta: [{ title: "开通家长身份 — 猫友圈" }] }),
@@ -15,6 +17,14 @@ function ParentOnboard() {
   const role = useCommunity((s) => s.role);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [contactContent, setContactContent] = useState<ContactContent | null>(null);
+  const wechatAccount = contactContent ? findWechatAccount(contactContent) : null;
+  const wechatValue = wechatAccount?.value.trim() ?? "";
+
+  useEffect(() => {
+    setContactContent(loadSavedContactContent());
+    return subscribeToSavedContactContent(() => setContactContent(loadSavedContactContent()));
+  }, []);
 
   const submit = () => {
     if (!code.trim()) {
@@ -63,9 +73,7 @@ function ParentOnboard() {
         </div>
 
         <label className="block space-y-2 pt-1">
-          <span className="block text-[12.5px] font-medium text-heading">
-            猫舍邀请码
-          </span>
+          <span className="block text-[12.5px] font-medium text-heading">猫舍邀请码</span>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
@@ -83,10 +91,22 @@ function ParentOnboard() {
         </button>
 
         <p className="pt-2 text-center text-[11.5px] leading-[1.9] text-warm">
-          还没有邀请码？请添加主理人微信<br />xingyuemianyinmao 索取。
+          {wechatValue ? (
+            <>
+              还没有邀请码？请添加主理人微信
+              <br />
+              {wechatValue} 索取。
+            </>
+          ) : (
+            <>
+              还没有邀请码？
+              <Link to="/contact" className="font-semibold underline underline-offset-4">
+                请前往联系方式页面联系猫舍
+              </Link>
+            </>
+          )}
         </p>
       </Section>
     </PhoneFrame>
-
   );
 }

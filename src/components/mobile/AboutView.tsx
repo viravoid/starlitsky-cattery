@@ -32,7 +32,7 @@ export function AboutView({
 
   return (
     <PhoneFrame
-      title={content.page.title}
+      title="关于星月"
       backTo="/"
       outerClassName={preview ? "min-h-0 p-0 sm:py-0" : ""}
       frameClassName={preview ? "h-[760px] max-w-[360px] sm:h-[760px] sm:rounded-[2.25rem]" : ""}

@@ -20,7 +20,7 @@ import {
 } from "@/lib/site-page-storage";
 import { cn } from "@/lib/utils";
 
-type PanelKey = "page" | "hero" | "body";
+type PanelKey = "hero" | "body";
 
 const ASPECT_PRESETS: AspectRatioValue[] = [
   { width: 16, height: 10 },
@@ -46,7 +46,6 @@ export function AboutContentPanel({
     height: String(draft.hero.aspectRatio.height),
   }));
   const [openPanels, setOpenPanels] = useState<Record<PanelKey, boolean>>({
-    page: true,
     hero: true,
     body: true,
   });
@@ -208,27 +207,6 @@ export function AboutContentPanel({
               </Button>
             </div>
           </div>
-
-          <EditorSection
-            title="页面信息"
-            desc="只编辑顶部中文标题；路径和返回逻辑固定为 /about。"
-            open={openPanels.page}
-            onToggle={() => togglePanel("page")}
-          >
-            <div className="grid gap-3">
-              <TextField
-                label="顶部中文页面标题"
-                value={draft.page.title}
-                onChange={(value) =>
-                  updateDraft((content) => ({
-                    ...content,
-                    page: { ...content.page, title: value },
-                  }))
-                }
-              />
-              <ReadonlyLine label="固定路径" value="/about" />
-            </div>
-          </EditorSection>
 
           <EditorSection
             title="主图轮播"
@@ -546,15 +524,6 @@ function TextareaField({
         className="w-full resize-y rounded-[7px] border border-border bg-background px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-primary"
       />
     </label>
-  );
-}
-
-function ReadonlyLine({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 border-b border-border/60 py-1.5 text-[12px] last:border-0 lg:grid-cols-[100px_minmax(0,1fr)] lg:py-2.5 lg:text-[13.5px]">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 text-card-foreground">{value}</span>
-    </div>
   );
 }
 

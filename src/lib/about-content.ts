@@ -17,9 +17,6 @@ export type AboutHeroSlide = {
 
 export type AboutContent = {
   version: 1;
-  page: {
-    title: string;
-  };
   hero: {
     aspectRatio: AspectRatioValue;
     slides: AboutHeroSlide[];
@@ -32,9 +29,6 @@ export const ABOUT_BODY_DEFAULT =
 
 export const DEFAULT_ABOUT_CONTENT: AboutContent = {
   version: 1,
-  page: {
-    title: "关于星月",
-  },
   hero: {
     aspectRatio: { width: 16, height: 10 },
     slides: [
@@ -106,12 +100,6 @@ export function normalizeAboutContent(value: unknown): AboutContent {
 
   return {
     version: 1,
-    page: {
-      title:
-        typeof input.page?.title === "string" && input.page.title.trim()
-          ? input.page.title
-          : base.page.title,
-    },
     hero: {
       aspectRatio: normalizeAspectRatio(input.hero?.aspectRatio),
       slides: slides.length ? slides : base.hero.slides,
