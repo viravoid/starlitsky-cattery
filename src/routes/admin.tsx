@@ -7,6 +7,7 @@ import { EnvironmentContentPanel } from "@/components/admin/EnvironmentContentPa
 import { FeedingContentPanel } from "@/components/admin/FeedingContentPanel";
 import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
 import { PhilosophyContentPanel } from "@/components/admin/PhilosophyContentPanel";
+import { QuestionnaireContentPanel } from "@/components/admin/QuestionnaireContentPanel";
 import { AftercareContentPanel } from "@/components/admin/AftercareContentPanel";
 import { ProcessContentPanel } from "@/components/admin/ProcessContentPanel";
 import { Placeholder } from "@/components/mobile/ui";
@@ -313,6 +314,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [feedingDirty, setFeedingDirty] = useState(false);
   const [processDirty, setProcessDirty] = useState(false);
   const [aftercareDirty, setAftercareDirty] = useState(false);
+  const [questionnaireDirty, setQuestionnaireDirty] = useState(false);
   const [contactDirty, setContactDirty] = useState(false);
   const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
   const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
@@ -339,9 +341,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 ? processDirty
                 : section === "aftercare"
                   ? aftercareDirty
-                  : section === "contact"
-                    ? contactDirty
-                    : false;
+                  : section === "questionnairePage"
+                    ? questionnaireDirty
+                    : section === "contact"
+                      ? contactDirty
+                      : false;
   const activeDirtyLabel =
     section === "home"
       ? "首页"
@@ -357,9 +361,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 ? "价格与接猫流程"
                 : section === "aftercare"
                   ? "售后保障"
-                  : section === "contact"
-                    ? "联系方式"
-                    : "";
+                  : section === "questionnairePage"
+                    ? "选猫问卷页面"
+                    : section === "contact"
+                      ? "联系方式"
+                      : "";
 
   const selectSection = (key: SectionKey) => {
     if (
@@ -380,6 +386,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     if (section === "feeding" && key !== "feeding") setFeedingDirty(false);
     if (section === "process" && key !== "process") setProcessDirty(false);
     if (section === "aftercare" && key !== "aftercare") setAftercareDirty(false);
+    if (section === "questionnairePage" && key !== "questionnairePage") {
+      setQuestionnaireDirty(false);
+    }
     if (section === "contact" && key !== "contact") setContactDirty(false);
   };
 
@@ -394,6 +403,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setFeedingDirty(false);
     setProcessDirty(false);
     setAftercareDirty(false);
+    setQuestionnaireDirty(false);
     setContactDirty(false);
     onLogout();
   };
@@ -424,6 +434,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleAftercareDirtyChange = useCallback((dirty: boolean) => {
     setAftercareDirty(dirty);
+  }, []);
+
+  const handleQuestionnaireDirtyChange = useCallback((dirty: boolean) => {
+    setQuestionnaireDirty(dirty);
   }, []);
 
   const handleContactDirtyChange = useCallback((dirty: boolean) => {
@@ -555,6 +569,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               onDirtyChange={handleAftercareDirtyChange}
             />
           )}
+          {section === "questionnairePage" && (
+            <QuestionnaireContentPanel
+              onNotice={setNotice}
+              onDirtyChange={handleQuestionnaireDirtyChange}
+            />
+          )}
           {section === "contact" && (
             <ContactContentPanel onNotice={setNotice} onDirtyChange={handleContactDirtyChange} />
           )}
@@ -565,6 +585,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             section !== "feeding" &&
             section !== "process" &&
             section !== "aftercare" &&
+            section !== "questionnairePage" &&
             section !== "contact" &&
             SITE_CONTENT_PAGES.some((page) => page.key === section) && (
               <SitePageShell
