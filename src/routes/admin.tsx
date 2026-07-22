@@ -6,6 +6,7 @@ import { ContactContentPanel } from "@/components/admin/ContactContentPanel";
 import { EnvironmentContentPanel } from "@/components/admin/EnvironmentContentPanel";
 import { FeedingContentPanel } from "@/components/admin/FeedingContentPanel";
 import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
+import { PhilosophyContentPanel } from "@/components/admin/PhilosophyContentPanel";
 import { AftercareContentPanel } from "@/components/admin/AftercareContentPanel";
 import { ProcessContentPanel } from "@/components/admin/ProcessContentPanel";
 import { Placeholder } from "@/components/mobile/ui";
@@ -307,6 +308,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [notice, setNotice] = useState("");
   const [homeDirty, setHomeDirty] = useState(false);
   const [aboutDirty, setAboutDirty] = useState(false);
+  const [philosophyDirty, setPhilosophyDirty] = useState(false);
   const [environmentDirty, setEnvironmentDirty] = useState(false);
   const [feedingDirty, setFeedingDirty] = useState(false);
   const [processDirty, setProcessDirty] = useState(false);
@@ -327,33 +329,37 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       ? homeDirty
       : section === "about"
         ? aboutDirty
-        : section === "environment"
-          ? environmentDirty
-          : section === "feeding"
-            ? feedingDirty
-            : section === "process"
-              ? processDirty
-              : section === "aftercare"
-                ? aftercareDirty
-                : section === "contact"
-                  ? contactDirty
-                  : false;
+        : section === "philosophy"
+          ? philosophyDirty
+          : section === "environment"
+            ? environmentDirty
+            : section === "feeding"
+              ? feedingDirty
+              : section === "process"
+                ? processDirty
+                : section === "aftercare"
+                  ? aftercareDirty
+                  : section === "contact"
+                    ? contactDirty
+                    : false;
   const activeDirtyLabel =
     section === "home"
       ? "首页"
       : section === "about"
         ? "猫舍介绍"
-        : section === "environment"
-          ? "猫舍环境"
-          : section === "feeding"
-            ? "喂养体系"
-            : section === "process"
-              ? "价格与接猫流程"
-              : section === "aftercare"
-                ? "售后保障"
-                : section === "contact"
-                  ? "联系方式"
-                  : "";
+        : section === "philosophy"
+          ? "繁育理念"
+          : section === "environment"
+            ? "猫舍环境"
+            : section === "feeding"
+              ? "喂养体系"
+              : section === "process"
+                ? "价格与接猫流程"
+                : section === "aftercare"
+                  ? "售后保障"
+                  : section === "contact"
+                    ? "联系方式"
+                    : "";
 
   const selectSection = (key: SectionKey) => {
     if (
@@ -369,6 +375,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setSelectedParentId("");
     if (section === "home" && key !== "home") setHomeDirty(false);
     if (section === "about" && key !== "about") setAboutDirty(false);
+    if (section === "philosophy" && key !== "philosophy") setPhilosophyDirty(false);
     if (section === "environment" && key !== "environment") setEnvironmentDirty(false);
     if (section === "feeding" && key !== "feeding") setFeedingDirty(false);
     if (section === "process" && key !== "process") setProcessDirty(false);
@@ -382,6 +389,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     }
     setHomeDirty(false);
     setAboutDirty(false);
+    setPhilosophyDirty(false);
     setEnvironmentDirty(false);
     setFeedingDirty(false);
     setProcessDirty(false);
@@ -396,6 +404,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleAboutDirtyChange = useCallback((dirty: boolean) => {
     setAboutDirty(dirty);
+  }, []);
+
+  const handlePhilosophyDirtyChange = useCallback((dirty: boolean) => {
+    setPhilosophyDirty(dirty);
   }, []);
 
   const handleEnvironmentDirtyChange = useCallback((dirty: boolean) => {
@@ -519,6 +531,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           {section === "about" && (
             <AboutContentPanel onNotice={setNotice} onDirtyChange={handleAboutDirtyChange} />
           )}
+          {section === "philosophy" && (
+            <PhilosophyContentPanel
+              onNotice={setNotice}
+              onDirtyChange={handlePhilosophyDirtyChange}
+            />
+          )}
           {section === "environment" && (
             <EnvironmentContentPanel
               onNotice={setNotice}
@@ -542,6 +560,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
           {section !== "home" &&
             section !== "about" &&
+            section !== "philosophy" &&
             section !== "environment" &&
             section !== "feeding" &&
             section !== "process" &&
