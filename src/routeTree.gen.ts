@@ -17,6 +17,7 @@ import { Route as FeedingRouteImport } from './routes/feeding'
 import { Route as EnvironmentRouteImport } from './routes/environment'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CatsRouteImport } from './routes/cats'
+import { Route as BreedingPlanRouteImport } from './routes/breeding-plan'
 import { Route as AftercareRouteImport } from './routes/aftercare'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
@@ -71,6 +72,11 @@ const ContactRoute = ContactRouteImport.update({
 const CatsRoute = CatsRouteImport.update({
   id: '/cats',
   path: '/cats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BreedingPlanRoute = BreedingPlanRouteImport.update({
+  id: '/breeding-plan',
+  path: '/breeding-plan',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AftercareRoute = AftercareRouteImport.update({
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
+  '/breeding-plan': typeof BreedingPlanRoute
   '/cats': typeof CatsRoute
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
+  '/breeding-plan': typeof BreedingPlanRoute
   '/cats': typeof CatsRoute
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/aftercare': typeof AftercareRoute
+  '/breeding-plan': typeof BreedingPlanRoute
   '/cats': typeof CatsRoute
   '/contact': typeof ContactRoute
   '/environment': typeof EnvironmentRoute
@@ -232,6 +241,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/aftercare'
+    | '/breeding-plan'
     | '/cats'
     | '/contact'
     | '/environment'
@@ -257,6 +267,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/aftercare'
+    | '/breeding-plan'
     | '/cats'
     | '/contact'
     | '/environment'
@@ -282,6 +293,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/aftercare'
+    | '/breeding-plan'
     | '/cats'
     | '/contact'
     | '/environment'
@@ -308,6 +320,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
   AftercareRoute: typeof AftercareRoute
+  BreedingPlanRoute: typeof BreedingPlanRoute
   CatsRoute: typeof CatsRoute
   ContactRoute: typeof ContactRoute
   EnvironmentRoute: typeof EnvironmentRoute
@@ -385,6 +398,13 @@ declare module '@tanstack/react-router' {
       path: '/cats'
       fullPath: '/cats'
       preLoaderRoute: typeof CatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/breeding-plan': {
+      id: '/breeding-plan'
+      path: '/breeding-plan'
+      fullPath: '/breeding-plan'
+      preLoaderRoute: typeof BreedingPlanRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/aftercare': {
@@ -500,6 +520,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
   AftercareRoute: AftercareRoute,
+  BreedingPlanRoute: BreedingPlanRoute,
   CatsRoute: CatsRoute,
   ContactRoute: ContactRoute,
   EnvironmentRoute: EnvironmentRoute,
