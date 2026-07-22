@@ -29,6 +29,11 @@ import {
   normalizeContactContent,
   type ContactContent,
 } from "./contact-content";
+import {
+  cloneQuestionnaireContent,
+  normalizeQuestionnaireContent,
+  type QuestionnaireContent,
+} from "./questionnaire-content";
 
 const ABOUT_SAVED_KEY = "starlitsky.site-page.about.saved.v1";
 const ABOUT_DRAFT_PREVIEW_KEY = "starlitsky.site-page.about.draft-preview.v1";
@@ -51,6 +56,9 @@ const PROCESS_SAVED_EVENT = "starlitsky:site-page-process-saved";
 const CONTACT_SAVED_KEY = "starlitsky.site-page.contact.saved.v1";
 const CONTACT_DRAFT_PREVIEW_KEY = "starlitsky.site-page.contact.draft-preview.v1";
 const CONTACT_SAVED_EVENT = "starlitsky:site-page-contact-saved";
+const QUESTIONNAIRE_SAVED_KEY = "starlitsky.site-page.questionnaire.saved.v1";
+const QUESTIONNAIRE_DRAFT_PREVIEW_KEY = "starlitsky.site-page.questionnaire.draft-preview.v1";
+const QUESTIONNAIRE_SAVED_EVENT = "starlitsky:site-page-questionnaire-saved";
 const DB_NAME = "starlitsky-site-pages";
 const DB_VERSION = 1;
 const IMAGE_STORE = "images";
@@ -123,6 +131,14 @@ function readContactContent(key: string): ContactContent {
 
 function writeContactContent(key: string, content: ContactContent) {
   writeContent(key, content, normalizeContactContent);
+}
+
+function readQuestionnaireContent(key: string): QuestionnaireContent {
+  return readContent(key, cloneQuestionnaireContent, normalizeQuestionnaireContent);
+}
+
+function writeQuestionnaireContent(key: string, content: QuestionnaireContent) {
+  writeContent(key, content, normalizeQuestionnaireContent);
 }
 
 function readContent<T>(key: string, cloneDefault: () => T, normalize: (value: unknown) => T): T {
@@ -298,6 +314,28 @@ export function saveDraftPreviewContactContent(content: ContactContent) {
 
 export function subscribeToSavedContactContent(callback: () => void) {
   return subscribeToSavedContactContentWithBroadcast(callback);
+}
+
+export function loadSavedQuestionnaireContent() {
+  return readQuestionnaireContent(QUESTIONNAIRE_SAVED_KEY);
+}
+
+export function saveQuestionnaireContent(content: QuestionnaireContent) {
+  if (!isBrowser()) return;
+  writeQuestionnaireContent(QUESTIONNAIRE_SAVED_KEY, content);
+  window.dispatchEvent(new CustomEvent(QUESTIONNAIRE_SAVED_EVENT));
+}
+
+export function loadDraftPreviewQuestionnaireContent() {
+  return readQuestionnaireContent(QUESTIONNAIRE_DRAFT_PREVIEW_KEY);
+}
+
+export function saveDraftPreviewQuestionnaireContent(content: QuestionnaireContent) {
+  writeQuestionnaireContent(QUESTIONNAIRE_DRAFT_PREVIEW_KEY, content);
+}
+
+export function subscribeToSavedQuestionnaireContent(callback: () => void) {
+  return subscribeToSavedContent(QUESTIONNAIRE_SAVED_KEY, QUESTIONNAIRE_SAVED_EVENT, callback);
 }
 
 function subscribeToSavedContent(key: string, eventName: string, callback: () => void) {
