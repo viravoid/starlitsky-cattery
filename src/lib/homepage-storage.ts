@@ -37,7 +37,11 @@ function readContent(key: string): HomepageContent {
 
 function writeContent(key: string, content: HomepageContent) {
   if (!isBrowser()) return;
-  window.localStorage.setItem(key, JSON.stringify(normalizeHomepageContent(content)));
+  try {
+    window.localStorage.setItem(key, JSON.stringify(normalizeHomepageContent(content)));
+  } catch {
+    // localStorage can fail in private browsing or quota edge cases; callers fall back to defaults.
+  }
 }
 
 export function loadSavedHomepageContent() {
@@ -126,8 +130,12 @@ export async function saveHomepageImage(file: File): Promise<HomepageImageRecord
 }
 
 export async function getHomepageImageBlob(id: string) {
-  const record = await runImageTransaction<HomepageImageRecord | undefined>("readonly", (store) =>
-    store.get(id),
-  );
-  return record?.blob ?? null;
+  try {
+    const record = await runImageTransaction<HomepageImageRecord | undefined>("readonly", (store) =>
+      store.get(id),
+    );
+    return record?.blob ?? null;
+  } catch {
+    return null;
+  }
 }
