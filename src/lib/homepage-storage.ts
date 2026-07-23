@@ -26,9 +26,9 @@ function isBrowser() {
 
 function readContent(key: string): HomepageContent {
   if (!isBrowser()) return cloneHomepageContent();
-  const raw = window.localStorage.getItem(key);
-  if (!raw) return cloneHomepageContent();
   try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return cloneHomepageContent();
     return normalizeHomepageContent(JSON.parse(raw));
   } catch {
     return cloneHomepageContent();
