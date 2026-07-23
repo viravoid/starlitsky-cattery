@@ -11,7 +11,7 @@ import {
 } from "./cattery-data";
 
 export type Role = "guest" | "user" | "parent" | "keeper";
-export type Category = "????" | "???" | "????";
+export type Category = "猫舍日常" | "碎碎念" | "家长分享";
 export type UserId = string;
 export type CatId = string;
 export type LitterId = string;
@@ -92,7 +92,7 @@ export interface Comment {
   id: string;
   authorId: UserId;
   authorName: string;
-  authorRole: "?????" | "????" | "????";
+  authorRole: "猫舍主理人" | "星月家长" | "普通用户";
   content: string;
   createdAt: string;
   hidden?: boolean;
@@ -102,7 +102,7 @@ export interface Post {
   id: PostId;
   authorId: UserId;
   authorName: string;
-  authorRole: "?????" | "????";
+  authorRole: "猫舍主理人" | "星月家长";
   category: Category;
   content: string;
   imageCount: number;
@@ -144,42 +144,42 @@ const CAT_ALIASES: Record<string, string> = {
 };
 
 const LITTER_ALIASES: Record<string, string> = {
-  A?: "litter-a",
-  B?: "litter-b",
-  C?: "litter-c",
+  A窝: "litter-a",
+  B窝: "litter-b",
+  C窝: "litter-c",
 };
 
 const LITTER_META: Record<string, { birthDate: string; status: string; note: string }> = {
   "litter-a": {
     birthDate: "2026-04-18",
-    status: "?????",
-    note: "????????????",
+    status: "成长记录中",
+    note: "重点关联猫友圈成长动态。",
   },
   "litter-b": {
     birthDate: "2026-05-09",
-    status: "???",
-    note: "?????????????",
+    status: "观察中",
+    note: "部分小猫仍在评估展示状态。",
   },
   "litter-c": {
     birthDate: "2026-06-02",
-    status: "???",
-    note: "?????????????",
+    status: "已建档",
+    note: "待补充父母和完整小猫资料。",
   },
 };
 
 const DEFAULT_USERS: CatteryUser[] = [
-  { id: KEEPER_YUEQI, name: "??", role: "keeper", note: "?????" },
-  { id: KEEPER_XINGXIA, name: "??", role: "keeper", note: "?????" },
+  { id: KEEPER_YUEQI, name: "月七", role: "keeper", note: "猫舍主理人" },
+  { id: KEEPER_XINGXIA, name: "星下", role: "keeper", note: "猫舍主理人" },
   {
     id: PARENT_TOAST,
-    name: "?????",
+    name: "吐司的家长",
     role: "parent",
     activatedAt: "2026-03-12",
     inviteCode: "XY-TOAST-2025",
   },
   {
     id: PARENT_HUHU,
-    name: "????????",
+    name: "呼呼和奶油的家长",
     role: "parent",
     activatedAt: "2026-02-04",
     inviteCode: "XY-HUHU-2025",
@@ -191,11 +191,11 @@ const DEFAULT_FAMILY_CATS: CatteryCat[] = [
     id: "cat-huhu",
     kind: "family",
     ownerId: PARENT_HUHU,
-    name: "??",
-    gender: "??",
+    name: "呼呼",
+    gender: "弟弟",
     birthday: "2025-08-15",
-    color: "?????",
-    personality: "??????????????",
+    color: "棕虎斑加白",
+    personality: "话痨，最爱蹲厨房门口等罐头。",
     galleryImageIds: [],
     visibility: "visible",
     family: { joinDate: "2026-01-20" },
@@ -204,11 +204,11 @@ const DEFAULT_FAMILY_CATS: CatteryCat[] = [
     id: "cat-cream",
     kind: "family",
     ownerId: PARENT_HUHU,
-    name: "??",
-    gender: "??",
+    name: "奶油",
+    gender: "妹妹",
     birthday: "2025-08-15",
-    color: "??????",
-    personality: "???????????",
+    color: "玳瑁麻纹加白",
+    personality: "安静温柔，喜欢晒太阳。",
     galleryImageIds: [],
     visibility: "visible",
     family: { joinDate: "2026-01-20" },
@@ -217,11 +217,11 @@ const DEFAULT_FAMILY_CATS: CatteryCat[] = [
     id: "cat-toast",
     kind: "family",
     ownerId: PARENT_TOAST,
-    name: "??",
-    gender: "??",
+    name: "吐司",
+    gender: "弟弟",
     birthday: "2025-06-30",
-    color: "?????",
-    personality: "???????????????",
+    color: "银虎斑加白",
+    personality: "一周岁的小机灵鬼，饭点最准时。",
     galleryImageIds: [],
     visibility: "visible",
     family: { joinDate: "2025-12-18" },
@@ -232,10 +232,10 @@ const DEFAULT_POSTS: Post[] = [
   {
     id: "p-1",
     authorId: KEEPER_YUEQI,
-    authorName: "??",
-    authorRole: "?????",
-    category: "????",
-    content: "?????????????",
+    authorName: "月七",
+    authorRole: "猫舍主理人",
+    category: "猫舍日常",
+    content: "好看！好看宝宝！呼呼哈哈！",
     imageCount: 1,
     catIds: ["cat-huhu"],
     createdAt: "2026-07-14T09:20:00",
@@ -245,9 +245,9 @@ const DEFAULT_POSTS: Post[] = [
       {
         id: "c-1",
         authorId: PARENT_HUHU,
-        authorName: "????????",
-        authorRole: "????",
-        content: "?????????????",
+        authorName: "呼呼和奶油的家长",
+        authorRole: "星月家长",
+        content: "谢谢主理人！还是这么可爱～",
         createdAt: "2026-07-14T10:02:00",
       },
     ],
@@ -256,10 +256,10 @@ const DEFAULT_POSTS: Post[] = [
   {
     id: "p-2",
     authorId: PARENT_TOAST,
-    authorName: "?????",
-    authorRole: "????",
-    category: "????",
-    content: "?????????????????????????",
+    authorName: "吐司的家长",
+    authorRole: "星月家长",
+    category: "家长分享",
+    content: "一周岁啦！在新家也还是每天准时蹲在厨房门口等罐头。",
     imageCount: 3,
     catIds: ["cat-toast"],
     createdAt: "2026-07-12T18:45:00",
@@ -269,9 +269,9 @@ const DEFAULT_POSTS: Post[] = [
       {
         id: "c-2",
         authorId: KEEPER_YUEQI,
-        authorName: "??",
-        authorRole: "?????",
-        content: "???????",
+        authorName: "月七",
+        authorRole: "猫舍主理人",
+        content: "生日快乐吐司！",
         createdAt: "2026-07-12T19:10:00",
       },
     ],
@@ -279,10 +279,10 @@ const DEFAULT_POSTS: Post[] = [
   {
     id: "p-3",
     authorId: PARENT_HUHU,
-    authorName: "????????",
-    authorRole: "????",
-    category: "????",
-    content: "????????????????????",
+    authorName: "呼呼和奶油的家长",
+    authorRole: "星月家长",
+    category: "家长分享",
+    content: "今天两个宝宝一起晒太阳，终于拍到同框了。",
     imageCount: 4,
     catIds: ["cat-huhu", "cat-cream"],
     litterIds: ["litter-a"],
@@ -294,10 +294,10 @@ const DEFAULT_POSTS: Post[] = [
   {
     id: "p-4",
     authorId: KEEPER_XINGXIA,
-    authorName: "??",
-    authorRole: "?????",
-    category: "???",
-    content: "????????????????????????????????",
+    authorName: "星下",
+    authorRole: "猫舍主理人",
+    category: "碎碎念",
+    content: "阴天的午后，大家都在打盹。有时候繁育这件事，就是慢慢陪它们长大。",
     imageCount: 2,
     catIds: [],
     createdAt: "2026-07-08T14:00:00",
@@ -308,10 +308,10 @@ const DEFAULT_POSTS: Post[] = [
   {
     id: "p-5",
     authorId: KEEPER_YUEQI,
-    authorName: "??",
-    authorRole: "?????",
-    category: "????",
-    content: "???????????????????",
+    authorName: "月七",
+    authorRole: "猫舍主理人",
+    category: "猫舍日常",
+    content: "重楼今天出来溜达啦，退役猫待遇享受中。",
     imageCount: 1,
     catIds: ["chonglou"],
     createdAt: "2026-07-05T11:30:00",
@@ -322,10 +322,10 @@ const DEFAULT_POSTS: Post[] = [
   {
     id: "p-6",
     authorId: KEEPER_YUEQI,
-    authorName: "??",
-    authorRole: "?????",
-    category: "????",
-    content: "A ????????????????????????",
+    authorName: "月七",
+    authorRole: "猫舍主理人",
+    category: "猫舍日常",
+    content: "A 窝的小朋友们今天开食啦，小家伙们吃相都特别可爱。",
     imageCount: 2,
     catIds: [],
     litterIds: ["litter-a"],
@@ -336,8 +336,8 @@ const DEFAULT_POSTS: Post[] = [
   },
 ];
 
-const KEEPERS_ALLOWED_CATEGORIES: Category[] = ["????", "???", "????"];
-const PARENTS_ALLOWED_CATEGORIES: Category[] = ["????", "???"];
+const KEEPERS_ALLOWED_CATEGORIES: Category[] = ["猫舍日常", "碎碎念", "家长分享"];
+const PARENTS_ALLOWED_CATEGORIES: Category[] = ["家长分享", "碎碎念"];
 
 const defaultData: CatteryData = {
   version: 1,
@@ -349,7 +349,7 @@ const defaultData: CatteryData = {
   ],
   litters: LEGACY_LITTERS.map((name) => {
     const id = resolveLitterId(name);
-    const meta = LITTER_META[id] ?? { birthDate: "", status: "???", note: "" };
+    const meta = LITTER_META[id] ?? { birthDate: "", status: "已建档", note: "" };
     return {
       id,
       name,
@@ -567,8 +567,8 @@ export const catteryActions = {
     const category = allowedCategories.includes(input.category)
       ? input.category
       : context.role === "parent"
-        ? "????"
-        : "????";
+        ? "家长分享"
+        : "猫舍日常";
     const catIds =
       context.role === "keeper"
         ? input.catIds.map(resolveCatId)
@@ -582,7 +582,7 @@ export const catteryActions = {
       id,
       authorId: me.id,
       authorName: me.name,
-      authorRole: context.role === "keeper" ? "?????" : "????",
+      authorRole: context.role === "keeper" ? "猫舍主理人" : "星月家长",
       category,
       content: input.content,
       imageCount: clampImageCount(input.imageCount),
@@ -724,7 +724,7 @@ export function selectKittens(state: CatteryData = data): Kitten[] {
       birthday: cat.birthday ?? "",
       father: cat.kitten?.legacyFatherName ?? findCatName(state, cat.kitten?.fatherId) ?? "",
       mother: cat.kitten?.legacyMotherName ?? findCatName(state, cat.kitten?.motherId) ?? "",
-      status: cat.kitten?.status ?? "???",
+      status: cat.kitten?.status ?? "待找家",
       price: cat.kitten?.price ?? "",
       litter: cat.kitten?.litterId
         ? litterNames.get(resolveLitterId(cat.kitten.litterId))
@@ -743,7 +743,7 @@ export function selectStuds(state: CatteryData = data): Stud[] {
       name: cat.name,
       color: cat.color ?? "",
       role: cat.stud?.role ?? "",
-      category: cat.stud?.category ?? "????",
+      category: cat.stud?.category ?? "现役公猫",
       status: cat.stud?.status ?? "",
       trait: cat.stud?.trait ?? "",
       source: cat.stud?.source ?? "",
@@ -758,7 +758,7 @@ export function selectFamilyCats(state: CatteryData = data) {
       id: cat.id,
       ownerId: cat.ownerId ?? "",
       name: cat.name,
-      gender: cat.gender === "??" ? "??" : "??",
+      gender: cat.gender === "妹妹" ? "妹妹" : "弟弟",
       birthday: cat.birthday ?? "",
       joinDate: cat.family?.joinDate,
       color: cat.color ?? "",
@@ -823,7 +823,7 @@ function normalizeUser(value: unknown): CatteryUser {
   const input = objectValue(value);
   return {
     id: optionalString(input.id, createStableId("user")),
-    name: optionalString(input.name, "?????"),
+    name: optionalString(input.name, "未命名用户"),
     role: input.role === "keeper" ? "keeper" : "parent",
     activatedAt: optionalString(input.activatedAt, undefined),
     inviteCode: optionalString(input.inviteCode, undefined),
@@ -853,7 +853,7 @@ function normalizeCat(value: unknown): CatteryCat {
   const cat: CatteryCat = {
     id: resolveCatId(optionalString(input.id, createStableId("cat"))),
     kind,
-    name: optionalString(input.name, "?????"),
+    name: optionalString(input.name, "未命名猫咪"),
     gender: optionalString(input.gender, undefined),
     color: optionalString(input.color, undefined),
     birthday: optionalString(input.birthday, undefined),
@@ -899,9 +899,9 @@ function normalizeKittenFields(value: unknown): KittenFields {
   const input = objectValue(value);
   return {
     status:
-      input.status === "???" || input.status === "???" || input.status === "???"
+      input.status === "找家中" || input.status === "已有家" || input.status === "待找家"
         ? input.status
-        : "???",
+        : "待找家",
     price: optionalString(input.price, ""),
     litterId: optionalString(input.litterId, undefined)
       ? resolveLitterId(optionalString(input.litterId, ""))
@@ -921,11 +921,11 @@ function normalizeKittenFields(value: unknown): KittenFields {
 function normalizeStudFields(value: unknown): StudFields {
   const input = objectValue(value);
   const category =
-    input.category === "????" ||
-    input.category === "?????" ||
-    input.category === "????"
+    input.category === "现役母猫" ||
+    input.category === "预备役种猫" ||
+    input.category === "现役公猫"
       ? input.category
-      : "????";
+      : "现役公猫";
   return {
     role: optionalString(input.role, ""),
     category,
@@ -968,7 +968,7 @@ function normalizeLitter(value: unknown): Litter {
     id,
     name: optionalString(input.name, defaultName),
     birthDate: optionalString(input.birthDate, undefined),
-    status: optionalString(input.status, "???"),
+    status: optionalString(input.status, "已建档"),
     fatherId: optionalString(input.fatherId, undefined)
       ? resolveCatId(optionalString(input.fatherId, ""))
       : undefined,
@@ -992,17 +992,17 @@ function normalizePosts(value: unknown) {
 
 function normalizePost(value: unknown): Post {
   const input = objectValue(value);
-  const authorRole = input.authorRole === "????" ? "????" : "?????";
+  const authorRole = input.authorRole === "星月家长" ? "星月家长" : "猫舍主理人";
   const category =
-    input.category === "???" || input.category === "????" || input.category === "????"
+    input.category === "碎碎念" || input.category === "家长分享" || input.category === "猫舍日常"
       ? input.category
-      : authorRole === "????"
-        ? "????"
-        : "????";
+      : authorRole === "星月家长"
+        ? "家长分享"
+        : "猫舍日常";
   return {
     id: optionalString(input.id, createStableId("p")),
     authorId: optionalString(input.authorId, ""),
-    authorName: optionalString(input.authorName, "?????"),
+    authorName: optionalString(input.authorName, "未命名用户"),
     authorRole,
     category,
     content: optionalString(input.content, ""),
@@ -1026,15 +1026,15 @@ function normalizePost(value: unknown): Post {
 function normalizeComment(value: unknown): Comment {
   const input = objectValue(value);
   const authorRole =
-    input.authorRole === "????" ||
-    input.authorRole === "????" ||
-    input.authorRole === "?????"
+    input.authorRole === "星月家长" ||
+    input.authorRole === "普通用户" ||
+    input.authorRole === "猫舍主理人"
       ? input.authorRole
-      : "????";
+      : "普通用户";
   return {
     id: optionalString(input.id, createStableId("c")),
     authorId: optionalString(input.authorId, ""),
-    authorName: optionalString(input.authorName, "?????"),
+    authorName: optionalString(input.authorName, "未命名用户"),
     authorRole,
     content: optionalString(input.content, ""),
     createdAt: optionalString(input.createdAt, now()),
@@ -1059,9 +1059,9 @@ function studToCat(stud: Stud): CatteryCat {
       status: stud.status,
       trait: stud.trait,
       source: stud.source,
-      reproductiveState: stud.status.includes("???")
+      reproductiveState: stud.status.includes("半退役")
         ? "semiRetired"
-        : stud.category === "?????"
+        : stud.category === "预备役种猫"
           ? "preparing"
           : "active",
     },
@@ -1094,7 +1094,7 @@ function kittenToCat(kitten: Kitten): CatteryCat {
 function canEditPost(post: Post, context: UpdatePostContext) {
   if (!context.currentUserId) return false;
   if (post.authorId === context.currentUserId) return true;
-  return context.role === "keeper" && post.authorRole === "?????";
+  return context.role === "keeper" && post.authorRole === "猫舍主理人";
 }
 
 function safePostPatch(
@@ -1125,7 +1125,7 @@ function safePostPatch(
   void likes;
 
   const safe: Partial<Post> = { ...rest };
-  if (existing.authorRole === "????" && existing.authorId !== context.currentUserId) {
+  if (existing.authorRole === "星月家长" && existing.authorId !== context.currentUserId) {
     delete safe.content;
     delete safe.catIds;
     delete safe.litterIds;
@@ -1236,7 +1236,7 @@ function normalizeReproductiveState(
   ) {
     return value;
   }
-  if (typeof status === "string" && status.includes("???")) return "semiRetired";
+  if (typeof status === "string" && status.includes("半退役")) return "semiRetired";
   return "active";
 }
 

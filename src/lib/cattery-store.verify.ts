@@ -81,29 +81,29 @@ const tests: TestCase[] = [
     name: "legacy community shape migrates",
     run() {
       const migrated = normalizeCatteryData({
-        users: [{ id: "parent-legacy", name: "Legacy ??", role: "parent" }],
+        users: [{ id: "parent-legacy", name: "Legacy 家长", role: "parent" }],
         cats: [
           {
             id: "cat-legacy",
             ownerId: "parent-legacy",
             name: "Legacy",
-            gender: "??",
+            gender: "弟弟",
             birthday: "2026-01-01",
-            color: "???",
-            personality: "??",
+            color: "银虎斑",
+            personality: "温柔",
           },
         ],
         posts: [
           {
             id: "p-legacy",
             authorId: "parent-legacy",
-            authorName: "Legacy ??",
-            authorRole: "????",
-            category: "????",
+            authorName: "Legacy 家长",
+            authorRole: "星月家长",
+            category: "家长分享",
             content: "legacy",
             imageCount: 0,
             catIds: ["cat-chonglou"],
-            litterIds: ["A?"],
+            litterIds: ["A窝"],
             createdAt: "2026-01-01T00:00:00",
             likes: 0,
             likedByMe: false,
@@ -120,7 +120,7 @@ const tests: TestCase[] = [
     name: "legacy aliases resolve",
     run() {
       assert(resolveCatId("cat-chonglou") === "chonglou");
-      assert(resolveLitterId("A?") === "litter-a");
+      assert(resolveLitterId("A窝") === "litter-a");
     },
   },
   {
@@ -131,13 +131,13 @@ const tests: TestCase[] = [
         id: "changed",
         kind: "stud",
         createdAt: "changed",
-        name: "????",
+        name: "呼呼更新",
       });
       const cat = getCatteryDataSnapshot().cats.find((item) => item.id === "cat-huhu");
       assert(cat?.id === "cat-huhu");
       assert(cat?.kind === "family");
       assert(cat?.createdAt !== "changed");
-      assert(cat?.name === "????");
+      assert(cat?.name === "呼呼更新");
     },
   },
   {
@@ -146,13 +146,13 @@ const tests: TestCase[] = [
       resetCatteryDataForTests();
       const ok = catteryActions.updatePost(
         "p-4",
-        { content: "???????" },
+        { content: "主理人协作编辑" },
         { role: "keeper", currentUserId: "keeper-yueqi" },
       );
       const post = selectPosts().find((item) => item.id === "p-4");
       assert(ok);
       assert(post?.authorId === "keeper-xingxia");
-      assert(post?.content === "???????");
+      assert(post?.content === "主理人协作编辑");
       assert(post?.lastEditedById === "keeper-yueqi");
       assert(typeof post?.updatedAt === "string");
     },
@@ -164,7 +164,7 @@ const tests: TestCase[] = [
       const before = selectPosts().find((item) => item.id === "p-2")?.content;
       const ok = catteryActions.updatePost(
         "p-2",
-        { content: "????", hidden: true },
+        { content: "不应成功", hidden: true },
         { role: "keeper", currentUserId: "keeper-yueqi" },
       );
       const after = selectPosts().find((item) => item.id === "p-2");
@@ -178,17 +178,17 @@ const tests: TestCase[] = [
       resetCatteryDataForTests();
       const own = catteryActions.updatePost(
         "p-3",
-        { content: "??????" },
+        { content: "家长自己编辑" },
         { role: "parent", currentUserId: "parent-huhu" },
       );
       const other = catteryActions.updatePost(
         "p-2",
-        { content: "????" },
+        { content: "不应成功" },
         { role: "parent", currentUserId: "parent-huhu" },
       );
       assert(own);
       assert(!other);
-      assert(selectPosts().find((item) => item.id === "p-3")?.content === "??????");
+      assert(selectPosts().find((item) => item.id === "p-3")?.content === "家长自己编辑");
     },
   },
   {

@@ -117,9 +117,9 @@ export const actions = {
     if (!getCatteryDataSnapshot().users.find((user) => user.id === "user-guest-1")) {
       catteryActions.addUser({
         id: "user-guest-1",
-        name: "????",
+        name: "微信用户",
         role: "parent",
-        note: "????????",
+        note: "尚未开通家长身份",
       });
     }
     notifySession();
@@ -141,11 +141,11 @@ export const actions = {
     notifySession();
   },
   toggleLike(postId: string) {
-    if (!actions.requireLogin("?????????")) return;
+    if (!actions.requireLogin("给猫爪点赞需要登录")) return;
     catteryActions.toggleLike(postId);
   },
   addComment(postId: string, content: string) {
-    if (!actions.requireLogin("????????")) return;
+    if (!actions.requireLogin("发表评论需要登录")) return;
     const me = getCatteryDataSnapshot().users.find((user) => user.id === session.currentUserId);
     if (!me) return;
     catteryActions.addComment(postId, {
@@ -153,10 +153,10 @@ export const actions = {
       authorName: me.name,
       authorRole:
         session.role === "keeper"
-          ? "?????"
+          ? "猫舍主理人"
           : session.role === "parent"
-            ? "????"
-            : "????",
+            ? "星月家长"
+            : "普通用户",
       content,
     });
   },
@@ -254,21 +254,21 @@ export const actions = {
 export function formatTime(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return `${date.getMonth() + 1} ? ${date.getDate()} ?`;
+  return `${date.getMonth() + 1} 月 ${date.getDate()} 日`;
 }
 
 export function categoryTone(category: Category): string {
   switch (category) {
-    case "????":
+    case "猫舍日常":
       return "sky";
-    case "???":
+    case "碎碎念":
       return "sunny";
-    case "????":
+    case "家长分享":
       return "warm";
   }
 }
 
-export const CATEGORIES: Category[] = ["????", "???", "????"];
+export const CATEGORIES: Category[] = ["猫舍日常", "碎碎念", "家长分享"];
 
 function selectCommunityCatsForFacade(cats: CatteryCat[]): CommunityCat[] {
   return cats
@@ -278,7 +278,7 @@ function selectCommunityCatsForFacade(cats: CatteryCat[]): CommunityCat[] {
       id: cat.id,
       ownerId: cat.ownerId ?? "",
       name: cat.name,
-      gender: cat.gender === "??" ? "??" : "??",
+      gender: cat.gender === "妹妹" ? "妹妹" : "弟弟",
       birthday: cat.birthday ?? "",
       joinDate: cat.family?.joinDate,
       color: cat.color ?? "",
