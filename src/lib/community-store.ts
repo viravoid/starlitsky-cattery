@@ -1,242 +1,30 @@
 import { useSyncExternalStore } from "react";
+import {
+  KEEPER_YUEQI,
+  PARENT_HUHU,
+  catteryActions,
+  getCatteryDataSnapshot,
+  hydrateCatteryDataFromStorage,
+  selectFamilyCats,
+  selectLitters,
+  selectPosts,
+  selectUsers,
+  subscribeToCatteryData,
+  type CatteryCat,
+  type Category,
+  type Comment,
+  type Post,
+  type Role,
+  type CatteryUser,
+} from "./cattery-store";
 
-/* ── Types ─────────────────────────────────────────────── */
-export type Role = "guest" | "user" | "parent" | "keeper";
-export type Category = "猫舍日常" | "碎碎念" | "家长分享";
+export type { Role, Category, Post, Comment };
+export type CommunityCat = ReturnType<typeof selectFamilyCats>[number];
+export type ParentUser = CatteryUser;
 
-export interface CommunityCat {
-  id: string;
-  ownerId: string; // "keeper" or a parent user id
-  name: string;
-  gender: "弟弟" | "妹妹";
-  birthday: string;
-  joinDate?: string;
-  color: string;
-  personality: string;
-  note?: string;
-}
-
-export interface Post {
-  id: string;
-  authorId: string;
-  authorName: string;
-  authorRole: "猫舍主理人" | "星月家长";
-  category: Category;
-  content: string;
-  imageCount: number; // 0-9
-  catIds: string[];
-  litterIds?: string[]; // 关联窝次，例如 "A窝"
-  createdAt: string; // ISO
-  likes: number;
-  likedByMe: boolean;
-  comments: Comment[];
-  pinned?: boolean;
-  hidden?: boolean;
-}
-
-export interface Comment {
-  id: string;
-  authorId: string;
-  authorName: string;
-  authorRole: "猫舍主理人" | "星月家长" | "普通用户";
-  content: string;
-  createdAt: string;
-  hidden?: boolean;
-}
-
-export interface ParentUser {
-  id: string;
-  name: string; // display: "呼呼和奶油的家长"
-  role: "parent" | "keeper";
-  activatedAt?: string;
-  inviteCode?: string;
-  note?: string;
-}
-
-/* ── Seed data ─────────────────────────────────────────── */
-const KEEPER_YUEQI = "keeper-yueqi";
-const KEEPER_XINGXIA = "keeper-xingxia";
-const PARENT_TOAST = "parent-toast";
-const PARENT_HUHU = "parent-huhu";
-const KEEPERS_ALLOWED_CATEGORIES: Category[] = ["猫舍日常", "碎碎念", "家长分享"];
-const PARENTS_ALLOWED_CATEGORIES: Category[] = ["家长分享", "碎碎念"];
-
-const seedUsers: ParentUser[] = [
-  { id: KEEPER_YUEQI, name: "月七", role: "keeper", note: "猫舍主理人" },
-  { id: KEEPER_XINGXIA, name: "星下", role: "keeper", note: "猫舍主理人" },
-  {
-    id: PARENT_TOAST,
-    name: "吐司的家长",
-    role: "parent",
-    activatedAt: "2026-03-12",
-    inviteCode: "XY-TOAST-2025",
-  },
-  {
-    id: PARENT_HUHU,
-    name: "呼呼和奶油的家长",
-    role: "parent",
-    activatedAt: "2026-02-04",
-    inviteCode: "XY-HUHU-2025",
-  },
-];
-
-const seedCats: CommunityCat[] = [
-  {
-    id: "cat-huhu",
-    ownerId: PARENT_HUHU,
-    name: "呼呼",
-    gender: "弟弟",
-    birthday: "2025-08-15",
-    joinDate: "2026-01-20",
-    color: "棕虎斑加白",
-    personality: "话痨，最爱蹲厨房门口等罐头。",
-  },
-  {
-    id: "cat-cream",
-    ownerId: PARENT_HUHU,
-    name: "奶油",
-    gender: "妹妹",
-    birthday: "2025-08-15",
-    joinDate: "2026-01-20",
-    color: "玳瑁麻纹加白",
-    personality: "安静温柔，喜欢晒太阳。",
-  },
-  {
-    id: "cat-toast",
-    ownerId: PARENT_TOAST,
-    name: "吐司",
-    gender: "弟弟",
-    birthday: "2025-06-30",
-    joinDate: "2025-12-18",
-    color: "银虎斑加白",
-    personality: "一周岁的小机灵鬼，饭点最准时。",
-  },
-  {
-    id: "cat-chonglou",
-    ownerId: KEEPER_YUEQI,
-    name: "重楼",
-    gender: "弟弟",
-    birthday: "2020-05-01",
-    color: "红虎斑",
-    personality: "半退役老大哥，温柔靠谱。",
-  },
-];
-
-const seedPosts: Post[] = [
-  {
-    id: "p-1",
-    authorId: KEEPER_YUEQI,
-    authorName: "月七",
-    authorRole: "猫舍主理人",
-    category: "猫舍日常",
-    content: "好看！好看宝宝！呼呼哈哈！",
-    imageCount: 1,
-    catIds: ["cat-huhu"],
-    createdAt: "2026-07-14T09:20:00",
-    likes: 24,
-    likedByMe: false,
-    comments: [
-      {
-        id: "c-1",
-        authorId: PARENT_HUHU,
-        authorName: "呼呼和奶油的家长",
-        authorRole: "星月家长",
-        content: "谢谢主理人！还是这么可爱～",
-        createdAt: "2026-07-14T10:02:00",
-      },
-    ],
-    pinned: true,
-  },
-  {
-    id: "p-2",
-    authorId: PARENT_TOAST,
-    authorName: "吐司的家长",
-    authorRole: "星月家长",
-    category: "家长分享",
-    content: "一周岁啦！在新家也还是每天准时蹲在厨房门口等罐头。",
-    imageCount: 3,
-    catIds: ["cat-toast"],
-    createdAt: "2026-07-12T18:45:00",
-    likes: 42,
-    likedByMe: true,
-    comments: [
-      {
-        id: "c-2",
-        authorId: KEEPER_YUEQI,
-        authorName: "月七",
-        authorRole: "猫舍主理人",
-        content: "生日快乐吐司！",
-        createdAt: "2026-07-12T19:10:00",
-      },
-    ],
-  },
-  {
-    id: "p-3",
-    authorId: PARENT_HUHU,
-    authorName: "呼呼和奶油的家长",
-    authorRole: "星月家长",
-    category: "家长分享",
-    content: "今天两个宝宝一起晒太阳，终于拍到同框了。",
-    imageCount: 4,
-    catIds: ["cat-huhu", "cat-cream"],
-    litterIds: ["A窝"],
-    createdAt: "2026-07-10T15:12:00",
-    likes: 58,
-    likedByMe: false,
-    comments: [],
-  },
-  {
-    id: "p-4",
-    authorId: KEEPER_XINGXIA,
-    authorName: "星下",
-    authorRole: "猫舍主理人",
-    category: "碎碎念",
-    content: "阴天的午后，大家都在打盹。有时候繁育这件事，就是慢慢陪它们长大。",
-    imageCount: 2,
-    catIds: [],
-    createdAt: "2026-07-08T14:00:00",
-    likes: 31,
-    likedByMe: false,
-    comments: [],
-  },
-  {
-    id: "p-5",
-    authorId: KEEPER_YUEQI,
-    authorName: "月七",
-    authorRole: "猫舍主理人",
-    category: "猫舍日常",
-    content: "重楼今天出来溜达啦，退役猫待遇享受中。",
-    imageCount: 1,
-    catIds: ["cat-chonglou"],
-    createdAt: "2026-07-05T11:30:00",
-    likes: 19,
-    likedByMe: false,
-    comments: [],
-  },
-  {
-    id: "p-6",
-    authorId: KEEPER_YUEQI,
-    authorName: "月七",
-    authorRole: "猫舍主理人",
-    category: "猫舍日常",
-    content: "A 窝的小朋友们今天开食啦，小家伙们吃相都特别可爱。",
-    imageCount: 2,
-    catIds: [],
-    litterIds: ["A窝"],
-    createdAt: "2026-07-02T10:15:00",
-    likes: 36,
-    likedByMe: false,
-    comments: [],
-  },
-];
-
-/* ── Store ─────────────────────────────────────────────── */
-interface State {
+interface SessionState {
   role: Role;
-  currentUserId: string | null; // when role != guest
-  users: ParentUser[];
-  cats: CommunityCat[];
-  posts: Post[];
+  currentUserId: string | null;
   showLoginSheet: boolean;
   loginReason: string;
   lightboxOpen: boolean;
@@ -244,12 +32,15 @@ interface State {
   lightboxCount: number;
 }
 
-const initial: State = {
+interface State extends SessionState {
+  users: ParentUser[];
+  cats: CommunityCat[];
+  posts: Post[];
+}
+
+const sessionInitial: SessionState = {
   role: "guest",
   currentUserId: null,
-  users: seedUsers,
-  cats: seedCats,
-  posts: seedPosts,
   showLoginSheet: false,
   loginReason: "",
   lightboxOpen: false,
@@ -257,109 +48,117 @@ const initial: State = {
   lightboxCount: 0,
 };
 
-let state: State = initial;
-const listeners = new Set<() => void>();
-const notify = () => listeners.forEach((l) => l());
-const subscribe = (l: () => void) => {
-  listeners.add(l);
-  return () => {
-    listeners.delete(l);
+let session: SessionState = { ...sessionInitial };
+let hydrated = false;
+const sessionListeners = new Set<() => void>();
+
+function getState(): State {
+  const data = getCatteryDataSnapshot();
+  return {
+    ...session,
+    users: selectUsers(data),
+    cats: selectCommunityCatsForFacade(data.cats),
+    posts: selectPostsForFacade(data),
   };
+}
+
+const serverState: State = {
+  ...sessionInitial,
+  users: selectUsers(),
+  cats: selectCommunityCatsForFacade(getCatteryDataSnapshot().cats),
+  posts: selectPostsForFacade(getCatteryDataSnapshot()),
 };
 
-export function useCommunity<T>(sel: (s: State) => T): T {
+function notifySession() {
+  sessionListeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void) {
+  if (!hydrated && typeof window !== "undefined") {
+    hydrated = true;
+    hydrateCatteryDataFromStorage();
+  }
+  sessionListeners.add(listener);
+  const unsubscribeCattery = subscribeToCatteryData(listener);
+  return () => {
+    sessionListeners.delete(listener);
+    unsubscribeCattery();
+  };
+}
+
+export function useCommunity<T>(selector: (state: State) => T): T {
   return useSyncExternalStore(
     subscribe,
-    () => sel(state),
-    () => sel(initial),
+    () => selector(getState()),
+    () => selector(serverState),
   );
 }
 
-/* ── Actions ───────────────────────────────────────────── */
 export const actions = {
   requireLogin(reason: string): boolean {
-    if (state.role === "guest") {
-      state = { ...state, showLoginSheet: true, loginReason: reason };
-      notify();
+    if (session.role === "guest") {
+      session = { ...session, showLoginSheet: true, loginReason: reason };
+      notifySession();
       return false;
     }
     return true;
   },
   closeLoginSheet() {
-    state = { ...state, showLoginSheet: false };
-    notify();
+    session = { ...session, showLoginSheet: false };
+    notifySession();
   },
-  // Simulated wechat login → becomes a普通已登录用户 (default: 呼呼和奶油的家长 as parent for demo convenience, but starts as "user")
   wechatLogin() {
-    // For demo: log in as a普通用户 (not yet parent). User must open parent-onboard to become parent.
-    state = {
-      ...state,
+    session = {
+      ...session,
       role: "user",
       currentUserId: "user-guest-1",
       showLoginSheet: false,
     };
-    if (!state.users.find((u) => u.id === "user-guest-1")) {
-      state = {
-        ...state,
-        users: [...state.users, { id: "user-guest-1", name: "微信用户", role: "parent", note: "尚未开通家长身份" }],
-      };
+    if (!getCatteryDataSnapshot().users.find((user) => user.id === "user-guest-1")) {
+      catteryActions.addUser({
+        id: "user-guest-1",
+        name: "????",
+        role: "parent",
+        note: "????????",
+      });
     }
-    notify();
+    notifySession();
   },
-  // Activate parent — demo just switches current user to 呼呼和奶油的家长
   activateParent(_code: string) {
-    state = {
-      ...state,
+    session = {
+      ...session,
       role: "parent",
       currentUserId: PARENT_HUHU,
     };
-    notify();
+    notifySession();
   },
   becomeKeeper() {
-    state = { ...state, role: "keeper", currentUserId: KEEPER_YUEQI };
-    notify();
+    session = { ...session, role: "keeper", currentUserId: KEEPER_YUEQI };
+    notifySession();
   },
   logout() {
-    state = { ...state, role: "guest", currentUserId: null };
-    notify();
+    session = { ...session, role: "guest", currentUserId: null };
+    notifySession();
   },
   toggleLike(postId: string) {
-    if (!actions.requireLogin("给猫爪点赞需要登录")) return;
-    state = {
-      ...state,
-      posts: state.posts.map((p) =>
-        p.id === postId
-          ? {
-              ...p,
-              likedByMe: !p.likedByMe,
-              likes: p.likedByMe ? p.likes - 1 : p.likes + 1,
-            }
-          : p,
-      ),
-    };
-    notify();
+    if (!actions.requireLogin("?????????")) return;
+    catteryActions.toggleLike(postId);
   },
   addComment(postId: string, content: string) {
-    if (!actions.requireLogin("发表评论需要登录")) return;
-    const me = state.users.find((u) => u.id === state.currentUserId);
+    if (!actions.requireLogin("????????")) return;
+    const me = getCatteryDataSnapshot().users.find((user) => user.id === session.currentUserId);
     if (!me) return;
-    const role =
-      state.role === "keeper" ? "猫舍主理人" : state.role === "parent" ? "星月家长" : "普通用户";
-    const c: Comment = {
-      id: `c-${Date.now()}`,
+    catteryActions.addComment(postId, {
       authorId: me.id,
       authorName: me.name,
-      authorRole: role,
+      authorRole:
+        session.role === "keeper"
+          ? "?????"
+          : session.role === "parent"
+            ? "????"
+            : "????",
       content,
-      createdAt: new Date().toISOString(),
-    };
-    state = {
-      ...state,
-      posts: state.posts.map((p) =>
-        p.id === postId ? { ...p, comments: [...p.comments, c] } : p,
-      ),
-    };
-    notify();
+    });
   },
   createPost(input: {
     category: Category;
@@ -368,175 +167,131 @@ export const actions = {
     catIds: string[];
     litterIds?: string[];
   }): string | null {
-    const me = state.users.find((u) => u.id === state.currentUserId);
-    if (!me || state.role === "guest" || state.role === "user") return null;
-    const role = state.role === "keeper" ? "猫舍主理人" : "星月家长";
-    const id = `p-${Date.now()}`;
-    const allowedCategories =
-      state.role === "keeper" ? KEEPERS_ALLOWED_CATEGORIES : PARENTS_ALLOWED_CATEGORIES;
-    const category = allowedCategories.includes(input.category)
-      ? input.category
-      : state.role === "parent"
-        ? "家长分享"
-        : "猫舍日常";
-    const catIds =
-      state.role === "keeper"
-        ? input.catIds
-        : input.catIds.filter((catId) =>
-            state.cats.some((cat) => cat.id === catId && cat.ownerId === state.currentUserId),
-          );
-    const post: Post = {
-      id,
-      authorId: me.id,
-      authorName: me.name,
-      authorRole: role,
-      category,
-      content: input.content,
-      imageCount: Math.max(0, Math.min(9, input.imageCount)),
-      catIds,
-      litterIds: input.litterIds ?? [],
-      createdAt: new Date().toISOString(),
-      likes: 0,
-      likedByMe: false,
-      comments: [],
-    };
-    state = { ...state, posts: [post, ...state.posts] };
-    notify();
-    return id;
+    return catteryActions.createPost(input, {
+      role: session.role,
+      currentUserId: session.currentUserId,
+    });
   },
   updatePost(id: string, patch: Partial<Post>) {
-    const existing = state.posts.find((p) => p.id === id);
-    if (!existing || existing.authorId !== state.currentUserId) return;
-    const safePatch = { ...patch };
-    if (safePatch.catIds && state.role !== "keeper") {
-      safePatch.catIds = safePatch.catIds.filter((catId) =>
-        state.cats.some((cat) => cat.id === catId && cat.ownerId === state.currentUserId),
-      );
-    }
-    state = {
-      ...state,
-      posts: state.posts.map((p) => (p.id === id ? { ...p, ...safePatch } : p)),
-    };
-    notify();
+    catteryActions.updatePost(id, patch, {
+      role: session.role,
+      currentUserId: session.currentUserId,
+    });
   },
   deletePost(id: string) {
-    state = { ...state, posts: state.posts.filter((p) => p.id !== id) };
-    notify();
+    catteryActions.deletePost(id);
   },
   togglePin(id: string) {
-    state = {
-      ...state,
-      posts: state.posts.map((p) => (p.id === id ? { ...p, pinned: !p.pinned } : p)),
-    };
-    notify();
+    catteryActions.togglePin(id);
   },
   toggleHidePost(id: string) {
-    state = {
-      ...state,
-      posts: state.posts.map((p) => (p.id === id ? { ...p, hidden: !p.hidden } : p)),
-    };
-    notify();
+    catteryActions.toggleHidePost(id);
   },
   toggleHideComment(postId: string, commentId: string) {
-    state = {
-      ...state,
-      posts: state.posts.map((p) =>
-        p.id === postId
-          ? {
-              ...p,
-              comments: p.comments.map((c) =>
-                c.id === commentId ? { ...c, hidden: !c.hidden } : c,
-              ),
-            }
-          : p,
-      ),
-    };
-    notify();
+    catteryActions.toggleHideComment(postId, commentId);
   },
   deleteComment(postId: string, commentId: string) {
-    state = {
-      ...state,
-      posts: state.posts.map((p) =>
-        p.id === postId ? { ...p, comments: p.comments.filter((c) => c.id !== commentId) } : p,
-      ),
-    };
-    notify();
+    catteryActions.deleteComment(postId, commentId);
   },
   addCat(input: Omit<CommunityCat, "id" | "ownerId"> & { ownerId?: string }) {
-    const ownerId = input.ownerId ?? state.currentUserId;
+    const ownerId = input.ownerId ?? session.currentUserId;
     if (!ownerId) return;
-    const id = `cat-${Date.now()}`;
-    state = { ...state, cats: [...state.cats, { ...input, id, ownerId }] };
-    notify();
+    catteryActions.addFamilyCat({
+      ownerId,
+      name: input.name,
+      gender: input.gender,
+      birthday: input.birthday,
+      color: input.color,
+      personality: input.personality,
+      family: {
+        joinDate: input.joinDate,
+        note: input.note,
+      },
+    });
   },
   updateCat(id: string, patch: Partial<CommunityCat>) {
-    state = {
-      ...state,
-      cats: state.cats.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-    };
-    notify();
+    catteryActions.updateCat(id, {
+      ownerId: patch.ownerId,
+      name: patch.name,
+      gender: patch.gender,
+      birthday: patch.birthday,
+      color: patch.color,
+      personality: patch.personality,
+      family:
+        patch.joinDate !== undefined || patch.note !== undefined
+          ? { joinDate: patch.joinDate, note: patch.note }
+          : undefined,
+    });
   },
   deleteCat(id: string) {
-    state = {
-      ...state,
-      cats: state.cats.filter((c) => c.id !== id),
-      posts: state.posts.map((p) => ({ ...p, catIds: p.catIds.filter((cid) => cid !== id) })),
-    };
-    notify();
+    catteryActions.deleteFamilyCat(id);
   },
   openLightbox(count: number, index: number) {
-    state = { ...state, lightboxOpen: true, lightboxIndex: index, lightboxCount: count };
-    notify();
+    session = { ...session, lightboxOpen: true, lightboxIndex: index, lightboxCount: count };
+    notifySession();
   },
-  setLightboxIndex(i: number) {
-    state = { ...state, lightboxIndex: i };
-    notify();
+  setLightboxIndex(index: number) {
+    session = { ...session, lightboxIndex: index };
+    notifySession();
   },
   closeLightbox() {
-    state = { ...state, lightboxOpen: false };
-    notify();
+    session = { ...session, lightboxOpen: false };
+    notifySession();
   },
   addParent(name: string, code: string) {
-    const id = `parent-${Date.now()}`;
-    state = {
-      ...state,
-      users: [
-        ...state.users,
-        { id, name, role: "parent", inviteCode: code, activatedAt: new Date().toISOString().slice(0, 10) },
-      ],
-    };
-    notify();
+    catteryActions.addUser({
+      name,
+      role: "parent",
+      inviteCode: code,
+      activatedAt: new Date().toISOString().slice(0, 10),
+    });
   },
   toggleParentActive(id: string) {
-    state = {
-      ...state,
-      users: state.users.map((u) =>
-        u.id === id
-          ? { ...u, activatedAt: u.activatedAt ? undefined : new Date().toISOString().slice(0, 10) }
-          : u,
-      ),
-    };
-    notify();
+    catteryActions.toggleParentActive(id);
   },
 };
 
-/* ── Helpers ───────────────────────────────────────────── */
 export function formatTime(iso: string) {
-  // Deterministic (SSR-safe) — parse the ISO date and format as M月D日.
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return `${date.getMonth() + 1} ? ${date.getDate()} ?`;
 }
 
-export function categoryTone(c: Category): string {
-  switch (c) {
-    case "猫舍日常":
+export function categoryTone(category: Category): string {
+  switch (category) {
+    case "????":
       return "sky";
-    case "碎碎念":
+    case "???":
       return "sunny";
-    case "家长分享":
+    case "????":
       return "warm";
   }
 }
 
-export const CATEGORIES: Category[] = ["猫舍日常", "碎碎念", "家长分享"];
+export const CATEGORIES: Category[] = ["????", "???", "????"];
+
+function selectCommunityCatsForFacade(cats: CatteryCat[]): CommunityCat[] {
+  return cats
+    .filter((cat) => cat.kind === "family" || cat.id === "chonglou")
+    .filter((cat) => cat.visibility !== "archived")
+    .map((cat) => ({
+      id: cat.id,
+      ownerId: cat.ownerId ?? "",
+      name: cat.name,
+      gender: cat.gender === "??" ? "??" : "??",
+      birthday: cat.birthday ?? "",
+      joinDate: cat.family?.joinDate,
+      color: cat.color ?? "",
+      personality: cat.personality ?? "",
+      note: cat.family?.note,
+    }));
+}
+
+function selectPostsForFacade(data = getCatteryDataSnapshot()): Post[] {
+  const litterNames = new Map(selectLitters(data).map((litter) => [litter.id, litter.name]));
+  return selectPosts(data).map((post) => ({
+    ...post,
+    catIds: post.catIds.includes("chonglou") ? [...post.catIds, "cat-chonglou"] : post.catIds,
+    litterIds: post.litterIds?.map((id) => litterNames.get(id) ?? id),
+  }));
+}
