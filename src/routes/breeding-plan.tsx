@@ -1,7 +1,13 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { BreedingPlanView } from "@/components/mobile/BreedingPlanView";
-import { BREEDING_PLAN_CONTENT } from "@/lib/breeding-plan-content";
+import { cloneBreedingPlanContent, type BreedingPlanContent } from "@/lib/breeding-plan-content";
 import { STUDS } from "@/lib/cattery-data";
+import {
+  loadDraftPreviewBreedingPlanContent,
+  loadSavedBreedingPlanContent,
+  subscribeToSavedBreedingPlanContent,
+} from "@/lib/site-page-storage";
 
 export const Route = createFileRoute("/breeding-plan")({
   head: () => ({
@@ -18,5 +24,20 @@ export const Route = createFileRoute("/breeding-plan")({
 });
 
 function BreedingPlan() {
-  return <BreedingPlanView content={BREEDING_PLAN_CONTENT} studs={STUDS} />;
+  const [content, setContent] = useState<BreedingPlanContent>(() => cloneBreedingPlanContent());
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const previewDraft = params.get("sitePagePreview") === "breeding-plan-draft";
+
+    if (previewDraft) {
+      setContent(loadDraftPreviewBreedingPlanContent());
+      return;
+    }
+
+    setContent(loadSavedBreedingPlanContent());
+    return subscribeToSavedBreedingPlanContent(() => setContent(loadSavedBreedingPlanContent()));
+  }, []);
+
+  return <BreedingPlanView content={content} studs={STUDS} />;
 }

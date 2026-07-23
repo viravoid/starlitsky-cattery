@@ -34,6 +34,11 @@ import {
   normalizeQuestionnaireContent,
   type QuestionnaireContent,
 } from "./questionnaire-content";
+import {
+  cloneBreedingPlanContent,
+  normalizeBreedingPlanContent,
+  type BreedingPlanContent,
+} from "./breeding-plan-content";
 
 const ABOUT_SAVED_KEY = "starlitsky.site-page.about.saved.v1";
 const ABOUT_DRAFT_PREVIEW_KEY = "starlitsky.site-page.about.draft-preview.v1";
@@ -59,6 +64,9 @@ const CONTACT_SAVED_EVENT = "starlitsky:site-page-contact-saved";
 const QUESTIONNAIRE_SAVED_KEY = "starlitsky.site-page.questionnaire.saved.v1";
 const QUESTIONNAIRE_DRAFT_PREVIEW_KEY = "starlitsky.site-page.questionnaire.draft-preview.v1";
 const QUESTIONNAIRE_SAVED_EVENT = "starlitsky:site-page-questionnaire-saved";
+const BREEDING_PLAN_SAVED_KEY = "starlitsky.site-page.breeding-plan.saved.v1";
+const BREEDING_PLAN_DRAFT_PREVIEW_KEY = "starlitsky.site-page.breeding-plan.draft-preview.v1";
+const BREEDING_PLAN_SAVED_EVENT = "starlitsky:site-page-breeding-plan-saved";
 const DB_NAME = "starlitsky-site-pages";
 const DB_VERSION = 1;
 const IMAGE_STORE = "images";
@@ -139,6 +147,14 @@ function readQuestionnaireContent(key: string): QuestionnaireContent {
 
 function writeQuestionnaireContent(key: string, content: QuestionnaireContent) {
   writeContent(key, content, normalizeQuestionnaireContent);
+}
+
+function readBreedingPlanContent(key: string): BreedingPlanContent {
+  return readContent(key, cloneBreedingPlanContent, normalizeBreedingPlanContent);
+}
+
+function writeBreedingPlanContent(key: string, content: BreedingPlanContent) {
+  writeContent(key, content, normalizeBreedingPlanContent);
 }
 
 function readContent<T>(key: string, cloneDefault: () => T, normalize: (value: unknown) => T): T {
@@ -336,6 +352,28 @@ export function saveDraftPreviewQuestionnaireContent(content: QuestionnaireConte
 
 export function subscribeToSavedQuestionnaireContent(callback: () => void) {
   return subscribeToSavedContent(QUESTIONNAIRE_SAVED_KEY, QUESTIONNAIRE_SAVED_EVENT, callback);
+}
+
+export function loadSavedBreedingPlanContent() {
+  return readBreedingPlanContent(BREEDING_PLAN_SAVED_KEY);
+}
+
+export function saveBreedingPlanContent(content: BreedingPlanContent) {
+  if (!isBrowser()) return;
+  writeBreedingPlanContent(BREEDING_PLAN_SAVED_KEY, content);
+  window.dispatchEvent(new CustomEvent(BREEDING_PLAN_SAVED_EVENT));
+}
+
+export function loadDraftPreviewBreedingPlanContent() {
+  return readBreedingPlanContent(BREEDING_PLAN_DRAFT_PREVIEW_KEY);
+}
+
+export function saveDraftPreviewBreedingPlanContent(content: BreedingPlanContent) {
+  writeBreedingPlanContent(BREEDING_PLAN_DRAFT_PREVIEW_KEY, content);
+}
+
+export function subscribeToSavedBreedingPlanContent(callback: () => void) {
+  return subscribeToSavedContent(BREEDING_PLAN_SAVED_KEY, BREEDING_PLAN_SAVED_EVENT, callback);
 }
 
 function subscribeToSavedContent(key: string, eventName: string, callback: () => void) {
