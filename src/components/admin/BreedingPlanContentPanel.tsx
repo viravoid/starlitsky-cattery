@@ -160,17 +160,33 @@ export function BreedingPlanContentPanel({
                 }
               />
               <TextareaField
-                label="底部免责声明"
-                value={draft.disclaimer}
+                label="花色说明"
+                value={draft.disclaimer.color}
                 rows={4}
-                onChange={(disclaimer) => updateDraft((content) => ({ ...content, disclaimer }))}
+                onChange={(color) =>
+                  updateDraft((content) => ({
+                    ...content,
+                    disclaimer: { ...content.disclaimer, color },
+                  }))
+                }
+              />
+              <TextareaField
+                label="时间说明"
+                value={draft.disclaimer.schedule}
+                rows={4}
+                onChange={(schedule) =>
+                  updateDraft((content) => ({
+                    ...content,
+                    disclaimer: { ...content.disclaimer, schedule },
+                  }))
+                }
               />
             </div>
           </EditorSection>
 
           <EditorSection
             title="计划分组与繁育组合"
-            desc="分组、组合和预计花色支持新增、删除和排序；种猫名称始终来自种猫资料。"
+            desc="分组、组合和主要可能花色支持新增、删除和排序，其他可能情况使用补充说明填写；种猫名称始终来自种猫资料。"
             open={openPanels.groups}
             onToggle={() => togglePanel("groups")}
           >
@@ -235,7 +251,8 @@ function GroupEditor({
         maleStudId: getDefaultStudId("male"),
         femaleStudId: getDefaultStudId("female"),
         timeLabel: "",
-        expectedColors: [],
+        possibleColors: [],
+        colorPossibilityNote: "",
       },
     ]);
   };
@@ -308,9 +325,17 @@ function PairingEditor({
         value={pairing.timeLabel}
         onChange={(timeLabel) => onChange({ timeLabel })}
       />
-      <ExpectedColorsEditor
-        colors={pairing.expectedColors}
-        onChange={(expectedColors) => onChange({ expectedColors })}
+      <PossibleColorsEditor
+        colors={pairing.possibleColors}
+        onChange={(possibleColors) => onChange({ possibleColors })}
+      />
+      <TextareaField
+        label="其他可能说明"
+        hint="填写稀释色、加白、麻纹、鱼骨纹、高银、浅银等补充概率说明。"
+        value={pairing.colorPossibilityNote}
+        rows={4}
+        placeholder="例如：以上颜色有概率出现稀释色（如蓝虎斑），以及麻纹。"
+        onChange={(colorPossibilityNote) => onChange({ colorPossibilityNote })}
       />
     </div>
   );
@@ -363,7 +388,7 @@ function StudSelect({
   );
 }
 
-function ExpectedColorsEditor({
+function PossibleColorsEditor({
   colors,
   onChange,
 }: {
@@ -398,7 +423,7 @@ function ExpectedColorsEditor({
 
   return (
     <div className="grid gap-2">
-      <span className="text-[12px] font-semibold text-heading lg:text-[13px]">预计花色</span>
+      <span className="text-[12px] font-semibold text-heading lg:text-[13px]">主要可能花色</span>
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
         <input
           value={newColor}
@@ -408,14 +433,14 @@ function ExpectedColorsEditor({
             event.preventDefault();
             addColor();
           }}
-          placeholder="输入花色后添加"
+          placeholder="输入一种主要可能花色"
           className="h-9 rounded-[7px] border border-border bg-background px-3 text-[13px] outline-none focus:border-primary"
         />
         <EditorButton onClick={addColor}>新增花色</EditorButton>
       </div>
       {colors.length === 0 && (
         <p className="rounded-[6px] border border-dashed border-border px-3 py-4 text-center text-[13px] text-muted-foreground">
-          暂无预计花色。用户端会显示固定待补充状态。
+          暂无主要可能花色。
         </p>
       )}
       {colors.map((color, index) => (

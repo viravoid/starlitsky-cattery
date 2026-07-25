@@ -177,7 +177,7 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   },
   breedingPlan: {
     title: "繁育计划",
-    desc: "管理 /breeding-plan 页面计划周期、分组、繁育组合、预计时间和预计花色。",
+    desc: "管理 /breeding-plan 页面计划周期、分组、繁育组合、预计时间和可能花色。",
   },
   aftercare: {
     title: "售后保障",
