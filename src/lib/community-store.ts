@@ -16,6 +16,7 @@ import {
   type Post,
   type Role,
   type CatteryUser,
+  type UpdatePostContext,
 } from "./cattery-store";
 
 export type { Role, Category, Post, Comment };
@@ -71,6 +72,13 @@ const serverState: State = {
 
 function notifySession() {
   sessionListeners.forEach((listener) => listener());
+}
+
+function currentActor(): UpdatePostContext {
+  return {
+    role: session.role,
+    currentUserId: session.currentUserId,
+  };
 }
 
 function subscribe(listener: () => void) {
@@ -167,64 +175,65 @@ export const actions = {
     catIds: string[];
     litterIds?: string[];
   }): string | null {
-    return catteryActions.createPost(input, {
-      role: session.role,
-      currentUserId: session.currentUserId,
-    });
+    return catteryActions.createPost(input, currentActor());
   },
   updatePost(id: string, patch: Partial<Post>) {
-    catteryActions.updatePost(id, patch, {
-      role: session.role,
-      currentUserId: session.currentUserId,
-    });
+    return catteryActions.updatePost(id, patch, currentActor());
   },
   deletePost(id: string) {
-    catteryActions.deletePost(id);
+    return catteryActions.deletePost(id, currentActor());
   },
   togglePin(id: string) {
-    catteryActions.togglePin(id);
+    return catteryActions.togglePin(id, currentActor());
   },
   toggleHidePost(id: string) {
-    catteryActions.toggleHidePost(id);
+    return catteryActions.toggleHidePost(id, currentActor());
   },
   toggleHideComment(postId: string, commentId: string) {
-    catteryActions.toggleHideComment(postId, commentId);
+    return catteryActions.toggleHideComment(postId, commentId, currentActor());
   },
   deleteComment(postId: string, commentId: string) {
-    catteryActions.deleteComment(postId, commentId);
+    return catteryActions.deleteComment(postId, commentId, currentActor());
   },
   addCat(input: Omit<CommunityCat, "id" | "ownerId"> & { ownerId?: string }) {
     const ownerId = input.ownerId ?? session.currentUserId;
     if (!ownerId) return;
-    catteryActions.addFamilyCat({
-      ownerId,
-      name: input.name,
-      gender: input.gender,
-      birthday: input.birthday,
-      color: input.color,
-      personality: input.personality,
-      family: {
-        joinDate: input.joinDate,
-        note: input.note,
+    return catteryActions.addFamilyCat(
+      {
+        ownerId,
+        name: input.name,
+        gender: input.gender,
+        birthday: input.birthday,
+        color: input.color,
+        personality: input.personality,
+        family: {
+          joinDate: input.joinDate,
+          note: input.note,
+        },
       },
-    });
+      currentActor(),
+    );
   },
   updateCat(id: string, patch: Partial<CommunityCat>) {
-    catteryActions.updateCat(id, {
-      ownerId: patch.ownerId,
-      name: patch.name,
-      gender: patch.gender,
-      birthday: patch.birthday,
-      color: patch.color,
-      personality: patch.personality,
-      family:
-        patch.joinDate !== undefined || patch.note !== undefined
-          ? { joinDate: patch.joinDate, note: patch.note }
-          : undefined,
-    });
+    return catteryActions.updateCat(
+      id,
+      {
+        ownerId: patch.ownerId,
+        name: patch.name,
+        gender: patch.gender,
+        birthday: patch.birthday,
+        color: patch.color,
+        personality: patch.personality,
+        family:
+          patch.joinDate !== undefined || patch.note !== undefined
+            ? { joinDate: patch.joinDate, note: patch.note }
+            : undefined,
+      },
+      currentActor(),
+    );
   },
   deleteCat(id: string) {
-    catteryActions.deleteFamilyCat(id);
+    return catteryActions.deleteFamilyCat(id, currentActor());
   },
   openLightbox(count: number, index: number) {
     session = { ...session, lightboxOpen: true, lightboxIndex: index, lightboxCount: count };
@@ -239,15 +248,18 @@ export const actions = {
     notifySession();
   },
   addParent(name: string, code: string) {
-    catteryActions.addUser({
-      name,
-      role: "parent",
-      inviteCode: code,
-      activatedAt: new Date().toISOString().slice(0, 10),
-    });
+    return catteryActions.addUser(
+      {
+        name,
+        role: "parent",
+        inviteCode: code,
+        activatedAt: new Date().toISOString().slice(0, 10),
+      },
+      currentActor(),
+    );
   },
   toggleParentActive(id: string) {
-    catteryActions.toggleParentActive(id);
+    return catteryActions.toggleParentActive(id, currentActor());
   },
 };
 

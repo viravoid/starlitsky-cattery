@@ -131,6 +131,12 @@ export interface UpdatePostContext {
   currentUserId: UserId | null;
 }
 
+type EditableActor = {
+  role: "parent" | "keeper";
+  id: UserId;
+  user: CatteryUser;
+};
+
 export const CATTERY_STORAGE_KEY = "starlitsky.cattery.saved.v1";
 export const CATTERY_SAVED_EVENT = "starlitsky:cattery-saved";
 
@@ -451,7 +457,9 @@ export const catteryActions = {
   replaceAll(next: CatteryData) {
     setData(next);
   },
-  addUser(input: Omit<CatteryUser, "id"> & { id?: string }) {
+  addUser(input: Omit<CatteryUser, "id"> & { id?: string }, context?: UpdatePostContext) {
+    if (context && !canManageCattery(context)) return null;
+
     const id = input.id?.trim() || createStableId("parent");
     setData({
       ...data,
@@ -459,7 +467,9 @@ export const catteryActions = {
     });
     return id;
   },
-  toggleParentActive(id: UserId) {
+  toggleParentActive(id: UserId, context?: UpdatePostContext) {
+    if (context && !canManageCattery(context)) return false;
+
     setData({
       ...data,
       users: data.users.map((user) =>
@@ -468,10 +478,16 @@ export const catteryActions = {
           : user,
       ),
     });
+    return true;
   },
   addFamilyCat(
     input: Omit<CatteryCat, "id" | "kind" | "galleryImageIds" | "visibility"> & { id?: string },
+    context: UpdatePostContext,
   ) {
+    const actor = getEditableActor(context);
+    if (!actor) return null;
+    if (actor.role === "parent" && input.ownerId !== actor.id) return null;
+
     const id = input.id?.trim() || createStableId("cat");
     const cat: CatteryCat = normalizeCat({
       ...input,
@@ -483,21 +499,29 @@ export const catteryActions = {
     setData({ ...data, cats: [...data.cats, cat] });
     return id;
   },
-  updateCat(id: CatId, patch: Partial<CatteryCat>) {
+  updateCat(id: CatId, patch: Partial<CatteryCat>, context: UpdatePostContext) {
     const resolvedId = resolveCatId(id);
+    const actor = getEditableActor(context);
+    const existing = data.cats.find((cat) => cat.id === resolvedId);
+    if (!actor || !existing || !canManageCat(existing, actor)) return false;
+    const safePatch = safeCatPatch(patch, actor);
+
     setData({
       ...data,
       cats: data.cats.map((cat) =>
-        cat.id === resolvedId
-          ? normalizeCat({ ...cat, ...safeCatPatch(patch), updatedAt: now() })
-          : cat,
+        cat.id === resolvedId ? normalizeCat({ ...cat, ...safePatch, updatedAt: now() }) : cat,
       ),
     });
+    return true;
   },
-  deleteFamilyCat(id: CatId) {
+  deleteFamilyCat(id: CatId, context: UpdatePostContext) {
     const resolvedId = resolveCatId(id);
+    const actor = getEditableActor(context);
     const existing = data.cats.find((cat) => cat.id === resolvedId);
-    if (!existing || existing.kind !== "family") return;
+    if (!actor || !existing || existing.kind !== "family" || !canManageCat(existing, actor)) {
+      return false;
+    }
+
     setData({
       ...data,
       cats: data.cats.filter((cat) => cat.id !== resolvedId),
@@ -506,6 +530,7 @@ export const catteryActions = {
         catIds: post.catIds.filter((catId) => resolveCatId(catId) !== resolvedId),
       })),
     });
+    return true;
   },
   setStudVisibility(id: CatId, visibility: Visibility) {
     const resolvedId = resolveCatId(id);
@@ -555,34 +580,34 @@ export const catteryActions = {
     },
     context: UpdatePostContext,
   ) {
-    const me = data.users.find((user) => user.id === context.currentUserId);
-    if (!me || context.role === "guest" || context.role === "user") return null;
+    const actor = getEditableActor(context);
+    if (!actor) return null;
     const allowedCategories =
-      context.role === "keeper" ? KEEPERS_ALLOWED_CATEGORIES : PARENTS_ALLOWED_CATEGORIES;
+      actor.role === "keeper" ? KEEPERS_ALLOWED_CATEGORIES : PARENTS_ALLOWED_CATEGORIES;
     const category = allowedCategories.includes(input.category)
       ? input.category
-      : context.role === "parent"
+      : actor.role === "parent"
         ? "家长分享"
         : "猫舍日常";
     const catIds =
-      context.role === "keeper"
+      actor.role === "keeper"
         ? input.catIds.map(resolveCatId)
         : input.catIds
             .map(resolveCatId)
             .filter((catId) =>
-              data.cats.some((cat) => cat.id === catId && cat.ownerId === context.currentUserId),
+              data.cats.some((cat) => cat.id === catId && cat.ownerId === actor.id),
             );
     const id = createStableId("p");
     const post = normalizePost({
       id,
-      authorId: me.id,
-      authorName: me.name,
-      authorRole: context.role === "keeper" ? "猫舍主理人" : "星月家长",
+      authorId: actor.user.id,
+      authorName: actor.user.name,
+      authorRole: actor.role === "keeper" ? "猫舍主理人" : "星月家长",
       category,
       content: input.content,
       imageCount: clampImageCount(input.imageCount),
       catIds,
-      litterIds: (input.litterIds ?? []).map(resolveLitterId),
+      litterIds: actor.role === "keeper" ? (input.litterIds ?? []).map(resolveLitterId) : [],
       createdAt: now(),
       likes: 0,
       likedByMe: false,
@@ -592,9 +617,10 @@ export const catteryActions = {
     return id;
   },
   updatePost(id: PostId, patch: Partial<Post>, context: UpdatePostContext) {
+    const actor = getEditableActor(context);
     const existing = data.posts.find((post) => post.id === id);
-    if (!existing || !canEditPost(existing, context)) return false;
-    const safePatch = safePostPatch(patch, existing, context);
+    if (!actor || !existing || !canEditPost(existing, actor)) return false;
+    const safePatch = safePostPatch(patch, actor);
     setData({
       ...data,
       posts: data.posts.map((post) =>
@@ -603,18 +629,20 @@ export const catteryActions = {
               ...post,
               ...safePatch,
               updatedAt: now(),
-              lastEditedById:
-                post.authorId === context.currentUserId
-                  ? post.lastEditedById
-                  : (context.currentUserId ?? undefined),
+              lastEditedById: post.authorId === actor.id ? post.lastEditedById : actor.id,
             })
           : post,
       ),
     });
     return true;
   },
-  deletePost(id: PostId) {
+  deletePost(id: PostId, context: UpdatePostContext) {
+    const actor = getEditableActor(context);
+    const existing = data.posts.find((post) => post.id === id);
+    if (!actor || !existing || !canDeletePost(existing, actor)) return false;
+
     setData({ ...data, posts: data.posts.filter((post) => post.id !== id) });
+    return true;
   },
   toggleLike(postId: PostId) {
     setData({
@@ -653,19 +681,33 @@ export const catteryActions = {
       ),
     });
   },
-  togglePin(id: PostId) {
+  togglePin(id: PostId, context: UpdatePostContext) {
+    const actor = getEditableActor(context);
+    const existing = data.posts.find((post) => post.id === id);
+    if (!actor || !existing || !canModeratePost(actor)) return false;
+
     setData({
       ...data,
       posts: data.posts.map((post) => (post.id === id ? { ...post, pinned: !post.pinned } : post)),
     });
+    return true;
   },
-  toggleHidePost(id: PostId) {
+  toggleHidePost(id: PostId, context: UpdatePostContext) {
+    const actor = getEditableActor(context);
+    const existing = data.posts.find((post) => post.id === id);
+    if (!actor || !existing || !canModeratePost(actor)) return false;
+
     setData({
       ...data,
       posts: data.posts.map((post) => (post.id === id ? { ...post, hidden: !post.hidden } : post)),
     });
+    return true;
   },
-  toggleHideComment(postId: PostId, commentId: string) {
+  toggleHideComment(postId: PostId, commentId: string, context: UpdatePostContext) {
+    const actor = getEditableActor(context);
+    const existing = data.posts.find((post) => post.id === postId);
+    if (!actor || !existing || !canModeratePost(actor)) return false;
+
     setData({
       ...data,
       posts: data.posts.map((post) =>
@@ -679,8 +721,13 @@ export const catteryActions = {
           : post,
       ),
     });
+    return true;
   },
-  deleteComment(postId: PostId, commentId: string) {
+  deleteComment(postId: PostId, commentId: string, context: UpdatePostContext) {
+    const actor = getEditableActor(context);
+    const existing = data.posts.find((post) => post.id === postId);
+    if (!actor || !existing || !canDeleteComment(existing, commentId, actor)) return false;
+
     setData({
       ...data,
       posts: data.posts.map((post) =>
@@ -689,6 +736,7 @@ export const catteryActions = {
           : post,
       ),
     });
+    return true;
   },
 };
 
@@ -769,7 +817,17 @@ function subscribe(listener: () => void) {
 function setData(next: CatteryData, persist = true) {
   data = cloneCatteryData(normalizeCatteryData(next));
   if (persist) writeCatteryData(data);
-  listeners.forEach((listener) => listener());
+  notifyListeners();
+}
+
+function notifyListeners() {
+  listeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (error) {
+      console.error("Cattery data subscriber failed.", error);
+    }
+  });
 }
 
 function parseSavedCatteryData(raw: string | null) {
@@ -1006,7 +1064,12 @@ function normalizeLitter(value: unknown): Litter {
 function normalizePosts(value: unknown) {
   const fallback = cloneDefaultCatteryData().posts;
   if (!Array.isArray(value)) return fallback;
-  return value.map(normalizePost);
+  const seen = new Set<string>();
+  return value.map(normalizePost).filter((post) => {
+    if (!post.id || seen.has(post.id)) return false;
+    seen.add(post.id);
+    return true;
+  });
 }
 
 function normalizePost(value: unknown): Post {
@@ -1110,17 +1173,46 @@ function kittenToCat(kitten: Kitten): CatteryCat {
   };
 }
 
-function canEditPost(post: Post, context: UpdatePostContext) {
-  if (!context.currentUserId) return false;
-  if (post.authorId === context.currentUserId) return true;
-  return context.role === "keeper" && post.authorRole === "猫舍主理人";
+function getEditableActor(context: UpdatePostContext): EditableActor | null {
+  if (context.role !== "parent" && context.role !== "keeper") return null;
+  if (!context.currentUserId) return null;
+  const user = data.users.find((item) => item.id === context.currentUserId);
+  if (!user || user.role !== context.role) return null;
+  return { role: context.role, id: user.id, user };
 }
 
-function safePostPatch(
-  patch: Partial<Post>,
-  existing: Post,
-  context: UpdatePostContext,
-): Partial<Post> {
+function canManageCattery(context: UpdatePostContext) {
+  return getEditableActor(context)?.role === "keeper";
+}
+
+function canManageCat(cat: CatteryCat, actor: EditableActor) {
+  if (actor.role === "keeper") return true;
+  return cat.kind === "family" && cat.ownerId === actor.id;
+}
+
+function canEditPost(post: Post, actor: EditableActor) {
+  if (actor.role === "parent") {
+    return post.authorRole === "星月家长" && post.authorId === actor.id;
+  }
+  return post.authorRole === "猫舍主理人";
+}
+
+function canDeletePost(post: Post, actor: EditableActor) {
+  if (actor.role === "keeper") return true;
+  return post.authorRole === "星月家长" && post.authorId === actor.id;
+}
+
+function canModeratePost(actor: EditableActor) {
+  return actor.role === "keeper";
+}
+
+function canDeleteComment(post: Post, commentId: string, actor: EditableActor) {
+  if (actor.role === "keeper") return true;
+  const comment = post.comments.find((item) => item.id === commentId);
+  return Boolean(comment && comment.authorId === actor.id);
+}
+
+function safePostPatch(patch: Partial<Post>, actor: EditableActor): Partial<Post> {
   const {
     id,
     authorId,
@@ -1144,20 +1236,23 @@ function safePostPatch(
   void likes;
 
   const safe: Partial<Post> = { ...rest };
-  if (existing.authorRole === "星月家长" && existing.authorId !== context.currentUserId) {
-    delete safe.content;
-    delete safe.catIds;
+  const allowedCategories =
+    actor.role === "keeper" ? KEEPERS_ALLOWED_CATEGORIES : PARENTS_ALLOWED_CATEGORIES;
+  if (safe.category && !allowedCategories.includes(safe.category)) {
+    safe.category = actor.role === "keeper" ? "猫舍日常" : "家长分享";
+  }
+  if (actor.role !== "keeper") {
     delete safe.litterIds;
-    delete safe.imageCount;
-    delete safe.category;
+    delete safe.pinned;
+    delete safe.hidden;
   }
   if (safe.catIds) {
     const resolved = safe.catIds.map(resolveCatId);
     safe.catIds =
-      context.role === "keeper"
+      actor.role === "keeper"
         ? resolved
         : resolved.filter((catId) =>
-            data.cats.some((cat) => cat.id === catId && cat.ownerId === context.currentUserId),
+            data.cats.some((cat) => cat.id === catId && cat.ownerId === actor.id),
           );
   }
   if (safe.litterIds) safe.litterIds = safe.litterIds.map(resolveLitterId);
@@ -1165,12 +1260,25 @@ function safePostPatch(
   return safe;
 }
 
-function safeCatPatch(patch: Partial<CatteryCat>) {
+function safeCatPatch(patch: Partial<CatteryCat>, actor: EditableActor) {
   const { id, kind, createdAt, ...safe } = patch;
   void id;
   void kind;
   void createdAt;
-  return safe;
+  if (actor.role === "keeper") return safe;
+
+  const parentSafe: Partial<CatteryCat> = {};
+  if (safe.name !== undefined) parentSafe.name = safe.name;
+  if (safe.gender !== undefined) parentSafe.gender = safe.gender;
+  if (safe.birthday !== undefined) parentSafe.birthday = safe.birthday;
+  if (safe.color !== undefined) parentSafe.color = safe.color;
+  if (safe.personality !== undefined) parentSafe.personality = safe.personality;
+  if (safe.story !== undefined) parentSafe.story = safe.story;
+  if (safe.coverImageId !== undefined) parentSafe.coverImageId = safe.coverImageId;
+  if (safe.galleryImageIds !== undefined) parentSafe.galleryImageIds = safe.galleryImageIds;
+  if (safe.family !== undefined) parentSafe.family = safe.family;
+  if (safe.updatedAt !== undefined) parentSafe.updatedAt = safe.updatedAt;
+  return parentSafe;
 }
 
 function safeLitterPatch(patch: Partial<Litter>) {

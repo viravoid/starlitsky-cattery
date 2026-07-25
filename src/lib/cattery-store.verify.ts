@@ -20,6 +20,7 @@ import {
   getCatImageBlob,
   saveCatImage,
 } from "./cattery-images";
+import { actions as communityActions } from "./community-store";
 
 type TestCase = {
   name: string;
@@ -252,15 +253,146 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "parent post create and update strip litter input but keep legal cat links",
+    run() {
+      resetCatteryDataForTests();
+      const createdId = catteryActions.createPost(
+        {
+          category: "家长分享",
+          content: "parent mixed input",
+          imageCount: 1,
+          catIds: ["cat-huhu", "cat-toast"],
+          litterIds: ["A窝", "litter-b"],
+        },
+        { role: "parent", currentUserId: "parent-huhu" },
+      );
+      assert(createdId);
+      const created = getCatteryDataSnapshot().posts.find((post) => post.id === createdId);
+      assert(created?.catIds.length === 1);
+      assert(created.catIds[0] === "cat-huhu");
+      assert((created.litterIds ?? []).length === 0);
+
+      const beforeLitterIds = [
+        ...(getCatteryDataSnapshot().posts.find((post) => post.id === "p-3")?.litterIds ?? []),
+      ];
+      const updated = catteryActions.updatePost(
+        "p-3",
+        {
+          content: "parent update keeps cat",
+          catIds: ["cat-huhu", "cat-toast"],
+          litterIds: ["C窝"],
+        },
+        { role: "parent", currentUserId: "parent-huhu" },
+      );
+      const post = getCatteryDataSnapshot().posts.find((item) => item.id === "p-3");
+      assert(updated);
+      assert(post?.content === "parent update keeps cat");
+      assert(post?.catIds.length === 1);
+      assert(post?.catIds[0] === "cat-huhu");
+      assert(JSON.stringify(post?.litterIds ?? []) === JSON.stringify(beforeLitterIds));
+    },
+  },
+  {
+    name: "keeper post create and update keep litter associations",
+    run() {
+      resetCatteryDataForTests();
+      const createdId = catteryActions.createPost(
+        {
+          category: "猫舍日常",
+          content: "keeper litter input",
+          imageCount: 0,
+          catIds: ["cat-huhu"],
+          litterIds: ["A窝"],
+        },
+        { role: "keeper", currentUserId: "keeper-yueqi" },
+      );
+      assert(createdId);
+      assert(
+        getCatteryDataSnapshot().posts.find((post) => post.id === createdId)?.litterIds?.[0] ===
+          "litter-a",
+      );
+
+      const updated = catteryActions.updatePost(
+        createdId,
+        { litterIds: ["B窝"], content: "keeper litter update" },
+        { role: "keeper", currentUserId: "keeper-xingxia" },
+      );
+      const post = getCatteryDataSnapshot().posts.find((item) => item.id === createdId);
+      assert(updated);
+      assert(post?.content === "keeper litter update");
+      assert(post?.litterIds?.[0] === "litter-b");
+    },
+  },
+  {
+    name: "forged and invalid actors cannot update posts or notify",
+    run() {
+      resetCatteryDataForTests();
+      const before = snapshotJson();
+      let subscriberCalls = 0;
+      let setItemCalls = 0;
+
+      withWindowObject(
+        {
+          localStorage: {
+            getItem() {
+              return null;
+            },
+            setItem() {
+              setItemCalls += 1;
+            },
+          },
+          dispatchEvent() {},
+          addEventListener() {},
+          removeEventListener() {},
+        },
+        () => {
+          const unsubscribe = subscribeToCatteryData(() => {
+            subscriberCalls += 1;
+          });
+          assert(
+            !catteryActions.updatePost(
+              "p-3",
+              { content: "guest forged" },
+              { role: "guest", currentUserId: "parent-huhu" },
+            ),
+          );
+          assert(
+            !catteryActions.updatePost(
+              "p-3",
+              { content: "user forged" },
+              { role: "user", currentUserId: "parent-huhu" },
+            ),
+          );
+          assert(
+            !catteryActions.updatePost(
+              "p-3",
+              { content: "missing user" },
+              { role: "parent", currentUserId: "parent-missing" },
+            ),
+          );
+          unsubscribe();
+        },
+      );
+
+      assert(snapshotJson() === before);
+      assert(subscriberCalls === 0);
+      assert(setItemCalls === 0);
+    },
+  },
+  {
     name: "id kind and createdAt cat patch fields are ignored",
     run() {
       resetCatteryDataForTests();
-      catteryActions.updateCat("cat-huhu", {
-        id: "changed",
-        kind: "stud",
-        createdAt: "changed",
-        name: "呼呼更新",
-      });
+      catteryActions.updateCat(
+        "cat-huhu",
+        {
+          id: "changed",
+          kind: "stud",
+          createdAt: "changed",
+          name: "呼呼更新",
+        },
+        { role: "parent", currentUserId: "parent-huhu" },
+      );
       const cat = getCatteryDataSnapshot().cats.find((item) => item.id === "cat-huhu");
       assert(cat?.id === "cat-huhu");
       assert(cat?.kind === "family");
@@ -320,9 +452,240 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "post edit permission matrix is enforced",
+    run() {
+      resetCatteryDataForTests();
+      assert(
+        !catteryActions.updatePost(
+          "p-2",
+          { content: "other parent" },
+          { role: "parent", currentUserId: "parent-huhu" },
+        ),
+      );
+      assert(
+        catteryActions.updatePost(
+          "p-3",
+          { content: "own parent", category: "猫舍日常", pinned: true, hidden: true },
+          { role: "parent", currentUserId: "parent-huhu" },
+        ),
+      );
+      const parentPost = selectPosts().find((item) => item.id === "p-3");
+      assert(parentPost?.category === "家长分享");
+      assert(parentPost?.pinned !== true);
+      assert(parentPost?.hidden !== true);
+      assert(
+        catteryActions.updatePost(
+          "p-4",
+          { content: "keeper peer" },
+          { role: "keeper", currentUserId: "keeper-yueqi" },
+        ),
+      );
+      assert(
+        !catteryActions.updatePost(
+          "p-2",
+          { content: "keeper cannot rewrite parent" },
+          { role: "keeper", currentUserId: "keeper-yueqi" },
+        ),
+      );
+      assert(
+        selectPosts().find((item) => item.id === "p-2")?.content !== "keeper cannot rewrite parent",
+      );
+    },
+  },
+  {
+    name: "facade destructive actions require the current actor",
+    run() {
+      resetCatteryDataForTests();
+      communityActions.logout();
+      const before = snapshotJson();
+      assert(communityActions.updateCat("cat-huhu", { name: "guest rename" }) === false);
+      assert(communityActions.deleteCat("cat-huhu") === false);
+      assert(communityActions.deletePost("p-3") === false);
+      assert(communityActions.addParent("Blocked Parent", "BLOCKED") === null);
+      assert(communityActions.toggleParentActive("parent-toast") === false);
+      assert(snapshotJson() === before);
+
+      communityActions.activateParent("DEMO");
+      assert(communityActions.updateCat("cat-huhu", { name: "parent own cat" }) === true);
+      assert(
+        getCatteryDataSnapshot().cats.find((cat) => cat.id === "cat-huhu")?.name ===
+          "parent own cat",
+      );
+      assert(
+        communityActions.updateCat("cat-toast", { name: "blocked other parent cat" }) === false,
+      );
+      assert(communityActions.updateCat("chonglou", { name: "blocked cattery cat" }) === false);
+      assert(communityActions.deletePost("p-2") === false);
+      assert(communityActions.deletePost("p-3") === true);
+
+      resetCatteryDataForTests();
+      communityActions.becomeKeeper();
+      assert(communityActions.updateCat("cat-huhu", { name: "keeper cat edit" }) === true);
+      assert(communityActions.togglePin("p-2") === true);
+      assert(getCatteryDataSnapshot().posts.find((post) => post.id === "p-2")?.pinned === true);
+      assert(communityActions.toggleHidePost("p-2") === true);
+      assert(getCatteryDataSnapshot().posts.find((post) => post.id === "p-2")?.hidden === true);
+      assert(communityActions.deletePost("p-2") === true);
+      assert(!getCatteryDataSnapshot().posts.some((post) => post.id === "p-2"));
+      const parentId = communityActions.addParent("Keeper Added", "KEEPER-ADDED");
+      assert(typeof parentId === "string");
+      assert(communityActions.toggleParentActive(parentId) === true);
+      communityActions.logout();
+    },
+  },
+  {
+    name: "subscriber failures are isolated",
+    run() {
+      resetCatteryDataForTests();
+      const previousConsoleError = console.error;
+      let secondCalls = 0;
+      let errors = 0;
+      console.error = () => {
+        errors += 1;
+      };
+
+      try {
+        withWindowObject(
+          {
+            localStorage: createStorage(null),
+            dispatchEvent() {},
+            addEventListener() {},
+            removeEventListener() {},
+          },
+          () => {
+            const first = subscribeToCatteryData(() => {
+              throw new Error("subscriber failed");
+            });
+            const second = subscribeToCatteryData(() => {
+              secondCalls += 1;
+            });
+            const ok = catteryActions.updatePost(
+              "p-3",
+              { content: "still succeeds" },
+              { role: "parent", currentUserId: "parent-huhu" },
+            );
+            first();
+            second();
+            assert(ok);
+          },
+        );
+      } finally {
+        console.error = previousConsoleError;
+      }
+
+      assert(secondCalls === 1);
+      assert(errors === 1);
+      assert(selectPosts().find((post) => post.id === "p-3")?.content === "still succeeds");
+    },
+  },
+  {
+    name: "duplicate post ids normalize deterministically",
+    run() {
+      const base = cloneDefaultCatteryData();
+      const duplicated = {
+        ...base,
+        posts: [
+          {
+            ...base.posts[0]!,
+            id: "p-duplicate",
+            authorId: "keeper-yueqi",
+            authorRole: "猫舍主理人",
+            content: "first duplicate",
+          },
+          {
+            ...base.posts[1]!,
+            id: "p-duplicate",
+            authorId: "keeper-yueqi",
+            authorRole: "猫舍主理人",
+            content: "second duplicate",
+          },
+        ],
+      };
+      const first = normalizeCatteryData(duplicated);
+      const second = normalizeCatteryData(first);
+      assert(first.posts.length === 1);
+      assert(first.posts[0]?.content === "first duplicate");
+      assert(JSON.stringify(first) === JSON.stringify(second));
+
+      resetCatteryDataForTests(first);
+      assert(
+        catteryActions.updatePost(
+          "p-duplicate",
+          { content: "updated duplicate" },
+          { role: "keeper", currentUserId: "keeper-yueqi" },
+        ),
+      );
+      assert(
+        getCatteryDataSnapshot().posts.filter((post) => post.id === "p-duplicate").length === 1,
+      );
+      assert(getCatteryDataSnapshot().posts[0]?.content === "updated duplicate");
+      assert(
+        catteryActions.deletePost("p-duplicate", { role: "keeper", currentUserId: "keeper-yueqi" }),
+      );
+      assert(!getCatteryDataSnapshot().posts.some((post) => post.id === "p-duplicate"));
+    },
+  },
+  {
     name: "stud has no hard delete action",
     run() {
       assert(!("deleteStud" in catteryActions));
+    },
+  },
+  {
+    name: "IndexedDB open blocked rejects",
+    async run() {
+      await withWindowObject(
+        {
+          indexedDB: createFakeIndexedDb("complete", "blocked"),
+          crypto: { randomUUID: () => "blocked" },
+        },
+        async () => {
+          const result = await Promise.race([
+            saveCatImage("cat-huhu", "cover", new File(["x"], "x.png", { type: "image/png" })).then(
+              () => "resolved",
+              (error) =>
+                error instanceof Error && error.message.includes("blocked")
+                  ? "blocked"
+                  : "rejected",
+            ),
+            waitForMicrotasks(5).then(() => "timeout"),
+          ]);
+          assert(result === "blocked");
+        },
+      );
+    },
+  },
+  {
+    name: "IndexedDB open blocked then success still rejects once and closes db",
+    async run() {
+      const indexedDB = createFakeIndexedDb("complete", "blocked-then-success");
+      await withWindowObject(
+        {
+          indexedDB,
+          crypto: { randomUUID: () => "blocked-success" },
+        },
+        async () => {
+          let outcomes = 0;
+          const result = await saveCatImage(
+            "cat-huhu",
+            "cover",
+            new File(["x"], "x.png", { type: "image/png" }),
+          ).then(
+            () => {
+              outcomes += 1;
+              return "resolved";
+            },
+            () => {
+              outcomes += 1;
+              return "rejected";
+            },
+          );
+          await waitForMicrotasks(3);
+          assert(result === "rejected");
+          assert(outcomes === 1);
+          assert(indexedDB.closeCount === 1);
+        },
+      );
     },
   },
   {
@@ -448,6 +811,10 @@ function assert(condition: unknown): asserts condition {
   if (!condition) throw new Error("Assertion failed");
 }
 
+function snapshotJson() {
+  return JSON.stringify(getCatteryDataSnapshot());
+}
+
 function createStorage(initial: string | null) {
   return {
     value: initial,
@@ -512,12 +879,17 @@ function isPromiseLike(value: unknown): value is Promise<unknown> {
 }
 
 type FakeTransactionOutcome = "complete" | "abort-after-request" | "abort-before-request";
+type FakeOpenOutcome = "success" | "blocked" | "blocked-then-success";
 
-function createFakeIndexedDb(outcome: FakeTransactionOutcome = "complete") {
+function createFakeIndexedDb(
+  outcome: FakeTransactionOutcome = "complete",
+  openOutcome: FakeOpenOutcome = "success",
+) {
   const records = new Map<string, unknown>();
   let initialized = false;
 
-  return {
+  const fake = {
+    closeCount: 0,
     open() {
       const db = {
         objectStoreNames: {
@@ -594,7 +966,9 @@ function createFakeIndexedDb(outcome: FakeTransactionOutcome = "complete") {
           }
           return tx;
         },
-        close() {},
+        close() {
+          fake.closeCount += 1;
+        },
       };
       const request = {
         result: db,
@@ -602,14 +976,28 @@ function createFakeIndexedDb(outcome: FakeTransactionOutcome = "complete") {
         onupgradeneeded: null as (() => void) | null,
         onsuccess: null as (() => void) | null,
         onerror: null as (() => void) | null,
+        onblocked: null as (() => void) | null,
       };
       queueMicrotask(() => {
+        if (openOutcome === "blocked") {
+          request.onblocked?.();
+          return;
+        }
+        if (openOutcome === "blocked-then-success") {
+          request.onblocked?.();
+          queueMicrotask(() => {
+            request.onupgradeneeded?.();
+            request.onsuccess?.();
+          });
+          return;
+        }
         request.onupgradeneeded?.();
         request.onsuccess?.();
       });
       return request;
     },
   };
+  return fake;
 }
 
 function successRequest<T>(result: T, afterSuccess: () => void) {

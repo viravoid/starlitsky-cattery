@@ -26,16 +26,42 @@ function openImageDb(): Promise<IDBDatabase> {
       return;
     }
 
-    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(IMAGE_STORE)) {
-        const store = db.createObjectStore(IMAGE_STORE, { keyPath: "id" });
-        store.createIndex("catId", "catId", { unique: false });
-      }
+    let settled = false;
+    let request: IDBOpenDBRequest;
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Failed to open IndexedDB."));
+
+    try {
+      request = window.indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(IMAGE_STORE)) {
+          const store = db.createObjectStore(IMAGE_STORE, { keyPath: "id" });
+          store.createIndex("catId", "catId", { unique: false });
+        }
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        if (settled) {
+          db.close();
+          return;
+        }
+        settled = true;
+        resolve(db);
+      };
+      request.onerror = () => {
+        fail(request.error ?? new Error("Failed to open IndexedDB."));
+      };
+      request.onblocked = () => {
+        fail(new Error("IndexedDB open was blocked by another connection."));
+      };
+    } catch (error) {
+      fail(toError(error, "Failed to open IndexedDB."));
+    }
   });
 }
 
