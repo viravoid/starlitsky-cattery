@@ -137,7 +137,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       id: "breedingPlan",
       fixedGroupId: "about",
       title: "繁育计划",
-      desc: "查看 2026 下半年繁育组合、预计时间与预计花色。",
+      desc: "查看 2026 下半年繁育组合、预计时间与可能花色。",
       to: "/breeding-plan",
     },
     feeding: {

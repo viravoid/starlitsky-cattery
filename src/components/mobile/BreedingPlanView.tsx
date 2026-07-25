@@ -25,7 +25,8 @@ export function BreedingPlanView({
   const studMap: StudMap = new Map(studs.map((stud) => [stud.id, stud]));
   const period = content.period.trim();
   const introduction = content.introduction.trim();
-  const disclaimer = content.disclaimer.trim();
+  const colorDisclaimer = content.disclaimer.color.trim();
+  const scheduleDisclaimer = content.disclaimer.schedule.trim();
   const visibleGroups = content.groups.filter((group) => group.pairings.length > 0);
 
   return (
@@ -96,12 +97,15 @@ export function BreedingPlanView({
           );
         })}
 
-        {disclaimer && (
+        {(colorDisclaimer || scheduleDisclaimer) && (
           <Section>
             <div className="rounded-[1.25rem] border border-sunflower/35 bg-sunny/35 px-4 py-3.5">
               <div className="flex items-start gap-2.5">
                 <StarIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warm/75" />
-                <p className="text-[12.5px] leading-[1.85] text-foreground">{disclaimer}</p>
+                <div className="min-w-0 space-y-2 text-[12.5px] leading-[1.85] text-foreground">
+                  {colorDisclaimer && <p>{colorDisclaimer}</p>}
+                  {scheduleDisclaimer && <p>{scheduleDisclaimer}</p>}
+                </div>
               </div>
             </div>
           </Section>
@@ -142,7 +146,10 @@ function PairingCard({
           <StudLink stud={female} fallbackId={pairing.femaleStudId} genderLabel="母猫" />
         </div>
 
-        <ExpectedColors colors={pairing.expectedColors} />
+        <PossibleColors
+          colors={pairing.possibleColors}
+          colorPossibilityNote={pairing.colorPossibilityNote}
+        />
       </div>
     </article>
   );
@@ -198,31 +205,54 @@ function StudLink({
   );
 }
 
-function ExpectedColors({ colors }: { colors: string[] }) {
+function PossibleColors({
+  colors,
+  colorPossibilityNote,
+}: {
+  colors: string[];
+  colorPossibilityNote: string;
+}) {
   const visibleColors = colors.map((color) => color.trim()).filter(Boolean);
+  const visibleNote = colorPossibilityNote.trim();
+  const hasContent = visibleColors.length > 0 || Boolean(visibleNote);
 
   return (
-    <div className="mt-3.5 min-h-[4.4rem] rounded-[1.1rem] border border-dashed border-border/90 bg-muted/35 px-3 py-3">
+    <div className="mt-3.5 rounded-[1.1rem] border border-dashed border-border/90 bg-muted/35 px-3 py-3">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h4 className="text-[12.5px] font-semibold text-heading">预计花色</h4>
-        <span className="text-[10.5px] text-muted-foreground">待主理人补充</span>
+        <h4 className="text-[12.5px] font-semibold text-heading">可能花色</h4>
+        {!hasContent && <span className="text-[10.5px] text-muted-foreground">待补充</span>}
       </div>
-      {visibleColors.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {visibleColors.map((color, index) => (
-            <Pill key={`${color}-${index}`} tone="creamblue" className="break-words">
-              {color}
-            </Pill>
-          ))}
+      {hasContent ? (
+        <div className="space-y-3">
+          {visibleColors.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {visibleColors.map((color, index) => (
+                <Pill
+                  key={`${color}-${index}`}
+                  tone="creamblue"
+                  className="max-w-full whitespace-normal break-words"
+                >
+                  {color}
+                </Pill>
+              ))}
+            </div>
+          )}
+          {visibleNote && (
+            <div className="border-t border-border/60 pt-2.5">
+              <p className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-medium tracking-[0.04em] text-muted-foreground">
+                <StarIcon className="h-3 w-3 text-warm/70" />
+                其他可能
+              </p>
+              <p className="text-[11.5px] leading-[1.8] text-muted-foreground">{visibleNote}</p>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-1.5" aria-label="预计花色待补充">
-          {[0, 1, 2].map((item) => (
-            <span
-              key={item}
-              className="h-7 rounded-full border border-dashed border-sunflower/35 bg-card/60"
-            />
-          ))}
+        <div
+          className="rounded-[0.95rem] border border-dashed border-sunflower/35 bg-card/60 px-3 py-3 text-center text-[11.5px] text-muted-foreground"
+          aria-label="可能花色待补充"
+        >
+          可能花色待补充
         </div>
       )}
     </div>

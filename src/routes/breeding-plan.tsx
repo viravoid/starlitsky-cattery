@@ -16,7 +16,7 @@ export const Route = createFileRoute("/breeding-plan")({
       {
         name: "description",
         content:
-          "星月缅因猫舍 2026 年下半年繁育组合、预计时间和预计花色记录，具体安排以实际情况为准。",
+          "星月缅因猫舍 2026 年下半年繁育组合、预计时间和可能花色记录，具体安排以实际情况为准。",
       },
     ],
   }),

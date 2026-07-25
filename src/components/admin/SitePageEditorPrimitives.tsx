@@ -101,18 +101,30 @@ export function TextareaField({
   value,
   onChange,
   rows = 4,
+  hint,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   rows?: number;
+  hint?: string;
+  placeholder?: string;
 }) {
   return (
     <label className="grid gap-1.5">
-      <span className="text-[12px] font-semibold text-heading lg:text-[13px]">{label}</span>
+      <span>
+        <span className="block text-[12px] font-semibold text-heading lg:text-[13px]">{label}</span>
+        {hint && (
+          <span className="mt-0.5 block text-[11.5px] leading-relaxed text-muted-foreground">
+            {hint}
+          </span>
+        )}
+      </span>
       <textarea
         rows={rows}
         value={value}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         className="w-full resize-y rounded-[7px] border border-border bg-background px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-primary"
       />
