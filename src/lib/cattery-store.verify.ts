@@ -1,4 +1,5 @@
 import {
+  CATTERY_STORAGE_KEY,
   catteryActions,
   cloneDefaultCatteryData,
   getCatteryDataSnapshot,
@@ -9,6 +10,7 @@ import {
   resolveLitterId,
   saveCatteryData,
   selectPosts,
+  subscribeToCatteryData,
   type CatteryData,
 } from "./cattery-store";
 import {
@@ -51,6 +53,132 @@ const tests: TestCase[] = [
         assert(data.version === 1);
         assert(storage.value === "{bad json");
       });
+    },
+  },
+  {
+    name: "storage event refreshes snapshot once without persisting",
+    run() {
+      resetCatteryDataForTests();
+      const next = cloneDefaultCatteryData();
+      next.posts = [
+        {
+          ...next.posts[0]!,
+          id: "p-storage",
+          content: "storage event content",
+        },
+      ];
+      let storageListener: ((event: StorageEvent) => void) | null = null;
+      let subscriberCalls = 0;
+      let setItemCalls = 0;
+
+      withWindowObject(
+        {
+          localStorage: {
+            getItem() {
+              return null;
+            },
+            setItem() {
+              setItemCalls += 1;
+            },
+          },
+          dispatchEvent() {},
+          addEventListener(type: string, listener: (event: StorageEvent) => void) {
+            if (type === "storage") storageListener = listener;
+          },
+          removeEventListener(type: string, listener: (event: StorageEvent) => void) {
+            if (type === "storage" && storageListener === listener) storageListener = null;
+          },
+        },
+        () => {
+          const unsubscribe = subscribeToCatteryData(() => {
+            subscriberCalls += 1;
+          });
+          assert(storageListener);
+          storageListener({
+            key: CATTERY_STORAGE_KEY,
+            newValue: JSON.stringify(next),
+          } as StorageEvent);
+
+          assert(getCatteryDataSnapshot().posts[0]?.id === "p-storage");
+          assert(getCatteryDataSnapshot().posts[0]?.content === "storage event content");
+          assert(subscriberCalls === 1);
+          assert(setItemCalls === 0);
+          unsubscribe();
+          assert(storageListener === null);
+        },
+      );
+    },
+  },
+  {
+    name: "storage event uses hydrate normalization fallbacks",
+    run() {
+      resetCatteryDataForTests();
+      let storageListener: ((event: StorageEvent) => void) | null = null;
+
+      withWindowObject(
+        {
+          localStorage: createStorage(null),
+          dispatchEvent() {},
+          addEventListener(type: string, listener: (event: StorageEvent) => void) {
+            if (type === "storage") storageListener = listener;
+          },
+          removeEventListener(type: string, listener: (event: StorageEvent) => void) {
+            if (type === "storage" && storageListener === listener) storageListener = null;
+          },
+        },
+        () => {
+          const unsubscribe = subscribeToCatteryData(() => {});
+          assert(storageListener);
+
+          storageListener({
+            key: CATTERY_STORAGE_KEY,
+            newValue: "{bad json",
+          } as StorageEvent);
+          assert(getCatteryDataSnapshot().version === 1);
+          assert(getCatteryDataSnapshot().cats.length === cloneDefaultCatteryData().cats.length);
+
+          storageListener({
+            key: CATTERY_STORAGE_KEY,
+            newValue: JSON.stringify({
+              users: [{ id: "parent-storage", name: "Storage 家长", role: "parent" }],
+              cats: [
+                {
+                  id: "cat-chonglou",
+                  ownerId: "parent-storage",
+                  name: "Legacy Alias",
+                },
+              ],
+              posts: [
+                {
+                  id: "p-storage-legacy",
+                  authorId: "parent-storage",
+                  authorName: "Storage 家长",
+                  authorRole: "星月家长",
+                  category: "家长分享",
+                  content: "legacy alias",
+                  imageCount: 0,
+                  catIds: ["cat-chonglou"],
+                  litterIds: ["A窝"],
+                  createdAt: "2026-01-01T00:00:00",
+                  likes: 0,
+                  likedByMe: false,
+                  comments: [],
+                },
+              ],
+            }),
+          } as StorageEvent);
+          assert(getCatteryDataSnapshot().cats.some((cat) => cat.id === "chonglou"));
+          assert(getCatteryDataSnapshot().posts[0]?.catIds[0] === "chonglou");
+          assert(getCatteryDataSnapshot().posts[0]?.litterIds?.[0] === "litter-a");
+
+          storageListener({
+            key: CATTERY_STORAGE_KEY,
+            newValue: null,
+          } as StorageEvent);
+          assert(getCatteryDataSnapshot().posts.some((post) => post.id === "p-1"));
+          unsubscribe();
+        },
+      );
     },
   },
   {
@@ -242,6 +370,53 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "IndexedDB rejects when transaction aborts after request success",
+    async run() {
+      await withWindowObject(
+        {
+          indexedDB: createFakeIndexedDb("abort-after-request"),
+          crypto: { randomUUID: () => "abort-after" },
+        },
+        async () => {
+          let rejected = false;
+          try {
+            await saveCatImage(
+              "cat-huhu",
+              "cover",
+              new File(["x"], "x.png", { type: "image/png" }),
+            );
+          } catch (error) {
+            rejected = error instanceof Error && error.message.includes("aborted");
+          }
+          assert(rejected);
+          await waitForMicrotasks();
+        },
+      );
+    },
+  },
+  {
+    name: "IndexedDB rejects when transaction aborts before request success",
+    async run() {
+      await withWindowObject(
+        {
+          indexedDB: createFakeIndexedDb("abort-before-request"),
+          crypto: { randomUUID: () => "abort-before" },
+        },
+        async () => {
+          const result = await Promise.race([
+            saveCatImage("cat-huhu", "cover", new File(["x"], "x.png", { type: "image/png" })).then(
+              () => "resolved",
+              () => "rejected",
+            ),
+            waitForMicrotasks(5).then(() => "timeout"),
+          ]);
+          assert(result === "rejected");
+          await waitForMicrotasks();
+        },
+      );
+    },
+  },
+  {
     name: "SSR import path does not require window",
     run() {
       withWindowStorage(undefined, () => {
@@ -336,7 +511,9 @@ function isPromiseLike(value: unknown): value is Promise<unknown> {
   return Boolean(value && typeof value === "object" && "finally" in value);
 }
 
-function createFakeIndexedDb() {
+type FakeTransactionOutcome = "complete" | "abort-after-request" | "abort-before-request";
+
+function createFakeIndexedDb(outcome: FakeTransactionOutcome = "complete") {
   const records = new Map<string, unknown>();
   let initialized = false;
 
@@ -355,24 +532,41 @@ function createFakeIndexedDb() {
           };
         },
         transaction() {
+          let finished = false;
           const tx = {
+            error: null as Error | null,
             objectStore() {
+              const finishTransaction = () => {
+                if (finished) return;
+                finished = true;
+                if (outcome === "complete") {
+                  tx.oncomplete?.();
+                  return;
+                }
+                tx.error = new Error("Fake IndexedDB transaction aborted.");
+                tx.onabort?.();
+              };
+              const requestSuccess = <T>(result: T) =>
+                successRequest(result, () => {
+                  if (outcome !== "abort-before-request") queueMicrotask(finishTransaction);
+                });
+
               return {
                 put(record: { id: string }) {
                   records.set(record.id, record);
-                  return successRequest(record);
+                  return requestSuccess(record);
                 },
                 get(id: string) {
-                  return successRequest(records.get(id));
+                  return requestSuccess(records.get(id));
                 },
                 delete(id: string) {
                   records.delete(id);
-                  return successRequest(undefined);
+                  return requestSuccess(undefined);
                 },
                 index() {
                   return {
                     getAll(catId: string) {
-                      return successRequest(
+                      return requestSuccess(
                         [...records.values()].filter(
                           (record) =>
                             typeof record === "object" &&
@@ -390,7 +584,14 @@ function createFakeIndexedDb() {
             onerror: null as (() => void) | null,
             onabort: null as (() => void) | null,
           };
-          queueMicrotask(() => tx.oncomplete?.());
+          if (outcome === "abort-before-request") {
+            queueMicrotask(() => {
+              if (finished) return;
+              finished = true;
+              tx.error = new Error("Fake IndexedDB transaction aborted.");
+              tx.onabort?.();
+            });
+          }
           return tx;
         },
         close() {},
@@ -411,13 +612,21 @@ function createFakeIndexedDb() {
   };
 }
 
-function successRequest<T>(result: T) {
+function successRequest<T>(result: T, afterSuccess: () => void) {
   const request = {
     result,
     error: null,
     onsuccess: null as (() => void) | null,
     onerror: null as (() => void) | null,
   };
-  queueMicrotask(() => request.onsuccess?.());
+  queueMicrotask(() => {
+    request.onsuccess?.();
+    afterSuccess();
+  });
   return request;
+}
+
+function waitForMicrotasks(count = 1): Promise<void> {
+  if (count <= 0) return Promise.resolve();
+  return Promise.resolve().then(() => waitForMicrotasks(count - 1));
 }

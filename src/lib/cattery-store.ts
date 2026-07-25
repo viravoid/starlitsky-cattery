@@ -365,6 +365,7 @@ const defaultData: CatteryData = {
 
 let data: CatteryData = cloneDefaultCatteryData();
 const listeners = new Set<() => void>();
+let activeStorageWindow: Window | null = null;
 
 export function resolveCatId(id: string) {
   return CAT_ALIASES[id] ?? id;
@@ -395,9 +396,7 @@ export function normalizeCatteryData(value: unknown): CatteryData {
 export function loadSavedCatteryData() {
   if (!isBrowser()) return cloneDefaultCatteryData();
   try {
-    const raw = window.localStorage.getItem(CATTERY_STORAGE_KEY);
-    if (!raw) return cloneDefaultCatteryData();
-    return normalizeCatteryData(JSON.parse(raw));
+    return parseSavedCatteryData(window.localStorage.getItem(CATTERY_STORAGE_KEY));
   } catch {
     return cloneDefaultCatteryData();
   }
@@ -421,14 +420,10 @@ export function subscribeToCatteryData(callback: () => void) {
   if (!isBrowser()) return () => {};
 
   listeners.add(callback);
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === CATTERY_STORAGE_KEY) callback();
-  };
-
-  window.addEventListener("storage", onStorage);
+  ensureStorageListener();
   return () => {
     listeners.delete(callback);
-    window.removeEventListener("storage", onStorage);
+    removeStorageListenerIfUnused();
   };
 }
 
@@ -768,16 +763,40 @@ export function selectFamilyCats(state: CatteryData = data) {
 }
 
 function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+  return subscribeToCatteryData(listener);
 }
 
 function setData(next: CatteryData, persist = true) {
   data = cloneCatteryData(normalizeCatteryData(next));
   if (persist) writeCatteryData(data);
   listeners.forEach((listener) => listener());
+}
+
+function parseSavedCatteryData(raw: string | null) {
+  if (!raw) return cloneDefaultCatteryData();
+  try {
+    return normalizeCatteryData(JSON.parse(raw));
+  } catch {
+    return cloneDefaultCatteryData();
+  }
+}
+
+function ensureStorageListener() {
+  if (!isBrowser() || activeStorageWindow === window) return;
+  activeStorageWindow?.removeEventListener("storage", handleStorageEvent);
+  window.addEventListener("storage", handleStorageEvent);
+  activeStorageWindow = window;
+}
+
+function removeStorageListenerIfUnused() {
+  if (listeners.size > 0 || !activeStorageWindow) return;
+  activeStorageWindow.removeEventListener("storage", handleStorageEvent);
+  activeStorageWindow = null;
+}
+
+function handleStorageEvent(event: StorageEvent) {
+  if (event.key !== CATTERY_STORAGE_KEY) return;
+  setData(parseSavedCatteryData(event.newValue), false);
 }
 
 function isBrowser() {

@@ -46,16 +46,51 @@ function runImageTransaction<T>(
   return openImageDb().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
-        const tx = db.transaction(IMAGE_STORE, mode);
-        const store = tx.objectStore(IMAGE_STORE);
-        const request = run(store);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error ?? new Error("IndexedDB request failed."));
-        tx.oncomplete = () => db.close();
-        tx.onerror = () => db.close();
-        tx.onabort = () => db.close();
+        let settled = false;
+        let tx: IDBTransaction | undefined;
+        let request: IDBRequest<T> | undefined;
+        let result: T;
+
+        const finalize = (complete: () => void) => {
+          if (settled) return;
+          settled = true;
+          db.close();
+          complete();
+        };
+        const fail = (fallbackMessage: string, error?: unknown) => {
+          finalize(() => {
+            reject(toError(error ?? tx?.error ?? request?.error, fallbackMessage));
+          });
+        };
+
+        try {
+          tx = db.transaction(IMAGE_STORE, mode);
+          const store = tx.objectStore(IMAGE_STORE);
+          request = run(store);
+          request.onsuccess = () => {
+            result = request?.result as T;
+          };
+          request.onerror = () => {
+            // The transaction error/abort event decides the final Promise state.
+          };
+          tx.oncomplete = () => {
+            finalize(() => resolve(result));
+          };
+          tx.onerror = () => {
+            fail("IndexedDB transaction failed.");
+          };
+          tx.onabort = () => {
+            fail("IndexedDB transaction aborted.");
+          };
+        } catch (error) {
+          fail("IndexedDB transaction setup failed.", error);
+        }
       }),
   );
+}
+
+function toError(error: unknown, fallbackMessage: string) {
+  return error instanceof Error ? error : new Error(fallbackMessage);
 }
 
 export async function saveCatImage(
