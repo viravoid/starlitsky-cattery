@@ -15,6 +15,7 @@ export const Route = createFileRoute("/community/parent-onboard")({
 function ParentOnboard() {
   const navigate = useNavigate();
   const role = useCommunity((s) => s.role);
+  const parentSessionActive = useCommunity((s) => s.parentSessionActive);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [contactContent, setContactContent] = useState<ContactContent | null>(null);
@@ -33,12 +34,17 @@ function ParentOnboard() {
     }
     setSubmitting(true);
     setTimeout(() => {
-      actions.activateParent(code.trim());
+      const activated = actions.activateParent(code.trim());
+      setSubmitting(false);
+      if (!activated) {
+        alert("邀请码无效，或该家长身份已被停用。");
+        return;
+      }
       navigate({ to: "/community/my-cats" });
     }, 400);
   };
 
-  if (role === "parent") {
+  if (role === "parent" && parentSessionActive) {
     return (
       <PhoneFrame title="家长身份" showBack>
         <Section className="py-10 text-center">
@@ -57,6 +63,12 @@ function ParentOnboard() {
   return (
     <PhoneFrame title="开通家长身份" showBack>
       <Section className="space-y-6 py-7">
+        {role === "parent" && !parentSessionActive && (
+          <div className="rounded-2xl border border-border bg-card/60 px-4 py-4 text-[12.5px] leading-relaxed text-muted-foreground">
+            当前家长身份已停用。你仍可查看历史内容，但需要使用有效且已启用的邀请码重新进入可编辑状态。
+          </div>
+        )}
+
         <div className="soft-card space-y-3 p-5">
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-violet/15">
             <PawIcon className="h-6 w-6 text-violet" />
@@ -76,7 +88,7 @@ function ParentOnboard() {
           <span className="block text-[12.5px] font-medium text-heading">猫舍邀请码</span>
           <input
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(event) => setCode(event.target.value)}
             placeholder="示例：XY-HUHU-2025"
             className="w-full rounded-2xl border border-border bg-card px-4 py-3.5 text-[14px] outline-none focus:border-primary"
           />

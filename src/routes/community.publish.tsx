@@ -26,6 +26,7 @@ export const Route = createFileRoute("/community/publish")({
 function Publish() {
   const navigate = useNavigate();
   const role = useCommunity((s) => s.role);
+  const parentSessionActive = useCommunity((s) => s.parentSessionActive);
   const currentUserId = useCommunity((s) => s.currentUserId);
   const cats = useCommunity((s) => s.cats);
   const catteryState = useCattery((snapshot) => snapshot);
@@ -33,7 +34,7 @@ function Publish() {
   const publicStuds = useMemo(() => selectStuds(catteryState), [catteryState]);
   const litterOptions = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
 
-  const canPost = role === "keeper" || role === "parent";
+  const canPost = role === "keeper" || (role === "parent" && parentSessionActive);
   const [category, setCategory] = useState<Category>(role === "parent" ? "家长分享" : "猫舍日常");
   const [content, setContent] = useState("");
   const [imageCount, setImageCount] = useState(0);
@@ -57,7 +58,9 @@ function Publish() {
     return (
       <PhoneFrame title="发布动态" showBack>
         <Section className="py-10 text-center text-[13px] text-muted-foreground">
-          发布内容需要开通家长身份或猫舍主理人权限。
+          {role === "parent" && !parentSessionActive
+            ? "当前家长身份已停用，暂时不能发布新内容。"
+            : "发布内容需要开通家长身份或猫舍主理人权限。"}
         </Section>
       </PhoneFrame>
     );
@@ -65,8 +68,10 @@ function Publish() {
 
   const toggleCat = (id: string) =>
     setCatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const toggleLitter = (l: string) =>
-    setLitterIds((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
+  const toggleLitter = (litterId: string) =>
+    setLitterIds((prev) =>
+      prev.includes(litterId) ? prev.filter((item) => item !== litterId) : [...prev, litterId],
+    );
 
   const submit = () => {
     if (!content.trim()) {
@@ -80,7 +85,11 @@ function Publish() {
       catIds,
       litterIds,
     });
-    if (id) navigate({ to: "/community/post/$id", params: { id } });
+    if (!id) {
+      alert("当前家长身份已停用或无权限发布。");
+      return;
+    }
+    navigate({ to: "/community/post/$id", params: { id } });
   };
 
   const availableCategories = role === "keeper" ? CATEGORIES : (["家长分享", "碎碎念"] as const);
@@ -88,47 +97,44 @@ function Publish() {
   return (
     <PhoneFrame title="发布动态" showBack>
       <Section className="space-y-4 py-4 pb-8">
-        {/* category */}
         <div>
           <p className="mb-2 text-[12.5px] font-semibold text-heading">分类</p>
           <div className="flex flex-wrap gap-2">
-            {availableCategories.map((c) => (
+            {availableCategories.map((item) => (
               <button
-                key={c}
-                onClick={() => setCategory(c as Category)}
+                key={item}
+                onClick={() => setCategory(item as Category)}
                 className={`pressable rounded-full px-3.5 py-1.5 text-[12.5px] font-medium ${
-                  category === c
+                  category === item
                     ? "bg-violet text-white shadow-card"
                     : "border border-border bg-card text-muted-foreground"
                 }`}
               >
-                {c}
+                {item}
               </button>
             ))}
           </div>
         </div>
 
-        {/* content */}
         <div>
           <p className="mb-2 text-[12.5px] font-semibold text-heading">内容</p>
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(event) => setContent(event.target.value)}
             placeholder="记录一件今天想说的事…"
             rows={6}
             className="w-full resize-none rounded-2xl border border-border bg-card px-4 py-3 text-[14px] outline-none focus:border-primary"
           />
         </div>
 
-        {/* images */}
         <div>
           <p className="mb-2 text-[12.5px] font-semibold text-heading">照片 · {imageCount}/9</p>
           <div className="grid grid-cols-3 gap-2">
-            {Array.from({ length: imageCount }).map((_, i) => (
-              <div key={i} className="relative">
+            {Array.from({ length: imageCount }).map((_, index) => (
+              <div key={index} className="relative">
                 <Placeholder label="示例" ratio="aspect-square" rounded="rounded-xl" compact />
                 <button
-                  onClick={() => setImageCount((n) => Math.max(0, n - 1))}
+                  onClick={() => setImageCount((count) => Math.max(0, count - 1))}
                   className="pressable absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-heading/70 text-white"
                   aria-label="删除"
                 >
@@ -138,7 +144,7 @@ function Publish() {
             ))}
             {imageCount < 9 && (
               <button
-                onClick={() => setImageCount((n) => n + 1)}
+                onClick={() => setImageCount((count) => count + 1)}
                 className="pressable flex aspect-square items-center justify-center rounded-xl border-2 border-dashed border-border text-warm"
                 aria-label="添加图片"
               >
@@ -151,7 +157,6 @@ function Publish() {
           </p>
         </div>
 
-        {/* linked cats */}
         <div>
           <p className="mb-2 text-[12.5px] font-semibold text-heading">
             关联猫咪 {role === "parent" && "· 只能关联自己的猫"}
@@ -162,18 +167,18 @@ function Publish() {
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {selectableCats.map((c) => {
-                const on = catIds.includes(c.id);
+              {selectableCats.map((cat) => {
+                const selected = catIds.includes(cat.id);
                 return (
                   <button
-                    key={c.id}
-                    onClick={() => toggleCat(c.id)}
+                    key={cat.id}
+                    onClick={() => toggleCat(cat.id)}
                     className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${getLinkedOptionClass(
-                      on,
+                      selected,
                     )}`}
                   >
                     <CatIcon className="h-3.5 w-3.5" />
-                    {c.name}
+                    {cat.name}
                   </button>
                 );
               })}
@@ -181,18 +186,17 @@ function Publish() {
           )}
         </div>
 
-        {/* linked litter */}
         <div>
           <p className="mb-2 text-[12.5px] font-semibold text-heading">关联窝次 · 可选</p>
           <div className="flex flex-wrap gap-2">
             {litterOptions.map((litter) => {
-              const on = litterIds.includes(litter.id);
+              const selected = litterIds.includes(litter.id);
               return (
                 <button
                   key={litter.id}
                   onClick={() => toggleLitter(litter.id)}
                   className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${getLinkedOptionClass(
-                    on,
+                    selected,
                   )}`}
                 >
                   {litter.name}

@@ -28,7 +28,8 @@ function MyPosts() {
   const currentUserId = useCommunity((s) => s.currentUserId);
   const allPosts = useCommunity((s) => s.posts);
   const role = useCommunity((s) => s.role);
-  const posts = allPosts.filter((p) => p.authorId === currentUserId);
+  const parentSessionActive = useCommunity((s) => s.parentSessionActive);
+  const posts = allPosts.filter((post) => post.authorId === currentUserId);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   if (role === "guest") {
@@ -42,15 +43,23 @@ function MyPosts() {
   }
 
   const handleDelete = (id: string) => {
-    if (confirm("确定删除这条动态？")) {
-      actions.deletePost(id);
-      if (editingId === id) setEditingId(null);
+    if (!confirm("确定删除这条动态？")) return;
+    const deleted = actions.deletePost(id);
+    if (!deleted) {
+      alert("当前家长身份已停用或无权限删除。");
+      return;
     }
+    if (editingId === id) setEditingId(null);
   };
 
   return (
     <PhoneFrame title="我的发布" showBack>
       <Section className="space-y-4 py-4 pb-8">
+        {role === "parent" && !parentSessionActive && (
+          <p className="rounded-2xl bg-card/60 px-4 py-4 text-[12.5px] leading-relaxed text-muted-foreground">
+            当前家长身份已停用。历史动态仍会保留，但暂时不能继续编辑或发布新内容。
+          </p>
+        )}
         {posts.length === 0 && (
           <p className="rounded-2xl bg-card/60 px-4 py-10 text-center text-[13px] text-muted-foreground">
             还没有发布过内容～
@@ -60,23 +69,25 @@ function MyPosts() {
             </Link>
           </p>
         )}
-        {posts.map((p) =>
-          editingId === p.id ? (
-            <EditPanel key={p.id} post={p} onClose={() => setEditingId(null)} />
+        {posts.map((post) =>
+          editingId === post.id ? (
+            <EditPanel key={post.id} post={post} onClose={() => setEditingId(null)} />
           ) : (
-            <div key={p.id} className="space-y-2">
-              <PostCard post={p} />
+            <div key={post.id} className="space-y-2">
+              <PostCard post={post} />
               <div className="flex justify-end gap-2 px-1">
                 <button
-                  onClick={() => setEditingId(p.id)}
-                  className="pressable inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-[11.5px] font-medium text-heading"
+                  onClick={() => setEditingId(post.id)}
+                  disabled={role === "parent" && !parentSessionActive}
+                  className="pressable inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-[11.5px] font-medium text-heading disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <EditIcon className="h-3.5 w-3.5" />
                   编辑
                 </button>
                 <button
-                  onClick={() => handleDelete(p.id)}
-                  className="pressable inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-[11.5px] font-medium text-wine"
+                  onClick={() => handleDelete(post.id)}
+                  disabled={role === "parent" && !parentSessionActive}
+                  className="pressable inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-[11.5px] font-medium text-wine disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <TrashIcon className="h-3.5 w-3.5" />
                   删除
@@ -95,12 +106,13 @@ function MyPosts() {
 function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
+  const parentSessionActive = useCommunity((s) => s.parentSessionActive);
   const cats = useCommunity((s) => s.cats);
   const catteryState = useCattery((snapshot) => snapshot);
   const publicKittens = useMemo(() => selectKittenRecords(catteryState), [catteryState]);
   const publicStuds = useMemo(() => selectStuds(catteryState), [catteryState]);
   const litterOptions = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
-  const canEdit = post.authorId === currentUserId;
+  const canEdit = post.authorId === currentUserId && (role !== "parent" || parentSessionActive);
 
   const [content, setContent] = useState(post.content);
   const [imageCount, setImageCount] = useState(post.imageCount);
@@ -120,29 +132,36 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
     });
     return Array.from(lookup.values());
   }, [cats, currentUserId, publicKittens, publicStuds, role]);
+
   const toggleCat = (id: string) =>
-    setCatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const toggleLitter = (l: string) =>
-    setLitterIds((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
+    setCatIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  const toggleLitter = (litterId: string) =>
+    setLitterIds((prev) =>
+      prev.includes(litterId) ? prev.filter((item) => item !== litterId) : [...prev, litterId],
+    );
 
   const save = () => {
     if (!content.trim()) {
       alert("内容不能为空");
       return;
     }
-    actions.updatePost(post.id, {
+    const updated = actions.updatePost(post.id, {
       content: content.trim(),
       imageCount,
       catIds,
       litterIds,
     });
+    if (!updated) {
+      alert("当前家长身份已停用或无权限编辑。");
+      return;
+    }
     onClose();
   };
 
   if (!canEdit) {
     return (
       <div className="rounded-2xl border border-border bg-card/70 p-4 text-[12.5px] text-muted-foreground">
-        只能编辑自己发布的动态。
+        当前状态下不能编辑这条动态。
       </div>
     );
   }
@@ -156,26 +175,24 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
         </button>
       </div>
 
-      {/* content */}
       <div>
         <p className="mb-1.5 text-[12px] font-medium text-heading">内容</p>
         <textarea
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(event) => setContent(event.target.value)}
           rows={5}
           className="w-full resize-none rounded-2xl border border-border bg-background px-4 py-3 text-[14px] outline-none focus:border-primary"
         />
       </div>
 
-      {/* images */}
       <div>
         <p className="mb-1.5 text-[12px] font-medium text-heading">照片 · {imageCount}/9</p>
         <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: imageCount }).map((_, i) => (
-            <div key={i} className="relative">
+          {Array.from({ length: imageCount }).map((_, index) => (
+            <div key={index} className="relative">
               <Placeholder label="示例" ratio="aspect-square" rounded="rounded-xl" compact />
               <button
-                onClick={() => setImageCount((n) => Math.max(0, n - 1))}
+                onClick={() => setImageCount((count) => Math.max(0, count - 1))}
                 className="pressable absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-heading/70 text-white"
                 aria-label="删除图片"
               >
@@ -185,7 +202,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
           ))}
           {imageCount < 9 && (
             <button
-              onClick={() => setImageCount((n) => n + 1)}
+              onClick={() => setImageCount((count) => count + 1)}
               className="pressable flex aspect-square items-center justify-center rounded-xl border-2 border-dashed border-border text-warm"
               aria-label="添加图片"
             >
@@ -195,7 +212,6 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
         </div>
       </div>
 
-      {/* linked cats */}
       <div>
         <p className="mb-1.5 text-[12px] font-medium text-heading">
           关联猫咪 {role === "parent" && "· 只能关联自己的猫"}
@@ -206,18 +222,18 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {selectableCats.map((c) => {
-              const on = catIds.includes(c.id);
+            {selectableCats.map((cat) => {
+              const selected = catIds.includes(cat.id);
               return (
                 <button
-                  key={c.id}
-                  onClick={() => toggleCat(c.id)}
+                  key={cat.id}
+                  onClick={() => toggleCat(cat.id)}
                   className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${getLinkedOptionClass(
-                    on,
+                    selected,
                   )}`}
                 >
                   <CatIcon className="h-3.5 w-3.5" />
-                  {c.name}
+                  {cat.name}
                 </button>
               );
             })}
@@ -229,13 +245,13 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
         <p className="mb-1.5 text-[12px] font-medium text-heading">关联窝次 · 可选</p>
         <div className="flex flex-wrap gap-2">
           {litterOptions.map((litter) => {
-            const on = litterIds.includes(litter.id);
+            const selected = litterIds.includes(litter.id);
             return (
               <button
                 key={litter.id}
                 onClick={() => toggleLitter(litter.id)}
                 className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${getLinkedOptionClass(
-                  on,
+                  selected,
                 )}`}
               >
                 {litter.name}

@@ -580,6 +580,167 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "keeper parent management enforces invite rules and persists stable ids",
+    run() {
+      resetCatteryDataForTests();
+      const keeper = { role: "keeper" as const, currentUserId: "keeper-yueqi" };
+      const beforeUserCount = getCatteryDataSnapshot().users.length;
+
+      assert(
+        catteryActions.createParent({ name: "空邀请码家长", inviteCode: "   " }, keeper) === null,
+      );
+      assert(
+        catteryActions.createParent(
+          { name: "重复邀请码家长", inviteCode: "XY-TOAST-2025" },
+          keeper,
+        ) === null,
+      );
+
+      const parentId = catteryActions.createParent(
+        {
+          name: "验收家长",
+          inviteCode: "QA-PARENT-2026",
+          note: "新增备注",
+        },
+        keeper,
+      );
+      assert(typeof parentId === "string");
+      assert(getCatteryDataSnapshot().users.length === beforeUserCount + 1);
+
+      const createdUser = getCatteryDataSnapshot().users.find((user) => user.id === parentId);
+      assert(createdUser?.activatedAt);
+      assert(createdUser?.active === true);
+      assert(createdUser?.inviteCode === "QA-PARENT-2026");
+      assert(createdUser?.note === "新增备注");
+
+      assert(
+        catteryActions.updateParent(
+          parentId,
+          { name: "验收家长改名", inviteCode: "XY-HUHU-2025" },
+          keeper,
+        ) === false,
+      );
+      assert(
+        catteryActions.updateParent(
+          parentId,
+          { name: "验收家长改名", inviteCode: "QA-PARENT-2026-UPDATED", note: "" },
+          keeper,
+        ) === true,
+      );
+
+      const updatedUser = getCatteryDataSnapshot().users.find((user) => user.id === parentId);
+      assert(updatedUser?.id === parentId);
+      assert(updatedUser?.name === "验收家长改名");
+      assert(updatedUser?.inviteCode === "QA-PARENT-2026-UPDATED");
+      assert(updatedUser?.note === undefined);
+      assert(updatedUser?.active === true);
+    },
+  },
+  {
+    name: "parent rename updates selectors and post authors without breaking owner links",
+    run() {
+      resetCatteryDataForTests();
+      const keeper = { role: "keeper" as const, currentUserId: "keeper-yueqi" };
+
+      const kittenId = catteryActions.addKitten(
+        {
+          name: "家长联动测试猫",
+          gender: "弟弟",
+          color: "银虎斑加白",
+          birthday: "2026-07-25",
+          ownerId: "parent-toast",
+          personality: "验证 ownerName",
+          kitten: {
+            status: "待找家",
+            price: "18888",
+          },
+        },
+        keeper,
+      );
+      assert(typeof kittenId === "string");
+
+      const beforeOwnedCatIds = getCatteryDataSnapshot()
+        .cats.filter((cat) => cat.ownerId === "parent-toast")
+        .map((cat) => cat.id)
+        .sort();
+      assert(
+        catteryActions.updateParent(
+          "parent-toast",
+          {
+            name: "吐司的新家长昵称",
+            inviteCode: "XY-TOAST-2026",
+            note: "已更新备注",
+          },
+          keeper,
+        ) === true,
+      );
+
+      const afterOwnedCatIds = getCatteryDataSnapshot()
+        .cats.filter((cat) => cat.ownerId === "parent-toast")
+        .map((cat) => cat.id)
+        .sort();
+      assert(JSON.stringify(beforeOwnedCatIds) === JSON.stringify(afterOwnedCatIds));
+
+      const post = selectPosts().find((item) => item.id === "p-2");
+      const kitten = selectKittenRecords(getCatteryDataSnapshot(), "all").find(
+        (item) => item.id === kittenId,
+      );
+      assert(post?.authorId === "parent-toast");
+      assert(post?.authorName === "吐司的新家长昵称");
+      assert(kitten?.ownerId === "parent-toast");
+      assert(kitten?.ownerName === "吐司的新家长昵称");
+    },
+  },
+  {
+    name: "disabled parent loses demo write access and regains it after re-enable",
+    run() {
+      resetCatteryDataForTests();
+      const keeper = { role: "keeper" as const, currentUserId: "keeper-yueqi" };
+
+      assert(communityActions.activateParent("XY-HUHU-2025") === true);
+      assert(catteryActions.toggleParentActive("parent-huhu", keeper) === true);
+      const disabledParent = getCatteryDataSnapshot().users.find(
+        (user) => user.id === "parent-huhu",
+      );
+      assert(disabledParent?.activatedAt === "2026-02-04");
+      assert(disabledParent?.active === false);
+      assert(communityActions.activateParent("XY-HUHU-2025") === false);
+      assert(
+        communityActions.createPost({
+          category: "家长分享",
+          content: "停用后不应成功",
+          imageCount: 0,
+          catIds: ["cat-huhu"],
+        }) === null,
+      );
+      assert(communityActions.updateCat("cat-huhu", { name: "停用后不应改名" }) === false);
+      assert(
+        getCatteryDataSnapshot().cats.find((cat) => cat.id === "cat-huhu")?.name !==
+          "停用后不应改名",
+      );
+
+      assert(catteryActions.toggleParentActive("parent-huhu", keeper) === true);
+      const reenabledParent = getCatteryDataSnapshot().users.find(
+        (user) => user.id === "parent-huhu",
+      );
+      assert(reenabledParent?.activatedAt === "2026-02-04");
+      assert(reenabledParent?.active === true);
+      assert(communityActions.activateParent("XY-HUHU-2025") === true);
+      const postId = communityActions.createPost({
+        category: "家长分享",
+        content: "恢复后重新可发布",
+        imageCount: 0,
+        catIds: ["cat-huhu"],
+      });
+      assert(typeof postId === "string");
+      assert(communityActions.updateCat("cat-huhu", { name: "恢复后可改名" }) === true);
+      assert(
+        getCatteryDataSnapshot().cats.find((cat) => cat.id === "cat-huhu")?.name === "恢复后可改名",
+      );
+      communityActions.logout();
+    },
+  },
+  {
     name: "subscriber failures are isolated",
     run() {
       resetCatteryDataForTests();

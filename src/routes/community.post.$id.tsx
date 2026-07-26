@@ -156,7 +156,11 @@ function PostDetail() {
               <button
                 onClick={() => {
                   if (confirm("确定删除这条动态吗？")) {
-                    actions.deletePost(post.id);
+                    const deleted = actions.deletePost(post.id);
+                    if (!deleted) {
+                      alert("当前家长身份已停用或无权限删除。");
+                      return;
+                    }
                     history.back();
                   }
                 }}

@@ -27,17 +27,19 @@ function CommunityFeed() {
   const [litterOpen, setLitterOpen] = useState(false);
   const catteryState = useCattery((snapshot) => snapshot);
   const litterOptions = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
-  const posts = useCommunity((s) => s.posts).filter((p) => !p.hidden);
+  const posts = useCommunity((s) => s.posts).filter((post) => !post.hidden);
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
   const users = useCommunity((s) => s.users);
-  const me = users.find((u) => u.id === currentUserId);
+  const parentSessionActive = useCommunity((s) => s.parentSessionActive);
+  const me = users.find((user) => user.id === currentUserId);
+  const demoParent = users.find((user) => user.id === "parent-huhu");
 
   const filtered = posts
     .filter(
-      (p) =>
-        (filter === "全部" || p.category === filter) &&
-        (litterFilter === "全部" || (p.litterIds ?? []).includes(litterFilter)),
+      (post) =>
+        (filter === "全部" || post.category === filter) &&
+        (litterFilter === "全部" || (post.litterIds ?? []).includes(litterFilter)),
     )
     .sort((a, b) => {
       if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
@@ -48,11 +50,10 @@ function CommunityFeed() {
       ? "全部"
       : (litterOptions.find((item) => item.id === litterFilter)?.name ?? "全部");
 
-  const canPost = role === "keeper" || role === "parent";
+  const canPost = role === "keeper" || (role === "parent" && parentSessionActive);
 
   return (
     <PhoneFrame activeTab="community" showTabBar>
-      {/* header — quieter, single line */}
       <header className="px-5 pt-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[22px] font-bold leading-tight text-heading">猫友圈</h1>
@@ -76,7 +77,6 @@ function CommunityFeed() {
           )}
         </div>
 
-        {/* my area entries — inline text links, no card墙 */}
         {role !== "guest" && (
           <nav className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-warm">
             {role === "parent" && (
@@ -101,53 +101,65 @@ function CommunityFeed() {
           </nav>
         )}
 
-        {/* Demo 角色切换 —— 仅供预览，正式版可移除 */}
+        {role === "parent" && !parentSessionActive && (
+          <div className="mt-3 rounded-2xl border border-border bg-card/60 px-3 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
+            当前家长身份已停用。历史猫咪和历史动态仍保留，但暂时不能继续发布、编辑或新增家长内容。
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-2xl border border-dashed border-border bg-cream/60 px-3 py-2 text-[11px] text-warm">
           <span className="mr-1 opacity-70">Demo 登录：</span>
           {[
             { key: "guest", label: "未登录" },
-            { key: "parent", label: "家长（呼呼和奶油）" },
+            { key: "parent", label: `家长（${demoParent?.name ?? "呼呼和奶油"}）` },
             { key: "keeper", label: "主理人（月七）" },
-          ].map((opt) => {
-            const on = role === opt.key;
+          ].map((option) => {
+            const active = role === option.key;
             return (
               <button
-                key={opt.key}
+                key={option.key}
                 onClick={() => {
-                  if (opt.key === "guest") actions.logout();
-                  else if (opt.key === "parent") actions.activateParent("DEMO");
-                  else actions.becomeKeeper();
+                  if (option.key === "guest") {
+                    actions.logout();
+                    return;
+                  }
+                  if (option.key === "parent") {
+                    if (!actions.activateParent("DEMO")) {
+                      alert("当前没有可用的已启用家长身份。");
+                    }
+                    return;
+                  }
+                  actions.becomeKeeper();
                 }}
                 className="pressable rounded-full px-2.5 py-1"
                 style={{
-                  backgroundColor: on ? "#7a9ac0" : "transparent",
-                  color: on ? "#fff" : "#8c929a",
-                  border: on ? "none" : "1px solid var(--border)",
+                  backgroundColor: active ? "#7a9ac0" : "transparent",
+                  color: active ? "#fff" : "#8c929a",
+                  border: active ? "none" : "1px solid var(--border)",
                 }}
               >
-                {opt.label}
+                {option.label}
               </button>
             );
           })}
         </div>
       </header>
 
-      {/* filters — underline nav, no filled pills */}
       <div className="no-scrollbar mt-4 flex gap-5 overflow-x-auto border-b border-border/70 px-5">
-        {(["全部", ...CATEGORIES] as const).map((c) => {
-          const on = filter === c;
+        {(["全部", ...CATEGORIES] as const).map((category) => {
+          const active = filter === category;
           return (
             <button
-              key={c}
-              onClick={() => setFilter(c)}
+              key={category}
+              onClick={() => setFilter(category)}
               className="pressable relative shrink-0 py-2.5 text-[13px]"
               style={{
-                color: on ? "#7a9ac0" : "#8c929a",
-                fontWeight: on ? 600 : 500,
+                color: active ? "#7a9ac0" : "#8c929a",
+                fontWeight: active ? 600 : 500,
               }}
             >
-              {c}
-              {on && (
+              {category}
+              {active && (
                 <span
                   aria-hidden
                   className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-8 rounded-full"
@@ -186,20 +198,22 @@ function CommunityFeed() {
 
       {litterOpen && (
         <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-3">
-          {(["全部", ...litterOptions.map((item) => item.id)] as const).map((l) => {
-            const on = litterFilter === l;
+          {(["全部", ...litterOptions.map((item) => item.id)] as const).map((litterId) => {
+            const active = litterFilter === litterId;
             const label =
-              l === "全部" ? l : (litterOptions.find((item) => item.id === l)?.name ?? l);
+              litterId === "全部"
+                ? litterId
+                : (litterOptions.find((item) => item.id === litterId)?.name ?? litterId);
             return (
               <button
-                key={l}
+                key={litterId}
                 onClick={() => {
-                  setLitterFilter(l);
+                  setLitterFilter(litterId);
                   setLitterOpen(false);
                 }}
                 className="pressable shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold"
                 style={
-                  on
+                  active
                     ? {
                         backgroundColor: "#f9f0d4",
                         color: "#b48725",
@@ -219,41 +233,25 @@ function CommunityFeed() {
         </div>
       )}
 
-      {/* feed — extra breathing room */}
-      <Section className="space-y-5 pb-28 pt-3">
-        {filtered.length === 0 && (
-          <div className="px-2 py-10 text-center text-[13px] text-warm">还没有相关动态～</div>
+      <Section className="space-y-4 py-4 pb-28">
+        {filtered.length === 0 ? (
+          <div className="rounded-3xl border border-border/60 bg-card px-5 py-10 text-center text-[13px] text-muted-foreground">
+            当前筛选下还没有动态。
+          </div>
+        ) : (
+          filtered.map((post) => <PostCard key={post.id} post={post} />)
         )}
-        {filtered.map((p) => (
-          <PostCard key={p.id} post={p} />
-        ))}
       </Section>
 
-      {/* floating publish FAB — small, corner */}
-      <div className="pointer-events-none absolute bottom-24 right-5 z-30">
-        {canPost ? (
-          <Link
-            to="/community/publish"
-            className="pressable pointer-events-auto grid h-11 w-11 place-items-center rounded-full bg-violet text-white shadow-float"
-            aria-label="发布动态"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </Link>
-        ) : (
-          <button
-            onClick={() =>
-              role === "guest"
-                ? actions.requireLogin("登录后可发布家长分享")
-                : actions.requireLogin("发布内容需要开通家长身份")
-            }
-            className="pressable pointer-events-auto grid h-11 w-11 place-items-center rounded-full bg-violet text-white shadow-float"
-            aria-label="发布动态"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
+      {canPost && (
+        <Link
+          to="/community/publish"
+          className="pressable fixed bottom-24 right-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-violet text-white shadow-float"
+          aria-label="发布动态"
+        >
+          <PlusIcon className="h-6 w-6" />
+        </Link>
+      )}
       <LoginSheet />
       <Lightbox />
     </PhoneFrame>

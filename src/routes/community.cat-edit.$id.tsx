@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  createFileRoute,
-  useParams,
-  useNavigate,
-  notFound,
-} from "@tanstack/react-router";
+import { createFileRoute, useParams, useNavigate, notFound } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Placeholder } from "@/components/mobile/ui";
 import { actions, useCommunity, type CommunityCat } from "@/lib/community-store";
@@ -18,8 +13,9 @@ function CatEdit() {
   const { id } = useParams({ from: "/community/cat-edit/$id" });
   const isNew = id === "new";
   const navigate = useNavigate();
-  const existing = useCommunity((s) => s.cats.find((c) => c.id === id));
+  const existing = useCommunity((s) => s.cats.find((cat) => cat.id === id));
   const role = useCommunity((s) => s.role);
+  const parentSessionActive = useCommunity((s) => s.parentSessionActive);
   const currentUserId = useCommunity((s) => s.currentUserId);
 
   if (!isNew && !existing) throw notFound();
@@ -44,15 +40,29 @@ function CatEdit() {
     );
   }
 
+  if (!parentSessionActive) {
+    return (
+      <PhoneFrame title={isNew ? "添加猫咪" : "编辑猫咪"} showBack>
+        <Section className="py-10 text-center text-[13px] text-muted-foreground">
+          当前家长身份已停用，暂时不能新增或编辑家长猫咪内容。
+        </Section>
+      </PhoneFrame>
+    );
+  }
+
   const save = () => {
     if (!form.name.trim()) {
       alert("请填写猫咪名字");
       return;
     }
-    if (isNew) {
-      actions.addCat({ ...form, ownerId: currentUserId });
-    } else if (existing) {
-      actions.updateCat(existing.id, form);
+    const saved = isNew
+      ? actions.addCat({ ...form, ownerId: currentUserId })
+      : existing
+        ? actions.updateCat(existing.id, form)
+        : false;
+    if (!saved) {
+      alert("当前家长身份已停用或无权限保存。");
+      return;
     }
     navigate({ to: "/community/my-cats" });
   };
@@ -72,7 +82,7 @@ function CatEdit() {
         <Field label="名字" required>
           <input
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
             placeholder="例如：呼呼"
             className={inputCls}
           />
@@ -80,18 +90,18 @@ function CatEdit() {
 
         <Field label="性别">
           <div className="flex gap-2">
-            {(["弟弟", "妹妹"] as const).map((g) => (
+            {(["弟弟", "妹妹"] as const).map((gender) => (
               <button
-                key={g}
+                key={gender}
                 type="button"
-                onClick={() => setForm({ ...form, gender: g })}
+                onClick={() => setForm({ ...form, gender })}
                 className={`pressable flex-1 rounded-full py-2 text-[13px] ${
-                  form.gender === g
+                  form.gender === gender
                     ? "bg-violet text-white shadow-card"
                     : "border border-border bg-card text-muted-foreground"
                 }`}
               >
-                {g}
+                {gender}
               </button>
             ))}
           </div>
@@ -100,7 +110,7 @@ function CatEdit() {
         <Field label="毛色">
           <input
             value={form.color}
-            onChange={(e) => setForm({ ...form, color: e.target.value })}
+            onChange={(event) => setForm({ ...form, color: event.target.value })}
             placeholder="例如：棕虎斑加白"
             className={inputCls}
           />
@@ -111,7 +121,7 @@ function CatEdit() {
             <input
               type="date"
               value={form.birthday}
-              onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+              onChange={(event) => setForm({ ...form, birthday: event.target.value })}
               className={inputCls}
             />
           </Field>
@@ -119,7 +129,7 @@ function CatEdit() {
             <input
               type="date"
               value={form.joinDate}
-              onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
+              onChange={(event) => setForm({ ...form, joinDate: event.target.value })}
               className={inputCls}
             />
           </Field>
@@ -128,7 +138,7 @@ function CatEdit() {
         <Field label="性格">
           <textarea
             value={form.personality}
-            onChange={(e) => setForm({ ...form, personality: e.target.value })}
+            onChange={(event) => setForm({ ...form, personality: event.target.value })}
             placeholder="用一两句话形容它～"
             rows={3}
             className={`${inputCls} resize-none`}
@@ -138,7 +148,7 @@ function CatEdit() {
         <Field label="给自家猫的一句话（可选）">
           <textarea
             value={form.note}
-            onChange={(e) => setForm({ ...form, note: e.target.value })}
+            onChange={(event) => setForm({ ...form, note: event.target.value })}
             placeholder="例如：希望你健康快乐地陪我们很久很久。"
             rows={2}
             className={`${inputCls} resize-none`}

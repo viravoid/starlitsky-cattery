@@ -590,6 +590,20 @@ function KittenEditor({
     );
   }
 
+  const currentOwner = parentUsers.find((user) => user.id === draft.ownerId);
+  const ownerOptions = [
+    { value: "", label: "未关联" },
+    ...parentUsers
+      .filter((user) => user.activatedAt)
+      .map((user) => ({ value: user.id, label: user.name })),
+  ];
+  if (currentOwner && !currentOwner.activatedAt) {
+    ownerOptions.push({
+      value: currentOwner.id,
+      label: `${currentOwner.name}（已停用，仅保留现有关联）`,
+    });
+  }
+
   return (
     <PanelCard>
       <PanelHeader
@@ -683,10 +697,7 @@ function KittenEditor({
           <SelectField
             label="家长"
             value={draft.ownerId}
-            options={[
-              { value: "", label: "未关联" },
-              ...parentUsers.map((user) => ({ value: user.id, label: user.name })),
-            ]}
+            options={ownerOptions}
             onChange={(ownerId) => onDraftChange({ ...draft, ownerId })}
           />
         </div>
