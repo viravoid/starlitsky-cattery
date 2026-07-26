@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Placeholder } from "@/components/mobile/ui";
 import { PostCard, LoginSheet, Lightbox } from "@/components/mobile/community/CommunityBits";
 import { EditIcon, TrashIcon, PlusIcon, XIcon, CatIcon } from "@/components/mobile/icons";
 import { actions, useCommunity, type Post } from "@/lib/community-store";
-import { LITTERS } from "@/lib/cattery-data";
+import {
+  resolveCatId,
+  selectKittenRecords,
+  selectLitterRecords,
+  selectStuds,
+  useCattery,
+} from "@/lib/cattery-store";
 
 function getLinkedOptionClass(selected: boolean) {
   return selected
@@ -90,6 +96,10 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
   const cats = useCommunity((s) => s.cats);
+  const catteryState = useCattery((snapshot) => snapshot);
+  const publicKittens = useMemo(() => selectKittenRecords(catteryState), [catteryState]);
+  const publicStuds = useMemo(() => selectStuds(catteryState), [catteryState]);
+  const litterOptions = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
   const canEdit = post.authorId === currentUserId;
 
   const [content, setContent] = useState(post.content);
@@ -97,9 +107,19 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
   const [catIds, setCatIds] = useState<string[]>(post.catIds);
   const [litterIds, setLitterIds] = useState<string[]>(post.litterIds ?? []);
 
-  const selectableCats = cats.filter((c) =>
-    role === "keeper" ? true : c.ownerId === currentUserId,
-  );
+  const selectableCats = useMemo(() => {
+    if (role !== "keeper") {
+      return cats.filter((cat) => cat.ownerId === currentUserId);
+    }
+    const lookup = new Map<string, { id: string; name: string }>();
+    [...cats, ...publicKittens, ...publicStuds].forEach((cat) => {
+      const canonicalId = resolveCatId(cat.id);
+      if (!lookup.has(canonicalId)) {
+        lookup.set(canonicalId, { id: canonicalId, name: cat.name });
+      }
+    });
+    return Array.from(lookup.values());
+  }, [cats, currentUserId, publicKittens, publicStuds, role]);
   const toggleCat = (id: string) =>
     setCatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const toggleLitter = (l: string) =>
@@ -131,10 +151,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
     <div className="space-y-4 rounded-2xl border border-border bg-card/70 p-4">
       <div className="flex items-center justify-between">
         <p className="text-[12.5px] font-semibold text-heading">编辑动态</p>
-        <button
-          onClick={onClose}
-          className="pressable text-[11.5px] text-muted-foreground"
-        >
+        <button onClick={onClose} className="pressable text-[11.5px] text-muted-foreground">
           取消
         </button>
       </div>
@@ -152,9 +169,7 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
 
       {/* images */}
       <div>
-        <p className="mb-1.5 text-[12px] font-medium text-heading">
-          照片 · {imageCount}/9
-        </p>
+        <p className="mb-1.5 text-[12px] font-medium text-heading">照片 · {imageCount}/9</p>
         <div className="grid grid-cols-3 gap-2">
           {Array.from({ length: imageCount }).map((_, i) => (
             <div key={i} className="relative">
@@ -197,9 +212,9 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
                 <button
                   key={c.id}
                   onClick={() => toggleCat(c.id)}
-                  className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${
-                    getLinkedOptionClass(on)
-                  }`}
+                  className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${getLinkedOptionClass(
+                    on,
+                  )}`}
                 >
                   <CatIcon className="h-3.5 w-3.5" />
                   {c.name}
@@ -211,27 +226,24 @@ function EditPanel({ post, onClose }: { post: Post; onClose: () => void }) {
       </div>
 
       <div>
-        <p className="mb-1.5 text-[12px] font-medium text-heading">
-          关联窝次 · 可选
-        </p>
+        <p className="mb-1.5 text-[12px] font-medium text-heading">关联窝次 · 可选</p>
         <div className="flex flex-wrap gap-2">
-          {LITTERS.map((l) => {
-            const on = litterIds.includes(l);
+          {litterOptions.map((litter) => {
+            const on = litterIds.includes(litter.id);
             return (
               <button
-                key={l}
-                onClick={() => toggleLitter(l)}
-                className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
-                  getLinkedOptionClass(on)
-                }`}
+                key={litter.id}
+                onClick={() => toggleLitter(litter.id)}
+                className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${getLinkedOptionClass(
+                  on,
+                )}`}
               >
-                {l}
+                {litter.name}
               </button>
             );
           })}
         </div>
       </div>
-
 
       <div className="flex gap-2">
         <button

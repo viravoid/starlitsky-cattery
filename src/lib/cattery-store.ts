@@ -88,6 +88,56 @@ export interface Litter {
   updatedAt?: string;
 }
 
+export type SelectVisibilityMode = "all" | "public";
+
+export interface KittenRecord {
+  id: CatId;
+  name: string;
+  gender: string;
+  color: string;
+  birthday: string;
+  fatherId?: CatId;
+  fatherName: string;
+  motherId?: CatId;
+  motherName: string;
+  status: KittenStatus;
+  price: string;
+  litterId?: LitterId;
+  litterName?: string;
+  ownerId?: UserId;
+  ownerName?: string;
+  personality: string;
+  story?: string[];
+  structureRating?: StructureRating;
+  coverImageId?: string;
+  galleryImageIds: string[];
+  visibility: Visibility;
+  createdAt?: string;
+  updatedAt?: string;
+  linkedPostCount: number;
+}
+
+export interface LitterRecord {
+  id: LitterId;
+  name: string;
+  birthDate?: string;
+  status: string;
+  fatherId?: CatId;
+  fatherName?: string;
+  motherId?: CatId;
+  motherName?: string;
+  note?: string;
+  coverImageId?: string;
+  galleryImageIds: string[];
+  visibility: Visibility;
+  createdAt?: string;
+  updatedAt?: string;
+  kittenIds: CatId[];
+  kittenNames: string[];
+  kittenCount: number;
+  linkedPostCount: number;
+}
+
 export interface Comment {
   id: string;
   authorId: UserId;
@@ -368,10 +418,12 @@ const defaultData: CatteryData = {
   }),
   posts: DEFAULT_POSTS,
 };
+const serverCatterySnapshot = cloneCatteryData(defaultData);
 
 let data: CatteryData = cloneDefaultCatteryData();
 const listeners = new Set<() => void>();
 let activeStorageWindow: Window | null = null;
+let hydrated = false;
 
 export function resolveCatId(id: string) {
   return CAT_ALIASES[id] ?? id;
@@ -379,6 +431,13 @@ export function resolveCatId(id: string) {
 
 export function resolveLitterId(id: string) {
   return LITTER_ALIASES[id] ?? id;
+}
+
+export function resolveLitterReference(reference: string, state: CatteryData = data) {
+  const canonical = resolveLitterId(reference);
+  if (state.litters.some((litter) => litter.id === canonical)) return canonical;
+  const matchedByName = state.litters.find((litter) => litter.name === reference);
+  return matchedByName?.id ?? canonical;
 }
 
 export function cloneDefaultCatteryData() {
@@ -434,15 +493,24 @@ export function subscribeToCatteryData(callback: () => void) {
 }
 
 export function useCattery<T>(selector: (state: CatteryData) => T): T {
-  return useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     subscribe,
-    () => selector(data),
-    () => selector(cloneDefaultCatteryData()),
+    getCatteryDataSnapshot,
+    getServerCatterySnapshot,
   );
+  return selector(snapshot);
 }
 
 export function getCatteryDataSnapshot() {
   return data;
+}
+
+export function hasHydratedCatteryData() {
+  return hydrated;
+}
+
+function getServerCatterySnapshot() {
+  return serverCatterySnapshot;
 }
 
 export function hydrateCatteryDataFromStorage() {
@@ -480,6 +548,29 @@ export const catteryActions = {
     });
     return true;
   },
+  addKitten(
+    input: Omit<CatteryCat, "id" | "kind" | "galleryImageIds" | "visibility" | "kitten"> & {
+      id?: string;
+      visibility?: Visibility;
+      galleryImageIds?: string[];
+      kitten: KittenFields;
+    },
+    context: UpdatePostContext,
+  ) {
+    if (!canManageCattery(context)) return null;
+
+    const id = input.id?.trim() || createStableId("kitten");
+    const cat = normalizeCat({
+      ...input,
+      id,
+      kind: "kitten",
+      galleryImageIds: input.galleryImageIds ?? [],
+      visibility: input.visibility ?? "visible",
+      kitten: input.kitten,
+    });
+    setData({ ...data, cats: [...data.cats, cat] });
+    return id;
+  },
   addFamilyCat(
     input: Omit<CatteryCat, "id" | "kind" | "galleryImageIds" | "visibility"> & { id?: string },
     context: UpdatePostContext,
@@ -514,6 +605,23 @@ export const catteryActions = {
     });
     return true;
   },
+  updateKitten(id: CatId, patch: Partial<CatteryCat>, context: UpdatePostContext) {
+    const resolvedId = resolveCatId(id);
+    const actor = getEditableActor(context);
+    const existing = data.cats.find((cat) => cat.id === resolvedId);
+    if (!actor || actor.role !== "keeper" || !existing || existing.kind !== "kitten") {
+      return false;
+    }
+    const safePatch = safeCatPatch(patch, actor);
+
+    setData({
+      ...data,
+      cats: data.cats.map((cat) =>
+        cat.id === resolvedId ? normalizeCat({ ...cat, ...safePatch, updatedAt: now() }) : cat,
+      ),
+    });
+    return true;
+  },
   deleteFamilyCat(id: CatId, context: UpdatePostContext) {
     const resolvedId = resolveCatId(id);
     const actor = getEditableActor(context);
@@ -532,15 +640,24 @@ export const catteryActions = {
     });
     return true;
   },
-  setStudVisibility(id: CatId, visibility: Visibility) {
+  setCatVisibility(id: CatId, visibility: Visibility, context: UpdatePostContext) {
     const resolvedId = resolveCatId(id);
+    const actor = getEditableActor(context);
+    const existing = data.cats.find((cat) => cat.id === resolvedId);
+    if (!actor || actor.role !== "keeper" || !existing) return false;
+
     setData({
       ...data,
       cats: data.cats.map((cat) =>
-        cat.id === resolvedId && cat.kind === "stud"
-          ? normalizeCat({ ...cat, visibility, updatedAt: now() })
-          : cat,
+        cat.id === resolvedId ? normalizeCat({ ...cat, visibility, updatedAt: now() }) : cat,
       ),
+    });
+    return true;
+  },
+  setStudVisibility(id: CatId, visibility: Visibility) {
+    return catteryActions.setCatVisibility(id, visibility, {
+      role: "keeper",
+      currentUserId: KEEPER_YUEQI,
     });
   },
   setStudReproductiveState(id: CatId, reproductiveState: StudFields["reproductiveState"]) {
@@ -559,8 +676,30 @@ export const catteryActions = {
       ),
     });
   },
-  updateLitter(id: LitterId, patch: Partial<Litter>) {
-    const resolvedId = resolveLitterId(id);
+  addLitter(
+    input: Omit<Litter, "id" | "galleryImageIds" | "visibility"> & {
+      id?: string;
+      galleryImageIds?: string[];
+      visibility?: Visibility;
+    },
+    context: UpdatePostContext,
+  ) {
+    if (!canManageCattery(context)) return null;
+
+    const id = input.id?.trim() || createStableId("litter");
+    const litter = normalizeLitter({
+      ...input,
+      id,
+      galleryImageIds: input.galleryImageIds ?? [],
+      visibility: input.visibility ?? "visible",
+    });
+    setData({ ...data, litters: [...data.litters, litter] });
+    return id;
+  },
+  updateLitter(id: LitterId, patch: Partial<Litter>, context?: UpdatePostContext) {
+    if (context && !canManageCattery(context)) return false;
+
+    const resolvedId = resolveLitterReference(id);
     setData({
       ...data,
       litters: data.litters.map((litter) =>
@@ -569,6 +708,21 @@ export const catteryActions = {
           : litter,
       ),
     });
+    return true;
+  },
+  setLitterVisibility(id: LitterId, visibility: Visibility, context: UpdatePostContext) {
+    if (!canManageCattery(context)) return false;
+
+    const resolvedId = resolveLitterReference(id);
+    setData({
+      ...data,
+      litters: data.litters.map((litter) =>
+        litter.id === resolvedId
+          ? normalizeLitter({ ...litter, visibility, updatedAt: now() })
+          : litter,
+      ),
+    });
+    return true;
   },
   createPost(
     input: {
@@ -607,7 +761,10 @@ export const catteryActions = {
       content: input.content,
       imageCount: clampImageCount(input.imageCount),
       catIds,
-      litterIds: actor.role === "keeper" ? (input.litterIds ?? []).map(resolveLitterId) : [],
+      litterIds:
+        actor.role === "keeper"
+          ? (input.litterIds ?? []).map((item) => resolveLitterReference(item))
+          : [],
       createdAt: now(),
       likes: 0,
       likedByMe: false,
@@ -755,27 +912,113 @@ export function selectLitters(state: CatteryData = data) {
   }));
 }
 
-export function selectKittens(state: CatteryData = data): Kitten[] {
-  const litterNames = new Map(state.litters.map((litter) => [litter.id, litter.name]));
+export function selectKittenRecords(
+  state: CatteryData = data,
+  visibility: SelectVisibilityMode = "public",
+): KittenRecord[] {
+  const visibleLitterNames = new Map(
+    state.litters
+      .filter((litter) => litter.visibility === "visible")
+      .map((litter) => [litter.id, litter.name]),
+  );
+  const allLitterNames = new Map(state.litters.map((litter) => [litter.id, litter.name]));
+  const userNames = new Map(state.users.map((user) => [user.id, user.name]));
   return state.cats
-    .filter((cat) => cat.kind === "kitten" && cat.kitten && cat.visibility !== "archived")
-    .map((cat) => ({
-      id: cat.id,
-      name: cat.name,
-      gender: cat.gender ?? "",
-      color: cat.color ?? "",
-      birthday: cat.birthday ?? "",
-      father: cat.kitten?.legacyFatherName ?? findCatName(state, cat.kitten?.fatherId) ?? "",
-      mother: cat.kitten?.legacyMotherName ?? findCatName(state, cat.kitten?.motherId) ?? "",
-      status: cat.kitten?.status ?? "待找家",
-      price: cat.kitten?.price ?? "",
-      litter: cat.kitten?.litterId
-        ? litterNames.get(resolveLitterId(cat.kitten.litterId))
-        : undefined,
-      personality: cat.personality ?? "",
-      story: cat.story ? [...cat.story] : undefined,
-      structureRating: cloneStructureRating(cat.kitten?.structureRating),
-    }));
+    .filter((cat) => cat.kind === "kitten" && cat.kitten)
+    .filter((cat) => (visibility === "all" ? true : cat.visibility === "visible"))
+    .map((cat) => {
+      const resolvedLitterId = cat.kitten?.litterId
+        ? resolveLitterReference(cat.kitten.litterId, state)
+        : undefined;
+      return {
+        id: cat.id,
+        name: cat.name,
+        gender: cat.gender ?? "",
+        color: cat.color ?? "",
+        birthday: cat.birthday ?? "",
+        fatherId: cat.kitten?.fatherId,
+        fatherName: cat.kitten?.legacyFatherName ?? findCatName(state, cat.kitten?.fatherId) ?? "",
+        motherId: cat.kitten?.motherId,
+        motherName: cat.kitten?.legacyMotherName ?? findCatName(state, cat.kitten?.motherId) ?? "",
+        status: cat.kitten?.status ?? "待找家",
+        price: cat.kitten?.price ?? "",
+        litterId: resolvedLitterId,
+        litterName:
+          resolvedLitterId === undefined
+            ? undefined
+            : visibility === "all"
+              ? allLitterNames.get(resolvedLitterId)
+              : visibleLitterNames.get(resolvedLitterId),
+        ownerId: cat.ownerId,
+        ownerName: cat.ownerId ? userNames.get(cat.ownerId) : undefined,
+        personality: cat.personality ?? "",
+        story: cat.story ? [...cat.story] : undefined,
+        structureRating: cloneStructureRating(cat.kitten?.structureRating),
+        coverImageId: cat.coverImageId,
+        galleryImageIds: [...cat.galleryImageIds],
+        visibility: cat.visibility,
+        createdAt: cat.createdAt,
+        updatedAt: cat.updatedAt,
+        linkedPostCount: state.posts.filter((post) => post.catIds.includes(cat.id)).length,
+      };
+    });
+}
+
+export function selectLitterRecords(
+  state: CatteryData = data,
+  visibility: SelectVisibilityMode = "public",
+): LitterRecord[] {
+  return state.litters
+    .filter((litter) => (visibility === "all" ? true : litter.visibility === "visible"))
+    .map((litter) => {
+      const resolvedId = resolveLitterReference(litter.id, state);
+      const kittens = state.cats.filter(
+        (cat) =>
+          cat.kind === "kitten" &&
+          cat.kitten &&
+          resolveLitterReference(cat.kitten.litterId ?? "", state) === resolvedId,
+      );
+      return {
+        id: litter.id,
+        name: litter.name,
+        birthDate: litter.birthDate,
+        status: litter.status,
+        fatherId: litter.fatherId,
+        fatherName: findCatName(state, litter.fatherId),
+        motherId: litter.motherId,
+        motherName: findCatName(state, litter.motherId),
+        note: litter.note,
+        coverImageId: litter.coverImageId,
+        galleryImageIds: [...litter.galleryImageIds],
+        visibility: litter.visibility,
+        createdAt: litter.createdAt,
+        updatedAt: litter.updatedAt,
+        kittenIds: kittens.map((kitten) => kitten.id),
+        kittenNames: kittens.map((kitten) => kitten.name),
+        kittenCount: kittens.length,
+        linkedPostCount: state.posts.filter((post) =>
+          (post.litterIds ?? []).some((item) => resolveLitterReference(item, state) === resolvedId),
+        ).length,
+      };
+    });
+}
+
+export function selectKittens(state: CatteryData = data): Kitten[] {
+  return selectKittenRecords(state, "public").map((kitten) => ({
+    id: kitten.id,
+    name: kitten.name,
+    gender: kitten.gender,
+    color: kitten.color,
+    birthday: kitten.birthday,
+    father: kitten.fatherName,
+    mother: kitten.motherName,
+    status: kitten.status,
+    price: kitten.price,
+    litter: kitten.litterName,
+    personality: kitten.personality,
+    story: kitten.story ? [...kitten.story] : undefined,
+    structureRating: cloneStructureRating(kitten.structureRating),
+  }));
 }
 
 export function selectStuds(state: CatteryData = data): Stud[] {
@@ -811,6 +1054,10 @@ export function selectFamilyCats(state: CatteryData = data) {
 }
 
 function subscribe(listener: () => void) {
+  if (!hydrated && isBrowser()) {
+    hydrated = true;
+    hydrateCatteryDataFromStorage();
+  }
   return subscribeToCatteryData(listener);
 }
 
@@ -1255,7 +1502,7 @@ function safePostPatch(patch: Partial<Post>, actor: EditableActor): Partial<Post
             data.cats.some((cat) => cat.id === catId && cat.ownerId === actor.id),
           );
   }
-  if (safe.litterIds) safe.litterIds = safe.litterIds.map(resolveLitterId);
+  if (safe.litterIds) safe.litterIds = safe.litterIds.map((item) => resolveLitterReference(item));
   if (typeof safe.imageCount === "number") safe.imageCount = clampImageCount(safe.imageCount);
   return safe;
 }

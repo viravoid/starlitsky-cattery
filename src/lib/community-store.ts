@@ -52,15 +52,24 @@ const sessionInitial: SessionState = {
 let session: SessionState = { ...sessionInitial };
 let hydrated = false;
 const sessionListeners = new Set<() => void>();
+let cachedState: State | null = null;
+let cachedSessionRef: SessionState | null = null;
+let cachedCatteryRef = getCatteryDataSnapshot();
 
 function getState(): State {
   const data = getCatteryDataSnapshot();
-  return {
+  if (cachedState && cachedSessionRef === session && cachedCatteryRef === data) {
+    return cachedState;
+  }
+  cachedCatteryRef = data;
+  cachedSessionRef = session;
+  cachedState = {
     ...session,
     users: selectUsers(data),
     cats: selectCommunityCatsForFacade(data.cats),
     posts: selectPostsForFacade(data),
   };
+  return cachedState;
 }
 
 const serverState: State = {
@@ -95,11 +104,12 @@ function subscribe(listener: () => void) {
 }
 
 export function useCommunity<T>(selector: (state: State) => T): T {
-  return useSyncExternalStore(
-    subscribe,
-    () => selector(getState()),
-    () => selector(serverState),
-  );
+  const snapshot = useSyncExternalStore(subscribe, getState, () => serverState);
+  return selector(snapshot);
+}
+
+export function hasHydratedCommunityStore() {
+  return hydrated;
 }
 
 export const actions = {
@@ -300,10 +310,14 @@ function selectCommunityCatsForFacade(cats: CatteryCat[]): CommunityCat[] {
 }
 
 function selectPostsForFacade(data = getCatteryDataSnapshot()): Post[] {
-  const litterNames = new Map(selectLitters(data).map((litter) => [litter.id, litter.name]));
+  const visibleLitterIds = new Set(
+    selectLitters(data)
+      .filter((litter) => litter.visibility === "visible")
+      .map((litter) => litter.id),
+  );
   return selectPosts(data).map((post) => ({
     ...post,
     catIds: post.catIds.includes("chonglou") ? [...post.catIds, "cat-chonglou"] : post.catIds,
-    litterIds: post.litterIds?.map((id) => litterNames.get(id) ?? id),
+    litterIds: post.litterIds?.filter((id) => visibleLitterIds.has(id)),
   }));
 }

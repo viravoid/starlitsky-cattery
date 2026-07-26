@@ -9,7 +9,20 @@ import {
   CommentComposer,
   CatAvatar,
 } from "@/components/mobile/community/CommunityBits";
-import { actions, formatTime, useCommunity } from "@/lib/community-store";
+import {
+  actions,
+  formatTime,
+  hasHydratedCommunityStore,
+  useCommunity,
+} from "@/lib/community-store";
+import {
+  hasHydratedCatteryData,
+  resolveCatId,
+  selectKittenRecords,
+  selectLitterRecords,
+  selectStuds,
+  useCattery,
+} from "@/lib/cattery-store";
 
 export const Route = createFileRoute("/community/post/$id")({
   head: () => ({
@@ -21,16 +34,36 @@ export const Route = createFileRoute("/community/post/$id")({
 function PostDetail() {
   const { id } = useParams({ from: "/community/post/$id" });
   const post = useCommunity((s) => s.posts.find((p) => p.id === id));
-  const cats = useCommunity((s) => s.cats);
+  const familyCats = useCommunity((s) => s.cats);
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
+  const catteryState = useCattery((snapshot) => snapshot);
+  const publicKittens = selectKittenRecords(catteryState);
+  const publicStuds = selectStuds(catteryState);
+  const publicLitters = selectLitterRecords(catteryState);
 
+  if (!post && (!hasHydratedCommunityStore() || !hasHydratedCatteryData())) {
+    return (
+      <PhoneFrame title="动态详情" showBack>
+        <Section className="py-10 text-center text-[13px] text-muted-foreground">
+          正在加载动态内容…
+        </Section>
+      </PhoneFrame>
+    );
+  }
   if (!post) throw notFound();
 
-  const linkedCats = post.catIds
-    .map((cid) => cats.find((c) => c.id === cid))
+  const catLookup = new Map<string, { id: string; name: string }>();
+  [...familyCats, ...publicKittens, ...publicStuds].forEach((cat) => {
+    catLookup.set(resolveCatId(cat.id), { id: resolveCatId(cat.id), name: cat.name });
+  });
+  const litterLookup = new Map(publicLitters.map((litter) => [litter.id, litter.name]));
+  const linkedCats = Array.from(new Set(post.catIds.map((catId) => resolveCatId(catId))))
+    .map((catId) => catLookup.get(catId))
     .filter(Boolean) as { id: string; name: string }[];
-  const linkedLitters = post.litterIds ?? [];
+  const linkedLitters = (post.litterIds ?? [])
+    .map((litterId) => ({ id: litterId, name: litterLookup.get(litterId) }))
+    .filter((item): item is { id: string; name: string } => Boolean(item.name));
 
   const authorRoleKind = post.authorRole === "猫舍主理人" ? "keeper" : "parent";
   const isMine = currentUserId === post.authorId;
@@ -41,9 +74,7 @@ function PostDetail() {
         <article className="space-y-4">
           <header className="space-y-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[14.5px] font-semibold text-heading">
-                {post.authorName}
-              </span>
+              <span className="text-[14.5px] font-semibold text-heading">{post.authorName}</span>
               <Pill tone={authorRoleKind === "keeper" ? "violet" : "creamblue"}>
                 {post.authorRole}
               </Pill>
@@ -60,19 +91,18 @@ function PostDetail() {
 
           {(linkedCats.length > 0 || linkedLitters.length > 0) && (
             <div className="pt-1">
-              <p className="mb-2 text-[11px] uppercase tracking-[0.18em] text-warm/80">
-                关联信息
-              </p>
+              <p className="mb-2 text-[11px] uppercase tracking-[0.18em] text-warm/80">关联信息</p>
               {linkedLitters.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {linkedLitters.map((litter) => (
-                    <Pill
-                      key={`${post.id}-${litter}`}
-                      tone="sunny"
-                      className="px-3 py-1 text-[12px] font-medium"
+                    <Link
+                      key={`${post.id}-${litter.id}`}
+                      to="/community/litter/$id"
+                      params={{ id: litter.id }}
+                      className="pressable inline-flex items-center rounded-full bg-[#f9f0d4] px-3 py-1 text-[12px] font-medium text-[#b48725]"
                     >
-                      {litter}
-                    </Pill>
+                      {litter.name}
+                    </Link>
                   ))}
                 </div>
               )}
@@ -86,9 +116,7 @@ function PostDetail() {
                       className="pressable flex flex-col items-center gap-1.5"
                     >
                       <CatAvatar size={64} name={c.name} />
-                      <span className="text-[12px] font-medium text-heading">
-                        {c.name}
-                      </span>
+                      <span className="text-[12px] font-medium text-heading">{c.name}</span>
                     </Link>
                   ))}
                 </div>

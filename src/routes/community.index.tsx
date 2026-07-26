@@ -1,21 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
 import { PlusIcon, CatIcon, PawIcon, UserIcon } from "@/components/mobile/icons";
-import {
-  PostCard,
-  LoginSheet,
-  Lightbox,
-} from "@/components/mobile/community/CommunityBits";
-import {
-  actions,
-  useCommunity,
-  CATEGORIES,
-  type Category,
-} from "@/lib/community-store";
-import { LITTERS, type Litter } from "@/lib/cattery-data";
+import { PostCard, LoginSheet, Lightbox } from "@/components/mobile/community/CommunityBits";
+import { actions, useCommunity, CATEGORIES, type Category } from "@/lib/community-store";
+import { selectLitterRecords, useCattery } from "@/lib/cattery-store";
 
 export const Route = createFileRoute("/community/")({
   head: () => ({
@@ -23,8 +14,7 @@ export const Route = createFileRoute("/community/")({
       { title: "猫友圈 — 星月缅因猫舍" },
       {
         name: "description",
-        content:
-          "星月缅因猫舍的猫友圈：猫舍日常、家长分享和主理人碎碎念，记录每只小猫的成长时光。",
+        content: "星月缅因猫舍的猫友圈：猫舍日常、家长分享和主理人碎碎念，记录每只小猫的成长时光。",
       },
     ],
   }),
@@ -33,8 +23,10 @@ export const Route = createFileRoute("/community/")({
 
 function CommunityFeed() {
   const [filter, setFilter] = useState<Category | "全部">("全部");
-  const [litterFilter, setLitterFilter] = useState<Litter | "全部">("全部");
+  const [litterFilter, setLitterFilter] = useState<string | "全部">("全部");
   const [litterOpen, setLitterOpen] = useState(false);
+  const catteryState = useCattery((snapshot) => snapshot);
+  const litterOptions = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
   const posts = useCommunity((s) => s.posts).filter((p) => !p.hidden);
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
@@ -51,6 +43,10 @@ function CommunityFeed() {
       if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
       return b.createdAt.localeCompare(a.createdAt);
     });
+  const activeLitterLabel =
+    litterFilter === "全部"
+      ? "全部"
+      : (litterOptions.find((item) => item.id === litterFilter)?.name ?? "全部");
 
   const canPost = role === "keeper" || role === "parent";
 
@@ -136,7 +132,6 @@ function CommunityFeed() {
         </div>
       </header>
 
-
       {/* filters — underline nav, no filled pills */}
       <div className="no-scrollbar mt-4 flex gap-5 overflow-x-auto border-b border-border/70 px-5">
         {(["全部", ...CATEGORIES] as const).map((c) => {
@@ -171,7 +166,7 @@ function CommunityFeed() {
           }}
           aria-expanded={litterOpen}
         >
-          窝次{litterFilter === "全部" ? "" : `：${litterFilter}`}
+          窝次{litterFilter === "全部" ? "" : `：${activeLitterLabel}`}
           <ChevronDown
             className="h-3.5 w-3.5 transition-transform"
             style={{
@@ -191,8 +186,10 @@ function CommunityFeed() {
 
       {litterOpen && (
         <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-3">
-          {(["全部", ...LITTERS] as const).map((l) => {
+          {(["全部", ...litterOptions.map((item) => item.id)] as const).map((l) => {
             const on = litterFilter === l;
+            const label =
+              l === "全部" ? l : (litterOptions.find((item) => item.id === l)?.name ?? l);
             return (
               <button
                 key={l}
@@ -215,7 +212,7 @@ function CommunityFeed() {
                       }
                 }
               >
-                {l}
+                {label}
               </button>
             );
           })}
@@ -225,9 +222,7 @@ function CommunityFeed() {
       {/* feed — extra breathing room */}
       <Section className="space-y-5 pb-28 pt-3">
         {filtered.length === 0 && (
-          <div className="px-2 py-10 text-center text-[13px] text-warm">
-            还没有相关动态～
-          </div>
+          <div className="px-2 py-10 text-center text-[13px] text-warm">还没有相关动态～</div>
         )}
         {filtered.map((p) => (
           <PostCard key={p.id} post={p} />
@@ -264,6 +259,3 @@ function CommunityFeed() {
     </PhoneFrame>
   );
 }
-
-
-

@@ -1,9 +1,11 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useParams } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill } from "@/components/mobile/ui";
 import { Carousel } from "@/components/mobile/Carousel";
 import { PaperIcon, CheckIcon } from "@/components/mobile/icons";
-import { KITTENS, statusTone, type StructureRating } from "@/lib/cattery-data";
+import { statusTone, type StructureRating } from "@/lib/cattery-data";
+import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
+import { hasHydratedCatteryData, selectKittenRecords, useCattery } from "@/lib/cattery-store";
 
 function StarRow({ label, value }: { label: string; value?: number }) {
   const filled = Math.max(0, Math.min(6, value ?? 0));
@@ -78,7 +80,6 @@ function StructureBlock({ rating }: { rating: StructureRating }) {
   );
 }
 
-
 export const Route = createFileRoute("/kittens/$id")({
   component: KittenDetail,
 });
@@ -110,7 +111,29 @@ function Progress({ label, value, done }: { label: string; value: string; done: 
 
 function KittenDetail() {
   const { id } = useParams({ from: "/kittens/$id" });
-  const kitten = KITTENS.find((k) => k.id === id) ?? KITTENS[0];
+  const catteryState = useCattery((snapshot) => snapshot);
+  const kitten = selectKittenRecords(catteryState).find((item) => item.id === id);
+  const imageIds = [kitten?.coverImageId, ...(kitten?.galleryImageIds ?? [])].filter(
+    (imageId): imageId is string => Boolean(imageId),
+  );
+  const imageUrls = useCatteryImageUrls(imageIds);
+  if (!kitten && !hasHydratedCatteryData()) {
+    return (
+      <PhoneFrame title="小猫详情" showBack>
+        <Section className="py-10 text-center text-[13px] text-muted-foreground">
+          正在加载小猫资料…
+        </Section>
+      </PhoneFrame>
+    );
+  }
+  if (!kitten) throw notFound();
+  const gallerySlides =
+    imageIds.length > 0
+      ? imageIds.map((imageId, index) => ({
+          label: `小猫图片 ${index + 1}`,
+          imageUrl: imageUrls[imageId],
+        }))
+      : [{ label: "示例图片（小猫照片 1，待替换）" }, { label: "示例图片（小猫照片 2，待替换）" }];
   const paragraphs =
     kitten.story && kitten.story.length > 0
       ? kitten.story
@@ -119,7 +142,6 @@ function KittenDetail() {
   return (
     <PhoneFrame
       title={kitten.name}
-
       bottomBar={
         <div className="flex gap-2.5 border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
           <Link
@@ -132,13 +154,7 @@ function KittenDetail() {
       }
     >
       <Section className="pt-1">
-        <Carousel
-          slides={[
-            { label: "示例图片（小猫照片 1，待替换）" },
-            { label: "示例图片（小猫照片 2，待替换）" },
-          ]}
-          ratio="aspect-square"
-        />
+        <Carousel slides={gallerySlides} ratio="aspect-square" />
         <div className="mt-3 flex gap-2">
           <Link
             to="/community/cat/$id"
@@ -147,13 +163,13 @@ function KittenDetail() {
           >
             TA 的猫友圈动态
           </Link>
-          {kitten.litter && (
+          {kitten.litterId && (
             <Link
               to="/community/litter/$id"
-              params={{ id: kitten.litter }}
+              params={{ id: kitten.litterId }}
               className="pressable inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-violet/40 bg-card px-3 py-2 text-[12.5px] font-medium text-violet"
             >
-              {kitten.litter}的动态
+              {kitten.litterName ?? "所属窝次"}的动态
             </Link>
           )}
         </div>
@@ -168,14 +184,11 @@ function KittenDetail() {
           <Info label="性别" value={kitten.gender} />
           <Info label="颜色" value={kitten.color} />
           <Info label="出生日期" value={kitten.birthday} />
-          {kitten.status !== "已有家" && (
-            <Info label="是否已绝育" value="示例文字（待更新）" />
-          )}
-          <Info label="父亲" value={kitten.father} />
-          <Info label="母亲" value={kitten.mother} />
-          <Info label="窝次" value={kitten.litter ?? "示例文字（待更新）"} />
+          {kitten.status !== "已有家" && <Info label="是否已绝育" value="示例文字（待更新）" />}
+          <Info label="父亲" value={kitten.fatherName} />
+          <Info label="母亲" value={kitten.motherName} />
+          <Info label="窝次" value={kitten.litterName ?? "暂未分配"} />
           <Info label="价格" value={kitten.price} />
-
         </div>
       </Section>
 
@@ -231,7 +244,6 @@ function KittenDetail() {
           </div>
         </div>
       </Section>
-
     </PhoneFrame>
   );
 }
