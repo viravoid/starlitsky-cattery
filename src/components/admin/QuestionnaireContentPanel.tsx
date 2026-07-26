@@ -468,7 +468,7 @@ export function QuestionnaireContentPanel({
                 新标签页
               </EditorButton>
             </div>
-            <QuestionnaireView content={draft} preview />
+            <QuestionnaireView content={draft} preview submissionMode="preview" />
           </div>
         </aside>
       </div>
@@ -481,7 +481,7 @@ export function QuestionnaireContentPanel({
               关闭
             </EditorButton>
           </div>
-          <QuestionnaireView content={draft} />
+          <QuestionnaireView content={draft} submissionMode="preview" />
         </div>
       )}
     </>

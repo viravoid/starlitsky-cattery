@@ -9,6 +9,30 @@ import {
   type Stud,
   type StudCategory,
 } from "./cattery-data";
+import {
+  DEFAULT_QUESTIONNAIRE_CONTENT,
+  type QuestionnaireContent,
+} from "./questionnaire-content";
+import {
+  QUESTIONNAIRE_FIELD_ORDER,
+  QUESTIONNAIRE_SUBMISSION_STATUSES,
+  createQuestionnaireSubmissionAnswers,
+  createQuestionnaireSubmissionFingerprint,
+  normalizeQuestionnaireSubmission,
+  questionnaireSubmissionStatusTone,
+  type QuestionnaireSubmission,
+  type QuestionnaireSubmissionAnswers,
+  type QuestionnaireSubmissionFieldKey,
+  type QuestionnaireSubmissionStatus,
+} from "./questionnaire-submissions";
+
+export { QUESTIONNAIRE_SUBMISSION_STATUSES, questionnaireSubmissionStatusTone };
+export type {
+  QuestionnaireSubmission,
+  QuestionnaireSubmissionAnswers,
+  QuestionnaireSubmissionFieldKey,
+  QuestionnaireSubmissionStatus,
+};
 
 export type Role = "guest" | "user" | "parent" | "keeper";
 export type Category = "猫舍日常" | "碎碎念" | "家长分享";
@@ -199,6 +223,7 @@ export interface CatteryData {
   cats: CatteryCat[];
   litters: Litter[];
   posts: Post[];
+  questionnaireSubmissions: QuestionnaireSubmission[];
 }
 
 export interface UpdatePostContext {
@@ -419,6 +444,88 @@ const DEFAULT_POSTS: Post[] = [
 
 const KEEPERS_ALLOWED_CATEGORIES: Category[] = ["猫舍日常", "碎碎念", "家长分享"];
 const PARENTS_ALLOWED_CATEGORIES: Category[] = ["家长分享", "碎碎念"];
+const QUESTIONNAIRE_SUBMISSION_DEDUPE_WINDOW_MS = 5_000;
+
+const DEFAULT_QUESTIONNAIRE_SUBMISSIONS: QuestionnaireSubmission[] = [
+  createSeedQuestionnaireSubmission("questionnaire-demo-1", "2026-07-06T21:14:00", {
+    name: "示例文字（缺少姓名）",
+    gender: "female",
+    phone: "138****0000",
+    age: "28",
+    job: "示例文字（缺少职业）",
+    city: "西安",
+    experience: "yes",
+    residents: "yes",
+    residentsNeutered: "neutered",
+    hasKids: "no",
+    housing: "owned",
+    windowSealed: "sealed",
+    familyAgree: "allAgree",
+    wantGender: "female",
+    wantColor: "银虎斑、玳瑁都可以",
+    budget: "1w-2w",
+    acceptNeuter: "accept",
+    monthlySpend: "500to1000",
+    scientificFeeding: "accept",
+    acceptActive: "accept",
+    commitment: "accept",
+  }),
+  createSeedQuestionnaireSubmission(
+    "questionnaire-demo-2",
+    "2026-07-04T10:32:00",
+    {
+      name: "示例文字（缺少姓名）",
+      gender: "male",
+      phone: "159****8888",
+      age: "34",
+      job: "示例文字（缺少职业）",
+      city: "成都",
+      experience: "no",
+      residents: "no",
+      hasKids: "yes",
+      housing: "rentApproved",
+      windowSealed: "canSeal",
+      familyAgree: "allAgree",
+      wantGender: "either",
+      wantColor: "棕虎斑",
+      budget: "2w-3w",
+      acceptNeuter: "accept",
+      monthlySpend: "over1000",
+      scientificFeeding: "needMoreInfo",
+      acceptActive: "accept",
+      commitment: "accept",
+    },
+    "已联系",
+  ),
+  createSeedQuestionnaireSubmission(
+    "questionnaire-demo-3",
+    "2026-07-01T16:05:00",
+    {
+      name: "示例文字（缺少姓名）",
+      gender: "female",
+      phone: "186****2233",
+      age: "26",
+      job: "示例文字（缺少职业）",
+      city: "上海",
+      experience: "yes",
+      residents: "yes",
+      residentsNeutered: "partiallyNeutered",
+      hasKids: "no",
+      housing: "rentUnconfirmed",
+      windowSealed: "cannotSeal",
+      familyAgree: "partAgree",
+      wantGender: "currentCat",
+      wantColor: "都可以",
+      budget: "可根据小猫情况沟通",
+      acceptNeuter: "accept",
+      monthlySpend: "500to1000",
+      scientificFeeding: "accept",
+      acceptActive: "needMoreInfo",
+      commitment: "accept",
+    },
+    "适合继续沟通",
+  ),
+];
 
 const defaultData: CatteryData = {
   version: 1,
@@ -442,6 +549,7 @@ const defaultData: CatteryData = {
     };
   }),
   posts: DEFAULT_POSTS,
+  questionnaireSubmissions: DEFAULT_QUESTIONNAIRE_SUBMISSIONS,
 };
 const serverCatterySnapshot = cloneCatteryData(defaultData);
 
@@ -480,6 +588,7 @@ export function normalizeCatteryData(value: unknown): CatteryData {
     cats: normalizeCats(input.cats),
     litters: normalizeLitters(input.litters),
     posts: normalizePosts(input.posts),
+    questionnaireSubmissions: normalizeQuestionnaireSubmissions(input.questionnaireSubmissions),
   };
 }
 
@@ -889,6 +998,67 @@ export const catteryActions = {
     });
     return true;
   },
+  submitQuestionnaire(
+    input: {
+      content: QuestionnaireContent;
+      values: Partial<Record<QuestionnaireSubmissionFieldKey, string>>;
+      dedupeWindowMs?: number;
+    },
+  ) {
+    const answers = createQuestionnaireSubmissionAnswers(input.values, input.content);
+    const fingerprint = createQuestionnaireSubmissionFingerprint(answers);
+    const nowIso = now();
+    const dedupeWindowMs = Math.max(0, input.dedupeWindowMs ?? QUESTIONNAIRE_SUBMISSION_DEDUPE_WINDOW_MS);
+    const duplicate = data.questionnaireSubmissions.find((submission) => {
+      const submittedAt = Date.parse(submission.submittedAt);
+      const createdAt = Date.parse(nowIso);
+      if (Number.isNaN(submittedAt) || Number.isNaN(createdAt)) return false;
+      return (
+        createdAt - submittedAt <= dedupeWindowMs &&
+        createQuestionnaireSubmissionFingerprint(submission.answers) === fingerprint
+      );
+    });
+    if (duplicate) {
+      return { id: duplicate.id, created: false as const };
+    }
+
+    const id = createUnusedId("questionnaire", (candidate) =>
+      data.questionnaireSubmissions.some((submission) => submission.id === candidate),
+    );
+    const submission = normalizeQuestionnaireSubmission({
+      id,
+      submittedAt: nowIso,
+      status: "未查看",
+      answers,
+    });
+    setData({
+      ...data,
+      questionnaireSubmissions: [submission, ...data.questionnaireSubmissions],
+    });
+    return { id, created: true as const };
+  },
+  updateQuestionnaireSubmissionStatus(id: string, status: QuestionnaireSubmissionStatus) {
+    if (!data.questionnaireSubmissions.some((submission) => submission.id === id)) return false;
+    setData({
+      ...data,
+      questionnaireSubmissions: data.questionnaireSubmissions.map((submission) =>
+        submission.id === id ? normalizeQuestionnaireSubmission({ ...submission, status }) : submission,
+      ),
+    });
+    return true;
+  },
+  updateQuestionnaireSubmissionAdminNote(id: string, adminNote: string) {
+    if (!data.questionnaireSubmissions.some((submission) => submission.id === id)) return false;
+    setData({
+      ...data,
+      questionnaireSubmissions: data.questionnaireSubmissions.map((submission) =>
+        submission.id === id
+          ? normalizeQuestionnaireSubmission({ ...submission, adminNote })
+          : submission,
+      ),
+    });
+    return true;
+  },
   createPost(
     input: {
       category: Category;
@@ -1078,6 +1248,12 @@ export function selectPosts(state: CatteryData = data) {
     });
     return next;
   });
+}
+
+export function selectQuestionnaireSubmissions(state: CatteryData = data) {
+  return [...state.questionnaireSubmissions]
+    .map(cloneQuestionnaireSubmission)
+    .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt));
 }
 
 export function selectLitters(state: CatteryData = data) {
@@ -1539,6 +1715,21 @@ function normalizePosts(value: unknown) {
   });
 }
 
+function normalizeQuestionnaireSubmissions(value: unknown) {
+  const fallback = cloneDefaultCatteryData().questionnaireSubmissions;
+  if (!Array.isArray(value)) return fallback;
+  const seen = new Set<string>();
+  const submissions = value
+    .map(normalizeQuestionnaireSubmission)
+    .filter((submission) => {
+      if (!submission.id || seen.has(submission.id)) return false;
+      seen.add(submission.id);
+      return true;
+    })
+    .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt));
+  return submissions.length > 0 ? submissions : fallback;
+}
+
 function normalizePost(value: unknown): Post {
   const input = objectValue(value);
   const authorRole = input.authorRole === "星月家长" ? "星月家长" : "猫舍主理人";
@@ -1589,6 +1780,20 @@ function normalizeComment(value: unknown): Comment {
     createdAt: optionalString(input.createdAt, now()),
     hidden: input.hidden === true,
   };
+}
+
+function createSeedQuestionnaireSubmission(
+  id: string,
+  submittedAt: string,
+  values: Partial<Record<QuestionnaireSubmissionFieldKey, string>>,
+  status: QuestionnaireSubmissionStatus = "未查看",
+) {
+  return normalizeQuestionnaireSubmission({
+    id,
+    submittedAt,
+    status,
+    answers: createQuestionnaireSubmissionAnswers(values, DEFAULT_QUESTIONNAIRE_CONTENT),
+  });
 }
 
 function studToCat(stud: Stud): CatteryCat {
@@ -1778,6 +1983,7 @@ function cloneCatteryData(content: CatteryData): CatteryData {
       galleryImageIds: [...litter.galleryImageIds],
     })),
     posts: content.posts.map(clonePost),
+    questionnaireSubmissions: content.questionnaireSubmissions.map(cloneQuestionnaireSubmission),
   };
 }
 
@@ -1787,6 +1993,16 @@ function clonePost(post: Post): Post {
     catIds: [...post.catIds],
     litterIds: post.litterIds ? [...post.litterIds] : undefined,
     comments: post.comments.map((comment) => ({ ...comment })),
+  };
+}
+
+function cloneQuestionnaireSubmission(submission: QuestionnaireSubmission): QuestionnaireSubmission {
+  return {
+    ...submission,
+    answers: QUESTIONNAIRE_FIELD_ORDER.reduce((acc, key) => {
+      acc[key] = { ...submission.answers[key] };
+      return acc;
+    }, {} as QuestionnaireSubmissionAnswers),
   };
 }
 

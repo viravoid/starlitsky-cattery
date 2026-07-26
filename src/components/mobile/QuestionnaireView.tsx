@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section } from "@/components/mobile/ui";
 import { CheckIcon, HeartIcon, PaperIcon } from "@/components/mobile/icons";
+import { catteryActions } from "@/lib/cattery-store";
 import type {
   AcceptOptionId,
   QuestionnaireChoiceOption,
@@ -9,8 +10,13 @@ import type {
   QuestionnaireContent,
   QuestionnaireTextQuestion,
 } from "@/lib/questionnaire-content";
-
-type Values = Record<string, string>;
+import {
+  createBlankQuestionnaireValues,
+  validateQuestionnaireValues,
+  type QuestionnaireSubmissionFieldKey,
+  type QuestionnaireSubmissionValues,
+  type QuestionnaireValidationErrors,
+} from "@/lib/questionnaire-submissions";
 
 function GroupTitle({ no, cn }: { no: string; cn: string }) {
   return (
@@ -68,11 +74,13 @@ function RadioField<TId extends string>({
   required,
   value,
   onChange,
+  error,
 }: {
   question: QuestionnaireChoiceQuestion<TId>;
   required?: boolean;
   value: string;
   onChange: (value: TId) => void;
+  error?: string;
 }) {
   const selectOption = (id: TId) => {
     onChange(id);
@@ -91,6 +99,7 @@ function RadioField<TId extends string>({
           />
         ))}
       </div>
+      {error && <span className="mt-1 block text-[11px] text-[#c46a6a]">{error}</span>}
     </div>
   );
 }
@@ -100,11 +109,13 @@ function CommitBlock({
   options,
   value,
   onChange,
+  error,
 }: {
   text: string;
   options: QuestionnaireChoiceOption<AcceptOptionId>[];
   value: string;
   onChange: (value: AcceptOptionId) => void;
+  error?: string;
 }) {
   const selectOption = (id: AcceptOptionId) => {
     onChange(id);
@@ -126,6 +137,7 @@ function CommitBlock({
           />
         ))}
       </div>
+      {error && <span className="mt-2 block text-[11px] text-[#c46a6a]">{error}</span>}
     </div>
   );
 }
@@ -159,29 +171,51 @@ function OptionButton<TId extends string>({
 export function QuestionnaireView({
   content,
   preview = false,
+  submissionMode = "live",
 }: {
   content: QuestionnaireContent;
   preview?: boolean;
+  submissionMode?: "live" | "preview";
 }) {
   const [submitted, setSubmitted] = useState(false);
-  const [values, setValues] = useState<Values>({});
-  const [phoneError, setPhoneError] = useState("");
+  const [values, setValues] = useState<QuestionnaireSubmissionValues>(() =>
+    createBlankQuestionnaireValues(),
+  );
+  const [errors, setErrors] = useState<QuestionnaireValidationErrors>({});
+  const submittingRef = useRef(false);
   const intro = content.intro.trim();
   const privacyNotice = content.privacyNotice.trim();
   const ps = content.ps.trim();
   const successBody = content.successBody.trim();
 
-  const set = (key: string) => (value: string) => setValues((prev) => ({ ...prev, [key]: value }));
-  const val = (key: string) => values[key] ?? "";
+  const set =
+    (key: QuestionnaireSubmissionFieldKey) =>
+    (value: string) =>
+      setValues((prev) => ({
+        ...prev,
+        [key]: value,
+        ...(key === "residents" && value !== "yes" ? { residentsNeutered: "" } : {}),
+      }));
+  const val = (key: QuestionnaireSubmissionFieldKey) => values[key];
 
   const onSubmit = () => {
-    const phone = val("phone").trim();
-    if (phone && !/^1\d{10}$/.test(phone)) {
-      setPhoneError("请输入正确的 11 位手机号");
+    if (submittingRef.current) {
       return;
     }
-    setPhoneError("");
+
+    const nextErrors = validateQuestionnaireValues(values, content);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    submittingRef.current = true;
+    setErrors({});
+    if (submissionMode === "live") {
+      catteryActions.submitQuestionnaire({ content, values });
+    }
     setSubmitted(true);
+    submittingRef.current = false;
   };
 
   if (submitted) {
@@ -221,6 +255,7 @@ export function QuestionnaireView({
         <div className="border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
           <button
             onClick={onSubmit}
+            disabled={submittingRef.current}
             className="pressable flex w-full items-center justify-center gap-2 rounded-full bg-violet py-3.5 text-[15px] font-semibold text-white shadow-card"
           >
             <PaperIcon className="h-5 w-5" /> 提交选猫问卷
@@ -251,12 +286,14 @@ export function QuestionnaireView({
             required
             value={val("name")}
             onChange={set("name")}
+            error={errors.name}
           />
           <RadioField
             question={content.basicInfo.gender}
             required
             value={val("gender")}
             onChange={set("gender")}
+            error={errors.gender}
           />
           <TextField
             question={content.basicInfo.phone}
@@ -264,7 +301,7 @@ export function QuestionnaireView({
             type="tel"
             value={val("phone")}
             onChange={set("phone")}
-            error={phoneError}
+            error={errors.phone}
           />
           <TextField
             question={content.basicInfo.age}
@@ -272,18 +309,21 @@ export function QuestionnaireView({
             type="number"
             value={val("age")}
             onChange={set("age")}
+            error={errors.age}
           />
           <TextField
             question={content.basicInfo.job}
             required
             value={val("job")}
             onChange={set("job")}
+            error={errors.job}
           />
           <TextField
             question={content.basicInfo.city}
             required
             value={val("city")}
             onChange={set("city")}
+            error={errors.city}
           />
         </div>
 
@@ -294,18 +334,21 @@ export function QuestionnaireView({
             required
             value={val("experience")}
             onChange={set("experience")}
+            error={errors.experience}
           />
           <RadioField
             question={content.catExperience.residents}
             required
             value={val("residents")}
             onChange={set("residents")}
+            error={errors.residents}
           />
           {val("residents") === "yes" && (
             <RadioField
               question={content.catExperience.residentsNeutered}
               value={val("residentsNeutered")}
               onChange={set("residentsNeutered")}
+              error={errors.residentsNeutered}
             />
           )}
         </div>
@@ -317,24 +360,28 @@ export function QuestionnaireView({
             required
             value={val("hasKids")}
             onChange={set("hasKids")}
+            error={errors.hasKids}
           />
           <RadioField
             question={content.livingEnvironment.housing}
             required
             value={val("housing")}
             onChange={set("housing")}
+            error={errors.housing}
           />
           <RadioField
             question={content.livingEnvironment.windowSealed}
             required
             value={val("windowSealed")}
             onChange={set("windowSealed")}
+            error={errors.windowSealed}
           />
           <RadioField
             question={content.livingEnvironment.familyAgree}
             required
             value={val("familyAgree")}
             onChange={set("familyAgree")}
+            error={errors.familyAgree}
           />
         </div>
 
@@ -345,30 +392,35 @@ export function QuestionnaireView({
             required
             value={val("wantGender")}
             onChange={set("wantGender")}
+            error={errors.wantGender}
           />
           <TextField
             question={content.catPreference.wantColor}
             required
             value={val("wantColor")}
             onChange={set("wantColor")}
+            error={errors.wantColor}
           />
           <TextField
             question={content.catPreference.budget}
             required
             value={val("budget")}
             onChange={set("budget")}
+            error={errors.budget}
           />
           <RadioField
             question={content.catPreference.acceptNeuter}
             required
             value={val("acceptNeuter")}
             onChange={set("acceptNeuter")}
+            error={errors.acceptNeuter}
           />
           <RadioField
             question={content.catPreference.monthlySpend}
             required
             value={val("monthlySpend")}
             onChange={set("monthlySpend")}
+            error={errors.monthlySpend}
           />
         </div>
 
@@ -379,18 +431,21 @@ export function QuestionnaireView({
             options={content.commitments.options}
             value={val("scientificFeeding")}
             onChange={set("scientificFeeding")}
+            error={errors.scientificFeeding}
           />
           <CommitBlock
             text={content.commitments.acceptActive}
             options={content.commitments.options}
             value={val("acceptActive")}
             onChange={set("acceptActive")}
+            error={errors.acceptActive}
           />
           <CommitBlock
             text={content.commitments.commitment}
             options={content.commitments.options}
             value={val("commitment")}
             onChange={set("commitment")}
+            error={errors.commitment}
           />
         </div>
 

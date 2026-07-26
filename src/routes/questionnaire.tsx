@@ -24,10 +24,15 @@ export const Route = createFileRoute("/questionnaire")({
 
 function Questionnaire() {
   const [content, setContent] = useState<QuestionnaireContent>(() => cloneQuestionnaireContent());
+  const [draftPreview, setDraftPreview] = useState(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("sitePagePreview") === "questionnaire-draft",
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const previewDraft = params.get("sitePagePreview") === "questionnaire-draft";
+    setDraftPreview(previewDraft);
 
     if (previewDraft) {
       setContent(loadDraftPreviewQuestionnaireContent());
@@ -38,5 +43,5 @@ function Questionnaire() {
     return subscribeToSavedQuestionnaireContent(() => setContent(loadSavedQuestionnaireContent()));
   }, []);
 
-  return <QuestionnaireView content={content} />;
+  return <QuestionnaireView content={content} submissionMode={draftPreview ? "preview" : "live"} />;
 }
