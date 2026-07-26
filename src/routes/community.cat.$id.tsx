@@ -9,7 +9,7 @@ import {
   hasHydratedCatteryData,
   resolveCatId,
   selectKittenRecords,
-  selectStuds,
+  selectStudRecords,
   useCattery,
 } from "@/lib/cattery-store";
 
@@ -26,7 +26,7 @@ function CatTimeline() {
   const users = useCommunity((s) => s.users);
   const catteryState = useCattery((snapshot) => snapshot);
   const kittens = useMemo(() => selectKittenRecords(catteryState), [catteryState]);
-  const studs = useMemo(() => selectStuds(catteryState), [catteryState]);
+  const studs = useMemo(() => selectStudRecords(catteryState), [catteryState]);
   const familyCat = useMemo(
     () => familyCats.find((cat) => resolveCatId(cat.id) === canonicalId),
     [canonicalId, familyCats],
@@ -50,12 +50,16 @@ function CatTimeline() {
   const imageUrls = useCatteryImageUrls([
     kitten?.coverImageId,
     ...(kitten?.galleryImageIds ?? []).slice(0, 1),
+    stud?.coverImageId,
+    ...(stud?.galleryImageIds ?? []).slice(0, 1),
   ]);
   const coverUrl =
     (kitten?.coverImageId && imageUrls[kitten.coverImageId]) ||
     ((kitten?.galleryImageIds ?? [])[0]
       ? imageUrls[(kitten?.galleryImageIds ?? [])[0]!]
-      : undefined);
+      : undefined) ||
+    (stud?.coverImageId && imageUrls[stud.coverImageId]) ||
+    ((stud?.galleryImageIds ?? [])[0] ? imageUrls[(stud?.galleryImageIds ?? [])[0]!] : undefined);
 
   if (!familyCat && !kitten && !stud && !hasHydratedCatteryData()) {
     return (
@@ -68,11 +72,12 @@ function CatTimeline() {
   }
   if (!familyCat && !kitten && !stud) throw notFound();
   const displayName = familyCat?.name ?? kitten?.name ?? stud?.name ?? "这只猫";
-  const gender = familyCat?.gender ?? kitten?.gender;
+  const gender = familyCat?.gender ?? kitten?.gender ?? stud?.gender;
   const color = familyCat?.color ?? kitten?.color ?? stud?.color;
-  const birthday = familyCat?.birthday ?? kitten?.birthday;
+  const birthday = familyCat?.birthday ?? kitten?.birthday ?? stud?.birthday;
   const joinDate = familyCat?.joinDate;
-  const personality = familyCat?.personality ?? kitten?.personality ?? stud?.trait ?? "";
+  const personality =
+    familyCat?.personality ?? kitten?.personality ?? stud?.personality ?? stud?.trait ?? "";
   const note = familyCat?.note;
   const owner = familyCat ? users.find((user) => user.id === familyCat.ownerId) : undefined;
 

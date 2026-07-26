@@ -138,6 +138,30 @@ export interface LitterRecord {
   linkedPostCount: number;
 }
 
+export interface StudRecord {
+  id: CatId;
+  name: string;
+  gender: string;
+  color: string;
+  birthday: string;
+  personality: string;
+  story?: string[];
+  role: string;
+  category: StudCategory;
+  status: string;
+  trait: string;
+  source: string;
+  reproductiveState: StudFields["reproductiveState"];
+  coverImageId?: string;
+  galleryImageIds: string[];
+  visibility: Visibility;
+  createdAt?: string;
+  updatedAt?: string;
+  linkedPostCount: number;
+  linkedKittenCount: number;
+  linkedLitterCount: number;
+}
+
 export interface Comment {
   id: string;
   authorId: UserId;
@@ -571,6 +595,29 @@ export const catteryActions = {
     setData({ ...data, cats: [...data.cats, cat] });
     return id;
   },
+  addStud(
+    input: Omit<CatteryCat, "id" | "kind" | "galleryImageIds" | "visibility" | "stud"> & {
+      id?: string;
+      visibility?: Visibility;
+      galleryImageIds?: string[];
+      stud: StudFields;
+    },
+    context: UpdatePostContext,
+  ) {
+    if (!canManageCattery(context)) return null;
+
+    const id = input.id?.trim() || createStableId("stud");
+    const cat = normalizeCat({
+      ...input,
+      id,
+      kind: "stud",
+      galleryImageIds: input.galleryImageIds ?? [],
+      visibility: input.visibility ?? "visible",
+      stud: input.stud,
+    });
+    setData({ ...data, cats: [...data.cats, cat] });
+    return id;
+  },
   addFamilyCat(
     input: Omit<CatteryCat, "id" | "kind" | "galleryImageIds" | "visibility"> & { id?: string },
     context: UpdatePostContext,
@@ -610,6 +657,23 @@ export const catteryActions = {
     const actor = getEditableActor(context);
     const existing = data.cats.find((cat) => cat.id === resolvedId);
     if (!actor || actor.role !== "keeper" || !existing || existing.kind !== "kitten") {
+      return false;
+    }
+    const safePatch = safeCatPatch(patch, actor);
+
+    setData({
+      ...data,
+      cats: data.cats.map((cat) =>
+        cat.id === resolvedId ? normalizeCat({ ...cat, ...safePatch, updatedAt: now() }) : cat,
+      ),
+    });
+    return true;
+  },
+  updateStud(id: CatId, patch: Partial<CatteryCat>, context: UpdatePostContext) {
+    const resolvedId = resolveCatId(id);
+    const actor = getEditableActor(context);
+    const existing = data.cats.find((cat) => cat.id === resolvedId);
+    if (!actor || actor.role !== "keeper" || !existing || existing.kind !== "stud") {
       return false;
     }
     const safePatch = safeCatPatch(patch, actor);
@@ -1019,6 +1083,45 @@ export function selectKittens(state: CatteryData = data): Kitten[] {
     story: kitten.story ? [...kitten.story] : undefined,
     structureRating: cloneStructureRating(kitten.structureRating),
   }));
+}
+
+export function selectStudRecords(
+  state: CatteryData = data,
+  visibility: SelectVisibilityMode = "public",
+): StudRecord[] {
+  return state.cats
+    .filter((cat) => cat.kind === "stud" && cat.stud)
+    .filter((cat) => (visibility === "all" ? true : cat.visibility === "visible"))
+    .map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      gender: cat.gender ?? "",
+      color: cat.color ?? "",
+      birthday: cat.birthday ?? "",
+      personality: cat.personality ?? "",
+      story: cat.story ? [...cat.story] : undefined,
+      role: cat.stud?.role ?? "",
+      category: cat.stud?.category ?? "现役公猫",
+      status: cat.stud?.status ?? "",
+      trait: cat.stud?.trait ?? "",
+      source: cat.stud?.source ?? "",
+      reproductiveState: cat.stud?.reproductiveState ?? "active",
+      coverImageId: cat.coverImageId,
+      galleryImageIds: [...cat.galleryImageIds],
+      visibility: cat.visibility,
+      createdAt: cat.createdAt,
+      updatedAt: cat.updatedAt,
+      linkedPostCount: state.posts.filter((post) => post.catIds.includes(cat.id)).length,
+      linkedKittenCount: state.cats.filter(
+        (item) =>
+          item.kind === "kitten" &&
+          item.kitten &&
+          (item.kitten.fatherId === cat.id || item.kitten.motherId === cat.id),
+      ).length,
+      linkedLitterCount: state.litters.filter(
+        (litter) => litter.fatherId === cat.id || litter.motherId === cat.id,
+      ).length,
+    }));
 }
 
 export function selectStuds(state: CatteryData = data): Stud[] {

@@ -80,8 +80,7 @@ export function KittenLitterManagementPanel({ onNotice }: { onNotice: (message: 
     [state.users],
   );
   const studCats = useMemo(
-    () =>
-      state.cats.filter((cat) => cat.kind === "stud" && cat.stud && cat.visibility !== "archived"),
+    () => state.cats.filter((cat) => cat.kind === "stud" && cat.stud),
     [state.cats],
   );
   const maleStuds = useMemo(
@@ -662,7 +661,10 @@ function KittenEditor({
             value={draft.fatherId}
             options={[
               { value: "", label: "未设置" },
-              ...maleStuds.map((cat) => ({ value: cat.id, label: cat.name })),
+              ...maleStuds.map((cat) => ({
+                value: cat.id,
+                label: formatStudOptionLabel(cat),
+              })),
             ]}
             onChange={(fatherId) => onDraftChange({ ...draft, fatherId })}
           />
@@ -671,7 +673,10 @@ function KittenEditor({
             value={draft.motherId}
             options={[
               { value: "", label: "未设置" },
-              ...femaleStuds.map((cat) => ({ value: cat.id, label: cat.name })),
+              ...femaleStuds.map((cat) => ({
+                value: cat.id,
+                label: formatStudOptionLabel(cat),
+              })),
             ]}
             onChange={(motherId) => onDraftChange({ ...draft, motherId })}
           />
@@ -792,7 +797,10 @@ function LitterEditor({
             value={draft.fatherId}
             options={[
               { value: "", label: "未设置" },
-              ...maleStuds.map((cat) => ({ value: cat.id, label: cat.name })),
+              ...maleStuds.map((cat) => ({
+                value: cat.id,
+                label: formatStudOptionLabel(cat),
+              })),
             ]}
             onChange={(fatherId) => onDraftChange({ ...draft, fatherId })}
           />
@@ -801,7 +809,10 @@ function LitterEditor({
             value={draft.motherId}
             options={[
               { value: "", label: "未设置" },
-              ...femaleStuds.map((cat) => ({ value: cat.id, label: cat.name })),
+              ...femaleStuds.map((cat) => ({
+                value: cat.id,
+                label: formatStudOptionLabel(cat),
+              })),
             ]}
             onChange={(motherId) => onDraftChange({ ...draft, motherId })}
           />
@@ -1428,6 +1439,12 @@ function visibilityLabel(visibility: Visibility) {
     case "archived":
       return "归档";
   }
+}
+
+function formatStudOptionLabel(cat: CatteryCat) {
+  const suffix =
+    cat.visibility === "visible" ? "" : cat.visibility === "hidden" ? "（已隐藏）" : "（已归档）";
+  return `${cat.name}${suffix}`;
 }
 
 function catterySnapshot() {
