@@ -23,6 +23,7 @@ export interface CatteryUser {
   name: string;
   role: "parent" | "keeper";
   activatedAt?: string;
+  active?: boolean;
   inviteCode?: string;
   note?: string;
 }
@@ -545,6 +546,22 @@ export function resetCatteryDataForTests(next?: unknown) {
   setData(next === undefined ? cloneDefaultCatteryData() : normalizeCatteryData(next), false);
 }
 
+export function findUserByInviteCode(inviteCode: string, state: CatteryData = data) {
+  const normalized = inviteCode.trim();
+  if (!normalized) return null;
+  return (
+    state.users.find(
+      (user) => user.role === "parent" && (user.inviteCode?.trim() ?? "") === normalized,
+    ) ?? null
+  );
+}
+
+export function isParentUserActive(
+  user: Pick<CatteryUser, "role" | "activatedAt" | "active"> | null | undefined,
+) {
+  return Boolean(user && user.role === "parent" && user.activatedAt && user.active !== false);
+}
+
 export const catteryActions = {
   replaceAll(next: CatteryData) {
     setData(next);
@@ -552,21 +569,105 @@ export const catteryActions = {
   addUser(input: Omit<CatteryUser, "id"> & { id?: string }, context?: UpdatePostContext) {
     if (context && !canManageCattery(context)) return null;
 
-    const id = input.id?.trim() || createStableId("parent");
+    const id =
+      input.id?.trim() ||
+      createUnusedId("parent", (candidate) => data.users.some((user) => user.id === candidate));
+    if (data.users.some((user) => user.id === id)) return null;
     setData({
       ...data,
       users: [...data.users, normalizeUser({ ...input, id })],
     });
     return id;
   },
-  toggleParentActive(id: UserId, context?: UpdatePostContext) {
+  createParent(
+    input: { id?: string; name: string; inviteCode: string; note?: string; activatedAt?: string },
+    context?: UpdatePostContext,
+  ) {
+    if (context && !canManageCattery(context)) return null;
+
+    const name = input.name.trim();
+    const inviteCode = input.inviteCode.trim();
+    if (!name || !inviteCode) return null;
+
+    const id =
+      input.id?.trim() ||
+      createUnusedId("parent", (candidate) => data.users.some((user) => user.id === candidate));
+    if (data.users.some((user) => user.id === id)) return null;
+    if (
+      data.users.some(
+        (user) => user.role === "parent" && (user.inviteCode?.trim() ?? "") === inviteCode,
+      )
+    ) {
+      return null;
+    }
+
+    const parent = normalizeUser({
+      id,
+      name,
+      role: "parent",
+      inviteCode,
+      note: normalizeOptionalText(input.note),
+      activatedAt: input.activatedAt?.trim() || today(),
+      active: true,
+    });
+    setData({ ...data, users: [...data.users, parent] });
+    return id;
+  },
+  updateParent(
+    id: UserId,
+    patch: Partial<Pick<CatteryUser, "name" | "inviteCode" | "note">>,
+    context?: UpdatePostContext,
+  ) {
     if (context && !canManageCattery(context)) return false;
+
+    const existing = data.users.find((user) => user.id === id && user.role === "parent");
+    if (!existing) return false;
+
+    const name = patch.name === undefined ? existing.name : patch.name.trim();
+    const inviteCode =
+      patch.inviteCode === undefined
+        ? (existing.inviteCode?.trim() ?? "")
+        : patch.inviteCode.trim();
+    if (!name || !inviteCode) return false;
+    if (
+      data.users.some(
+        (user) =>
+          user.id !== id &&
+          user.role === "parent" &&
+          (user.inviteCode?.trim() ?? "") === inviteCode,
+      )
+    ) {
+      return false;
+    }
 
     setData({
       ...data,
       users: data.users.map((user) =>
         user.id === id && user.role === "parent"
-          ? { ...user, activatedAt: user.activatedAt ? undefined : today() }
+          ? normalizeUser({
+              ...user,
+              name,
+              inviteCode,
+              note: patch.note === undefined ? user.note : normalizeOptionalText(patch.note),
+            })
+          : user,
+      ),
+    });
+    return true;
+  },
+  toggleParentActive(id: UserId, context?: UpdatePostContext) {
+    if (context && !canManageCattery(context)) return false;
+    if (!data.users.some((user) => user.id === id && user.role === "parent")) return false;
+
+    setData({
+      ...data,
+      users: data.users.map((user) =>
+        user.id === id && user.role === "parent"
+          ? normalizeUser({
+              ...user,
+              activatedAt: user.activatedAt ?? today(),
+              active: user.activatedAt && user.active !== false ? false : true,
+            })
           : user,
       ),
     });
@@ -966,7 +1067,17 @@ export function selectUsers(state: CatteryData = data) {
 }
 
 export function selectPosts(state: CatteryData = data) {
-  return state.posts.map(clonePost);
+  const userNames = new Map(state.users.map((user) => [user.id, user.name]));
+  return state.posts.map((post) => {
+    const next = clonePost(post);
+    const authorName = userNames.get(post.authorId);
+    if (authorName) next.authorName = authorName;
+    next.comments = next.comments.map((comment) => {
+      const commentAuthorName = userNames.get(comment.authorId);
+      return commentAuthorName ? { ...comment, authorName: commentAuthorName } : comment;
+    });
+    return next;
+  });
 }
 
 export function selectLitters(state: CatteryData = data) {
@@ -1248,14 +1359,20 @@ function normalizeUsers(value: unknown) {
 
 function normalizeUser(value: unknown): CatteryUser {
   const input = objectValue(value);
+  const activatedAt = optionalString(input.activatedAt, undefined);
   return {
     id: optionalString(input.id, createStableId("user")),
     name: optionalString(input.name, "未命名用户"),
     role: input.role === "keeper" ? "keeper" : "parent",
-    activatedAt: optionalString(input.activatedAt, undefined),
+    activatedAt,
+    active: input.role === "keeper" ? true : optionalBoolean(input.active, Boolean(activatedAt)),
     inviteCode: optionalString(input.inviteCode, undefined),
     note: optionalString(input.note, undefined),
   };
+}
+
+function optionalBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
 }
 
 function normalizeCats(value: unknown) {
@@ -1528,6 +1645,7 @@ function getEditableActor(context: UpdatePostContext): EditableActor | null {
   if (!context.currentUserId) return null;
   const user = data.users.find((item) => item.id === context.currentUserId);
   if (!user || user.role !== context.role) return null;
+  if (user.role === "parent" && !isParentUserActive(user)) return null;
   return { role: context.role, id: user.id, user };
 }
 
@@ -1726,6 +1844,19 @@ function clampImageCount(value: unknown) {
 function findCatName(state: CatteryData, id: string | undefined) {
   if (!id) return undefined;
   return state.cats.find((cat) => cat.id === resolveCatId(id))?.name;
+}
+
+function createUnusedId(prefix: string, exists: (candidate: string) => boolean) {
+  let candidate = createStableId(prefix);
+  while (exists(candidate)) {
+    candidate = createStableId(prefix);
+  }
+  return candidate;
+}
+
+function normalizeOptionalText(value: string | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
 }
 
 function createStableId(prefix: string) {

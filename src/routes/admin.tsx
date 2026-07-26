@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { AboutContentPanel } from "@/components/admin/AboutContentPanel";
@@ -40,7 +40,13 @@ import {
   type FormStatus,
   type Kitten,
 } from "@/lib/cattery-data";
-import { selectKittenRecords, selectLitterRecords, useCattery } from "@/lib/cattery-store";
+import {
+  KEEPER_YUEQI,
+  catteryActions,
+  selectKittenRecords,
+  selectLitterRecords,
+  useCattery,
+} from "@/lib/cattery-store";
 import {
   useCommunity,
   actions as communityActions,
@@ -213,6 +219,11 @@ const LITTER_META: Record<LitterName, { birthday: string; status: string; note: 
     status: "已建档",
     note: "待补充父母和完整小猫资料。",
   },
+};
+
+const ADMIN_PARENT_CONTEXT = {
+  role: "keeper" as const,
+  currentUserId: KEEPER_YUEQI,
 };
 
 function Admin() {
@@ -1278,7 +1289,7 @@ function LitterDetail({
   );
 }
 
-function ParentsPanel({
+function LegacyParentsPanel({
   users,
   cats,
   posts,
@@ -1306,7 +1317,7 @@ function ParentsPanel({
     setName("");
     setCode("");
     setShowAdd(false);
-    onNotice("已新增家长 Demo 记录，刷新后会恢复。");
+    onNotice("已新增家长，并写入统一 cattery-store。");
   };
 
   return (
@@ -1329,8 +1340,10 @@ function ParentsPanel({
                 <td className="px-3 py-2.5 font-semibold text-heading">{user.name}</td>
                 <td className="px-3 py-2.5">{user.inviteCode ?? "未设置"}</td>
                 <td className="px-3 py-2.5">
-                  <StatusBadge tone={user.activatedAt ? "creamblue" : "muted"}>
-                    {user.activatedAt ? "已启用" : "未启用"}
+                  <StatusBadge
+                    tone={user.activatedAt && user.active !== false ? "creamblue" : "muted"}
+                  >
+                    {user.activatedAt ? (user.active === false ? "已停用" : "已启用") : "未开通"}
                   </StatusBadge>
                 </td>
                 <td className="px-3 py-2.5">{user.activatedAt ?? "未开通"}</td>
@@ -1388,13 +1401,13 @@ function ParentsPanel({
                 placeholder="邀请码"
                 className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
               />
-              <ActionButton onClick={addParent}>保存 Demo</ActionButton>
+              <ActionButton onClick={addParent}>保存家长</ActionButton>
             </div>
           </DemoAddBox>
         )}
       </Panel>
 
-      <ParentDetail
+      <LegacyParentDetail
         parent={selectedParent}
         cats={cats}
         posts={posts}
@@ -1404,7 +1417,7 @@ function ParentsPanel({
   );
 }
 
-function ParentDetail({
+function LegacyParentDetail({
   parent,
   cats,
   posts,
@@ -1424,6 +1437,7 @@ function ParentDetail({
     );
   }
   const ownedCats = cats.filter((cat) => cat.ownerId === parent.id);
+  const status = getParentActivationStatus(parent);
   const relatedPosts = posts.filter(
     (post) =>
       post.authorId === parent.id ||
@@ -1442,11 +1456,7 @@ function ParentDetail({
         <FieldLine label="邀请码" value={parent.inviteCode ?? "未设置"} />
         <FieldLine
           label="启用状态"
-          value={
-            <StatusBadge tone={parent.activatedAt ? "creamblue" : "muted"}>
-              {parent.activatedAt ? "已启用" : "未启用"}
-            </StatusBadge>
-          }
+          value={<StatusBadge tone={status.tone}>{status.label}</StatusBadge>}
         />
         <FieldLine label="开通时间" value={parent.activatedAt ?? "未开通"} />
         <FieldLine label="名下猫咪" value={ownedCats.map((cat) => cat.name).join("、") || "暂无"} />
@@ -1459,6 +1469,359 @@ function ParentDetail({
     </Panel>
   );
 }
+
+function ParentsPanel({
+  users,
+  cats,
+  posts,
+  selectedParent,
+  onSelectedParent,
+  onNotice,
+}: {
+  users: ParentUser[];
+  cats: CommunityCat[];
+  posts: Post[];
+  selectedParent: ParentUser | null;
+  onSelectedParent: (id: string) => void;
+  onNotice: (message: string) => void;
+}) {
+  const [draft, setDraft] = useState(() => createParentDraft());
+  const [showAdd, setShowAdd] = useState(false);
+
+  const addParent = () => {
+    const name = draft.name.trim();
+    const inviteCode = draft.inviteCode.trim();
+    if (!name || !inviteCode) {
+      onNotice("请填写家长昵称和邀请码。");
+      return;
+    }
+    if (users.some((user) => (user.inviteCode ?? "").trim() === inviteCode)) {
+      onNotice("邀请码已存在，请改成未使用的邀请码。");
+      return;
+    }
+    const parentId = catteryActions.createParent(
+      {
+        name,
+        inviteCode,
+        note: draft.note,
+      },
+      ADMIN_PARENT_CONTEXT,
+    );
+    if (!parentId) {
+      onNotice("新增家长失败，请检查输入后重试。");
+      return;
+    }
+    setDraft(createParentDraft());
+    setShowAdd(false);
+    onSelectedParent(parentId);
+    onNotice("已新增家长，并写入统一 cattery-store。");
+  };
+
+  const toggleParentActive = (user: ParentUser) => {
+    const actionLabel = getParentToggleLabel(user);
+    const ok = catteryActions.toggleParentActive(user.id, ADMIN_PARENT_CONTEXT);
+    if (!ok) {
+      onNotice("家长状态更新失败，请重试。");
+      return;
+    }
+    onNotice(`已${actionLabel} ${user.name}，现有关联已保留。`);
+  };
+
+  return (
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(380px,1fr)]">
+      <Panel className={cn(selectedParent ? "hidden md:block" : "")}>
+        <PanelTitle
+          title="家长列表"
+          desc="直接管理统一 cattery-store 中的家长资料；家长与猫咪仍通过 ownerId 保持关联。"
+          action={
+            <ActionButton onClick={() => setShowAdd((open) => !open)}>
+              {showAdd ? "收起" : "添加家长"}
+            </ActionButton>
+          }
+        />
+        <TableShell columns={["昵称", "邀请码", "启用状态", "开通时间", "名下猫咪", "操作"]}>
+          {users.map((user) => {
+            const ownedCats = cats.filter((cat) => cat.ownerId === user.id);
+            return (
+              <tr key={user.id} className="text-card-foreground">
+                <td className="px-3 py-2.5 font-semibold text-heading">{user.name}</td>
+                <td className="px-3 py-2.5">{user.inviteCode ?? "未设置"}</td>
+                <td className="px-3 py-2.5">
+                  <StatusBadge
+                    tone={user.activatedAt && user.active !== false ? "creamblue" : "muted"}
+                  >
+                    {user.activatedAt ? (user.active === false ? "已停用" : "已启用") : "未开通"}
+                  </StatusBadge>
+                </td>
+                <td className="px-3 py-2.5">{user.activatedAt ?? "未开通"}</td>
+                <td className="px-3 py-2.5">{ownedCats.length}</td>
+                <td className="px-3 py-2.5">
+                  <RowActions
+                    actions={[
+                      ["详情", () => onSelectedParent(user.id)],
+                      [
+                        user.activatedAt && user.active !== false ? "停用" : "启用",
+                        () => toggleParentActive(user),
+                      ],
+                    ]}
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </TableShell>
+        <div className="md:hidden">
+          {users.map((user) => {
+            const ownedCats = cats.filter((cat) => cat.ownerId === user.id);
+            return (
+              <MobileRecord
+                key={user.id}
+                title={user.name}
+                meta={`${user.inviteCode ?? "未设置邀请码"} · ${user.activatedAt ? (user.active === false ? "已停用" : "已启用") : "未开通"}`}
+                actions={
+                  <ActionButton onClick={() => onSelectedParent(user.id)} tone="quiet">
+                    详情
+                  </ActionButton>
+                }
+              >
+                <span>开通时间：{user.activatedAt ?? "未开通"}</span>
+                <span>名下猫咪：{ownedCats.length} 只</span>
+              </MobileRecord>
+            );
+          })}
+        </div>
+        {showAdd && (
+          <DemoAddBox>
+            <div className="grid gap-2 md:grid-cols-2">
+              <input
+                value={draft.name}
+                onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="家长昵称"
+                className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
+              />
+              <input
+                value={draft.inviteCode}
+                onChange={(event) =>
+                  setDraft((prev) => ({ ...prev, inviteCode: event.target.value }))
+                }
+                placeholder="邀请码"
+                className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
+              />
+              <textarea
+                value={draft.note}
+                onChange={(event) => setDraft((prev) => ({ ...prev, note: event.target.value }))}
+                rows={3}
+                placeholder="后台备注（可选）"
+                className="rounded-[6px] border border-border bg-background px-2.5 py-2 text-[12px] outline-none focus:border-primary md:col-span-2"
+              />
+              <div className="flex justify-end md:col-span-2">
+                <ActionButton onClick={addParent}>保存家长</ActionButton>
+              </div>
+            </div>
+          </DemoAddBox>
+        )}
+      </Panel>
+
+      <ParentDetail
+        parent={selectedParent}
+        users={users}
+        cats={cats}
+        posts={posts}
+        onNotice={onNotice}
+        onToggleActive={toggleParentActive}
+        onBack={() => onSelectedParent("")}
+      />
+    </div>
+  );
+}
+
+function ParentDetail({
+  parent,
+  users,
+  cats,
+  posts,
+  onNotice,
+  onToggleActive,
+  onBack,
+}: {
+  parent: ParentUser | null;
+  users: ParentUser[];
+  cats: CommunityCat[];
+  posts: Post[];
+  onNotice: (message: string) => void;
+  onToggleActive: (user: ParentUser) => void;
+  onBack: () => void;
+}) {
+  const [draft, setDraft] = useState(() => createParentDraft(parent));
+
+  useEffect(() => {
+    setDraft(createParentDraft(parent));
+  }, [parent]);
+
+  if (!parent) {
+    return (
+      <Panel className="hidden xl:block">
+        <PanelTitle title="家长详情" desc="桌面端选择左侧家长后查看并编辑资料。" />
+        <p className="px-4 py-6 text-[13px] text-muted-foreground">请选择一位家长。</p>
+      </Panel>
+    );
+  }
+
+  const ownedCats = cats.filter((cat) => cat.ownerId === parent.id);
+  const ownedCatIds = new Set(ownedCats.map((cat) => cat.id));
+  const authoredPosts = posts.filter((post) => post.authorId === parent.id);
+  const linkedCatPosts = posts.filter(
+    (post) => post.authorId !== parent.id && post.catIds.some((catId) => ownedCatIds.has(catId)),
+  );
+  const status = getParentActivationStatus(parent);
+
+  const saveParent = () => {
+    const name = draft.name.trim();
+    const inviteCode = draft.inviteCode.trim();
+    if (!name || !inviteCode) {
+      onNotice("请填写家长昵称和邀请码。");
+      return;
+    }
+    if (
+      users.some((user) => user.id !== parent.id && (user.inviteCode ?? "").trim() === inviteCode)
+    ) {
+      onNotice("邀请码已存在，请改成未使用的邀请码。");
+      return;
+    }
+    const ok = catteryActions.updateParent(
+      parent.id,
+      {
+        name,
+        inviteCode,
+        note: draft.note,
+      },
+      ADMIN_PARENT_CONTEXT,
+    );
+    if (!ok) {
+      onNotice("保存家长资料失败，请重试。");
+      return;
+    }
+    onNotice("已保存家长资料，列表、详情和关联显示已同步。");
+  };
+
+  return (
+    <Panel>
+      <PanelTitle
+        title="家长详情"
+        desc="支持直接编辑昵称、邀请码和后台备注；不会改动原有家长 ID。"
+        action={<BackToListButton onClick={onBack} />}
+      />
+      <div className="px-3 py-2 lg:px-4 lg:py-3">
+        <FieldLine label="昵称" value={parent.name} />
+        <FieldLine label="邀请码" value={parent.inviteCode ?? "未设置"} />
+        <FieldLine
+          label="启用状态"
+          value={<StatusBadge tone={status.tone}>{status.label}</StatusBadge>}
+        />
+        <FieldLine label="开通时间" value={parent.activatedAt ?? "未开通"} />
+        <FieldLine label="后台备注" value={parent.note ?? "暂无备注"} />
+
+        <div className="mt-4 grid gap-2">
+          <input
+            value={draft.name}
+            onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+            placeholder="家长昵称"
+            className="h-9 rounded-[8px] border border-border bg-background px-3 text-[13px] outline-none focus:border-primary"
+          />
+          <input
+            value={draft.inviteCode}
+            onChange={(event) => setDraft((prev) => ({ ...prev, inviteCode: event.target.value }))}
+            placeholder="邀请码"
+            className="h-9 rounded-[8px] border border-border bg-background px-3 text-[13px] outline-none focus:border-primary"
+          />
+          <textarea
+            value={draft.note}
+            onChange={(event) => setDraft((prev) => ({ ...prev, note: event.target.value }))}
+            rows={3}
+            placeholder="后台备注（可选）"
+            className="rounded-[8px] border border-border bg-background px-3 py-2 text-[13px] outline-none focus:border-primary"
+          />
+          <div className="flex flex-wrap gap-2">
+            <ActionButton onClick={saveParent}>保存资料</ActionButton>
+            <ActionButton onClick={() => onToggleActive(parent)} tone="quiet">
+              {getParentToggleLabel(parent)}家长
+            </ActionButton>
+          </div>
+        </div>
+
+        <ParentDetailList
+          title={`名下猫咪 · ${ownedCats.length}`}
+          empty="暂无名下猫咪"
+          items={ownedCats.map((cat) => `${cat.name}${cat.gender ? ` · ${cat.gender}` : ""}`)}
+        />
+        <ParentDetailList
+          title={`该家长发布的动态 · ${authoredPosts.length}`}
+          empty="暂无家长发布动态"
+          items={authoredPosts.map(
+            (post) => `${post.category} · ${post.content.slice(0, 28) || "未填写内容"}`,
+          )}
+        />
+        <ParentDetailList
+          title={`与名下猫咪关联的动态 · ${linkedCatPosts.length}`}
+          empty="暂无猫咪关联动态"
+          items={linkedCatPosts.map(
+            (post) => `${post.authorName} · ${post.content.slice(0, 28) || "未填写内容"}`,
+          )}
+        />
+      </div>
+    </Panel>
+  );
+}
+
+function ParentDetailList({
+  title,
+  items,
+  empty,
+}: {
+  title: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div className="mt-4 rounded-[10px] border border-border/70 bg-background px-3 py-3">
+      <p className="text-[12px] font-semibold text-heading">{title}</p>
+      {items.length === 0 ? (
+        <p className="mt-2 text-[12px] text-muted-foreground">{empty}</p>
+      ) : (
+        <div className="mt-2 flex flex-col gap-2 text-[12px] text-card-foreground">
+          {items.map((item) => (
+            <span key={`${title}-${item}`}>{item}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getParentActivationStatus(user: ParentUser) {
+  if (!user.activatedAt) {
+    return { label: "未开通", tone: "muted" as const };
+  }
+  if (user.active === false) {
+    return { label: "已停用", tone: "muted" as const };
+  }
+  return { label: "已启用", tone: "creamblue" as const };
+}
+
+function getParentToggleLabel(user: ParentUser) {
+  return user.activatedAt && user.active !== false ? "停用" : "启用";
+}
+
+function createParentDraft(parent?: ParentUser | null) {
+  return {
+    name: parent?.name ?? "",
+    inviteCode: parent?.inviteCode ?? "",
+    note: parent?.note ?? "",
+  };
+}
+
+void LegacyParentsPanel;
+void LegacyParentDetail;
 
 function FormsPanel({
   forms,

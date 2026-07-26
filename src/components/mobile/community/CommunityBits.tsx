@@ -282,13 +282,17 @@ export function Lightbox() {
 /* ── Comment composer ──────────────────────────────────── */
 export function CommentComposer({ postId }: { postId: string }) {
   const role = useCommunity((s) => s.role);
+  const parentSessionActive = useCommunity((s) => s.parentSessionActive);
   const [text, setText] = useState("");
   const submit = () => {
     if (!text.trim()) {
       if (role === "guest") actions.requireLogin("发表评论需要登录");
       return;
     }
-    actions.addComment(postId, text.trim());
+    if (!actions.addComment(postId, text.trim())) {
+      alert("当前家长身份已停用或无权限评论。");
+      return;
+    }
     setText("");
   };
   return (
@@ -301,9 +305,11 @@ export function CommentComposer({ postId }: { postId: string }) {
         }}
         placeholder="留下你的评论…"
         className="flex-1 rounded-full border border-border bg-background px-4 py-2.5 text-[13.5px] outline-none focus:border-primary"
+        disabled={role === "parent" && !parentSessionActive}
       />
       <button
         onClick={submit}
+        disabled={role === "parent" && !parentSessionActive}
         className="pressable rounded-full bg-violet px-4 py-2.5 text-[13px] font-semibold text-white"
       >
         发送

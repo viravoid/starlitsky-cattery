@@ -3,8 +3,10 @@ import {
   KEEPER_YUEQI,
   PARENT_HUHU,
   catteryActions,
+  findUserByInviteCode,
   getCatteryDataSnapshot,
   hydrateCatteryDataFromStorage,
+  isParentUserActive,
   selectFamilyCats,
   selectLitters,
   selectPosts,
@@ -37,6 +39,8 @@ interface State extends SessionState {
   users: ParentUser[];
   cats: CommunityCat[];
   posts: Post[];
+  currentUser: ParentUser | null;
+  parentSessionActive: boolean;
 }
 
 const sessionInitial: SessionState = {
@@ -61,6 +65,7 @@ function getState(): State {
   if (cachedState && cachedSessionRef === session && cachedCatteryRef === data) {
     return cachedState;
   }
+  const currentUser = resolveSessionUser(data);
   cachedCatteryRef = data;
   cachedSessionRef = session;
   cachedState = {
@@ -68,6 +73,8 @@ function getState(): State {
     users: selectUsers(data),
     cats: selectCommunityCatsForFacade(data.cats),
     posts: selectPostsForFacade(data),
+    currentUser,
+    parentSessionActive: session.role !== "parent" || isParentUserActive(currentUser),
   };
   return cachedState;
 }
@@ -77,6 +84,8 @@ const serverState: State = {
   users: selectUsers(),
   cats: selectCommunityCatsForFacade(getCatteryDataSnapshot().cats),
   posts: selectPostsForFacade(getCatteryDataSnapshot()),
+  currentUser: null,
+  parentSessionActive: false,
 };
 
 function notifySession() {
@@ -142,13 +151,17 @@ export const actions = {
     }
     notifySession();
   },
-  activateParent(_code: string) {
+  activateParent(code: string) {
+    const parent = resolveActivatableParent(code);
+    if (!parent) return false;
+
     session = {
       ...session,
       role: "parent",
-      currentUserId: PARENT_HUHU,
+      currentUserId: parent.id,
     };
     notifySession();
+    return true;
   },
   becomeKeeper() {
     session = { ...session, role: "keeper", currentUserId: KEEPER_YUEQI };
@@ -163,9 +176,11 @@ export const actions = {
     catteryActions.toggleLike(postId);
   },
   addComment(postId: string, content: string) {
-    if (!actions.requireLogin("发表评论需要登录")) return;
+    if (!actions.requireLogin("发表评论需要登录")) return false;
+    if (session.role === "parent" && !isCurrentParentSessionActive()) return false;
+
     const me = getCatteryDataSnapshot().users.find((user) => user.id === session.currentUserId);
-    if (!me) return;
+    if (!me) return false;
     catteryActions.addComment(postId, {
       authorId: me.id,
       authorName: me.name,
@@ -177,6 +192,7 @@ export const actions = {
             : "普通用户",
       content,
     });
+    return true;
   },
   createPost(input: {
     category: Category;
@@ -207,7 +223,7 @@ export const actions = {
   },
   addCat(input: Omit<CommunityCat, "id" | "ownerId"> & { ownerId?: string }) {
     const ownerId = input.ownerId ?? session.currentUserId;
-    if (!ownerId) return;
+    if (!ownerId) return null;
     return catteryActions.addFamilyCat(
       {
         ownerId,
@@ -257,16 +273,18 @@ export const actions = {
     session = { ...session, lightboxOpen: false };
     notifySession();
   },
-  addParent(name: string, code: string) {
-    return catteryActions.addUser(
+  addParent(name: string, code: string, note?: string) {
+    return catteryActions.createParent(
       {
         name,
-        role: "parent",
         inviteCode: code,
-        activatedAt: new Date().toISOString().slice(0, 10),
+        note,
       },
       currentActor(),
     );
+  },
+  updateParent(id: string, patch: { name?: string; inviteCode?: string; note?: string }) {
+    return catteryActions.updateParent(id, patch, currentActor());
   },
   toggleParentActive(id: string) {
     return catteryActions.toggleParentActive(id, currentActor());
@@ -320,4 +338,28 @@ function selectPostsForFacade(data = getCatteryDataSnapshot()): Post[] {
     catIds: post.catIds.includes("chonglou") ? [...post.catIds, "cat-chonglou"] : post.catIds,
     litterIds: post.litterIds?.filter((id) => visibleLitterIds.has(id)),
   }));
+}
+
+function resolveSessionUser(state = getCatteryDataSnapshot()) {
+  return state.users.find((user) => user.id === session.currentUserId) ?? null;
+}
+
+function isCurrentParentSessionActive() {
+  if (session.role !== "parent") return true;
+  return isParentUserActive(resolveSessionUser());
+}
+
+function resolveActivatableParent(code: string) {
+  const normalized = code.trim();
+  if (!normalized) return null;
+
+  const state = getCatteryDataSnapshot();
+  if (normalized === "DEMO") {
+    const preferred = state.users.find((user) => user.id === PARENT_HUHU) ?? null;
+    if (isParentUserActive(preferred)) return preferred;
+    return state.users.find((user) => isParentUserActive(user)) ?? null;
+  }
+
+  const matched = findUserByInviteCode(normalized, state);
+  return isParentUserActive(matched) ? matched : null;
 }
