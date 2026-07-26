@@ -33,19 +33,19 @@ import {
   KITTENS,
   LITTERS,
   statusTone,
-  FORM_ENTRIES,
-  FORM_STATUSES,
-  formStatusTone,
-  type FormEntry,
-  type FormStatus,
   type Kitten,
 } from "@/lib/cattery-data";
 import {
+  QUESTIONNAIRE_SUBMISSION_STATUSES,
   KEEPER_YUEQI,
   catteryActions,
+  questionnaireSubmissionStatusTone,
   selectKittenRecords,
   selectLitterRecords,
+  selectQuestionnaireSubmissions,
   useCattery,
+  type QuestionnaireSubmission,
+  type QuestionnaireSubmissionStatus,
 } from "@/lib/cattery-store";
 import {
   useCommunity,
@@ -55,6 +55,10 @@ import {
   type Post,
   type CommunityCat,
 } from "@/lib/community-store";
+import {
+  QUESTIONNAIRE_FIELD_GROUPS,
+  getQuestionnaireAnswerDisplayValue,
+} from "@/lib/questionnaire-submissions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -148,7 +152,7 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   },
   forms: {
     title: "问卷提交",
-    desc: "查看用户实际提交的选猫问卷答案，并做 Demo 级处理标记。",
+    desc: "查看真实保存到 browser-local cattery-store 的选猫问卷，并管理处理状态与后台备注。",
   },
   community: {
     title: "动态管理",
@@ -295,8 +299,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [aftercareDirty, setAftercareDirty] = useState(false);
   const [questionnaireDirty, setQuestionnaireDirty] = useState(false);
   const [contactDirty, setContactDirty] = useState(false);
-  const [forms, setForms] = useState<FormEntry[]>(FORM_ENTRIES);
-  const [selectedFormId, setSelectedFormId] = useState(FORM_ENTRIES[0]?.id ?? "");
+  const [selectedFormId, setSelectedFormId] = useState("");
   const [selectedParentId, setSelectedParentId] = useState<string>("");
 
   const posts = useCommunity((s) => s.posts);
@@ -305,10 +308,21 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const catteryState = useCattery((snapshot) => snapshot);
   const kittenRecords = selectKittenRecords(catteryState, "all");
   const litterRecords = selectLitterRecords(catteryState, "all");
+  const forms = selectQuestionnaireSubmissions(catteryState);
   const studCount = catteryState.cats.filter((cat) => cat.kind === "stud").length;
   const parentUsers = users.filter((u) => u.role === "parent");
   const selectedParent = parentUsers.find((u) => u.id === selectedParentId) ?? null;
   const selectedForm = forms.find((f) => f.id === selectedFormId) ?? forms[0] ?? null;
+
+  useEffect(() => {
+    if (forms.length === 0) {
+      if (selectedFormId) setSelectedFormId("");
+      return;
+    }
+    if (!forms.some((form) => form.id === selectedFormId)) {
+      setSelectedFormId(forms[0]?.id ?? "");
+    }
+  }, [forms, selectedFormId]);
   const activeDirty =
     section === "home"
       ? homeDirty
@@ -437,9 +451,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setContactDirty(dirty);
   }, []);
 
-  const setFormStatus = (id: string, status: FormStatus) => {
-    setForms((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
-    setNotice(`已将问卷状态模拟更新为「${status}」，刷新后会恢复。`);
+  const setFormStatus = (id: string, status: QuestionnaireSubmissionStatus) => {
+    if (!catteryActions.updateQuestionnaireSubmissionStatus(id, status)) return;
+    setNotice(`已将问卷状态更新为「${status}」。`);
+  };
+
+  const setFormAdminNote = (id: string, adminNote: string) => {
+    catteryActions.updateQuestionnaireSubmissionAdminNote(id, adminNote);
   };
 
   const activeCopy = SECTION_COPY[section];
@@ -523,12 +541,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               onNotice={setNotice}
             />
           )}
-          {section === "forms" && selectedForm && (
+          {section === "forms" && (
             <FormsPanel
               forms={forms}
               selected={selectedForm}
               onSelect={setSelectedFormId}
               onStatus={setFormStatus}
+              onAdminNote={setFormAdminNote}
             />
           )}
           {section === "community" && <CommunityPanel posts={posts} onNotice={setNotice} />}
@@ -820,7 +839,7 @@ function OverviewPanel({
   studCount,
   onJump,
 }: {
-  forms: FormEntry[];
+  forms: QuestionnaireSubmission[];
   posts: Post[];
   users: ParentUser[];
   cats: CommunityCat[];
@@ -1812,6 +1831,13 @@ function getParentToggleLabel(user: ParentUser) {
   return user.activatedAt && user.active !== false ? "停用" : "启用";
 }
 
+function formatSubmittedAt(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function createParentDraft(parent?: ParentUser | null) {
   return {
     name: parent?.name ?? "",
@@ -1828,13 +1854,40 @@ function FormsPanel({
   selected,
   onSelect,
   onStatus,
+  onAdminNote,
 }: {
-  forms: FormEntry[];
-  selected: FormEntry;
+  forms: QuestionnaireSubmission[];
+  selected: QuestionnaireSubmission | null;
   onSelect: (id: string) => void;
-  onStatus: (id: string, status: FormStatus) => void;
+  onStatus: (id: string, status: QuestionnaireSubmissionStatus) => void;
+  onAdminNote: (id: string, adminNote: string) => void;
 }) {
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | QuestionnaireSubmissionStatus>("all");
+  const [noteDraft, setNoteDraft] = useState("");
+
+  useEffect(() => {
+    setNoteDraft(selected?.adminNote ?? "");
+  }, [selected?.adminNote, selected?.id]);
+
+  const filteredForms = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return forms.filter((form) => {
+      if (statusFilter !== "all" && form.status !== statusFilter) return false;
+      if (!normalizedQuery) return true;
+
+      const haystack = [
+        form.answers.name.value,
+        form.answers.phone.value,
+        form.answers.city.value,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [forms, query, statusFilter]);
+
   const selectForm = (id: string) => {
     onSelect(id);
     setMobileDetailOpen(true);
@@ -1843,46 +1896,91 @@ function FormsPanel({
   return (
     <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(400px,1fr)]">
       <Panel className={cn(mobileDetailOpen ? "hidden md:block" : "")}>
-        <PanelTitle title="问卷列表" desc="用户端提交尚未真实入库；此处仍为示例数据。" />
-        <TableShell columns={["提交时间", "姓名", "电话", "城市", "预算", "偏好", "状态", "操作"]}>
-          {forms.map((form) => (
-            <tr key={form.id} className="text-card-foreground">
-              <td className="px-3 py-2.5">{form.time}</td>
-              <td className="px-3 py-2.5 font-semibold text-heading">{form.name}</td>
-              <td className="px-3 py-2.5">{form.phone}</td>
-              <td className="px-3 py-2.5">{form.city}</td>
-              <td className="px-3 py-2.5">{form.budget}</td>
-              <td className="px-3 py-2.5">
-                {form.wantGender} / {form.wantColor}
-              </td>
-              <td className="px-3 py-2.5">
-                <StatusBadge tone={formStatusTone(form.status)}>{form.status}</StatusBadge>
-              </td>
-              <td className="px-3 py-2.5">
-                <ActionButton onClick={() => selectForm(form.id)} tone="quiet">
-                  详情
-                </ActionButton>
-              </td>
-            </tr>
-          ))}
-        </TableShell>
+        <PanelTitle
+          title="问卷列表"
+          desc="真实读取并保存到当前浏览器的 cattery-store；默认按最新提交在前。"
+        />
+        <div className="grid gap-2 border-b border-border/70 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_180px] lg:px-4">
+          <label className="grid gap-1">
+            <span className="text-[11.5px] font-medium text-muted-foreground">
+              按姓名 / 电话 / 城市搜索
+            </span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="输入姓名、电话或城市"
+              className="h-9 rounded-[7px] border border-border bg-background px-3 text-[13px] outline-none focus:border-primary"
+            />
+          </label>
+          <label className="grid gap-1">
+            <span className="text-[11.5px] font-medium text-muted-foreground">处理状态</span>
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as "all" | QuestionnaireSubmissionStatus)
+              }
+              className="h-9 rounded-[7px] border border-border bg-background px-3 text-[13px] outline-none focus:border-primary"
+            >
+              <option value="all">全部状态</option>
+              {QUESTIONNAIRE_SUBMISSION_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {filteredForms.length > 0 ? (
+          <TableShell columns={["提交时间", "姓名", "电话", "城市", "预算", "偏好", "状态", "操作"]}>
+            {filteredForms.map((form) => (
+              <tr key={form.id} className="text-card-foreground">
+                <td className="px-3 py-2.5">{formatSubmittedAt(form.submittedAt)}</td>
+                <td className="px-3 py-2.5 font-semibold text-heading">{form.answers.name.value}</td>
+                <td className="px-3 py-2.5">{form.answers.phone.value}</td>
+                <td className="px-3 py-2.5">{form.answers.city.value}</td>
+                <td className="px-3 py-2.5">
+                  {getQuestionnaireAnswerDisplayValue(form.answers.budget)}
+                </td>
+                <td className="px-3 py-2.5">
+                  {getQuestionnaireAnswerDisplayValue(form.answers.wantGender)} /{" "}
+                  {getQuestionnaireAnswerDisplayValue(form.answers.wantColor)}
+                </td>
+                <td className="px-3 py-2.5">
+                  <StatusBadge tone={questionnaireSubmissionStatusTone(form.status)}>
+                    {form.status}
+                  </StatusBadge>
+                </td>
+                <td className="px-3 py-2.5">
+                  <ActionButton onClick={() => selectForm(form.id)} tone="quiet">
+                    详情
+                  </ActionButton>
+                </td>
+              </tr>
+            ))}
+          </TableShell>
+        ) : (
+          <div className="px-4 py-8 text-[13px] text-muted-foreground">
+            {forms.length === 0 ? "当前还没有问卷提交。" : "没有符合当前搜索或筛选条件的问卷。"}
+          </div>
+        )}
         <div className="md:hidden">
-          {forms.map((form) => (
+          {filteredForms.map((form) => (
             <MobileRecord
               key={form.id}
-              title={form.name}
-              meta={`${form.city} · ${form.phone} · ${form.status}`}
+              title={form.answers.name.value || "未填写姓名"}
+              meta={`${getQuestionnaireAnswerDisplayValue(form.answers.city)} · ${form.answers.phone.value} · ${form.status}`}
               actions={
                 <ActionButton onClick={() => selectForm(form.id)} tone="quiet">
                   详情
                 </ActionButton>
               }
             >
-              <span>预算：{form.budget}</span>
+              <span>提交时间：{formatSubmittedAt(form.submittedAt)}</span>
+              <span>预算：{getQuestionnaireAnswerDisplayValue(form.answers.budget)}</span>
               <span>
-                偏好：{form.wantGender} / {form.wantColor}
+                偏好：{getQuestionnaireAnswerDisplayValue(form.answers.wantGender)} /{" "}
+                {getQuestionnaireAnswerDisplayValue(form.answers.wantColor)}
               </span>
-              <span>状态：{form.status}</span>
             </MobileRecord>
           ))}
         </div>
@@ -1891,37 +1989,76 @@ function FormsPanel({
       <Panel className={cn(!mobileDetailOpen ? "hidden md:block" : "")}>
         <PanelTitle
           title="问卷详情"
-          desc="处理状态只保存在当前 React 会话。"
+          desc="处理状态和后台备注会保存在当前浏览器的本地 cattery-store。"
           action={<BackToListButton onClick={() => setMobileDetailOpen(false)} />}
         />
-        <div className="flex flex-wrap gap-2 border-b border-border/70 px-3 py-2 lg:px-4 lg:py-3">
-          {FORM_STATUSES.map((status) => (
-            <button
-              key={status}
-              onClick={() => onStatus(selected.id, status)}
-              className={cn(
-                "pressable h-7 rounded-[7px] px-2.5 text-[11.5px] font-semibold",
-                selected.status === status
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border bg-background text-muted-foreground",
-              )}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-        <div className="px-3 py-2 lg:px-4 lg:py-3">
-          <FieldLine label="提交时间" value={selected.time} />
-          <FieldLine label="姓名" value={selected.name} />
-          <FieldLine label="电话" value={selected.phone} />
-          <FieldLine label="城市" value={selected.city} />
-          <FieldLine label="养猫经验" value={selected.experience} />
-          <FieldLine label="原住民" value={selected.residents} />
-          <FieldLine label="封窗" value={selected.windowSealed} />
-          <FieldLine label="预算" value={selected.budget} />
-          <FieldLine label="偏好" value={`${selected.wantGender} / ${selected.wantColor}`} />
-          <FieldLine label="科学喂养" value={selected.scientificFeeding} />
-        </div>
+        {!selected ? (
+          <div className="px-4 py-8 text-[13px] text-muted-foreground">请选择一份问卷查看详情。</div>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2 border-b border-border/70 px-3 py-2 lg:px-4 lg:py-3">
+              {QUESTIONNAIRE_SUBMISSION_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => onStatus(selected.id, status)}
+                  className={cn(
+                    "pressable h-7 rounded-[7px] px-2.5 text-[11.5px] font-semibold",
+                    selected.status === status
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-background text-muted-foreground",
+                  )}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+            <div className="px-3 py-2 lg:px-4 lg:py-3">
+              <FieldLine label="提交时间" value={formatSubmittedAt(selected.submittedAt)} />
+              <FieldLine
+                label="处理状态"
+                value={
+                  <StatusBadge tone={questionnaireSubmissionStatusTone(selected.status)}>
+                    {selected.status}
+                  </StatusBadge>
+                }
+              />
+              <div className="border-b border-border/60 py-2.5">
+                <span className="mb-1.5 block text-[12px] text-muted-foreground lg:text-[13px]">
+                  后台备注
+                </span>
+                <textarea
+                  value={noteDraft}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setNoteDraft(next);
+                    onAdminNote(selected.id, next);
+                  }}
+                  rows={4}
+                  placeholder="记录联系情况、补充说明或跟进结果"
+                  className="w-full rounded-[7px] border border-border bg-background px-3 py-2 text-[13px] outline-none focus:border-primary"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  输入后会自动保存在当前浏览器。
+                </p>
+              </div>
+
+              {QUESTIONNAIRE_FIELD_GROUPS.map((group) => (
+                <div key={group.id} className="pt-3">
+                  <p className="mb-1.5 text-[12px] font-semibold text-heading lg:text-[13px]">
+                    {group.title}
+                  </p>
+                  {group.fields.map((fieldKey) => (
+                    <FieldLine
+                      key={fieldKey}
+                      label={selected.answers[fieldKey].questionLabel}
+                      value={getQuestionnaireAnswerDisplayValue(selected.answers[fieldKey])}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </Panel>
     </div>
   );

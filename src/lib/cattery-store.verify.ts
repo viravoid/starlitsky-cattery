@@ -13,10 +13,12 @@ import {
   selectKittenRecords,
   selectLitterRecords,
   selectPosts,
+  selectQuestionnaireSubmissions,
   selectStudRecords,
   subscribeToCatteryData,
   type CatteryData,
 } from "./cattery-store";
+import { cloneQuestionnaireContent } from "./questionnaire-content";
 import {
   deleteEntityImageBlob,
   deleteEntityImageBlobs,
@@ -52,6 +54,221 @@ const tests: TestCase[] = [
       const roundTrip = normalizeCatteryData(JSON.parse(JSON.stringify(data)));
       assert(roundTrip.cats.length === data.cats.length);
       assert(roundTrip.posts.find((post) => post.id === "p-5")?.catIds.includes("chonglou"));
+    },
+  },
+  {
+    name: "questionnaire submission stores full answers and latest-first ordering",
+    run() {
+      resetCatteryDataForTests();
+      const beforeCount = selectQuestionnaireSubmissions().length;
+      const result = catteryActions.submitQuestionnaire({
+        content: cloneQuestionnaireContent(),
+        values: {
+          name: "2026-07-26 浏览器验收 A",
+          gender: "female",
+          phone: "13812345678",
+          age: "29",
+          job: "设计师",
+          city: "上海",
+          experience: "yes",
+          residents: "yes",
+          residentsNeutered: "neutered",
+          hasKids: "no",
+          housing: "owned",
+          windowSealed: "sealed",
+          familyAgree: "allAgree",
+          wantGender: "female",
+          wantColor: "银虎斑",
+          budget: "2w-3w",
+          acceptNeuter: "accept",
+          monthlySpend: "500to1000",
+          scientificFeeding: "accept",
+          acceptActive: "accept",
+          commitment: "accept",
+        },
+      });
+      const submissions = selectQuestionnaireSubmissions();
+      const created = submissions.find((submission) => submission.id === result.id);
+
+      assert(result.created);
+      assert(typeof result.id === "string");
+      assert(submissions.length === beforeCount + 1);
+      assert(submissions[0]?.id === result.id);
+      assert(created?.status === "未查看");
+      assert(created?.answers.name.value === "2026-07-26 浏览器验收 A");
+      assert(created?.answers.gender.type === "choice");
+      assert(created?.answers.gender.value === "female");
+      assert(created?.answers.gender.label === "女");
+      assert(created?.answers.phone.value === "13812345678");
+      assert(created?.answers.residents.value === "yes");
+      assert(created?.answers.residentsNeutered.value === "neutered");
+      assert(created?.answers.wantColor.value === "银虎斑");
+      assert(created?.answers.commitment.value === "accept");
+    },
+  },
+  {
+    name: "questionnaire submission dedupe blocks duplicate same-page triggers but allows new ids",
+    run() {
+      resetCatteryDataForTests();
+      const values = {
+        name: "2026-07-26 浏览器验收 B",
+        gender: "male",
+        phone: "13912345678",
+        age: "31",
+        job: "开发",
+        city: "杭州",
+        experience: "no",
+        residents: "no",
+        residentsNeutered: "neutered",
+        hasKids: "yes",
+        housing: "rentApproved",
+        windowSealed: "canSeal",
+        familyAgree: "allAgree",
+        wantGender: "either",
+        wantColor: "棕虎斑",
+        budget: "1w-2w",
+        acceptNeuter: "accept",
+        monthlySpend: "300to500",
+        scientificFeeding: "needMoreInfo",
+        acceptActive: "accept",
+        commitment: "accept",
+      } as const;
+
+      const first = catteryActions.submitQuestionnaire({
+        content: cloneQuestionnaireContent(),
+        values,
+      });
+      const second = catteryActions.submitQuestionnaire({
+        content: cloneQuestionnaireContent(),
+        values,
+      });
+      const third = catteryActions.submitQuestionnaire({
+        content: cloneQuestionnaireContent(),
+        values: { ...values, budget: "2w-3w" },
+      });
+      const submissions = selectQuestionnaireSubmissions();
+      const firstRecord = submissions.find((submission) => submission.id === first.id);
+
+      assert(first.created);
+      assert(!second.created);
+      assert(first.id === second.id);
+      assert(third.created);
+      assert(third.id !== first.id);
+      assert(submissions.filter((submission) => submission.answers.name.value === values.name).length === 2);
+      assert(firstRecord?.answers.residents.value === "no");
+      assert(firstRecord?.answers.residentsNeutered.value === "");
+    },
+  },
+  {
+    name: "questionnaire status note and refresh compatibility persist in browser-local storage",
+    run() {
+      withWindowObject(
+        {
+          localStorage: createStorage(null),
+          dispatchEvent() {},
+          addEventListener() {},
+          removeEventListener() {},
+        },
+        () => {
+          resetCatteryDataForTests();
+          const created = catteryActions.submitQuestionnaire({
+            content: cloneQuestionnaireContent(),
+            values: {
+              name: "2026-07-26 浏览器验收 C",
+              gender: "female",
+              phone: "13712345678",
+              age: "27",
+              job: "运营",
+              city: "南京",
+              experience: "yes",
+              residents: "yes",
+              residentsNeutered: "partiallyNeutered",
+              hasKids: "no",
+              housing: "owned",
+              windowSealed: "sealed",
+              familyAgree: "allAgree",
+              wantGender: "currentCat",
+              wantColor: "都可以",
+              budget: "可根据小猫情况沟通",
+              acceptNeuter: "accept",
+              monthlySpend: "over1000",
+              scientificFeeding: "accept",
+              acceptActive: "needMoreInfo",
+              commitment: "accept",
+            },
+          });
+          assert(catteryActions.updateQuestionnaireSubmissionStatus(created.id, "已联系"));
+          assert(
+            catteryActions.updateQuestionnaireSubmissionAdminNote(
+              created.id,
+              "2026-07-26 18:30 已电话联系，等待补充视频。",
+            ),
+          );
+
+          const stored = loadSavedCatteryData();
+          const storedRecord = stored.questionnaireSubmissions.find(
+            (submission) => submission.id === created.id,
+          );
+          assert(storedRecord?.status === "已联系");
+          assert(storedRecord?.adminNote === "2026-07-26 18:30 已电话联系，等待补充视频。");
+
+          resetCatteryDataForTests();
+          assert(
+            !selectQuestionnaireSubmissions().some((submission) => submission.id === created.id),
+          );
+          hydrateCatteryDataFromStorage();
+          const rehydrated = selectQuestionnaireSubmissions().find(
+            (submission) => submission.id === created.id,
+          );
+          assert(rehydrated?.status === "已联系");
+          assert(rehydrated?.adminNote === "2026-07-26 18:30 已电话联系，等待补充视频。");
+        },
+      );
+    },
+  },
+  {
+    name: "missing questionnaire field backfills safely without dropping other saved data",
+    run() {
+      const base = cloneDefaultCatteryData();
+      const raw: Partial<CatteryData> = {
+        version: 1,
+        users: [...base.users, { id: "parent-questionnaire", name: "Questionnaire 家长", role: "parent" }],
+        cats: [
+          ...base.cats,
+          {
+            id: "cat-questionnaire",
+            kind: "family",
+            name: "Questionnaire Cat",
+            ownerId: "parent-questionnaire",
+            galleryImageIds: [],
+            visibility: "visible",
+          },
+        ],
+        litters: base.litters,
+        posts: [
+          ...base.posts,
+          {
+            id: "p-questionnaire",
+            authorId: "parent-questionnaire",
+            authorName: "Questionnaire 家长",
+            authorRole: "星月家长",
+            category: "家长分享",
+            content: "Questionnaire post preserved",
+            imageCount: 0,
+            catIds: ["cat-questionnaire"],
+            createdAt: "2026-07-20T10:00:00",
+            likes: 0,
+            likedByMe: false,
+            comments: [],
+          },
+        ],
+      };
+
+      const migrated = normalizeCatteryData(raw);
+      assert(migrated.questionnaireSubmissions.length === base.questionnaireSubmissions.length);
+      assert(migrated.users.some((user) => user.id === "parent-questionnaire"));
+      assert(migrated.cats.some((cat) => cat.id === "cat-questionnaire"));
+      assert(migrated.posts.some((post) => post.id === "p-questionnaire"));
     },
   },
   {
