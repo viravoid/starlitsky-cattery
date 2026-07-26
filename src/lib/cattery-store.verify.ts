@@ -3,21 +3,29 @@ import {
   catteryActions,
   cloneDefaultCatteryData,
   getCatteryDataSnapshot,
+  hydrateCatteryDataFromStorage,
   loadSavedCatteryData,
   normalizeCatteryData,
   resetCatteryDataForTests,
   resolveCatId,
   resolveLitterId,
   saveCatteryData,
+  selectKittenRecords,
+  selectLitterRecords,
   selectPosts,
   subscribeToCatteryData,
   type CatteryData,
 } from "./cattery-store";
 import {
+  deleteEntityImageBlob,
+  deleteEntityImageBlobs,
+  deleteEntityImagesForEntity,
   deleteCatImageBlob,
   deleteCatImageBlobs,
   deleteCatImagesForCat,
+  getEntityImageBlob,
   getCatImageBlob,
+  saveEntityImage,
   saveCatImage,
 } from "./cattery-images";
 import { actions as communityActions } from "./community-store";
@@ -54,6 +62,43 @@ const tests: TestCase[] = [
         assert(data.version === 1);
         assert(storage.value === "{bad json");
       });
+    },
+  },
+  {
+    name: "hydrate helper loads saved cattery snapshot",
+    run() {
+      resetCatteryDataForTests();
+      const saved = cloneDefaultCatteryData();
+      saved.cats.push({
+        id: "kitten-hydrated",
+        kind: "kitten",
+        name: "Hydrated Kitten",
+        gender: "妹妹",
+        color: "银虎斑白",
+        birthday: "2026-07-26",
+        personality: "hydrated",
+        galleryImageIds: [],
+        visibility: "visible",
+        kitten: {
+          status: "待找家",
+          price: "16666",
+          litterId: "litter-a",
+        },
+      });
+
+      withWindowObject(
+        {
+          localStorage: createStorage(JSON.stringify(saved)),
+          dispatchEvent() {},
+          addEventListener() {},
+          removeEventListener() {},
+        },
+        () => {
+          assert(!getCatteryDataSnapshot().cats.some((cat) => cat.id === "kitten-hydrated"));
+          hydrateCatteryDataFromStorage();
+          assert(getCatteryDataSnapshot().cats.some((cat) => cat.id === "kitten-hydrated"));
+        },
+      );
     },
   },
   {
@@ -632,6 +677,84 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "keeper kitten and litter actions update persisted records and public selectors",
+    run() {
+      resetCatteryDataForTests();
+      const keeper = { role: "keeper" as const, currentUserId: "keeper-yueqi" };
+      const litterId = catteryActions.addLitter(
+        {
+          name: "D窝",
+          birthDate: "2026-07-20",
+          status: "待开放",
+          note: "new litter",
+        },
+        keeper,
+      );
+      assert(typeof litterId === "string");
+
+      const kittenId = catteryActions.addKitten(
+        {
+          name: "星点",
+          gender: "弟弟",
+          color: "黑银虎斑",
+          birthday: "2026-07-21",
+          ownerId: "parent-toast",
+          personality: "好奇",
+          story: ["初次建档"],
+          kitten: {
+            status: "待找家",
+            price: "22000",
+            litterId,
+            fatherId: "jasper",
+            motherId: "aurora",
+          },
+        },
+        keeper,
+      );
+      assert(typeof kittenId === "string");
+      assert(
+        catteryActions.updateKitten(
+          kittenId,
+          {
+            visibility: "hidden",
+            kitten: {
+              status: "找家中",
+              price: "24000",
+              litterId,
+              fatherId: "jasper",
+              motherId: "aurora",
+            },
+          },
+          keeper,
+        ) === true,
+      );
+      assert(
+        catteryActions.updateLitter(
+          litterId,
+          { status: "成长记录中", note: "updated note", visibility: "hidden" },
+          keeper,
+        ) === true,
+      );
+      assert(catteryActions.setCatVisibility(kittenId, "archived", keeper) === true);
+      assert(catteryActions.setLitterVisibility(litterId, "hidden", keeper) === true);
+
+      const snapshot = getCatteryDataSnapshot();
+      const kitten = snapshot.cats.find((cat) => cat.id === kittenId);
+      const litter = snapshot.litters.find((item) => item.id === litterId);
+      assert(kitten?.kind === "kitten");
+      assert(kitten?.visibility === "archived");
+      assert(kitten?.kitten?.status === "找家中");
+      assert(kitten?.kitten?.price === "24000");
+      assert(kitten?.kitten?.litterId === litterId);
+      assert(litter?.status === "成长记录中");
+      assert(litter?.visibility === "hidden");
+      assert(!selectKittenRecords(snapshot).some((item) => item.id === kittenId));
+      assert(!selectLitterRecords(snapshot).some((item) => item.id === litterId));
+      assert(selectKittenRecords(snapshot, "all").some((item) => item.id === kittenId));
+      assert(selectLitterRecords(snapshot, "all").some((item) => item.id === litterId));
+    },
+  },
+  {
     name: "IndexedDB open blocked rejects",
     async run() {
       await withWindowObject(
@@ -900,7 +1023,15 @@ function createFakeIndexedDb(
         createObjectStore() {
           initialized = true;
           return {
+            indexNames: {
+              contains() {
+                return false;
+              },
+            },
             createIndex() {},
+            openCursor() {
+              return successRequest(null, () => {});
+            },
           };
         },
         transaction() {
@@ -924,6 +1055,11 @@ function createFakeIndexedDb(
                 });
 
               return {
+                indexNames: {
+                  contains(name: string) {
+                    return name === "catId" || name === "entityKey";
+                  },
+                },
                 put(record: { id: string }) {
                   records.set(record.id, record);
                   return requestSuccess(record);
@@ -935,16 +1071,20 @@ function createFakeIndexedDb(
                   records.delete(id);
                   return requestSuccess(undefined);
                 },
-                index() {
+                index(indexName: string) {
                   return {
-                    getAll(catId: string) {
+                    getAll(value: string) {
                       return requestSuccess(
                         [...records.values()].filter(
                           (record) =>
                             typeof record === "object" &&
                             record !== null &&
-                            "catId" in record &&
-                            record.catId === catId,
+                            ((indexName === "entityKey" &&
+                              "entityKey" in record &&
+                              record.entityKey === value) ||
+                              (indexName === "catId" &&
+                                "catId" in record &&
+                                record.catId === value)),
                         ),
                       );
                     },

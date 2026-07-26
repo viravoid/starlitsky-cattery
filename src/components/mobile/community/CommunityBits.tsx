@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Placeholder, Pill } from "../ui";
 import {
@@ -11,13 +11,14 @@ import {
   PawIcon,
   PawFillIcon,
 } from "../icons";
+import { actions, categoryTone, formatTime, useCommunity, type Post } from "@/lib/community-store";
 import {
-  actions,
-  categoryTone,
-  formatTime,
-  useCommunity,
-  type Post,
-} from "@/lib/community-store";
+  resolveCatId,
+  selectKittenRecords,
+  selectLitterRecords,
+  selectStuds,
+  useCattery,
+} from "@/lib/cattery-store";
 
 /* ── CatAvatar — the only face on this page ────────────── */
 export function CatAvatar({
@@ -69,12 +70,7 @@ export function PostImages({ count, postId }: { count: number; postId: string })
           onClick={() => actions.openLightbox(count, i)}
           className="pressable overflow-hidden rounded-xl"
         >
-          <Placeholder
-            label="示例图片"
-            ratio="aspect-square"
-            rounded="rounded-xl"
-            compact
-          />
+          <Placeholder label="示例图片" ratio="aspect-square" rounded="rounded-xl" compact />
         </button>
       ))}
     </div>
@@ -82,18 +78,29 @@ export function PostImages({ count, postId }: { count: number; postId: string })
 }
 
 /* ── Post card — light, no author avatar ──────────────── */
-export function PostCard({
-  post,
-  showActions = true,
-}: {
-  post: Post;
-  showActions?: boolean;
-}) {
-  const cats = useCommunity((s) => s.cats);
-  const linkedCats = post.catIds
-    .map((id) => cats.find((c) => c.id === id))
+export function PostCard({ post, showActions = true }: { post: Post; showActions?: boolean }) {
+  const familyCats = useCommunity((s) => s.cats);
+  const catteryState = useCattery((snapshot) => snapshot);
+  const kittens = useMemo(() => selectKittenRecords(catteryState), [catteryState]);
+  const studs = useMemo(() => selectStuds(catteryState), [catteryState]);
+  const litters = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
+  const catLookup = useMemo(() => {
+    const next = new Map<string, { id: string; name: string }>();
+    [...familyCats, ...kittens, ...studs].forEach((cat) => {
+      next.set(resolveCatId(cat.id), { id: resolveCatId(cat.id), name: cat.name });
+    });
+    return next;
+  }, [familyCats, kittens, studs]);
+  const litterLookup = useMemo(
+    () => new Map(litters.map((litter) => [litter.id, litter.name])),
+    [litters],
+  );
+  const linkedCats = Array.from(new Set(post.catIds.map((id) => resolveCatId(id))))
+    .map((id) => catLookup.get(id))
     .filter(Boolean) as { id: string; name: string }[];
-  const linkedLitters = post.litterIds ?? [];
+  const linkedLitters = (post.litterIds ?? [])
+    .map((id) => ({ id, name: litterLookup.get(id) }))
+    .filter((item): item is { id: string; name: string } => Boolean(item.name));
 
   const role = post.authorRole === "猫舍主理人" ? "keeper" : "parent";
 
@@ -106,11 +113,11 @@ export function PostCard({
             <span className="truncate text-[13.5px] font-semibold text-heading">
               {post.authorName}
             </span>
-            <Pill tone={role === "keeper" ? "violet" : "creamblue"}>
-              {post.authorRole}
-            </Pill>
+            <Pill tone={role === "keeper" ? "violet" : "creamblue"}>{post.authorRole}</Pill>
             {post.pinned && (
-              <span className="rounded-full bg-[#fff0c4] px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-[#b48725]">置顶</span>
+              <span className="rounded-full bg-[#fff0c4] px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-[#b48725]">
+                置顶
+              </span>
             )}
           </div>
           <p className="mt-0.5 text-[11px] text-warm">{formatTime(post.createdAt)}</p>
@@ -121,11 +128,7 @@ export function PostCard({
       </header>
 
       {/* body */}
-      <Link
-        to="/community/post/$id"
-        params={{ id: post.id }}
-        className="pressable block"
-      >
+      <Link to="/community/post/$id" params={{ id: post.id }} className="pressable block">
         <p className="whitespace-pre-line text-[14px] leading-[1.75] text-card-foreground">
           {post.content}
         </p>
@@ -147,13 +150,14 @@ export function PostCard({
             </Link>
           ))}
           {linkedLitters.map((litter) => (
-            <Pill
-              key={`${post.id}-${litter}`}
-              tone="sunny"
-              className="px-3 py-1 text-[12px] font-medium"
+            <Link
+              key={`${post.id}-${litter.id}`}
+              to="/community/litter/$id"
+              params={{ id: litter.id }}
+              className="pressable inline-flex items-center rounded-full bg-[#f9f0d4] px-3 py-1 text-[12px] font-medium text-[#b48725]"
             >
-              {litter}
-            </Pill>
+              {litter.name}
+            </Link>
           ))}
         </div>
       )}
@@ -169,11 +173,7 @@ export function PostCard({
             }`}
             aria-label="爪印"
           >
-            {post.likedByMe ? (
-              <PawFillIcon className="h-4 w-4" />
-            ) : (
-              <PawIcon className="h-4 w-4" />
-            )}
+            {post.likedByMe ? <PawFillIcon className="h-4 w-4" /> : <PawIcon className="h-4 w-4" />}
             <span>{post.likes}</span>
           </button>
           <Link

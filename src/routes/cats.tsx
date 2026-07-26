@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { z } from "zod";
@@ -5,21 +6,21 @@ import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
 import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
 import { CurledCat } from "@/components/mobile/illustrations";
+import { statusTone, type StudCategory } from "@/lib/cattery-data";
+import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
 import {
-  KITTENS,
-  STUDS,
-  LITTERS,
-  statusTone,
-  type StudCategory,
-  type Litter,
-} from "@/lib/cattery-data";
+  selectKittenRecords,
+  selectLitterRecords,
+  selectStuds,
+  useCattery,
+} from "@/lib/cattery-store";
 
 const searchSchema = z
   .object({
     tab: z.enum(["kittens", "studs"]).optional(),
     kittenFilter: z.enum(["待找家", "找家中", "已有家"]).optional(),
     studFilter: z.enum(["现役公猫", "现役母猫", "预备役种猫"]).optional(),
-    litter: z.enum(["A窝", "B窝", "C窝"]).optional(),
+    litter: z.string().optional(),
     litterOpen: z.boolean().optional(),
   })
   .catch({});
@@ -42,11 +43,7 @@ export const Route = createFileRoute("/cats")({
 });
 
 const KITTEN_FILTERS = ["待找家", "找家中", "已有家"] as const;
-const STUD_FILTERS: StudCategory[] = [
-  "现役公猫",
-  "现役母猫",
-  "预备役种猫",
-];
+const STUD_FILTERS: StudCategory[] = ["现役公猫", "现役母猫", "预备役种猫"];
 
 function Meta({ k, v }: { k: string; v: string }) {
   return (
@@ -59,6 +56,7 @@ function Meta({ k, v }: { k: string; v: string }) {
 
 /** One shared card layout used for both kittens and studs. */
 function CatCard({
+  imageUrl,
   imageLabel,
   pill,
   litter,
@@ -67,6 +65,7 @@ function CatCard({
   to,
   params,
 }: {
+  imageUrl?: string;
   imageLabel: string;
   pill: { text: string; tone: string };
   litter?: string;
@@ -82,16 +81,20 @@ function CatCard({
       className="pressable block overflow-hidden rounded-3xl border border-border bg-card shadow-card"
     >
       <div className="relative">
-        <Placeholder label={imageLabel} ratio="aspect-[16/10]" rounded="rounded-none" />
+        {imageUrl ? (
+          <div className="aspect-[16/10] overflow-hidden rounded-none bg-card">
+            <img src={imageUrl} alt="" className="h-full w-full object-cover" draggable={false} />
+          </div>
+        ) : (
+          <Placeholder label={imageLabel} ratio="aspect-[16/10]" rounded="rounded-none" />
+        )}
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
           <Pill tone={pill.tone}>{pill.text}</Pill>
           {litter && <Pill tone="sunny">{litter}</Pill>}
         </div>
       </div>
       <div className="space-y-2.5 p-4">
-        <h3 className="text-[15px] font-semibold leading-snug text-heading">
-          {name}
-        </h3>
+        <h3 className="text-[15px] font-semibold leading-snug text-heading">{name}</h3>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
           {meta.map((m) => (
             <Meta key={m.k} k={m.k} v={m.v} />
@@ -108,12 +111,24 @@ function CatCard({
 function Cats() {
   const search = useSearch({ from: "/cats" });
   const navigate = useNavigate({ from: "/cats" });
+  const catteryState = useCattery((snapshot) => snapshot);
+  const kittenRecords = useMemo(() => selectKittenRecords(catteryState), [catteryState]);
+  const litterRecords = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
+  const studList = useMemo(() => selectStuds(catteryState), [catteryState]);
 
   const tab = search.tab ?? "kittens";
   const kFilter = search.kittenFilter ?? "待找家";
   const sFilter = search.studFilter ?? "现役公猫";
   const litter = search.litter ?? "全部";
   const litterOpen = search.litterOpen ?? false;
+  const litterOptions = useMemo(
+    () => litterRecords.map((item) => ({ value: item.id, label: item.name })),
+    [litterRecords],
+  );
+  const activeLitterLabel =
+    litter === "全部"
+      ? "全部"
+      : (litterOptions.find((item) => item.value === litter)?.label ?? "全部");
 
   const setTab = (t: "kittens" | "studs") =>
     navigate({ search: (prev: CatsSearch) => ({ ...prev, tab: t }) });
@@ -121,15 +136,24 @@ function Cats() {
     navigate({ search: (prev: CatsSearch) => ({ ...prev, kittenFilter: f }) });
   const setSFilter = (f: StudCategory) =>
     navigate({ search: (prev: CatsSearch) => ({ ...prev, studFilter: f }) });
-  const setLitter = (l: Litter | "全部") =>
-    navigate({ search: (prev: CatsSearch) => ({ ...prev, litter: l === "全部" ? undefined : l, litterOpen: false }) });
+  const setLitter = (l: string | "全部") =>
+    navigate({
+      search: (prev: CatsSearch) => ({
+        ...prev,
+        litter: l === "全部" ? undefined : l,
+        litterOpen: false,
+      }),
+    });
   const setLitterOpen = (open: boolean) =>
     navigate({ search: (prev: CatsSearch) => ({ ...prev, litterOpen: open }) });
 
-  const kittenList = KITTENS.filter(
-    (k) => k.status === kFilter && (litter === "全部" || k.litter === litter),
+  const kittenList = kittenRecords.filter(
+    (kitten) => kitten.status === kFilter && (litter === "全部" || kitten.litterId === litter),
   );
-  const studList = STUDS.filter((s) => s.category === sFilter);
+  const filteredStuds = studList.filter((stud) => stud.category === sFilter);
+  const kittenImageUrls = useCatteryImageUrls(
+    kittenList.map((kitten) => kitten.coverImageId).filter(Boolean),
+  );
 
   return (
     <PhoneFrame
@@ -148,9 +172,7 @@ function Cats() {
     >
       {/* Header */}
       <div className="px-5 pb-1 pt-4">
-        <p className="font-display text-[11px] uppercase tracking-[0.3em] text-warm">
-          Our Cats
-        </p>
+        <p className="font-display text-[11px] uppercase tracking-[0.3em] text-warm">Our Cats</p>
         <h1 className="mt-1 text-[22px] font-bold text-heading">我们的猫</h1>
       </div>
 
@@ -223,14 +245,11 @@ function Cats() {
               style={{
                 backgroundColor: litter === "全部" ? "#fffdf8" : "#f9f0d4",
                 color: litter === "全部" ? "#6b8db3" : "#b48725",
-                border:
-                  litter === "全部"
-                    ? "1px solid #e8dfcf"
-                    : "1px solid #e7c15d",
+                border: litter === "全部" ? "1px solid #e8dfcf" : "1px solid #e7c15d",
               }}
               aria-expanded={litterOpen}
             >
-              窝次{litter === "全部" ? "" : `：${litter}`}
+              窝次{litter === "全部" ? "" : `：${activeLitterLabel}`}
               <ChevronDown
                 className="h-3.5 w-3.5 transition-transform"
                 style={{
@@ -248,7 +267,9 @@ function Cats() {
         <Section className="mb-6 mt-2 space-y-4">
           {litterOpen && (
             <div className="flex flex-wrap gap-2">
-              {(["全部", ...LITTERS] as const).map((l) => {
+              {(["全部", ...litterOptions.map((item) => item.value)] as const).map((l) => {
+                const label =
+                  l === "全部" ? l : (litterOptions.find((item) => item.value === l)?.label ?? l);
                 const on = litter === l;
                 return (
                   <button
@@ -269,7 +290,7 @@ function Cats() {
                           }
                     }
                   >
-                    {l}
+                    {label}
                   </button>
                 );
               })}
@@ -284,9 +305,10 @@ function Cats() {
             kittenList.map((k) => (
               <CatCard
                 key={k.id}
+                imageUrl={k.coverImageId ? kittenImageUrls[k.coverImageId] : undefined}
                 imageLabel="示例图片（小猫照片，待替换）"
                 pill={{ text: k.status, tone: statusTone(k.status) }}
-                litter={k.litter}
+                litter={k.litterName}
                 name={k.name}
                 meta={[
                   { k: "性别", v: k.gender },
@@ -308,12 +330,10 @@ function Cats() {
           {studList.length === 0 ? (
             <div className="mt-16 flex flex-col items-center gap-3 text-center">
               <CurledCat className="h-14 w-14 text-warm" />
-              <p className="text-[13px] text-muted-foreground">
-                示例文字（缺少「{sFilter}」资料）
-              </p>
+              <p className="text-[13px] text-muted-foreground">示例文字（缺少「{sFilter}」资料）</p>
             </div>
           ) : (
-            studList.map((s) => (
+            filteredStuds.map((s) => (
               <CatCard
                 key={s.id}
                 imageLabel="示例图片（种猫照片，待替换）"

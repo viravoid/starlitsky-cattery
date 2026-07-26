@@ -6,6 +6,7 @@ import { ContactContentPanel } from "@/components/admin/ContactContentPanel";
 import { EnvironmentContentPanel } from "@/components/admin/EnvironmentContentPanel";
 import { FeedingContentPanel } from "@/components/admin/FeedingContentPanel";
 import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
+import { KittenLitterManagementPanel } from "@/components/admin/KittenLitterManagementPanel";
 import { PhilosophyContentPanel } from "@/components/admin/PhilosophyContentPanel";
 import { BreedingPlanContentPanel } from "@/components/admin/BreedingPlanContentPanel";
 import { QuestionnaireContentPanel } from "@/components/admin/QuestionnaireContentPanel";
@@ -40,6 +41,7 @@ import {
   type Kitten,
   type Stud,
 } from "@/lib/cattery-data";
+import { selectKittenRecords, selectLitterRecords, useCattery } from "@/lib/cattery-store";
 import {
   useCommunity,
   actions as communityActions,
@@ -129,7 +131,7 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   },
   kittens: {
     title: "小猫",
-    desc: "统一管理小猫列表与窝次管理；当前仍为视觉 Demo。",
+    desc: "统一管理小猫与窝次，保存后会同步写入本地 cattery-store。",
   },
   studs: {
     title: "种猫",
@@ -290,6 +292,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const posts = useCommunity((s) => s.posts);
   const users = useCommunity((s) => s.users);
   const cats = useCommunity((s) => s.cats);
+  const catteryState = useCattery((snapshot) => snapshot);
+  const kittenRecords = selectKittenRecords(catteryState, "all");
+  const litterRecords = selectLitterRecords(catteryState, "all");
+  const studCount = catteryState.cats.filter((cat) => cat.kind === "stud").length;
   const parentUsers = users.filter((u) => u.role === "parent");
   const selectedParent = parentUsers.find((u) => u.id === selectedParentId) ?? null;
   const selectedForm = forms.find((f) => f.id === selectedFormId) ?? forms[0] ?? null;
@@ -489,12 +495,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               posts={posts}
               users={parentUsers}
               cats={cats}
+              kittenRecords={kittenRecords}
+              litterRecords={litterRecords}
+              studCount={studCount}
               onJump={selectSection}
             />
           )}
-          {section === "kittens" && (
-            <KittensPanel onNotice={setNotice} posts={posts} users={parentUsers} />
-          )}
+          {section === "kittens" && <KittenLitterManagementPanel onNotice={setNotice} />}
           {section === "studs" && <StudsPanel onNotice={setNotice} />}
           {section === "parents" && (
             <ParentsPanel
@@ -798,23 +805,29 @@ function OverviewPanel({
   posts,
   users,
   cats,
+  kittenRecords,
+  litterRecords,
+  studCount,
   onJump,
 }: {
   forms: FormEntry[];
   posts: Post[];
   users: ParentUser[];
   cats: CommunityCat[];
+  kittenRecords: ReturnType<typeof selectKittenRecords>;
+  litterRecords: ReturnType<typeof selectLitterRecords>;
+  studCount: number;
   onJump: (key: SectionKey) => void;
 }) {
   const stats = [
-    { label: "小猫总数", value: KITTENS.length, target: "kittens" as const },
+    { label: "小猫总数", value: kittenRecords.length, target: "kittens" as const },
     {
       label: "待找家",
-      value: KITTENS.filter((k) => k.status === "待找家").length,
+      value: kittenRecords.filter((kitten) => kitten.status === "待找家").length,
       target: "kittens" as const,
     },
-    { label: "种猫数量", value: STUDS.length, target: "studs" as const },
-    { label: "窝次数", value: LITTERS.length, target: "kittens" as const },
+    { label: "种猫数量", value: studCount, target: "studs" as const },
+    { label: "窝次数", value: litterRecords.length, target: "kittens" as const },
     { label: "家长数", value: users.length, target: "parents" as const },
     { label: "家长猫咪", value: cats.length, target: "parents" as const },
     { label: "问卷数", value: forms.length, target: "forms" as const },

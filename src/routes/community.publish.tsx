@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Placeholder, Pill } from "@/components/mobile/ui";
 import { PlusIcon, XIcon, CatIcon } from "@/components/mobile/icons";
+import { actions, useCommunity, CATEGORIES, type Category } from "@/lib/community-store";
 import {
-  actions,
-  useCommunity,
-  CATEGORIES,
-  type Category,
-} from "@/lib/community-store";
-import { LITTERS } from "@/lib/cattery-data";
+  resolveCatId,
+  selectKittenRecords,
+  selectLitterRecords,
+  selectStuds,
+  useCattery,
+} from "@/lib/cattery-store";
 
 function getLinkedOptionClass(selected: boolean) {
   return selected
@@ -27,15 +28,30 @@ function Publish() {
   const role = useCommunity((s) => s.role);
   const currentUserId = useCommunity((s) => s.currentUserId);
   const cats = useCommunity((s) => s.cats);
+  const catteryState = useCattery((snapshot) => snapshot);
+  const publicKittens = useMemo(() => selectKittenRecords(catteryState), [catteryState]);
+  const publicStuds = useMemo(() => selectStuds(catteryState), [catteryState]);
+  const litterOptions = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
 
   const canPost = role === "keeper" || role === "parent";
-  const [category, setCategory] = useState<Category>(
-    role === "parent" ? "家长分享" : "猫舍日常",
-  );
+  const [category, setCategory] = useState<Category>(role === "parent" ? "家长分享" : "猫舍日常");
   const [content, setContent] = useState("");
   const [imageCount, setImageCount] = useState(0);
   const [catIds, setCatIds] = useState<string[]>([]);
   const [litterIds, setLitterIds] = useState<string[]>([]);
+  const selectableCats = useMemo(() => {
+    if (role !== "keeper") {
+      return cats.filter((cat) => cat.ownerId === currentUserId);
+    }
+    const lookup = new Map<string, { id: string; name: string }>();
+    [...cats, ...publicKittens, ...publicStuds].forEach((cat) => {
+      const canonicalId = resolveCatId(cat.id);
+      if (!lookup.has(canonicalId)) {
+        lookup.set(canonicalId, { id: canonicalId, name: cat.name });
+      }
+    });
+    return Array.from(lookup.values());
+  }, [cats, currentUserId, publicKittens, publicStuds, role]);
 
   if (!canPost) {
     return (
@@ -46,10 +62,6 @@ function Publish() {
       </PhoneFrame>
     );
   }
-
-  const selectableCats = cats.filter((c) =>
-    role === "keeper" ? true : c.ownerId === currentUserId,
-  );
 
   const toggleCat = (id: string) =>
     setCatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -71,8 +83,7 @@ function Publish() {
     if (id) navigate({ to: "/community/post/$id", params: { id } });
   };
 
-  const availableCategories =
-    role === "keeper" ? CATEGORIES : (["家长分享", "碎碎念"] as const);
+  const availableCategories = role === "keeper" ? CATEGORIES : (["家长分享", "碎碎念"] as const);
 
   return (
     <PhoneFrame title="发布动态" showBack>
@@ -111,9 +122,7 @@ function Publish() {
 
         {/* images */}
         <div>
-          <p className="mb-2 text-[12.5px] font-semibold text-heading">
-            照片 · {imageCount}/9
-          </p>
+          <p className="mb-2 text-[12.5px] font-semibold text-heading">照片 · {imageCount}/9</p>
           <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: imageCount }).map((_, i) => (
               <div key={i} className="relative">
@@ -159,9 +168,9 @@ function Publish() {
                   <button
                     key={c.id}
                     onClick={() => toggleCat(c.id)}
-                    className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${
-                      getLinkedOptionClass(on)
-                    }`}
+                    className={`pressable inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] ${getLinkedOptionClass(
+                      on,
+                    )}`}
                   >
                     <CatIcon className="h-3.5 w-3.5" />
                     {c.name}
@@ -174,27 +183,24 @@ function Publish() {
 
         {/* linked litter */}
         <div>
-          <p className="mb-2 text-[12.5px] font-semibold text-heading">
-            关联窝次 · 可选
-          </p>
+          <p className="mb-2 text-[12.5px] font-semibold text-heading">关联窝次 · 可选</p>
           <div className="flex flex-wrap gap-2">
-            {LITTERS.map((l) => {
-              const on = litterIds.includes(l);
+            {litterOptions.map((litter) => {
+              const on = litterIds.includes(litter.id);
               return (
                 <button
-                  key={l}
-                  onClick={() => toggleLitter(l)}
-                  className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${
-                    getLinkedOptionClass(on)
-                  }`}
+                  key={litter.id}
+                  onClick={() => toggleLitter(litter.id)}
+                  className={`pressable rounded-full px-3 py-1.5 text-[12.5px] ${getLinkedOptionClass(
+                    on,
+                  )}`}
                 >
-                  {l}
+                  {litter.name}
                 </button>
               );
             })}
           </div>
         </div>
-
 
         <div className="text-[11px] leading-relaxed text-warm">
           <Pill tone="warm">发布须知</Pill>

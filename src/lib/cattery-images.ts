@@ -1,18 +1,23 @@
 const DB_NAME = "starlitsky-cattery";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const IMAGE_STORE = "cat-images";
 
-export type CatImageSlot = "cover" | "gallery";
+export type EntityImageType = "cat" | "litter";
+export type EntityImageSlot = "cover" | "gallery";
+export type CatImageSlot = EntityImageSlot;
 
-export interface CatImageRecord {
+export interface EntityImageRecord {
   id: string;
-  catId: string;
-  slot: CatImageSlot;
+  entityType: EntityImageType;
+  entityId: string;
+  entityKey: string;
+  slot: EntityImageSlot;
   name: string;
   type: string;
   size: number;
   updatedAt: string;
   blob: Blob;
+  catId?: string;
 }
 
 function isBrowser() {
@@ -39,9 +44,50 @@ function openImageDb(): Promise<IDBDatabase> {
       request = window.indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
-        if (!db.objectStoreNames.contains(IMAGE_STORE)) {
-          const store = db.createObjectStore(IMAGE_STORE, { keyPath: "id" });
+        const store = db.objectStoreNames.contains(IMAGE_STORE)
+          ? request.transaction?.objectStore(IMAGE_STORE)
+          : db.createObjectStore(IMAGE_STORE, { keyPath: "id" });
+        if (!store) return;
+
+        if (!store.indexNames.contains("catId")) {
           store.createIndex("catId", "catId", { unique: false });
+        }
+        if (!store.indexNames.contains("entityKey")) {
+          store.createIndex("entityKey", "entityKey", { unique: false });
+        }
+
+        if (request.transaction && request.transaction.mode === "versionchange") {
+          store.openCursor().onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
+            if (!cursor) return;
+            const value = cursor.value as Partial<EntityImageRecord> & { catId?: string };
+            if (!value || typeof value !== "object") {
+              cursor.continue();
+              return;
+            }
+            const entityType = value.entityType === "litter" ? "litter" : "cat";
+            const entityId =
+              typeof value.entityId === "string" && value.entityId
+                ? value.entityId
+                : typeof value.catId === "string" && value.catId
+                  ? value.catId
+                  : "";
+            if (entityId) {
+              cursor.update({
+                ...value,
+                entityType,
+                entityId,
+                entityKey: createEntityKey(entityType, entityId),
+                catId:
+                  entityType === "cat"
+                    ? typeof value.catId === "string" && value.catId
+                      ? value.catId
+                      : entityId
+                    : value.catId,
+              });
+            }
+            cursor.continue();
+          };
         }
       };
       request.onsuccess = () => {
@@ -119,28 +165,36 @@ function toError(error: unknown, fallbackMessage: string) {
   return error instanceof Error ? error : new Error(fallbackMessage);
 }
 
-export async function saveCatImage(
-  catId: string,
-  slot: CatImageSlot,
+export async function saveEntityImage(
+  entityType: EntityImageType,
+  entityId: string,
+  slot: EntityImageSlot,
   file: File,
-): Promise<CatImageRecord> {
-  const record: CatImageRecord = {
-    id: `cat-${catId}-image-${createStableId()}`,
-    catId,
+): Promise<EntityImageRecord> {
+  const record: EntityImageRecord = {
+    id: `${entityType}-${entityId}-image-${createStableId()}`,
+    entityType,
+    entityId,
+    entityKey: createEntityKey(entityType, entityId),
     slot,
     name: file.name,
     type: file.type,
     size: file.size,
     updatedAt: new Date().toISOString(),
     blob: file,
+    catId: entityType === "cat" ? entityId : undefined,
   };
   await runImageTransaction("readwrite", (store) => store.put(record));
   return record;
 }
 
-export async function getCatImageBlob(id: string) {
+export async function saveCatImage(catId: string, slot: CatImageSlot, file: File) {
+  return saveEntityImage("cat", catId, slot, file);
+}
+
+export async function getEntityImageBlob(id: string) {
   try {
-    const record = await runImageTransaction<CatImageRecord | undefined>("readonly", (store) =>
+    const record = await runImageTransaction<EntityImageRecord | undefined>("readonly", (store) =>
       store.get(id),
     );
     return record?.blob ?? null;
@@ -149,7 +203,11 @@ export async function getCatImageBlob(id: string) {
   }
 }
 
-export async function deleteCatImageBlob(id: string) {
+export async function getCatImageBlob(id: string) {
+  return getEntityImageBlob(id);
+}
+
+export async function deleteEntityImageBlob(id: string) {
   try {
     await runImageTransaction("readwrite", (store) => store.delete(id));
     return true;
@@ -158,24 +216,40 @@ export async function deleteCatImageBlob(id: string) {
   }
 }
 
-export async function deleteCatImageBlobs(ids: string[]) {
-  const results = await Promise.all(ids.map((id) => deleteCatImageBlob(id)));
+export async function deleteCatImageBlob(id: string) {
+  return deleteEntityImageBlob(id);
+}
+
+export async function deleteEntityImageBlobs(ids: string[]) {
+  const results = await Promise.all(ids.map((id) => deleteEntityImageBlob(id)));
   return results.every(Boolean);
 }
 
-export async function deleteCatImagesForCat(catId: string) {
+export async function deleteCatImageBlobs(ids: string[]) {
+  return deleteEntityImageBlobs(ids);
+}
+
+export async function deleteEntityImagesForEntity(entityType: EntityImageType, entityId: string) {
   try {
-    const records = await runImageTransaction<CatImageRecord[]>("readonly", (store) => {
-      const index = store.index("catId");
-      return index.getAll(catId);
+    const records = await runImageTransaction<EntityImageRecord[]>("readonly", (store) => {
+      const index = store.index("entityKey");
+      return index.getAll(createEntityKey(entityType, entityId));
     });
-    return deleteCatImageBlobs(records.map((record) => record.id));
+    return deleteEntityImageBlobs(records.map((record) => record.id));
   } catch {
     return false;
   }
 }
 
+export async function deleteCatImagesForCat(catId: string) {
+  return deleteEntityImagesForEntity("cat", catId);
+}
+
 function createStableId() {
   if (isBrowser() && window.crypto?.randomUUID) return window.crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+function createEntityKey(entityType: EntityImageType, entityId: string) {
+  return `${entityType}:${entityId}`;
 }
