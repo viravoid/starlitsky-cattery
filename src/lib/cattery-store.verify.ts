@@ -13,6 +13,7 @@ import {
   selectKittenRecords,
   selectLitterRecords,
   selectPosts,
+  selectStudRecords,
   subscribeToCatteryData,
   type CatteryData,
 } from "./cattery-store";
@@ -674,6 +675,188 @@ const tests: TestCase[] = [
     name: "stud has no hard delete action",
     run() {
       assert(!("deleteStud" in catteryActions));
+    },
+  },
+  {
+    name: "keeper stud actions update persisted records and selectors",
+    run() {
+      resetCatteryDataForTests();
+      const keeper = { role: "keeper" as const, currentUserId: "keeper-yueqi" };
+      const studId = catteryActions.addStud(
+        {
+          name: "星河",
+          gender: "弟弟",
+          color: "蓝银虎斑",
+          birthday: "2026-06-01",
+          personality: "亲人",
+          story: ["第一段介绍"],
+          stud: {
+            role: "现役公猫",
+            category: "现役公猫",
+            status: "在配",
+            trait: "状态稳定",
+            source: "自留",
+            reproductiveState: "active",
+          },
+        },
+        keeper,
+      );
+      assert(typeof studId === "string");
+      assert(
+        catteryActions.updateStud(
+          studId,
+          {
+            name: "星河改名",
+            visibility: "hidden",
+            story: ["更新后的介绍"],
+            stud: {
+              role: "现役公猫 / 观察中",
+              category: "现役公猫",
+              status: "观察中",
+              trait: "骨量好",
+              source: "更新血线",
+              reproductiveState: "preparing",
+            },
+          },
+          keeper,
+        ) === true,
+      );
+      assert(catteryActions.setCatVisibility(studId, "archived", keeper) === true);
+
+      const snapshot = getCatteryDataSnapshot();
+      const stud = snapshot.cats.find((cat) => cat.id === studId);
+      const publicStuds = selectStudRecords(snapshot);
+      const allStuds = selectStudRecords(snapshot, "all");
+      assert(stud?.kind === "stud");
+      assert(stud?.name === "星河改名");
+      assert(stud?.visibility === "archived");
+      assert(stud?.stud?.reproductiveState === "preparing");
+      assert(!publicStuds.some((item) => item.id === studId));
+      assert(allStuds.some((item) => item.id === studId && item.status === "观察中"));
+    },
+  },
+  {
+    name: "stud id links survive rename for kittens litters and posts",
+    run() {
+      resetCatteryDataForTests();
+      const keeper = { role: "keeper" as const, currentUserId: "keeper-yueqi" };
+      const fatherId = catteryActions.addStud(
+        {
+          name: "老父亲",
+          gender: "弟弟",
+          color: "黑银虎斑",
+          stud: {
+            role: "现役公猫",
+            category: "现役公猫",
+            status: "在配",
+            trait: "稳重",
+            source: "外引",
+            reproductiveState: "active",
+          },
+        },
+        keeper,
+      );
+      const motherId = catteryActions.addStud(
+        {
+          name: "老母亲",
+          gender: "妹妹",
+          color: "银玳瑁",
+          stud: {
+            role: "现役母猫",
+            category: "现役母猫",
+            status: "在舍",
+            trait: "温柔",
+            source: "自留",
+            reproductiveState: "active",
+          },
+        },
+        keeper,
+      );
+      assert(typeof fatherId === "string");
+      assert(typeof motherId === "string");
+
+      const litterId = catteryActions.addLitter(
+        {
+          name: "验证窝",
+          birthDate: "2026-07-20",
+          status: "成长记录中",
+          fatherId,
+          motherId,
+        },
+        keeper,
+      );
+      const kittenId = catteryActions.addKitten(
+        {
+          name: "小团子",
+          gender: "妹妹",
+          color: "银虎斑加白",
+          birthday: "2026-07-21",
+          personality: "活泼",
+          kitten: {
+            status: "待找家",
+            price: "18888",
+            litterId: litterId ?? undefined,
+            fatherId: fatherId ?? undefined,
+            motherId: motherId ?? undefined,
+          },
+        },
+        keeper,
+      );
+      const postId = catteryActions.createPost(
+        {
+          category: "猫舍日常",
+          content: "关联种猫验证",
+          imageCount: 0,
+          catIds: [fatherId],
+          litterIds: litterId ? [litterId] : [],
+        },
+        keeper,
+      );
+      if (
+        typeof fatherId !== "string" ||
+        typeof motherId !== "string" ||
+        typeof litterId !== "string" ||
+        typeof kittenId !== "string" ||
+        typeof postId !== "string"
+      ) {
+        throw new Error("expected keeper stud linkage setup to create all records");
+      }
+      assert(typeof litterId === "string");
+      assert(typeof kittenId === "string");
+      assert(typeof postId === "string");
+
+      const father = getCatteryDataSnapshot().cats.find((cat) => cat.id === fatherId);
+      assert(father?.stud);
+      assert(
+        catteryActions.updateStud(
+          fatherId,
+          {
+            name: "改名后的父亲",
+            color: "蓝银虎斑",
+            stud: {
+              ...father.stud,
+              status: "观察中",
+              trait: "改名后仍被关联",
+              reproductiveState: "preparing",
+            },
+          },
+          keeper,
+        ) === true,
+      );
+
+      const snapshot = getCatteryDataSnapshot();
+      const kitten = selectKittenRecords(snapshot, "all").find((item) => item.id === kittenId);
+      const litter = selectLitterRecords(snapshot, "all").find((item) => item.id === litterId);
+      const stud = selectStudRecords(snapshot, "all").find((item) => item.id === fatherId);
+      const post = selectPosts(snapshot).find((item) => item.id === postId);
+      assert(kitten?.fatherId === fatherId);
+      assert(kitten?.fatherName === "改名后的父亲");
+      assert(litter?.fatherId === fatherId);
+      assert(litter?.fatherName === "改名后的父亲");
+      assert(post?.catIds[0] === fatherId);
+      assert(stud?.linkedKittenCount === 1);
+      assert(stud?.linkedLitterCount === 1);
+      assert(stud?.linkedPostCount === 1);
     },
   },
   {

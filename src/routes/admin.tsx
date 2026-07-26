@@ -7,6 +7,7 @@ import { EnvironmentContentPanel } from "@/components/admin/EnvironmentContentPa
 import { FeedingContentPanel } from "@/components/admin/FeedingContentPanel";
 import { HomepageContentPanel } from "@/components/admin/HomepageContentPanel";
 import { KittenLitterManagementPanel } from "@/components/admin/KittenLitterManagementPanel";
+import { StudManagementPanel } from "@/components/admin/StudManagementPanel";
 import { PhilosophyContentPanel } from "@/components/admin/PhilosophyContentPanel";
 import { BreedingPlanContentPanel } from "@/components/admin/BreedingPlanContentPanel";
 import { QuestionnaireContentPanel } from "@/components/admin/QuestionnaireContentPanel";
@@ -30,7 +31,6 @@ import {
 } from "@/components/mobile/icons";
 import {
   KITTENS,
-  STUDS,
   LITTERS,
   statusTone,
   FORM_ENTRIES,
@@ -39,7 +39,6 @@ import {
   type FormEntry,
   type FormStatus,
   type Kitten,
-  type Stud,
 } from "@/lib/cattery-data";
 import { selectKittenRecords, selectLitterRecords, useCattery } from "@/lib/cattery-store";
 import {
@@ -502,7 +501,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             />
           )}
           {section === "kittens" && <KittenLitterManagementPanel onNotice={setNotice} />}
-          {section === "studs" && <StudsPanel onNotice={setNotice} />}
+          {section === "studs" && <StudManagementPanel onNotice={setNotice} />}
           {section === "parents" && (
             <ParentsPanel
               users={parentUsers}
@@ -1110,63 +1109,6 @@ function KittenDetail({
         <FieldLine label="关联动态" value={`${linkedPostCount(posts, kitten.id)} 条`} />
       </div>
     </Panel>
-  );
-}
-
-function StudsPanel({ onNotice }: { onNotice: (message: string) => void }) {
-  const grouped = useMemo(() => STUDS, []);
-  return (
-    <Panel>
-      <PanelTitle title="种猫资料" desc="保留用户端当前种猫字段，改为后台密集列表。" />
-      <TableShell columns={["名字", "类别", "颜色", "状态", "来源/血线", "简介", "展示", "操作"]}>
-        {grouped.map((stud) => (
-          <tr key={stud.id} className="text-card-foreground">
-            <td className="px-3 py-2.5 font-semibold text-heading">{stud.name}</td>
-            <td className="px-3 py-2.5">{stud.category}</td>
-            <td className="px-3 py-2.5">{stud.color}</td>
-            <td className="px-3 py-2.5">
-              <StatusBadge tone="sky">{stud.status}</StatusBadge>
-            </td>
-            <td className="px-3 py-2.5">{stud.source}</td>
-            <td className="max-w-[220px] px-3 py-2.5">{stud.trait}</td>
-            <td className="px-3 py-2.5">
-              <StatusBadge tone="creamblue">已展示</StatusBadge>
-            </td>
-            <td className="px-3 py-2.5">
-              <RowActions
-                actions={[
-                  ["查看", () => onNotice(`正在查看种猫 ${stud.name}。`)],
-                  ["编辑", () => onNotice(`已打开 ${stud.name} 的编辑 Demo。`)],
-                ]}
-              />
-            </td>
-          </tr>
-        ))}
-      </TableShell>
-      <div className="md:hidden">
-        {grouped.map((stud) => (
-          <StudMobile key={stud.id} stud={stud} onNotice={onNotice} />
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
-function StudMobile({ stud, onNotice }: { stud: Stud; onNotice: (message: string) => void }) {
-  return (
-    <MobileRecord
-      title={stud.name}
-      meta={`${stud.category} · ${stud.color}`}
-      actions={
-        <ActionButton onClick={() => onNotice(`正在查看 ${stud.name}。`)} tone="quiet">
-          查看
-        </ActionButton>
-      }
-    >
-      <span>状态：{stud.status}</span>
-      <span>来源：{stud.source}</span>
-      <span>{stud.trait}</span>
-    </MobileRecord>
   );
 }
 

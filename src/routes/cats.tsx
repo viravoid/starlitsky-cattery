@@ -11,7 +11,7 @@ import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
 import {
   selectKittenRecords,
   selectLitterRecords,
-  selectStuds,
+  selectStudRecords,
   useCattery,
 } from "@/lib/cattery-store";
 
@@ -114,7 +114,7 @@ function Cats() {
   const catteryState = useCattery((snapshot) => snapshot);
   const kittenRecords = useMemo(() => selectKittenRecords(catteryState), [catteryState]);
   const litterRecords = useMemo(() => selectLitterRecords(catteryState), [catteryState]);
-  const studList = useMemo(() => selectStuds(catteryState), [catteryState]);
+  const studRecords = useMemo(() => selectStudRecords(catteryState), [catteryState]);
 
   const tab = search.tab ?? "kittens";
   const kFilter = search.kittenFilter ?? "待找家";
@@ -150,9 +150,12 @@ function Cats() {
   const kittenList = kittenRecords.filter(
     (kitten) => kitten.status === kFilter && (litter === "全部" || kitten.litterId === litter),
   );
-  const filteredStuds = studList.filter((stud) => stud.category === sFilter);
+  const filteredStuds = studRecords.filter((stud) => stud.category === sFilter);
   const kittenImageUrls = useCatteryImageUrls(
     kittenList.map((kitten) => kitten.coverImageId).filter(Boolean),
+  );
+  const studImageUrls = useCatteryImageUrls(
+    filteredStuds.map((stud) => stud.coverImageId).filter(Boolean),
   );
 
   return (
@@ -327,7 +330,7 @@ function Cats() {
       {/* ── Studs (same layout) ─────────────────── */}
       {tab === "studs" && (
         <Section className="mb-6 mt-2 space-y-4">
-          {studList.length === 0 ? (
+          {filteredStuds.length === 0 ? (
             <div className="mt-16 flex flex-col items-center gap-3 text-center">
               <CurledCat className="h-14 w-14 text-warm" />
               <p className="text-[13px] text-muted-foreground">示例文字（缺少「{sFilter}」资料）</p>
@@ -336,6 +339,7 @@ function Cats() {
             filteredStuds.map((s) => (
               <CatCard
                 key={s.id}
+                imageUrl={s.coverImageId ? studImageUrls[s.coverImageId] : undefined}
                 imageLabel="示例图片（种猫照片，待替换）"
                 pill={{
                   text: s.status,
