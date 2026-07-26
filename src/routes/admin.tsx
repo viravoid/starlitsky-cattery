@@ -30,12 +30,6 @@ import {
   XIcon,
 } from "@/components/mobile/icons";
 import {
-  KITTENS,
-  LITTERS,
-  statusTone,
-  type Kitten,
-} from "@/lib/cattery-data";
-import {
   QUESTIONNAIRE_SUBMISSION_STATUSES,
   KEEPER_YUEQI,
   catteryActions,
@@ -49,7 +43,6 @@ import {
 } from "@/lib/cattery-store";
 import {
   useCommunity,
-  actions as communityActions,
   formatTime,
   type ParentUser,
   type Post,
@@ -136,7 +129,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
 const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   overview: {
     title: "数据概览",
-    desc: "用最少信息判断当前 Demo 内容状态和待处理事项。",
+    desc: "用最少信息判断当前 browser-local Demo 的内容状态和待处理事项。",
   },
   kittens: {
     title: "小猫",
@@ -156,11 +149,11 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   },
   community: {
     title: "动态管理",
-    desc: "管理猫友圈动态的置顶、隐藏和删除 Demo 状态。",
+    desc: "管理猫友圈动态的置顶、隐藏和删除；结果会写入当前浏览器本地并同步到用户端。",
   },
   comments: {
     title: "评论管理",
-    desc: "查看评论并做隐藏、恢复和删除 Demo 操作。",
+    desc: "查看评论并做隐藏、恢复和删除；结果会写入当前浏览器本地并同步到用户端。",
   },
   home: {
     title: "首页",
@@ -204,31 +197,20 @@ const SECTION_COPY: Record<SectionKey, { title: string; desc: string }> = {
   },
 };
 
-type LitterName = (typeof LITTERS)[number];
-type KittenAdminTab = "list" | "litters";
-
-const LITTER_META: Record<LitterName, { birthday: string; status: string; note: string }> = {
-  A窝: {
-    birthday: "2026-04-18",
-    status: "成长记录中",
-    note: "重点关联猫友圈成长动态。",
-  },
-  B窝: {
-    birthday: "2026-05-09",
-    status: "观察中",
-    note: "部分小猫仍在评估展示状态。",
-  },
-  C窝: {
-    birthday: "2026-06-02",
-    status: "已建档",
-    note: "待补充父母和完整小猫资料。",
-  },
-};
-
 const ADMIN_PARENT_CONTEXT = {
   role: "keeper" as const,
   currentUserId: KEEPER_YUEQI,
 };
+
+function applyAdminCommunityMutation(
+  mutate: () => boolean,
+  onNotice: (message: string) => void,
+  successMessage: string,
+  failureMessage: string,
+) {
+  const ok = mutate();
+  onNotice(ok ? successMessage : failureMessage);
+}
 
 function Admin() {
   const [authed, setAuthed] = useState(false);
@@ -251,7 +233,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
             Admin Demo
           </p>
           <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
-            当前为视觉 Demo，点击即可进入后台预览；暂不包含真实登录。
+            当前为 browser-local 功能 Demo；此入口仅用于展示后台界面，暂不包含真实登录。
           </p>
         </div>
 
@@ -679,7 +661,7 @@ function PageHeader({ title, desc }: { title: string; desc: string }) {
 function DemoNotice() {
   return (
     <div className="border-b border-sunflower/35 bg-sunny/25 px-3 py-1.5 text-[12px] font-medium text-[#9b7927] sm:px-5 lg:px-8 lg:text-[13px]">
-      当前为高保真 Demo，首页内容仅保存到当前浏览器本地。
+      当前为 browser-local 功能 Demo，数据保存在当前浏览器本地；暂无真实登录、云端同步和数据库。
     </div>
   );
 }
@@ -883,7 +865,10 @@ function OverviewPanel({
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.45fr)]">
         <Panel>
-          <PanelTitle title="待处理事项" desc="Demo 中仅做入口和状态提示。" />
+          <PanelTitle
+            title="待处理事项"
+            desc="汇总当前 browser-local 数据，便于快速进入对应模块。"
+          />
           <div className="grid gap-0 divide-y divide-border/70 px-4 py-1 text-[12.5px] lg:text-[13.5px]">
             <OverviewTodo
               title="未查看问卷"
@@ -905,9 +890,11 @@ function OverviewPanel({
         <Panel>
           <PanelTitle title="后台范围提醒" />
           <div className="flex flex-col gap-2 px-4 py-3 text-[13px] leading-relaxed text-card-foreground lg:text-[13.5px]">
-            <p>本轮保留视觉 Demo，不接数据库、不做真实鉴权、不做图片上传。</p>
-            <p>“喂养体系 / 文章”已从导航和页面中删除。</p>
-            <p>窝次、家长详情、猫咪关联仅作为页面结构和操作路径演示。</p>
+            <p>
+              当前是 browser-local 功能 Demo；数据只保存在当前浏览器，本轮不接数据库和云端同步。
+            </p>
+            <p>后台登录入口仅用于展示管理界面，不代表真实登录或正式管理员权限系统。</p>
+            <p>图片与页面内容会写入当前浏览器本地，刷新后仍保留，但不会同步到其他设备。</p>
           </div>
         </Panel>
       </div>
@@ -934,558 +921,6 @@ function OverviewTodo({
         查看
       </ActionButton>
     </div>
-  );
-}
-
-function KittensPanel({
-  onNotice,
-  posts,
-  users,
-}: {
-  onNotice: (message: string) => void;
-  posts: Post[];
-  users: ParentUser[];
-}) {
-  const [activeTab, setActiveTab] = useState<KittenAdminTab>("list");
-  const [selectedKittenId, setSelectedKittenId] = useState("");
-  const [showAdd, setShowAdd] = useState(false);
-  const [selectedLitter, setSelectedLitter] = useState<LitterName | "">("");
-  const selectedKitten = KITTENS.find((kitten) => kitten.id === selectedKittenId) ?? null;
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
-        {[
-          ["list", "小猫列表"],
-          ["litters", "窝次管理"],
-        ].map(([key, label]) => {
-          const on = activeTab === key;
-          return (
-            <button
-              key={key}
-              onClick={() => {
-                setActiveTab(key as KittenAdminTab);
-                setSelectedKittenId("");
-                setSelectedLitter("");
-              }}
-              className={cn(
-                "pressable h-8 rounded-[6px] px-3 text-[12.5px] font-semibold lg:text-[13px]",
-                on
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border bg-card text-muted-foreground",
-              )}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      {activeTab === "litters" && (
-        <LittersPanel
-          selected={selectedLitter}
-          onSelected={setSelectedLitter}
-          posts={posts}
-          onNotice={onNotice}
-        />
-      )}
-
-      {activeTab === "list" && (
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
-          <Panel className={cn(selectedKitten ? "hidden md:block" : "")}>
-            <PanelTitle
-              title="小猫列表"
-              desc="字段重点展示状态、价格、窝次和家长关联；操作仅为 Demo 反馈。"
-              action={
-                <ActionButton onClick={() => setShowAdd((open) => !open)}>
-                  {showAdd ? "收起" : "新增小猫"}
-                </ActionButton>
-              }
-            />
-            {showAdd && (
-              <DemoAddBox>
-                <div className="grid gap-2 md:grid-cols-4">
-                  {["小猫名字", "颜色", "价格", "窝次"].map((placeholder) => (
-                    <input
-                      key={placeholder}
-                      placeholder={placeholder}
-                      className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
-                    />
-                  ))}
-                </div>
-                <div className="mt-2">
-                  <ActionButton onClick={() => onNotice("已模拟提交新增小猫，刷新后恢复。")}>
-                    保存 Demo
-                  </ActionButton>
-                </div>
-              </DemoAddBox>
-            )}
-            <TableShell
-              columns={[
-                "名字",
-                "性别",
-                "颜色",
-                "状态",
-                "价格",
-                "父母",
-                "窝次",
-                "家长",
-                "展示",
-                "操作",
-              ]}
-            >
-              {KITTENS.map((kitten) => (
-                <tr key={kitten.id} className="align-top text-card-foreground">
-                  <td className="px-3 py-2.5 font-semibold text-heading">{kitten.name}</td>
-                  <td className="px-3 py-2.5">{kitten.gender}</td>
-                  <td className="px-3 py-2.5">{kitten.color}</td>
-                  <td className="px-3 py-2.5">
-                    <StatusBadge tone={statusTone(kitten.status)}>{kitten.status}</StatusBadge>
-                  </td>
-                  <td className="px-3 py-2.5">{kitten.price}</td>
-                  <td className="px-3 py-2.5">
-                    {kitten.father} × {kitten.mother}
-                  </td>
-                  <td className="px-3 py-2.5">{kitten.litter ?? "未分配"}</td>
-                  <td className="px-3 py-2.5">{kittenParentName(kitten, users)}</td>
-                  <td className="px-3 py-2.5">
-                    <StatusBadge tone="creamblue">已展示</StatusBadge>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <RowActions
-                      actions={[
-                        ["详情", () => setSelectedKittenId(kitten.id)],
-                        ["编辑", () => onNotice(`已打开 ${kitten.name} 的编辑 Demo。`)],
-                        ["关联", () => onNotice(`猫咪与家长关联入口位于 ${kitten.name} 详情中。`)],
-                      ]}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </TableShell>
-            <div className="md:hidden">
-              {KITTENS.map((kitten) => (
-                <MobileRecord
-                  key={kitten.id}
-                  title={kitten.name}
-                  meta={`${kitten.gender} · ${kitten.color} · ${kitten.status}`}
-                  actions={
-                    <ActionButton onClick={() => setSelectedKittenId(kitten.id)} tone="quiet">
-                      详情
-                    </ActionButton>
-                  }
-                >
-                  <span>
-                    {kitten.price} / {kitten.litter ?? "未分配"}
-                  </span>
-                  <span>
-                    {kitten.father} × {kitten.mother}
-                  </span>
-                  <span>{kittenParentName(kitten, users)}</span>
-                </MobileRecord>
-              ))}
-            </div>
-          </Panel>
-
-          <KittenDetail
-            kitten={selectedKitten}
-            users={users}
-            posts={posts}
-            onBack={() => setSelectedKittenId("")}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function KittenDetail({
-  kitten,
-  users,
-  posts,
-  onBack,
-}: {
-  kitten: Kitten | null;
-  users: ParentUser[];
-  posts: Post[];
-  onBack: () => void;
-}) {
-  if (!kitten) {
-    return (
-      <Panel className="hidden xl:block">
-        <PanelTitle title="小猫详情" desc="桌面端选择左侧小猫后查看关联信息。" />
-        <p className="px-4 py-6 text-[13px] text-muted-foreground">请选择一只小猫。</p>
-      </Panel>
-    );
-  }
-
-  return (
-    <Panel>
-      <PanelTitle
-        title={`${kitten.name} 详情`}
-        desc="展示窝次、父母、家长和猫友圈关联。"
-        action={<BackToListButton onClick={onBack} />}
-      />
-      <div className="px-3 py-2 lg:px-4 lg:py-3">
-        <FieldLine
-          label="状态"
-          value={<StatusBadge tone={statusTone(kitten.status)}>{kitten.status}</StatusBadge>}
-        />
-        <FieldLine label="性别 / 颜色" value={`${kitten.gender} / ${kitten.color}`} />
-        <FieldLine label="价格" value={kitten.price} />
-        <FieldLine label="窝次" value={kitten.litter ?? "未分配"} />
-        <FieldLine label="父母" value={`${kitten.father} × ${kitten.mother}`} />
-        <FieldLine label="家长" value={kittenParentName(kitten, users)} />
-        <FieldLine label="关联动态" value={`${linkedPostCount(posts, kitten.id)} 条`} />
-      </div>
-    </Panel>
-  );
-}
-
-function LittersPanel({
-  selected,
-  onSelected,
-  posts,
-  onNotice,
-}: {
-  selected: LitterName | "";
-  onSelected: (name: LitterName | "") => void;
-  posts: Post[];
-  onNotice: (message: string) => void;
-}) {
-  const [showAdd, setShowAdd] = useState(false);
-
-  return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
-      <Panel className={cn(selected ? "hidden md:block" : "")}>
-        <PanelTitle
-          title="窝次列表"
-          desc="新增 Demo 模块：以窝次为中心关联父母、小猫和猫友圈动态。"
-          action={
-            <ActionButton onClick={() => setShowAdd((open) => !open)}>
-              {showAdd ? "收起" : "新增窝次"}
-            </ActionButton>
-          }
-        />
-        {showAdd && (
-          <DemoAddBox>
-            <div className="grid gap-2 md:grid-cols-4">
-              {["窝次名称", "出生日期", "父亲", "母亲"].map((placeholder) => (
-                <input
-                  key={placeholder}
-                  placeholder={placeholder}
-                  className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
-                />
-              ))}
-            </div>
-            <div className="mt-2">
-              <ActionButton onClick={() => onNotice("已模拟提交新增窝次，刷新后恢复。")}>
-                保存 Demo
-              </ActionButton>
-            </div>
-          </DemoAddBox>
-        )}
-        <TableShell
-          columns={[
-            "窝次名称",
-            "出生日期",
-            "父亲",
-            "母亲",
-            "小猫数量",
-            "当前状态",
-            "关联小猫",
-            "动态",
-            "操作",
-          ]}
-        >
-          {LITTERS.map((litter) => {
-            const kittens = KITTENS.filter((kitten) => kitten.litter === litter);
-            const postCount = posts.filter((post) =>
-              (post.litterIds ?? []).includes(litter),
-            ).length;
-            const first = kittens[0];
-            return (
-              <tr key={litter} className="text-card-foreground">
-                <td className="px-3 py-2.5 font-semibold text-heading">{litter}</td>
-                <td className="px-3 py-2.5">{LITTER_META[litter].birthday}</td>
-                <td className="px-3 py-2.5">{first?.father ?? "待补充"}</td>
-                <td className="px-3 py-2.5">{first?.mother ?? "待补充"}</td>
-                <td className="px-3 py-2.5">{kittens.length}</td>
-                <td className="px-3 py-2.5">
-                  <StatusBadge tone="sunny">{LITTER_META[litter].status}</StatusBadge>
-                </td>
-                <td className="max-w-[220px] px-3 py-2.5">
-                  {kittens.map((kitten) => kitten.name).join("、") || "暂无"}
-                </td>
-                <td className="px-3 py-2.5">{postCount}</td>
-                <td className="px-3 py-2.5">
-                  <RowActions
-                    actions={[
-                      ["详情", () => onSelected(litter)],
-                      ["编辑", () => onNotice(`已打开 ${litter} 编辑 Demo。`)],
-                    ]}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </TableShell>
-        <div className="md:hidden">
-          {LITTERS.map((litter) => {
-            const kittens = KITTENS.filter((kitten) => kitten.litter === litter);
-            const postCount = posts.filter((post) =>
-              (post.litterIds ?? []).includes(litter),
-            ).length;
-            return (
-              <MobileRecord
-                key={litter}
-                title={litter}
-                meta={`${LITTER_META[litter].birthday} · ${LITTER_META[litter].status}`}
-                actions={
-                  <ActionButton onClick={() => onSelected(litter)} tone="quiet">
-                    详情
-                  </ActionButton>
-                }
-              >
-                <span>
-                  小猫 {kittens.length} / 动态 {postCount}
-                </span>
-                <span>关联小猫：{kittens.map((kitten) => kitten.name).join("、") || "暂无"}</span>
-              </MobileRecord>
-            );
-          })}
-        </div>
-      </Panel>
-
-      <LitterDetail selected={selected} posts={posts} onBack={() => onSelected("")} />
-    </div>
-  );
-}
-
-function LitterDetail({
-  selected,
-  posts,
-  onBack,
-}: {
-  selected: LitterName | "";
-  posts: Post[];
-  onBack: () => void;
-}) {
-  if (!selected) {
-    return (
-      <Panel className="hidden xl:block">
-        <PanelTitle title="窝次详情" desc="桌面端选择左侧窝次后查看关联信息。" />
-        <p className="px-4 py-6 text-[13px] text-muted-foreground">请选择一个窝次。</p>
-      </Panel>
-    );
-  }
-
-  const selectedKittens = KITTENS.filter((kitten) => kitten.litter === selected);
-  const selectedPosts = posts.filter((post) => (post.litterIds ?? []).includes(selected));
-
-  return (
-    <Panel>
-      <PanelTitle
-        title={`${selected} 详情`}
-        desc={LITTER_META[selected].note}
-        action={<BackToListButton onClick={onBack} />}
-      />
-      <div className="px-3 py-2 lg:px-4 lg:py-3">
-        <FieldLine label="出生日期" value={LITTER_META[selected].birthday} />
-        <FieldLine
-          label="当前状态"
-          value={<StatusBadge tone="sunny">{LITTER_META[selected].status}</StatusBadge>}
-        />
-        <FieldLine label="父亲" value={selectedKittens[0]?.father ?? "待补充"} />
-        <FieldLine label="母亲" value={selectedKittens[0]?.mother ?? "待补充"} />
-        <FieldLine
-          label="关联小猫"
-          value={selectedKittens.map((kitten) => kitten.name).join("、") || "暂无"}
-        />
-        <FieldLine label="关联动态" value={`${selectedPosts.length} 条`} />
-      </div>
-    </Panel>
-  );
-}
-
-function LegacyParentsPanel({
-  users,
-  cats,
-  posts,
-  selectedParent,
-  onSelectedParent,
-  onNotice,
-}: {
-  users: ParentUser[];
-  cats: CommunityCat[];
-  posts: Post[];
-  selectedParent: ParentUser | null;
-  onSelectedParent: (id: string) => void;
-  onNotice: (message: string) => void;
-}) {
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [showAdd, setShowAdd] = useState(false);
-
-  const addParent = () => {
-    if (!name.trim() || !code.trim()) {
-      onNotice("请输入家长昵称和邀请码。");
-      return;
-    }
-    communityActions.addParent(name.trim(), code.trim());
-    setName("");
-    setCode("");
-    setShowAdd(false);
-    onNotice("已新增家长，并写入统一 cattery-store。");
-  };
-
-  return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-      <Panel className={cn(selectedParent ? "hidden md:block" : "")}>
-        <PanelTitle
-          title="家长列表"
-          desc="猫咪与家长关联入口放在家长详情中，不单独建导航。"
-          action={
-            <ActionButton onClick={() => setShowAdd((open) => !open)}>
-              {showAdd ? "收起" : "添加家长"}
-            </ActionButton>
-          }
-        />
-        <TableShell columns={["昵称", "邀请码", "启用状态", "开通时间", "名下猫咪", "操作"]}>
-          {users.map((user) => {
-            const ownedCats = cats.filter((cat) => cat.ownerId === user.id);
-            return (
-              <tr key={user.id} className="text-card-foreground">
-                <td className="px-3 py-2.5 font-semibold text-heading">{user.name}</td>
-                <td className="px-3 py-2.5">{user.inviteCode ?? "未设置"}</td>
-                <td className="px-3 py-2.5">
-                  <StatusBadge
-                    tone={user.activatedAt && user.active !== false ? "creamblue" : "muted"}
-                  >
-                    {user.activatedAt ? (user.active === false ? "已停用" : "已启用") : "未开通"}
-                  </StatusBadge>
-                </td>
-                <td className="px-3 py-2.5">{user.activatedAt ?? "未开通"}</td>
-                <td className="px-3 py-2.5">{ownedCats.length}</td>
-                <td className="px-3 py-2.5">
-                  <RowActions
-                    actions={[
-                      ["详情", () => onSelectedParent(user.id)],
-                      [
-                        user.activatedAt ? "停用" : "启用",
-                        () => {
-                          communityActions.toggleParentActive(user.id);
-                          onNotice(`已模拟${user.activatedAt ? "停用" : "启用"} ${user.name}。`);
-                        },
-                      ],
-                    ]}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </TableShell>
-        <div className="md:hidden">
-          {users.map((user) => {
-            const ownedCats = cats.filter((cat) => cat.ownerId === user.id);
-            return (
-              <MobileRecord
-                key={user.id}
-                title={user.name}
-                meta={`${user.inviteCode ?? "未设置邀请码"} · ${user.activatedAt ? "已启用" : "未启用"}`}
-                actions={
-                  <ActionButton onClick={() => onSelectedParent(user.id)} tone="quiet">
-                    详情
-                  </ActionButton>
-                }
-              >
-                <span>开通时间：{user.activatedAt ?? "未开通"}</span>
-                <span>名下猫咪：{ownedCats.length} 只</span>
-              </MobileRecord>
-            );
-          })}
-        </div>
-        {showAdd && (
-          <DemoAddBox>
-            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="家长昵称"
-                className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
-              />
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="邀请码"
-                className="h-8 rounded-[6px] border border-border bg-background px-2.5 text-[12px] outline-none focus:border-primary"
-              />
-              <ActionButton onClick={addParent}>保存家长</ActionButton>
-            </div>
-          </DemoAddBox>
-        )}
-      </Panel>
-
-      <LegacyParentDetail
-        parent={selectedParent}
-        cats={cats}
-        posts={posts}
-        onBack={() => onSelectedParent("")}
-      />
-    </div>
-  );
-}
-
-function LegacyParentDetail({
-  parent,
-  cats,
-  posts,
-  onBack,
-}: {
-  parent: ParentUser | null;
-  cats: CommunityCat[];
-  posts: Post[];
-  onBack: () => void;
-}) {
-  if (!parent) {
-    return (
-      <Panel className="hidden xl:block">
-        <PanelTitle title="家长详情" desc="桌面端选择左侧家长后查看关联信息。" />
-        <p className="px-4 py-6 text-[13px] text-muted-foreground">请选择一位家长。</p>
-      </Panel>
-    );
-  }
-  const ownedCats = cats.filter((cat) => cat.ownerId === parent.id);
-  const status = getParentActivationStatus(parent);
-  const relatedPosts = posts.filter(
-    (post) =>
-      post.authorId === parent.id ||
-      post.catIds.some((catId) => ownedCats.some((cat) => cat.id === catId)),
-  );
-
-  return (
-    <Panel>
-      <PanelTitle
-        title="家长详情"
-        desc="包含基础信息、名下猫咪、相关动态和备注。"
-        action={<BackToListButton onClick={onBack} />}
-      />
-      <div className="px-3 py-2 lg:px-4 lg:py-3">
-        <FieldLine label="昵称" value={parent.name} />
-        <FieldLine label="邀请码" value={parent.inviteCode ?? "未设置"} />
-        <FieldLine
-          label="启用状态"
-          value={<StatusBadge tone={status.tone}>{status.label}</StatusBadge>}
-        />
-        <FieldLine label="开通时间" value={parent.activatedAt ?? "未开通"} />
-        <FieldLine label="名下猫咪" value={ownedCats.map((cat) => cat.name).join("、") || "暂无"} />
-        <FieldLine
-          label="相关动态"
-          value={relatedPosts.map((post) => post.content.slice(0, 18)).join("；") || "暂无"}
-        />
-        <FieldLine label="备注" value={parent.note ?? "暂无备注"} />
-      </div>
-    </Panel>
   );
 }
 
@@ -1846,9 +1281,6 @@ function createParentDraft(parent?: ParentUser | null) {
   };
 }
 
-void LegacyParentsPanel;
-void LegacyParentDetail;
-
 function FormsPanel({
   forms,
   selected,
@@ -1877,11 +1309,7 @@ function FormsPanel({
       if (statusFilter !== "all" && form.status !== statusFilter) return false;
       if (!normalizedQuery) return true;
 
-      const haystack = [
-        form.answers.name.value,
-        form.answers.phone.value,
-        form.answers.city.value,
-      ]
+      const haystack = [form.answers.name.value, form.answers.phone.value, form.answers.city.value]
         .join(" ")
         .toLowerCase();
       return haystack.includes(normalizedQuery);
@@ -1931,11 +1359,15 @@ function FormsPanel({
           </label>
         </div>
         {filteredForms.length > 0 ? (
-          <TableShell columns={["提交时间", "姓名", "电话", "城市", "预算", "偏好", "状态", "操作"]}>
+          <TableShell
+            columns={["提交时间", "姓名", "电话", "城市", "预算", "偏好", "状态", "操作"]}
+          >
             {filteredForms.map((form) => (
               <tr key={form.id} className="text-card-foreground">
                 <td className="px-3 py-2.5">{formatSubmittedAt(form.submittedAt)}</td>
-                <td className="px-3 py-2.5 font-semibold text-heading">{form.answers.name.value}</td>
+                <td className="px-3 py-2.5 font-semibold text-heading">
+                  {form.answers.name.value}
+                </td>
                 <td className="px-3 py-2.5">{form.answers.phone.value}</td>
                 <td className="px-3 py-2.5">{form.answers.city.value}</td>
                 <td className="px-3 py-2.5">
@@ -1993,7 +1425,9 @@ function FormsPanel({
           action={<BackToListButton onClick={() => setMobileDetailOpen(false)} />}
         />
         {!selected ? (
-          <div className="px-4 py-8 text-[13px] text-muted-foreground">请选择一份问卷查看详情。</div>
+          <div className="px-4 py-8 text-[13px] text-muted-foreground">
+            请选择一份问卷查看详情。
+          </div>
         ) : (
           <>
             <div className="flex flex-wrap gap-2 border-b border-border/70 px-3 py-2 lg:px-4 lg:py-3">
@@ -2071,9 +1505,36 @@ function CommunityPanel({
   posts: Post[];
   onNotice: (message: string) => void;
 }) {
+  const togglePin = (post: Post) =>
+    applyAdminCommunityMutation(
+      () => catteryActions.togglePin(post.id, ADMIN_PARENT_CONTEXT),
+      onNotice,
+      post.pinned ? "已取消置顶动态，用户端已同步更新。" : "已置顶动态，用户端已同步更新。",
+      "动态置顶状态更新失败，请重试。",
+    );
+
+  const toggleVisibility = (post: Post) =>
+    applyAdminCommunityMutation(
+      () => catteryActions.toggleHidePost(post.id, ADMIN_PARENT_CONTEXT),
+      onNotice,
+      post.hidden ? "已恢复动态显示，用户端已同步更新。" : "已隐藏动态，用户端已同步更新。",
+      "动态显示状态更新失败，请重试。",
+    );
+
+  const deletePost = (post: Post) =>
+    applyAdminCommunityMutation(
+      () => catteryActions.deletePost(post.id, ADMIN_PARENT_CONTEXT),
+      onNotice,
+      "已删除动态，当前浏览器本地数据已同步更新。",
+      "动态删除失败，请重试。",
+    );
+
   return (
     <Panel>
-      <PanelTitle title="猫友圈动态" desc="保留置顶、隐藏、删除的轻量 Demo 操作。" />
+      <PanelTitle
+        title="猫友圈动态"
+        desc="直接管理当前浏览器本地 cattery-store 中的动态；修改后用户端会立即同步，刷新后仍保留。"
+      />
       <TableShell
         columns={["作者", "身份", "分类", "内容", "图片", "点赞", "评论", "状态", "操作"]}
       >
@@ -2098,28 +1559,9 @@ function CommunityPanel({
             <td className="px-3 py-2.5">
               <RowActions
                 actions={[
-                  [
-                    post.pinned ? "取消置顶" : "置顶",
-                    () => {
-                      communityActions.togglePin(post.id);
-                      onNotice("已模拟更新动态置顶状态。");
-                    },
-                  ],
-                  [
-                    post.hidden ? "恢复" : "隐藏",
-                    () => {
-                      communityActions.toggleHidePost(post.id);
-                      onNotice("已模拟更新动态隐藏状态。");
-                    },
-                  ],
-                  [
-                    "删除",
-                    () => {
-                      communityActions.deletePost(post.id);
-                      onNotice("已模拟删除动态，刷新后恢复。");
-                    },
-                    "danger",
-                  ],
+                  [post.pinned ? "取消置顶" : "置顶", () => togglePin(post)],
+                  [post.hidden ? "恢复" : "隐藏", () => toggleVisibility(post)],
+                  ["删除", () => deletePost(post), "danger"],
                 ]}
               />
             </td>
@@ -2133,8 +1575,8 @@ function CommunityPanel({
             title={post.authorName}
             meta={`${post.category} · ${formatTime(post.createdAt)}`}
             actions={
-              <ActionButton onClick={() => communityActions.toggleHidePost(post.id)} tone="quiet">
-                隐藏
+              <ActionButton onClick={() => toggleVisibility(post)} tone="quiet">
+                {post.hidden ? "恢复" : "隐藏"}
               </ActionButton>
             }
           >
@@ -2158,9 +1600,28 @@ function CommentsPanel({
 }) {
   const allComments = posts.flatMap((post) => post.comments.map((comment) => ({ post, comment })));
 
+  const toggleCommentVisibility = (postId: string, commentId: string, hidden: boolean) =>
+    applyAdminCommunityMutation(
+      () => catteryActions.toggleHideComment(postId, commentId, ADMIN_PARENT_CONTEXT),
+      onNotice,
+      hidden ? "已恢复评论显示，用户端已同步更新。" : "已隐藏评论，用户端已同步更新。",
+      "评论显示状态更新失败，请重试。",
+    );
+
+  const deleteComment = (postId: string, commentId: string) =>
+    applyAdminCommunityMutation(
+      () => catteryActions.deleteComment(postId, commentId, ADMIN_PARENT_CONTEXT),
+      onNotice,
+      "已删除评论，当前浏览器本地数据已同步更新。",
+      "评论删除失败，请重试。",
+    );
+
   return (
     <Panel>
-      <PanelTitle title="评论管理" desc="不做复杂审核流，仅保留隐藏、恢复、删除。" />
+      <PanelTitle
+        title="评论管理"
+        desc="直接管理当前浏览器本地 cattery-store 中的评论；隐藏、恢复和删除会立即同步到用户端。"
+      />
       {allComments.length === 0 ? (
         <p className="px-4 py-8 text-center text-[13px] text-muted-foreground">暂无评论</p>
       ) : (
@@ -2183,19 +1644,9 @@ function CommentsPanel({
                     actions={[
                       [
                         comment.hidden ? "恢复" : "隐藏",
-                        () => {
-                          communityActions.toggleHideComment(post.id, comment.id);
-                          onNotice("已模拟更新评论显示状态。");
-                        },
+                        () => toggleCommentVisibility(post.id, comment.id, comment.hidden ?? false),
                       ],
-                      [
-                        "删除",
-                        () => {
-                          communityActions.deleteComment(post.id, comment.id);
-                          onNotice("已模拟删除评论，刷新后恢复。");
-                        },
-                        "danger",
-                      ],
+                      ["删除", () => deleteComment(post.id, comment.id), "danger"],
                     ]}
                   />
                 </td>
@@ -2210,10 +1661,12 @@ function CommentsPanel({
                 meta={`${comment.authorRole} · ${formatTime(comment.createdAt)}`}
                 actions={
                   <ActionButton
-                    onClick={() => communityActions.toggleHideComment(post.id, comment.id)}
+                    onClick={() =>
+                      toggleCommentVisibility(post.id, comment.id, comment.hidden ?? false)
+                    }
                     tone="quiet"
                   >
-                    隐藏
+                    {comment.hidden ? "恢复" : "隐藏"}
                   </ActionButton>
                 }
               >
@@ -2241,13 +1694,4 @@ function RowActions({ actions }: { actions: RowAction[] }) {
       ))}
     </div>
   );
-}
-
-function kittenParentName(kitten: Kitten, users: ParentUser[]) {
-  if (kitten.status !== "已有家") return "未关联";
-  return users[0]?.name ?? "已有关联家长";
-}
-
-function linkedPostCount(posts: Post[], kittenId: string) {
-  return posts.filter((post) => post.catIds.includes(kittenId)).length;
 }
