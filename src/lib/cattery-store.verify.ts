@@ -154,7 +154,10 @@ const tests: TestCase[] = [
       assert(first.id === second.id);
       assert(third.created);
       assert(third.id !== first.id);
-      assert(submissions.filter((submission) => submission.answers.name.value === values.name).length === 2);
+      assert(
+        submissions.filter((submission) => submission.answers.name.value === values.name).length ===
+          2,
+      );
       assert(firstRecord?.answers.residents.value === "no");
       assert(firstRecord?.answers.residentsNeutered.value === "");
     },
@@ -232,7 +235,10 @@ const tests: TestCase[] = [
       const base = cloneDefaultCatteryData();
       const raw: Partial<CatteryData> = {
         version: 1,
-        users: [...base.users, { id: "parent-questionnaire", name: "Questionnaire 家长", role: "parent" }],
+        users: [
+          ...base.users,
+          { id: "parent-questionnaire", name: "Questionnaire 家长", role: "parent" },
+        ],
         cats: [
           ...base.cats,
           {
@@ -794,6 +800,47 @@ const tests: TestCase[] = [
       assert(typeof parentId === "string");
       assert(communityActions.toggleParentActive(parentId) === true);
       communityActions.logout();
+    },
+  },
+  {
+    name: "keeper moderation context works without changing the community session",
+    run() {
+      resetCatteryDataForTests();
+      communityActions.logout();
+      const keeper = { role: "keeper" as const, currentUserId: "keeper-yueqi" };
+
+      assert(catteryActions.togglePin("p-2", keeper) === true);
+      assert(getCatteryDataSnapshot().posts.find((post) => post.id === "p-2")?.pinned === true);
+      assert(catteryActions.toggleHidePost("p-2", keeper) === true);
+      assert(getCatteryDataSnapshot().posts.find((post) => post.id === "p-2")?.hidden === true);
+      assert(catteryActions.toggleHideComment("p-2", "c-2", keeper) === true);
+      assert(
+        getCatteryDataSnapshot()
+          .posts.find((post) => post.id === "p-2")
+          ?.comments.find((comment) => comment.id === "c-2")?.hidden === true,
+      );
+      assert(catteryActions.deleteComment("p-2", "c-2", keeper) === true);
+      assert(
+        !getCatteryDataSnapshot()
+          .posts.find((post) => post.id === "p-2")
+          ?.comments.some((comment) => comment.id === "c-2"),
+      );
+
+      const postId = catteryActions.createPost(
+        {
+          category: "猫舍日常",
+          content: "后台主理人验收动态",
+          imageCount: 0,
+          catIds: ["chonglou"],
+        },
+        keeper,
+      );
+      assert(typeof postId === "string");
+      assert(catteryActions.deletePost(postId, keeper) === true);
+      assert(!getCatteryDataSnapshot().posts.some((post) => post.id === postId));
+
+      assert(communityActions.togglePin("p-3") === false);
+      assert(communityActions.deletePost("p-3") === false);
     },
   },
   {
