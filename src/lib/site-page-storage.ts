@@ -71,7 +71,7 @@ const DB_NAME = "starlitsky-site-pages";
 const DB_VERSION = 1;
 const IMAGE_STORE = "images";
 
-export type SitePageImageRecord = {
+export type SitePageAssetRecord = {
   id: string;
   pageId: string;
   name: string;
@@ -80,6 +80,8 @@ export type SitePageImageRecord = {
   updatedAt: string;
   blob: Blob;
 };
+
+export type SitePageImageRecord = SitePageAssetRecord;
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -470,9 +472,9 @@ function runImageTransaction<T>(
   );
 }
 
-export async function saveSitePageImage(pageId: string, file: File): Promise<SitePageImageRecord> {
-  const record: SitePageImageRecord = {
-    id: `site-page-${pageId}-img-${createStableId()}`,
+export async function saveSitePageAsset(pageId: string, file: File): Promise<SitePageAssetRecord> {
+  const record: SitePageAssetRecord = {
+    id: `site-page-${pageId}-asset-${createStableId()}`,
     pageId,
     name: file.name,
     type: file.type,
@@ -484,6 +486,10 @@ export async function saveSitePageImage(pageId: string, file: File): Promise<Sit
   return record;
 }
 
+export async function saveSitePageImage(pageId: string, file: File): Promise<SitePageImageRecord> {
+  return saveSitePageAsset(pageId, file);
+}
+
 function createStableId() {
   if (isBrowser() && "crypto" in window && typeof window.crypto.randomUUID === "function") {
     return window.crypto.randomUUID();
@@ -491,13 +497,26 @@ function createStableId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-export async function getSitePageImageBlob(id: string) {
+export async function getSitePageAssetBlob(id: string) {
   try {
-    const record = await runImageTransaction<SitePageImageRecord | undefined>("readonly", (store) =>
+    const record = await runImageTransaction<SitePageAssetRecord | undefined>("readonly", (store) =>
       store.get(id),
     );
     return record?.blob ?? null;
   } catch {
     return null;
+  }
+}
+
+export async function getSitePageImageBlob(id: string) {
+  return getSitePageAssetBlob(id);
+}
+
+export async function deleteSitePageAssetBlob(id: string) {
+  try {
+    await runImageTransaction("readwrite", (store) => store.delete(id));
+    return true;
+  } catch {
+    return false;
   }
 }

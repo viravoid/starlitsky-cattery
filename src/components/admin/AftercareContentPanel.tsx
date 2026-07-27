@@ -9,6 +9,7 @@ import {
 import {
   loadSavedAftercareContent,
   saveAftercareContent,
+  saveSitePageAsset,
   saveDraftPreviewAftercareContent,
 } from "@/lib/site-page-storage";
 import {
@@ -19,7 +20,7 @@ import {
 } from "./SitePageEditorPrimitives";
 import { createStableId } from "./site-page-editor-utils";
 
-type PanelKey = "promises" | "healthItems" | "contractNotice";
+type PanelKey = "promises" | "healthItems" | "contractFile" | "contractNotice";
 
 export function AftercareContentPanel({
   onNotice,
@@ -34,6 +35,7 @@ export function AftercareContentPanel({
   const [openPanels, setOpenPanels] = useState<Record<PanelKey, boolean>>({
     promises: true,
     healthItems: true,
+    contractFile: true,
     contractNotice: true,
   });
 
@@ -89,6 +91,38 @@ export function AftercareContentPanel({
       ...content,
       [key]: [...content[key], { id: `${idPrefix}-${createStableId()}`, text }],
     }));
+  };
+
+  const replaceContractFile = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const record = await saveSitePageAsset("aftercare-contract", file);
+      updateDraft((content) => ({
+        ...content,
+        contractFile: {
+          ...content.contractFile,
+          assetId: record.id,
+          fileName: record.name,
+          mimeType: record.type,
+        },
+      }));
+      onNotice("已选择合同文件，保存更改后会同步到前台售后保障页。");
+    } catch {
+      onNotice("合同文件保存失败，请确认浏览器支持 IndexedDB 后重试。");
+    }
+  };
+
+  const clearContractFile = () => {
+    updateDraft((content) => ({
+      ...content,
+      contractFile: {
+        ...content.contractFile,
+        assetId: undefined,
+        fileName: undefined,
+        mimeType: undefined,
+      },
+    }));
+    onNotice("已从草稿中移除合同文件。");
   };
 
   return (
@@ -170,6 +204,58 @@ export function AftercareContentPanel({
                 />
               )}
             />
+          </EditorSection>
+
+          <EditorSection
+            title="合同文件"
+            desc="支持单个合同文件，优先 PDF；文件保存在当前浏览器本地，保存后前台可查看和下载。"
+            open={openPanels.contractFile}
+            onToggle={() => togglePanel("contractFile")}
+          >
+            <div className="grid gap-3">
+              <TextareaField
+                label="文件标题"
+                value={draft.contractFile.title}
+                rows={2}
+                onChange={(title) =>
+                  updateDraft((content) => ({
+                    ...content,
+                    contractFile: {
+                      ...content.contractFile,
+                      title,
+                    },
+                  }))
+                }
+              />
+              <div className="rounded-[6px] border border-border/80 bg-background p-3">
+                <p className="text-[12px] font-semibold text-heading lg:text-[13px]">当前文件</p>
+                <p className="mt-1 break-all text-[12px] leading-relaxed text-muted-foreground">
+                  {draft.contractFile.fileName
+                    ? `${draft.contractFile.fileName}${draft.contractFile.mimeType ? ` · ${draft.contractFile.mimeType}` : ""}`
+                    : "尚未上传合同文件。"}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <label className="pressable inline-flex h-8 cursor-pointer items-center justify-center rounded-[6px] bg-primary px-3 text-[12px] font-semibold text-primary-foreground lg:text-[13px]">
+                    上传 / 替换文件
+                    <input
+                      type="file"
+                      accept="application/pdf,image/*"
+                      className="hidden"
+                      onChange={(event) =>
+                        void replaceContractFile(event.target.files?.[0] ?? null)
+                      }
+                    />
+                  </label>
+                  <EditorButton
+                    tone="quiet"
+                    onClick={clearContractFile}
+                    disabled={!draft.contractFile.assetId}
+                  >
+                    移除文件
+                  </EditorButton>
+                </div>
+              </div>
+            </div>
           </EditorSection>
 
           <EditorSection

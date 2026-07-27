@@ -9,10 +9,7 @@ import {
   type Stud,
   type StudCategory,
 } from "./cattery-data";
-import {
-  DEFAULT_QUESTIONNAIRE_CONTENT,
-  type QuestionnaireContent,
-} from "./questionnaire-content";
+import { DEFAULT_QUESTIONNAIRE_CONTENT, type QuestionnaireContent } from "./questionnaire-content";
 import {
   QUESTIONNAIRE_FIELD_ORDER,
   QUESTIONNAIRE_SUBMISSION_STATUSES,
@@ -998,17 +995,18 @@ export const catteryActions = {
     });
     return true;
   },
-  submitQuestionnaire(
-    input: {
-      content: QuestionnaireContent;
-      values: Partial<Record<QuestionnaireSubmissionFieldKey, string>>;
-      dedupeWindowMs?: number;
-    },
-  ) {
+  submitQuestionnaire(input: {
+    content: QuestionnaireContent;
+    values: Partial<Record<QuestionnaireSubmissionFieldKey, string>>;
+    dedupeWindowMs?: number;
+  }) {
     const answers = createQuestionnaireSubmissionAnswers(input.values, input.content);
     const fingerprint = createQuestionnaireSubmissionFingerprint(answers);
     const nowIso = now();
-    const dedupeWindowMs = Math.max(0, input.dedupeWindowMs ?? QUESTIONNAIRE_SUBMISSION_DEDUPE_WINDOW_MS);
+    const dedupeWindowMs = Math.max(
+      0,
+      input.dedupeWindowMs ?? QUESTIONNAIRE_SUBMISSION_DEDUPE_WINDOW_MS,
+    );
     const duplicate = data.questionnaireSubmissions.find((submission) => {
       const submittedAt = Date.parse(submission.submittedAt);
       const createdAt = Date.parse(nowIso);
@@ -1042,7 +1040,9 @@ export const catteryActions = {
     setData({
       ...data,
       questionnaireSubmissions: data.questionnaireSubmissions.map((submission) =>
-        submission.id === id ? normalizeQuestionnaireSubmission({ ...submission, status }) : submission,
+        submission.id === id
+          ? normalizeQuestionnaireSubmission({ ...submission, status })
+          : submission,
       ),
     });
     return true;
@@ -1588,7 +1588,8 @@ function normalizeCat(value: unknown): CatteryCat {
     updatedAt: optionalString(input.updatedAt, undefined),
   };
   if (kind === "kitten") cat.kitten = normalizeKittenFields(input.kitten);
-  if (kind === "stud") cat.stud = normalizeStudFields(input.stud);
+  if (kind === "stud")
+    cat.stud = normalizeStudStatusForKnownDefaults(cat.id, normalizeStudFields(input.stud));
   if (kind === "family") cat.family = normalizeFamilyFields(input.family);
   return cat;
 }
@@ -1653,6 +1654,40 @@ function normalizeStudFields(value: unknown): StudFields {
     trait: optionalString(input.trait, ""),
     source: optionalString(input.source, ""),
     reproductiveState: normalizeReproductiveState(input.reproductiveState, input.status),
+  };
+}
+
+function normalizeStudStatusForKnownDefaults(id: string, stud: StudFields): StudFields {
+  if (id === "chonglou" && stud.status === "半退役 · 在舍") {
+    return {
+      ...stud,
+      status: "半退役",
+    };
+  }
+
+  if (stud.status !== "在配" && stud.status !== "在舍") {
+    return stud;
+  }
+
+  const idsToMigrate = new Set([
+    "hupo",
+    "shulongyin",
+    "tianhe",
+    "yunmu",
+    "niaotuan",
+    "guihuagao",
+    "zhaoyue",
+    "jingzhe",
+    "xiongmao",
+    "yunyue",
+    "manao",
+    "xiaobianmu",
+  ]);
+
+  if (!idsToMigrate.has(id)) return stud;
+  return {
+    ...stud,
+    status: "在役",
   };
 }
 
@@ -1996,7 +2031,9 @@ function clonePost(post: Post): Post {
   };
 }
 
-function cloneQuestionnaireSubmission(submission: QuestionnaireSubmission): QuestionnaireSubmission {
+function cloneQuestionnaireSubmission(
+  submission: QuestionnaireSubmission,
+): QuestionnaireSubmission {
   return {
     ...submission,
     answers: QUESTIONNAIRE_FIELD_ORDER.reduce((acc, key) => {

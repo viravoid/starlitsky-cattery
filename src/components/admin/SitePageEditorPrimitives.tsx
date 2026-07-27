@@ -235,6 +235,7 @@ export function ImageListEditor<TImage extends EditablePageImage>({
   imageUrls,
   aspectRatio,
   placeholderLabel,
+  minItems = 1,
   onImagesChange,
   onNotice,
 }: {
@@ -243,6 +244,7 @@ export function ImageListEditor<TImage extends EditablePageImage>({
   imageUrls: Record<string, string>;
   aspectRatio: string;
   placeholderLabel: string;
+  minItems?: number;
   onImagesChange: (images: TImage[]) => void;
   onNotice: (message: string) => void;
 }) {
@@ -259,8 +261,8 @@ export function ImageListEditor<TImage extends EditablePageImage>({
   };
 
   const deleteImage = (id: string) => {
-    if (images.length <= 1) {
-      onNotice("图片列表至少保留 1 张图片。");
+    if (images.length <= minItems) {
+      onNotice(`图片列表至少保留 ${minItems} 张图片。`);
       return;
     }
     if (!window.confirm("确定删除这张图片吗？")) return;
@@ -355,7 +357,7 @@ export function ImageListEditor<TImage extends EditablePageImage>({
             <EditorButton
               tone="danger"
               onClick={() => deleteImage(image.id)}
-              disabled={images.length <= 1}
+              disabled={images.length <= minItems}
             >
               删除
             </EditorButton>

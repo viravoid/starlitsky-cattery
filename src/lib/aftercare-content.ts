@@ -3,11 +3,19 @@ export type TextListItem = {
   text: string;
 };
 
+export type AftercareContractFile = {
+  title: string;
+  assetId?: string;
+  fileName?: string;
+  mimeType?: string;
+};
+
 export type AftercareContent = {
   version: 1;
   promises: TextListItem[];
   healthItems: TextListItem[];
   contractNotice: string;
+  contractFile: AftercareContractFile;
 };
 
 export const DEFAULT_AFTERCARE_CONTENT: AftercareContent = {
@@ -36,6 +44,9 @@ export const DEFAULT_AFTERCARE_CONTENT: AftercareContent = {
     { id: "aftercare-health-deworming", text: "3–5 月龄大宠爱外驱，海乐妙内驱一次" },
   ],
   contractNotice: "售后页面仅为摘要，具体内容以《合同模板 2026》为准。",
+  contractFile: {
+    title: "购猫合同",
+  },
 };
 
 export function cloneAftercareContent(content: AftercareContent = DEFAULT_AFTERCARE_CONTENT) {
@@ -54,6 +65,7 @@ export function normalizeAftercareContent(value: unknown): AftercareContent {
     healthItems: normalizeTextList(input.healthItems, base.healthItems, "aftercare-health"),
     contractNotice:
       typeof input.contractNotice === "string" ? input.contractNotice : base.contractNotice,
+    contractFile: normalizeContractFile(input.contractFile, base.contractFile),
   };
 }
 
@@ -109,4 +121,18 @@ function normalizeItemId(
   }
   usedIds.add(candidate);
   return candidate;
+}
+
+function normalizeContractFile(
+  value: unknown,
+  fallback: AftercareContractFile,
+): AftercareContractFile {
+  if (!value || typeof value !== "object") return { ...fallback };
+  const input = value as Partial<AftercareContractFile>;
+  return {
+    title: typeof input.title === "string" ? input.title : fallback.title,
+    assetId: typeof input.assetId === "string" && input.assetId ? input.assetId : undefined,
+    fileName: typeof input.fileName === "string" && input.fileName ? input.fileName : undefined,
+    mimeType: typeof input.mimeType === "string" && input.mimeType ? input.mimeType : undefined,
+  };
 }
