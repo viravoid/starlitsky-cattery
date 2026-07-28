@@ -1,3 +1,4 @@
+import { cloneAftercareContent } from "./aftercare-content";
 import {
   CATTERY_STORAGE_KEY,
   catteryActions,
@@ -32,6 +33,19 @@ import {
   saveCatImage,
 } from "./cattery-images";
 import { actions as communityActions } from "./community-store";
+import { cloneEnvironmentContent, normalizeEnvironmentContent } from "./environment-content";
+import {
+  deleteSitePageAssetBlob,
+  getSitePageAssetBlob,
+  loadSavedAftercareContent,
+  loadDraftPreviewEnvironmentContent,
+  loadSavedEnvironmentContent,
+  saveAftercareContent,
+  saveDraftPreviewEnvironmentContent,
+  saveEnvironmentContent,
+  saveSitePageAsset,
+  subscribeToSavedAftercareContent,
+} from "./site-page-storage";
 
 type TestCase = {
   name: string;
@@ -54,6 +68,227 @@ const tests: TestCase[] = [
       const roundTrip = normalizeCatteryData(JSON.parse(JSON.stringify(data)));
       assert(roundTrip.cats.length === data.cats.length);
       assert(roundTrip.posts.find((post) => post.id === "p-5")?.catIds.includes("chonglou"));
+    },
+  },
+  {
+    name: "environment content keeps multi-room image order and cover after browser-local save and load",
+    run() {
+      withCustomEvent(() =>
+        withWindowObject(createEventWindow({ localStorage: createStorage(null) }), () => {
+          const content = cloneEnvironmentContent();
+          content.sections = [
+            {
+              id: "environment-section-a",
+              title: "环境 A",
+              summary: "总览摘要",
+              meta: "2 个房间",
+              coverImageId: "image-b",
+              rooms: [
+                {
+                  id: "room-a1",
+                  title: "房间一",
+                  description: "第一间",
+                  images: [
+                    { id: "room-a1-image-1", imageId: "image-a", focalPoint: { x: 18, y: 24 } },
+                    { id: "room-a1-image-2", imageId: "image-b", focalPoint: { x: 76, y: 62 } },
+                  ],
+                },
+                {
+                  id: "room-a2",
+                  title: "房间二",
+                  description: "第二间",
+                  images: [
+                    { id: "room-a2-image-1", imageId: "image-c", focalPoint: { x: 40, y: 55 } },
+                  ],
+                },
+              ],
+            },
+          ];
+          saveEnvironmentContent(content);
+
+          const stored = loadSavedEnvironmentContent();
+          assert(stored.sections.length === 1);
+          assert(stored.sections[0]?.coverImageId === "image-b");
+          assert(stored.sections[0]?.rooms.length === 2);
+          assert(stored.sections[0]?.rooms[0]?.images[0]?.imageId === "image-a");
+          assert(stored.sections[0]?.rooms[0]?.images[1]?.imageId === "image-b");
+          assert(stored.sections[0]?.rooms[1]?.images[0]?.imageId === "image-c");
+          assert(stored.sections[0]?.rooms[0]?.images[1]?.focalPoint.x === 76);
+        }),
+      );
+    },
+  },
+  {
+    name: "environment content legacy zone data migrates into a default room and preserves images",
+    run() {
+      const migrated = normalizeEnvironmentContent({
+        version: 1,
+        intro: "旧环境说明",
+        imageAspectRatio: { width: 16, height: 9 },
+        zones: [
+          {
+            id: "legacy-zone",
+            name: "旧分区",
+            area: "约 12㎡",
+            description: "旧说明",
+            images: [
+              { id: "legacy-zone-image-a", imageId: "legacy-a", focalPoint: { x: 10, y: 20 } },
+              { id: "legacy-zone-image-b", imageId: "legacy-b", focalPoint: { x: 80, y: 70 } },
+            ],
+          },
+        ],
+      });
+      assert(migrated.sections.length === 1);
+      assert(migrated.sections[0]?.title === "旧分区");
+      assert(migrated.sections[0]?.meta === "约 12㎡");
+      assert(migrated.sections[0]?.summary === "旧说明");
+      assert(migrated.sections[0]?.rooms.length === 1);
+      assert(migrated.sections[0]?.rooms[0]?.title === "环境展示");
+      assert(migrated.sections[0]?.rooms[0]?.images.length === 2);
+      assert(migrated.sections[0]?.rooms[0]?.images[0]?.imageId === "legacy-a");
+      assert(migrated.sections[0]?.rooms[0]?.images[1]?.imageId === "legacy-b");
+    },
+  },
+  {
+    name: "environment draft preview stays isolated from saved content",
+    run() {
+      withWindowObject(
+        {
+          localStorage: createStorage(null),
+          dispatchEvent() {},
+          addEventListener() {},
+          removeEventListener() {},
+        },
+        () => {
+          const saved = cloneEnvironmentContent();
+          saved.sections[0]!.summary = "已保存环境摘要";
+          saveEnvironmentContent(saved);
+
+          const draft = cloneEnvironmentContent();
+          draft.sections[0]!.summary = "草稿环境摘要";
+          draft.sections[0]!.rooms[0]!.images = [
+            {
+              id: "draft-room-image-1",
+              imageId: "draft-image-a",
+              focalPoint: { x: 50, y: 50 },
+            },
+          ];
+          saveDraftPreviewEnvironmentContent(draft);
+
+          assert(loadSavedEnvironmentContent().sections[0]?.summary === "已保存环境摘要");
+          assert(loadDraftPreviewEnvironmentContent().sections[0]?.summary === "草稿环境摘要");
+          assert(
+            loadDraftPreviewEnvironmentContent().sections[0]?.rooms[0]?.images[0]?.imageId ===
+              "draft-image-a",
+          );
+        },
+      );
+    },
+  },
+  {
+    name: "environment room deletion keeps sibling rooms and image order intact",
+    run() {
+      withCustomEvent(() =>
+        withWindowObject(createEventWindow({ localStorage: createStorage(null) }), () => {
+          const content = cloneEnvironmentContent();
+          content.sections = [
+            {
+              id: "environment-section-delete",
+              title: "待删测试",
+              summary: "删除房间",
+              meta: "2 个房间",
+              rooms: [
+                {
+                  id: "keep-room",
+                  title: "保留房间",
+                  description: "保留",
+                  images: [
+                    { id: "keep-room-image-1", imageId: "keep-a", focalPoint: { x: 11, y: 22 } },
+                    { id: "keep-room-image-2", imageId: "keep-b", focalPoint: { x: 33, y: 44 } },
+                  ],
+                },
+                {
+                  id: "remove-room",
+                  title: "删除房间",
+                  description: "删除",
+                  images: [
+                    {
+                      id: "remove-room-image-1",
+                      imageId: "remove-a",
+                      focalPoint: { x: 66, y: 77 },
+                    },
+                  ],
+                },
+              ],
+            },
+          ];
+          saveEnvironmentContent(content);
+
+          const updated = loadSavedEnvironmentContent();
+          updated.sections[0]!.rooms = updated.sections[0]!.rooms.filter(
+            (room) => room.id !== "remove-room",
+          );
+          saveEnvironmentContent(updated);
+
+          const stored = loadSavedEnvironmentContent();
+          assert(stored.sections[0]?.rooms.length === 1);
+          assert(stored.sections[0]?.rooms[0]?.id === "keep-room");
+          assert(stored.sections[0]?.rooms[0]?.images.length === 2);
+          assert(stored.sections[0]?.rooms[0]?.images[0]?.imageId === "keep-a");
+          assert(stored.sections[0]?.rooms[0]?.images[1]?.imageId === "keep-b");
+        }),
+      );
+    },
+  },
+  {
+    name: "aftercare contract file persists and saved subscribers stay in sync",
+    run() {
+      withCustomEvent(() =>
+        withWindowObject(createEventWindow({ localStorage: createStorage(null) }), () => {
+          const content = cloneAftercareContent();
+          content.contractFile = {
+            title: "2026 购猫合同",
+            assetId: "site-page-aftercare-contract-asset-demo",
+            fileName: "contract-demo.pdf",
+            mimeType: "application/pdf",
+          };
+
+          let callbackCount = 0;
+          const unsubscribe = subscribeToSavedAftercareContent(() => {
+            callbackCount += 1;
+          });
+
+          saveAftercareContent(content);
+          const stored = loadSavedAftercareContent();
+          unsubscribe();
+
+          assert(callbackCount === 1);
+          assert(stored.contractFile.title === "2026 购猫合同");
+          assert(stored.contractFile.assetId === "site-page-aftercare-contract-asset-demo");
+          assert(stored.contractFile.fileName === "contract-demo.pdf");
+          assert(stored.contractFile.mimeType === "application/pdf");
+        }),
+      );
+    },
+  },
+  {
+    name: "site page asset helpers support contract file save read and delete",
+    async run() {
+      await withWindowObject(
+        createEventWindow({
+          indexedDB: createFakeIndexedDb(),
+          crypto: { randomUUID: () => "contract-asset" },
+        }),
+        async () => {
+          const file = new File(["pdf"], "contract.pdf", { type: "application/pdf" });
+          const record = await saveSitePageAsset("aftercare-contract", file);
+
+          assert(record.id === "site-page-aftercare-contract-asset-contract-asset");
+          assert((await getSitePageAssetBlob(record.id)) === file);
+          assert(await deleteSitePageAssetBlob(record.id));
+          assert((await getSitePageAssetBlob(record.id)) === null);
+        },
+      );
     },
   },
   {
@@ -1103,6 +1338,18 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "known semi-retired stud status migrates away from old wording",
+    run() {
+      const data = cloneDefaultCatteryData();
+      const chonglou = data.cats.find((cat) => cat.id === "chonglou");
+      assert(chonglou?.stud);
+      chonglou.stud.status = "半退役 · 在舍";
+
+      const migrated = normalizeCatteryData(data);
+      assert(migrated.cats.find((cat) => cat.id === "chonglou")?.stud?.status === "半退役");
+    },
+  },
+  {
     name: "keeper stud actions update persisted records and selectors",
     run() {
       resetCatteryDataForTests();
@@ -1547,14 +1794,34 @@ function snapshotJson() {
 }
 
 function createStorage(initial: string | null) {
+  const records = new Map<string, string>();
   return {
     value: initial,
-    getItem() {
-      return this.value;
+    getItem(key: string) {
+      return records.has(key) ? records.get(key)! : this.value;
     },
-    setItem(_key: string, value: string) {
+    setItem(key: string, value: string) {
+      records.set(key, value);
       this.value = value;
     },
+  };
+}
+
+function createEventWindow(overrides: Record<string, unknown>) {
+  const listeners = new Map<string, Set<(event: Event) => void>>();
+  return {
+    dispatchEvent(event: Event) {
+      listeners.get(event.type)?.forEach((listener) => listener(event));
+      return true;
+    },
+    addEventListener(type: string, listener: (event: Event) => void) {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type)?.add(listener);
+    },
+    removeEventListener(type: string, listener: (event: Event) => void) {
+      listeners.get(type)?.delete(listener);
+    },
+    ...overrides,
   };
 }
 
@@ -1602,6 +1869,34 @@ function withWindowObject<T>(windowValue: unknown, run: () => T): T {
   } catch (error) {
     restore();
     throw error;
+  }
+}
+
+function withCustomEvent<T>(run: () => T): T {
+  const global = globalThis as Record<string, unknown>;
+  const hadPrevious = "CustomEvent" in global;
+  const previous = global.CustomEvent;
+
+  if (!hadPrevious) {
+    global.CustomEvent = class CustomEventPolyfill<TDetail = unknown> {
+      type: string;
+      detail?: TDetail;
+
+      constructor(type: string, init?: { detail?: TDetail }) {
+        this.type = type;
+        this.detail = init?.detail;
+      }
+    };
+  }
+
+  try {
+    return run();
+  } finally {
+    if (hadPrevious) {
+      global.CustomEvent = previous;
+    } else {
+      Reflect.deleteProperty(global, "CustomEvent");
+    }
   }
 }
 

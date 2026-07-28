@@ -15,13 +15,33 @@ export type AboutHeroSlide = {
   focalPoint: ImageFocalPoint;
 };
 
+export type AboutFactKey =
+  | "founded"
+  | "location"
+  | "registration"
+  | "socialization"
+  | "aftercare"
+  | "screening";
+
+export type AboutFactLabels = Record<AboutFactKey, string>;
+
 export type AboutContent = {
   version: 1;
   hero: {
     aspectRatio: AspectRatioValue;
     slides: AboutHeroSlide[];
   };
+  facts: AboutFactLabels;
   body: string;
+};
+
+export const DEFAULT_ABOUT_FACTS: AboutFactLabels = {
+  founded: "2019 年成立",
+  location: "西安",
+  registration: "WCF / CFA 注册",
+  socialization: "小猫从小社会化",
+  aftercare: "长期售后",
+  screening: "种猫遗传病筛查 all n/n",
 };
 
 export const ABOUT_BODY_DEFAULT =
@@ -39,6 +59,7 @@ export const DEFAULT_ABOUT_CONTENT: AboutContent = {
       },
     ],
   },
+  facts: { ...DEFAULT_ABOUT_FACTS },
   body: ABOUT_BODY_DEFAULT,
 };
 
@@ -104,6 +125,7 @@ export function normalizeAboutContent(value: unknown): AboutContent {
       aspectRatio: normalizeAspectRatio(input.hero?.aspectRatio),
       slides: slides.length ? slides : base.hero.slides,
     },
+    facts: normalizeAboutFacts(input.facts),
     body: typeof input.body === "string" ? input.body : base.body,
   };
 }
@@ -120,4 +142,20 @@ function clampPercent(value: unknown) {
 
 function roundRatioValue(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function normalizeAboutFacts(value: unknown): AboutFactLabels {
+  const input = value && typeof value === "object" ? (value as Partial<AboutFactLabels>) : {};
+  return {
+    founded: normalizeFactLabel(input.founded, DEFAULT_ABOUT_FACTS.founded),
+    location: normalizeFactLabel(input.location, DEFAULT_ABOUT_FACTS.location),
+    registration: normalizeFactLabel(input.registration, DEFAULT_ABOUT_FACTS.registration),
+    socialization: normalizeFactLabel(input.socialization, DEFAULT_ABOUT_FACTS.socialization),
+    aftercare: normalizeFactLabel(input.aftercare, DEFAULT_ABOUT_FACTS.aftercare),
+    screening: normalizeFactLabel(input.screening, DEFAULT_ABOUT_FACTS.screening),
+  };
+}
+
+function normalizeFactLabel(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value : fallback;
 }

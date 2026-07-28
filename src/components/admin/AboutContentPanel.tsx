@@ -7,6 +7,7 @@ import {
   normalizeAboutContent,
   sanitizeAspectRatio,
   type AboutContent,
+  type AboutFactKey,
   type AboutHeroSlide,
   type AspectRatioValue,
   type ImageFocalPoint,
@@ -20,7 +21,16 @@ import {
 } from "@/lib/site-page-storage";
 import { cn } from "@/lib/utils";
 
-type PanelKey = "hero" | "body";
+type PanelKey = "hero" | "facts" | "body";
+
+const FACT_FIELDS: { key: AboutFactKey; label: string }[] = [
+  { key: "founded", label: "成立时间" },
+  { key: "location", label: "所在城市" },
+  { key: "registration", label: "协会注册" },
+  { key: "socialization", label: "社会化说明" },
+  { key: "aftercare", label: "售后说明" },
+  { key: "screening", label: "遗传病筛查说明" },
+];
 
 const ASPECT_PRESETS: AspectRatioValue[] = [
   { width: 16, height: 10 },
@@ -47,6 +57,7 @@ export function AboutContentPanel({
   }));
   const [openPanels, setOpenPanels] = useState<Record<PanelKey, boolean>>({
     hero: true,
+    facts: true,
     body: true,
   });
   const imageUrls = useAboutEditorImageUrls(draft);
@@ -330,6 +341,32 @@ export function AboutContentPanel({
                   </div>
                 ))}
               </div>
+            </div>
+          </EditorSection>
+
+          <EditorSection
+            title="猫舍名片"
+            desc="名片区保留当前 6 张卡片和图标顺序；这里只改每张卡片的短句。"
+            open={openPanels.facts}
+            onToggle={() => togglePanel("facts")}
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              {FACT_FIELDS.map((field) => (
+                <TextField
+                  key={field.key}
+                  label={field.label}
+                  value={draft.facts[field.key]}
+                  onChange={(value) =>
+                    updateDraft((content) => ({
+                      ...content,
+                      facts: {
+                        ...content.facts,
+                        [field.key]: value,
+                      },
+                    }))
+                  }
+                />
+              ))}
             </div>
           </EditorSection>
 

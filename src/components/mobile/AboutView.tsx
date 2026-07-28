@@ -3,16 +3,16 @@ import { PhoneFrame } from "./PhoneFrame";
 import { Carousel } from "./Carousel";
 import { Section, SectionTitle, Card } from "./ui";
 import { MoonStars, Cottage, Rosette, HeartPaw, CurledCat, DnaHelix } from "./illustrations";
-import { formatAspectRatio, type AboutContent } from "@/lib/about-content";
+import { formatAspectRatio, type AboutContent, type AboutFactKey } from "@/lib/about-content";
 import { getSitePageImageBlob } from "@/lib/site-page-storage";
 
-const FACTS = [
-  { label: "2019 年成立", Art: MoonStars },
-  { label: "西安", Art: Cottage },
-  { label: "WCF / CFA 注册", Art: Rosette },
-  { label: "全职猫家长", Art: HeartPaw },
-  { label: "自繁自养", Art: CurledCat },
-  { label: "遗传病筛查 all n/n", Art: DnaHelix },
+const FACTS: { key: AboutFactKey; Art: typeof MoonStars }[] = [
+  { key: "founded", Art: MoonStars },
+  { key: "location", Art: Cottage },
+  { key: "registration", Art: Rosette },
+  { key: "socialization", Art: HeartPaw },
+  { key: "aftercare", Art: CurledCat },
+  { key: "screening", Art: DnaHelix },
 ];
 
 export function AboutView({
@@ -48,11 +48,11 @@ export function AboutView({
       <Section className="mt-2">
         <SectionTitle cn="猫舍名片" en="At a glance" />
         <div className="grid grid-cols-2 gap-2.5">
-          {FACTS.map(({ label, Art }) => (
-            <Card key={label} className="flex items-center gap-2.5 p-3">
+          {FACTS.map(({ key, Art }) => (
+            <Card key={key} className="flex min-h-[88px] items-center gap-2.5 p-3">
               <Art className="h-9 w-9 shrink-0 text-violet/80" />
               <span className="text-[13px] font-medium leading-snug text-card-foreground">
-                {label}
+                {content.facts[key]}
               </span>
             </Card>
           ))}

@@ -22,9 +22,11 @@ import { Route as AftercareRouteImport } from './routes/aftercare'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as EnvironmentIndexRouteImport } from './routes/environment.index'
 import { Route as CommunityIndexRouteImport } from './routes/community.index'
 import { Route as StudsIdRouteImport } from './routes/studs.$id'
 import { Route as KittensIdRouteImport } from './routes/kittens.$id'
+import { Route as EnvironmentSectionIdRouteImport } from './routes/environment.$sectionId'
 import { Route as CommunityPublishRouteImport } from './routes/community.publish'
 import { Route as CommunityParentOnboardRouteImport } from './routes/community.parent-onboard'
 import { Route as CommunityMyPostsRouteImport } from './routes/community.my-posts'
@@ -99,6 +101,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EnvironmentIndexRoute = EnvironmentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EnvironmentRoute,
+} as any)
 const CommunityIndexRoute = CommunityIndexRouteImport.update({
   id: '/community/',
   path: '/community/',
@@ -113,6 +120,11 @@ const KittensIdRoute = KittensIdRouteImport.update({
   id: '/kittens/$id',
   path: '/kittens/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const EnvironmentSectionIdRoute = EnvironmentSectionIdRouteImport.update({
+  id: '/$sectionId',
+  path: '/$sectionId',
+  getParentRoute: () => EnvironmentRoute,
 } as any)
 const CommunityPublishRoute = CommunityPublishRouteImport.update({
   id: '/community/publish',
@@ -163,7 +175,7 @@ export interface FileRoutesByFullPath {
   '/breeding-plan': typeof BreedingPlanRoute
   '/cats': typeof CatsRoute
   '/contact': typeof ContactRoute
-  '/environment': typeof EnvironmentRoute
+  '/environment': typeof EnvironmentRouteWithChildren
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
@@ -173,9 +185,11 @@ export interface FileRoutesByFullPath {
   '/community/my-posts': typeof CommunityMyPostsRoute
   '/community/parent-onboard': typeof CommunityParentOnboardRoute
   '/community/publish': typeof CommunityPublishRoute
+  '/environment/$sectionId': typeof EnvironmentSectionIdRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community/': typeof CommunityIndexRoute
+  '/environment/': typeof EnvironmentIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/litter/$id': typeof CommunityLitterIdRoute
@@ -189,7 +203,6 @@ export interface FileRoutesByTo {
   '/breeding-plan': typeof BreedingPlanRoute
   '/cats': typeof CatsRoute
   '/contact': typeof ContactRoute
-  '/environment': typeof EnvironmentRoute
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
@@ -199,9 +212,11 @@ export interface FileRoutesByTo {
   '/community/my-posts': typeof CommunityMyPostsRoute
   '/community/parent-onboard': typeof CommunityParentOnboardRoute
   '/community/publish': typeof CommunityPublishRoute
+  '/environment/$sectionId': typeof EnvironmentSectionIdRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community': typeof CommunityIndexRoute
+  '/environment': typeof EnvironmentIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/litter/$id': typeof CommunityLitterIdRoute
@@ -216,7 +231,7 @@ export interface FileRoutesById {
   '/breeding-plan': typeof BreedingPlanRoute
   '/cats': typeof CatsRoute
   '/contact': typeof ContactRoute
-  '/environment': typeof EnvironmentRoute
+  '/environment': typeof EnvironmentRouteWithChildren
   '/feeding': typeof FeedingRoute
   '/philosophy': typeof PhilosophyRoute
   '/process': typeof ProcessRoute
@@ -226,9 +241,11 @@ export interface FileRoutesById {
   '/community/my-posts': typeof CommunityMyPostsRoute
   '/community/parent-onboard': typeof CommunityParentOnboardRoute
   '/community/publish': typeof CommunityPublishRoute
+  '/environment/$sectionId': typeof EnvironmentSectionIdRoute
   '/kittens/$id': typeof KittensIdRoute
   '/studs/$id': typeof StudsIdRoute
   '/community/': typeof CommunityIndexRoute
+  '/environment/': typeof EnvironmentIndexRoute
   '/community/cat-edit/$id': typeof CommunityCatEditIdRoute
   '/community/cat/$id': typeof CommunityCatIdRoute
   '/community/litter/$id': typeof CommunityLitterIdRoute
@@ -254,9 +271,11 @@ export interface FileRouteTypes {
     | '/community/my-posts'
     | '/community/parent-onboard'
     | '/community/publish'
+    | '/environment/$sectionId'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community/'
+    | '/environment/'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/litter/$id'
@@ -270,7 +289,6 @@ export interface FileRouteTypes {
     | '/breeding-plan'
     | '/cats'
     | '/contact'
-    | '/environment'
     | '/feeding'
     | '/philosophy'
     | '/process'
@@ -280,9 +298,11 @@ export interface FileRouteTypes {
     | '/community/my-posts'
     | '/community/parent-onboard'
     | '/community/publish'
+    | '/environment/$sectionId'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community'
+    | '/environment'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/litter/$id'
@@ -306,9 +326,11 @@ export interface FileRouteTypes {
     | '/community/my-posts'
     | '/community/parent-onboard'
     | '/community/publish'
+    | '/environment/$sectionId'
     | '/kittens/$id'
     | '/studs/$id'
     | '/community/'
+    | '/environment/'
     | '/community/cat-edit/$id'
     | '/community/cat/$id'
     | '/community/litter/$id'
@@ -323,7 +345,7 @@ export interface RootRouteChildren {
   BreedingPlanRoute: typeof BreedingPlanRoute
   CatsRoute: typeof CatsRoute
   ContactRoute: typeof ContactRoute
-  EnvironmentRoute: typeof EnvironmentRoute
+  EnvironmentRoute: typeof EnvironmentRouteWithChildren
   FeedingRoute: typeof FeedingRoute
   PhilosophyRoute: typeof PhilosophyRoute
   ProcessRoute: typeof ProcessRoute
@@ -435,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/environment/': {
+      id: '/environment/'
+      path: '/'
+      fullPath: '/environment/'
+      preLoaderRoute: typeof EnvironmentIndexRouteImport
+      parentRoute: typeof EnvironmentRoute
+    }
     '/community/': {
       id: '/community/'
       path: '/community'
@@ -455,6 +484,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/kittens/$id'
       preLoaderRoute: typeof KittensIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/environment/$sectionId': {
+      id: '/environment/$sectionId'
+      path: '/$sectionId'
+      fullPath: '/environment/$sectionId'
+      preLoaderRoute: typeof EnvironmentSectionIdRouteImport
+      parentRoute: typeof EnvironmentRoute
     }
     '/community/publish': {
       id: '/community/publish'
@@ -515,6 +551,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface EnvironmentRouteChildren {
+  EnvironmentSectionIdRoute: typeof EnvironmentSectionIdRoute
+  EnvironmentIndexRoute: typeof EnvironmentIndexRoute
+}
+
+const EnvironmentRouteChildren: EnvironmentRouteChildren = {
+  EnvironmentSectionIdRoute: EnvironmentSectionIdRoute,
+  EnvironmentIndexRoute: EnvironmentIndexRoute,
+}
+
+const EnvironmentRouteWithChildren = EnvironmentRoute._addFileChildren(
+  EnvironmentRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -523,7 +573,7 @@ const rootRouteChildren: RootRouteChildren = {
   BreedingPlanRoute: BreedingPlanRoute,
   CatsRoute: CatsRoute,
   ContactRoute: ContactRoute,
-  EnvironmentRoute: EnvironmentRoute,
+  EnvironmentRoute: EnvironmentRouteWithChildren,
   FeedingRoute: FeedingRoute,
   PhilosophyRoute: PhilosophyRoute,
   ProcessRoute: ProcessRoute,

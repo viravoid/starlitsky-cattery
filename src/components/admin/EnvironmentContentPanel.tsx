@@ -3,11 +3,13 @@ import { EnvironmentView } from "@/components/mobile/EnvironmentView";
 import {
   cloneEnvironmentContent,
   formatEnvironmentAspectRatio,
+  getEnvironmentSectionImages,
   normalizeEnvironmentContent,
   sanitizeEnvironmentAspectRatio,
   type EnvironmentContent,
-  type EnvironmentZone,
-  type EnvironmentZoneImage,
+  type EnvironmentRoom,
+  type EnvironmentRoomImage,
+  type EnvironmentSection,
 } from "@/lib/environment-content";
 import {
   loadSavedEnvironmentContent,
@@ -20,12 +22,13 @@ import {
   EditorButton,
   EditorSection,
   ImageListEditor,
+  SortableListEditor,
   TextareaField,
   TextField,
 } from "./SitePageEditorPrimitives";
-import { createStableId, moveById, moveToId } from "./site-page-editor-utils";
+import { createStableId } from "./site-page-editor-utils";
 
-type PanelKey = "intro" | "ratio" | "zones";
+type PanelKey = "intro" | "ratio" | "sections";
 
 export function EnvironmentContentPanel({
   onNotice,
@@ -36,17 +39,18 @@ export function EnvironmentContentPanel({
 }) {
   const [saved, setSaved] = useState<EnvironmentContent>(() => loadSavedEnvironmentContent());
   const [draft, setDraft] = useState<EnvironmentContent>(() => loadSavedEnvironmentContent());
-  const [draggingZoneId, setDraggingZoneId] = useState<string | null>(null);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [openPanels, setOpenPanels] = useState<Record<PanelKey, boolean>>({
     intro: true,
     ratio: true,
-    zones: true,
+    sections: true,
   });
 
   const dirty = useMemo(() => JSON.stringify(saved) !== JSON.stringify(draft), [draft, saved]);
   const imageUrls = useSitePageImageUrls(
-    draft.zones.flatMap((zone) => zone.images.map((image) => image.imageId)),
+    draft.sections.flatMap((section) =>
+      getEnvironmentSectionImages(section).map(({ image }) => image.imageId),
+    ),
   );
   const aspectRatio = formatEnvironmentAspectRatio(draft.imageAspectRatio);
 
@@ -82,7 +86,9 @@ export function EnvironmentContentPanel({
 
   const restoreDraft = () => {
     if (!dirty) return;
-    if (!window.confirm("确定要恢复本次修改吗？当前所有未保存的猫舍环境修改都会被放弃。")) return;
+    if (!window.confirm("确定要恢复本次修改吗？当前所有未保存的猫舍环境修改都会被放弃。")) {
+      return;
+    }
     setDraft(cloneEnvironmentContent(saved));
   };
 
@@ -91,49 +97,30 @@ export function EnvironmentContentPanel({
     window.open("/environment?sitePagePreview=environment-draft", "_blank", "noopener,noreferrer");
   };
 
-  const addZone = () => {
-    updateDraft((content) => {
-      const id = `environment-zone-${createStableId()}`;
-      content.zones.push({
-        id,
-        name: "新环境区域",
-        area: "",
-        description: "",
-        images: [{ id: `${id}-image-${createStableId()}`, focalPoint: { x: 50, y: 50 } }],
-      });
-      return content;
-    });
+  const updateSection = (
+    sectionId: string,
+    updater: (section: EnvironmentSection) => EnvironmentSection,
+  ) => {
+    updateDraft((content) => ({
+      ...content,
+      sections: content.sections.map((section) =>
+        section.id === sectionId ? syncSectionCoverImage(updater(section)) : section,
+      ),
+    }));
   };
 
-  const deleteZone = (id: string) => {
-    if (!window.confirm("确定删除这个环境区域吗？区域内图片设置也会从草稿中移除。")) return;
-    updateDraft((content) => {
-      content.zones = content.zones.filter((zone) => zone.id !== id);
-      return content;
-    });
-  };
-
-  const moveZone = (id: string, direction: -1 | 1) => {
-    updateDraft((content) => {
-      content.zones = moveById(content.zones, id, direction);
-      return content;
-    });
-  };
-
-  const dropZone = (targetId: string) => {
-    if (!draggingZoneId) return;
-    updateDraft((content) => {
-      content.zones = moveToId(content.zones, draggingZoneId, targetId);
-      return content;
-    });
-    setDraggingZoneId(null);
-  };
-
-  const updateZone = (id: string, patch: Partial<EnvironmentZone>) => {
-    updateDraft((content) => {
-      content.zones = content.zones.map((zone) => (zone.id === id ? { ...zone, ...patch } : zone));
-      return content;
-    });
+  const addRoom = (sectionId: string) => {
+    updateSection(sectionId, (section) => ({
+      ...section,
+      rooms: [
+        ...section.rooms,
+        createEnvironmentRoom(
+          section.id,
+          section.rooms.length + 1,
+          `新增房间 ${section.rooms.length + 1}`,
+        ),
+      ],
+    }));
   };
 
   return (
@@ -167,7 +154,7 @@ export function EnvironmentContentPanel({
 
           <EditorSection
             title="开头说明"
-            desc="页面标题、英文小字、返回逻辑和四个标签固定；这里只编辑说明正文。"
+            desc="页面标题、英文小字、返回逻辑和固定标签继续沿用；这里只编辑总览页顶部说明。"
             open={openPanels.intro}
             onToggle={() => togglePanel("intro")}
           >
@@ -181,7 +168,7 @@ export function EnvironmentContentPanel({
 
           <EditorSection
             title="图片比例"
-            desc="所有环境区域共用同一个比例；焦点数据继续保留。"
+            desc="环境总览、详情房间图片和大图预览共用统一比例；焦点数据继续保留。"
             open={openPanels.ratio}
             onToggle={() => togglePanel("ratio")}
           >
@@ -195,83 +182,135 @@ export function EnvironmentContentPanel({
           </EditorSection>
 
           <EditorSection
-            title="环境区域"
-            desc="可新增、删除、排序；桌面支持拖拽，同时保留上移和下移。"
-            open={openPanels.zones}
-            onToggle={() => togglePanel("zones")}
+            title="环境分区"
+            desc="保留单一“猫舍环境”页面结构；每个分区单独维护概览信息、房间顺序、房间说明和多张图片。"
+            open={openPanels.sections}
+            onToggle={() => togglePanel("sections")}
           >
-            <div className="grid gap-3">
-              <div className="flex justify-end">
-                <EditorButton onClick={addZone}>新增环境区域</EditorButton>
-              </div>
-              {draft.zones.length === 0 && (
-                <p className="rounded-[6px] border border-dashed border-border px-3 py-6 text-center text-[13px] text-muted-foreground">
-                  暂无环境区域。
-                </p>
-              )}
-              {draft.zones.map((zone, index) => (
-                <div
-                  key={zone.id}
-                  draggable
-                  onDragStart={() => setDraggingZoneId(zone.id)}
-                  onDragEnd={() => setDraggingZoneId(null)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => dropZone(zone.id)}
-                  className="grid gap-3 rounded-[6px] border border-border/80 bg-background p-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-display text-[13px] italic text-warm/80">
-                      #{index + 1}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      <EditorButton
-                        tone="quiet"
-                        onClick={() => moveZone(zone.id, -1)}
-                        disabled={index === 0}
-                      >
-                        上移
-                      </EditorButton>
-                      <EditorButton
-                        tone="quiet"
-                        onClick={() => moveZone(zone.id, 1)}
-                        disabled={index === draft.zones.length - 1}
-                      >
-                        下移
-                      </EditorButton>
-                      <EditorButton tone="danger" onClick={() => deleteZone(zone.id)}>
-                        删除
+            <div className="grid gap-4">
+              {draft.sections.map((section) => {
+                const imageOptions = getSectionImageOptions(section);
+                const currentCoverImage =
+                  imageOptions.find((option) => option.value === section.coverImageId)?.value ?? "";
+
+                return (
+                  <div
+                    key={section.id}
+                    className="rounded-[6px] border border-border/80 bg-background p-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[14px] font-semibold text-heading">{section.title}</p>
+                        <p className="mt-1 text-[11.5px] text-muted-foreground">
+                          路径：/environment/{section.id}
+                        </p>
+                      </div>
+                      <EditorButton tone="quiet" onClick={() => addRoom(section.id)}>
+                        新增房间
                       </EditorButton>
                     </div>
+
+                    <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_220px]">
+                      <TextField
+                        label="分区标题"
+                        value={section.title}
+                        onChange={(title) =>
+                          updateSection(section.id, (current) => ({ ...current, title }))
+                        }
+                      />
+                      <TextField
+                        label="概览信息"
+                        value={section.meta}
+                        onChange={(meta) =>
+                          updateSection(section.id, (current) => ({ ...current, meta }))
+                        }
+                      />
+                    </div>
+
+                    <div className="mt-3">
+                      <TextareaField
+                        label="总览摘要"
+                        value={section.summary}
+                        rows={3}
+                        onChange={(summary) =>
+                          updateSection(section.id, (current) => ({ ...current, summary }))
+                        }
+                      />
+                    </div>
+
+                    <label className="mt-3 grid gap-1.5">
+                      <span className="text-[12px] font-semibold text-heading lg:text-[13px]">
+                        总览封面
+                      </span>
+                      <select
+                        value={currentCoverImage}
+                        onChange={(event) =>
+                          updateSection(section.id, (current) => ({
+                            ...current,
+                            coverImageId: event.target.value || undefined,
+                          }))
+                        }
+                        className="h-9 rounded-[7px] border border-border bg-card px-3 text-[13px] outline-none focus:border-primary"
+                      >
+                        <option value="">自动使用首张已上传图片</option>
+                        {imageOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-[11.5px] leading-relaxed text-muted-foreground">
+                        如果未手动指定，前台会自动使用当前分区第一张已上传图片作为封面。
+                      </span>
+                    </label>
+
+                    <div className="mt-4">
+                      <SortableListEditor<EnvironmentRoom>
+                        items={section.rooms}
+                        addLabel="新增房间"
+                        emptyLabel="当前分区还没有房间。"
+                        deleteConfirm="确定删除这个房间吗？该房间下的图片设置也会一起从草稿中移除。"
+                        onAdd={() => addRoom(section.id)}
+                        onItemsChange={(rooms) =>
+                          updateSection(section.id, (current) => ({ ...current, rooms }))
+                        }
+                        renderItem={(room, roomIndex, updateRoom) => (
+                          <div className="grid gap-3">
+                            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_180px]">
+                              <TextField
+                                label="房间名称"
+                                value={room.title}
+                                onChange={(title) => updateRoom({ title })}
+                              />
+                              <TextField
+                                label="房间序号说明"
+                                value={`第 ${roomIndex + 1} 个房间 / 子区域`}
+                                onChange={() => {}}
+                              />
+                            </div>
+                            <TextareaField
+                              label="房间说明"
+                              value={room.description}
+                              rows={3}
+                              onChange={(description) => updateRoom({ description })}
+                            />
+                            <ImageListEditor<EnvironmentRoomImage>
+                              pageId={`environment-${section.id}-${room.id}`}
+                              images={room.images}
+                              imageUrls={imageUrls}
+                              aspectRatio={aspectRatio}
+                              placeholderLabel={`示例图片（${room.title}照片，待替换）`}
+                              minItems={0}
+                              onImagesChange={(images) => updateRoom({ images })}
+                              onNotice={onNotice}
+                            />
+                          </div>
+                        )}
+                      />
+                    </div>
                   </div>
-                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_180px]">
-                    <TextField
-                      label="区域名称"
-                      value={zone.name}
-                      onChange={(name) => updateZone(zone.id, { name })}
-                    />
-                    <TextField
-                      label="面积"
-                      value={zone.area}
-                      onChange={(area) => updateZone(zone.id, { area })}
-                    />
-                  </div>
-                  <TextareaField
-                    label="区域说明"
-                    value={zone.description}
-                    rows={4}
-                    onChange={(description) => updateZone(zone.id, { description })}
-                  />
-                  <ImageListEditor<EnvironmentZoneImage>
-                    pageId="environment"
-                    images={zone.images}
-                    imageUrls={imageUrls}
-                    aspectRatio={aspectRatio}
-                    placeholderLabel={`示例图片（${zone.name}照片，待替换）`}
-                    onImagesChange={(images) => updateZone(zone.id, { images })}
-                    onNotice={onNotice}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </EditorSection>
         </div>
@@ -297,9 +336,49 @@ export function EnvironmentContentPanel({
               关闭
             </EditorButton>
           </div>
-          <EnvironmentView content={draft} />
+          <EnvironmentView content={draft} preview />
         </div>
       )}
     </>
   );
+}
+
+function createEnvironmentRoom(sectionId: string, index: number, title: string): EnvironmentRoom {
+  return {
+    id: `${sectionId}-room-${createStableId()}`,
+    title,
+    description: "",
+    images: [],
+  };
+}
+
+function getSectionImageOptions(section: EnvironmentSection) {
+  return getEnvironmentSectionImages(section)
+    .filter(({ image }) => typeof image.imageId === "string" && image.imageId)
+    .map(({ roomTitle, image }, index) => ({
+      value: image.imageId as string,
+      label: `${roomTitle} · 第 ${index + 1} 张`,
+    }));
+}
+
+function syncSectionCoverImage(section: EnvironmentSection): EnvironmentSection {
+  const imageIds = getEnvironmentSectionImages(section)
+    .map(({ image }) => image.imageId)
+    .filter((imageId): imageId is string => typeof imageId === "string" && imageId.length > 0);
+
+  if (imageIds.length === 0) {
+    return {
+      ...section,
+      coverImageId: undefined,
+    };
+  }
+
+  if (section.coverImageId && imageIds.includes(section.coverImageId)) {
+    return section;
+  }
+
+  return {
+    ...section,
+    coverImageId: imageIds[0],
+  };
 }
