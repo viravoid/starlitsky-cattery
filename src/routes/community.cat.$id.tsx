@@ -3,7 +3,9 @@ import { createFileRoute, notFound, useParams, Link } from "@tanstack/react-rout
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
 import { PostCard, LoginSheet, Lightbox } from "@/components/mobile/community/CommunityBits";
+import { CroppedImageFrame } from "@/components/CroppedImageFrame";
 import { useCommunity } from "@/lib/community-store";
+import { getResolvedCatCoverPresentation } from "@/lib/cat-image-presentation";
 import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
 import {
   hasHydratedCatteryData,
@@ -21,9 +23,9 @@ export const Route = createFileRoute("/community/cat/$id")({
 function CatTimeline() {
   const { id } = useParams({ from: "/community/cat/$id" });
   const canonicalId = resolveCatId(id);
-  const familyCats = useCommunity((s) => s.cats);
-  const allPosts = useCommunity((s) => s.posts);
-  const users = useCommunity((s) => s.users);
+  const familyCats = useCommunity((state) => state.cats);
+  const allPosts = useCommunity((state) => state.posts);
+  const users = useCommunity((state) => state.users);
   const catteryState = useCattery((snapshot) => snapshot);
   const kittens = useMemo(() => selectKittenRecords(catteryState), [catteryState]);
   const studs = useMemo(() => selectStudRecords(catteryState), [catteryState]);
@@ -49,17 +51,19 @@ function CatTimeline() {
   );
   const imageUrls = useCatteryImageUrls([
     kitten?.coverImageId,
-    ...(kitten?.galleryImageIds ?? []).slice(0, 1),
+    ...(kitten?.galleryImageIds ?? []),
     stud?.coverImageId,
-    ...(stud?.galleryImageIds ?? []).slice(0, 1),
+    ...(stud?.galleryImageIds ?? []),
   ]);
-  const coverUrl =
-    (kitten?.coverImageId && imageUrls[kitten.coverImageId]) ||
-    ((kitten?.galleryImageIds ?? [])[0]
-      ? imageUrls[(kitten?.galleryImageIds ?? [])[0]!]
-      : undefined) ||
-    (stud?.coverImageId && imageUrls[stud.coverImageId]) ||
-    ((stud?.galleryImageIds ?? [])[0] ? imageUrls[(stud?.galleryImageIds ?? [])[0]!] : undefined);
+  const coverPresentation = getResolvedCatCoverPresentation({
+    catId: canonicalId,
+    entry: "communityProfile",
+    coverImageId: kitten?.coverImageId ?? stud?.coverImageId,
+    galleryImageIds: kitten?.galleryImageIds ?? stud?.galleryImageIds ?? [],
+    manualSelections: kitten?.entryCoverSelections ?? stud?.entryCoverSelections,
+    legacyPresentations: kitten?.coverPresentations ?? stud?.coverPresentations,
+  });
+  const coverUrl = coverPresentation.imageId ? imageUrls[coverPresentation.imageId] : undefined;
 
   if (!familyCat && !kitten && !stud && !hasHydratedCatteryData()) {
     return (
@@ -71,6 +75,7 @@ function CatTimeline() {
     );
   }
   if (!familyCat && !kitten && !stud) throw notFound();
+
   const displayName = familyCat?.name ?? kitten?.name ?? stud?.name ?? "这只猫";
   const gender = familyCat?.gender ?? kitten?.gender ?? stud?.gender;
   const color = familyCat?.color ?? kitten?.color ?? stud?.color;
@@ -87,7 +92,18 @@ function CatTimeline() {
         <div className="space-y-3">
           {coverUrl ? (
             <div className="aspect-[4/3] overflow-hidden rounded-3xl bg-card">
-              <img src={coverUrl} alt="" className="h-full w-full object-cover" draggable={false} />
+              <CroppedImageFrame
+                imageUrl={coverUrl}
+                aspectRatio={coverPresentation.aspectRatio}
+                cropRect={
+                  coverPresentation.mode === "crop" ? coverPresentation.cropRect : undefined
+                }
+                legacyPresentation={
+                  coverPresentation.mode === "legacy" ? coverPresentation.legacy : undefined
+                }
+                mode={coverPresentation.mode}
+                className="h-full w-full"
+              />
             </div>
           ) : (
             <Placeholder
@@ -129,8 +145,8 @@ function CatTimeline() {
             {posts.length === 0 && (
               <p className="py-8 text-center text-[12.5px] text-warm">这只猫还没有专属动态。</p>
             )}
-            {posts.map((p) => (
-              <PostCard key={p.id} post={p} />
+            {posts.map((post) => (
+              <PostCard key={post.id} post={post} />
             ))}
           </div>
         </div>

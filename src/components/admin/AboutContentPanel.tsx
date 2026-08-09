@@ -13,12 +13,12 @@ import {
   type ImageFocalPoint,
 } from "@/lib/about-content";
 import {
-  getSitePageImageBlob,
   loadSavedAboutContent,
   saveAboutContent,
   saveDraftPreviewAboutContent,
   saveSitePageImage,
 } from "@/lib/site-page-storage";
+import { useSitePageImageUrls } from "@/hooks/use-site-page-image-urls";
 import { cn } from "@/lib/utils";
 
 type PanelKey = "hero" | "facts" | "body";
@@ -593,38 +593,7 @@ function Button({
 }
 
 function useAboutEditorImageUrls(content: AboutContent) {
-  const [urls, setUrls] = useState<Record<string, string>>({});
-  const imageKey = useMemo(
-    () => content.hero.slides.map((slide) => slide.imageId ?? "").join("|"),
-    [content.hero.slides],
-  );
-
-  useEffect(() => {
-    let active = true;
-    const objectUrls: string[] = [];
-
-    async function load() {
-      const next: Record<string, string> = {};
-      for (const slide of content.hero.slides) {
-        if (!slide.imageId) continue;
-        const blob = await getSitePageImageBlob(slide.imageId);
-        if (!blob || !active) continue;
-        const url = URL.createObjectURL(blob);
-        objectUrls.push(url);
-        next[slide.imageId] = url;
-      }
-      if (active) setUrls(next);
-    }
-
-    void load();
-
-    return () => {
-      active = false;
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [content.hero.slides, imageKey]);
-
-  return urls;
+  return useSitePageImageUrls(content.hero.slides.map((slide) => slide.imageId));
 }
 
 function moveById<T extends { id: string }>(items: T[], id: string, direction: -1 | 1) {

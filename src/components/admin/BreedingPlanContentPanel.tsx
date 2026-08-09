@@ -8,6 +8,7 @@ import {
   type BreedingPlanPairing,
 } from "@/lib/breeding-plan-content";
 import { STUDS, type Stud } from "@/lib/cattery-data";
+import { selectStudRecords, useCattery } from "@/lib/cattery-store";
 import {
   loadSavedBreedingPlanContent,
   saveBreedingPlanContent,
@@ -43,6 +44,8 @@ export function BreedingPlanContentPanel({
     basic: true,
     groups: true,
   });
+  const catteryState = useCattery((snapshot) => snapshot);
+  const previewStuds = useMemo(() => selectStudRecords(catteryState, "all"), [catteryState]);
 
   const dirty = useMemo(() => JSON.stringify(saved) !== JSON.stringify(draft), [draft, saved]);
 
@@ -212,7 +215,7 @@ export function BreedingPlanContentPanel({
                 新标签页
               </EditorButton>
             </div>
-            <BreedingPlanView content={draft} studs={STUDS} preview />
+            <BreedingPlanView content={draft} studs={previewStuds} preview />
           </div>
         </aside>
       </div>
@@ -225,7 +228,7 @@ export function BreedingPlanContentPanel({
               关闭
             </EditorButton>
           </div>
-          <BreedingPlanView content={draft} studs={STUDS} />
+          <BreedingPlanView content={draft} studs={previewStuds} />
         </div>
       )}
     </>

@@ -1,3 +1,5 @@
+import { ENVIRONMENT_REAL_IMAGE_ASSIGNMENTS } from "./real-photo-manifest.generated";
+
 export type EnvironmentImageFocalPoint = {
   x: number;
   y: number;
@@ -58,7 +60,7 @@ const DEFAULT_INTRO =
 export const DEFAULT_ENVIRONMENT_CONTENT: EnvironmentContent = {
   version: 1,
   intro: DEFAULT_INTRO,
-  imageAspectRatio: { width: 16, height: 9 },
+  imageAspectRatio: { width: 4, height: 3 },
   sections: [
     {
       id: "environment-zone-nursery",
@@ -241,6 +243,7 @@ export const DEFAULT_ENVIRONMENT_CONTENT: EnvironmentContent = {
     },
   ],
 };
+applyDefaultEnvironmentImageAssignments(DEFAULT_ENVIRONMENT_CONTENT);
 
 export function cloneEnvironmentContent(content: EnvironmentContent = DEFAULT_ENVIRONMENT_CONTENT) {
   return JSON.parse(JSON.stringify(content)) as EnvironmentContent;
@@ -270,7 +273,7 @@ export function normalizeEnvironmentContent(value: unknown): EnvironmentContent 
 }
 
 export function normalizeEnvironmentAspectRatio(value: unknown): EnvironmentAspectRatioValue {
-  if (!value || typeof value !== "object") return { width: 16, height: 9 };
+  if (!value || typeof value !== "object") return { width: 4, height: 3 };
   const input = value as Partial<EnvironmentAspectRatioValue>;
   return sanitizeEnvironmentAspectRatio(input.width, input.height);
 }
@@ -282,13 +285,13 @@ export function sanitizeEnvironmentAspectRatio(
   const parsedWidth = typeof width === "number" ? width : Number(width);
   const parsedHeight = typeof height === "number" ? height : Number(height);
   if (!Number.isFinite(parsedWidth) || !Number.isFinite(parsedHeight)) {
-    return { width: 16, height: 9 };
+    return { width: 4, height: 3 };
   }
 
   const nextWidth = Math.max(1, Math.min(32, parsedWidth));
   const nextHeight = Math.max(1, Math.min(32, parsedHeight));
   const ratio = nextWidth / nextHeight;
-  if (ratio < 0.35 || ratio > 3.5) return { width: 16, height: 9 };
+  if (ratio < 0.35 || ratio > 3.5) return { width: 4, height: 3 };
 
   return {
     width: roundRatioValue(nextWidth),
@@ -430,6 +433,35 @@ function createDefaultEnvironmentImage(roomId: string, index: number): Environme
     id: `${roomId}-image-${index}`,
     focalPoint: { x: 50, y: 50 },
   };
+}
+
+function applyDefaultEnvironmentImageAssignments(content: EnvironmentContent) {
+  content.sections = content.sections.map((section) => {
+    const assignment =
+      ENVIRONMENT_REAL_IMAGE_ASSIGNMENTS[
+        section.id as keyof typeof ENVIRONMENT_REAL_IMAGE_ASSIGNMENTS
+      ];
+
+    return {
+      ...section,
+      coverImageId: assignment?.coverImageId,
+      rooms: section.rooms.map((room) => {
+        const imageIds = assignment?.rooms?.[room.id as keyof typeof assignment.rooms];
+        return {
+          ...room,
+          images: imageIds ? createAssignedEnvironmentImages(room.id, imageIds) : [],
+        };
+      }),
+    };
+  });
+}
+
+function createAssignedEnvironmentImages(roomId: string, imageIds: readonly string[]) {
+  return imageIds.map((imageId, index) => ({
+    id: `${roomId}-image-${index + 1}`,
+    imageId,
+    focalPoint: { x: 50, y: 50 },
+  }));
 }
 
 function normalizeFocalPoint(value: unknown): EnvironmentImageFocalPoint {

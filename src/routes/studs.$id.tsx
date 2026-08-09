@@ -1,11 +1,17 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import {
+  SegmentedImageCarousel,
+  type SegmentedImageSlide,
+} from "@/components/mobile/SegmentedImageCarousel";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill } from "@/components/mobile/ui";
-import { Carousel } from "@/components/mobile/Carousel";
 import { PaperIcon } from "@/components/mobile/icons";
 import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
+import { getResolvedDetailCarouselPresentation } from "@/lib/cat-image-presentation";
 import { hasHydratedCatteryData, selectStudRecords, useCattery } from "@/lib/cattery-store";
+
+type DetailCarouselSlide = SegmentedImageSlide;
 
 export const Route = createFileRoute("/studs/$id")({
   component: StudDetail,
@@ -37,12 +43,13 @@ function StudDetail() {
     (imageId): imageId is string => Boolean(imageId),
   );
   const imageUrls = useCatteryImageUrls(imageIds);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   if (!stud && !hasHydratedCatteryData()) {
     return (
       <PhoneFrame title="种猫详情" showBack>
         <Section className="py-10 text-center text-[13px] text-muted-foreground">
-          正在加载种猫资料…
+          正在加载种猫资料...
         </Section>
       </PhoneFrame>
     );
@@ -64,13 +71,26 @@ function StudDetail() {
     stud.story && stud.story.length > 0
       ? stud.story
       : [stud.personality || stud.trait || "（示例文字：主理人的完整介绍待补充）"];
-  const gallerySlides =
-    imageIds.length > 0
-      ? imageIds.map((imageId, index) => ({
-          label: `种猫图片 ${index + 1}`,
-          imageUrl: imageUrls[imageId],
-        }))
-      : [{ label: "示例图片（种猫照片 1，待替换）" }, { label: "示例图片（种猫照片 2，待替换）" }];
+  const galleryItems = imageIds.map((imageId, index) => {
+    const presentation = getResolvedDetailCarouselPresentation({
+      catId: stud.id,
+      imageId,
+      coverImageId: stud.coverImageId,
+      manualPresentations: stud.detailImagePresentations,
+      legacyCoverPresentations: stud.coverPresentations,
+      legacyDetailPresentations: stud.detailCarouselPresentations,
+    });
+
+    return {
+      id: imageId,
+      label: `种猫图片 ${index + 1}`,
+      imageUrl: imageUrls[imageId],
+      mode: presentation.mode,
+      aspectRatio: 4 / 5,
+      cropRect: presentation.mode === "crop" ? presentation.cropRect : undefined,
+      legacyPresentation: presentation.mode === "legacy" ? presentation.legacy : undefined,
+    } satisfies DetailCarouselSlide;
+  });
 
   return (
     <PhoneFrame
@@ -87,7 +107,16 @@ function StudDetail() {
       }
     >
       <Section className="pt-1">
-        <Carousel slides={gallerySlides} ratio="aspect-square" />
+        <SegmentedImageCarousel
+          slides={galleryItems}
+          aspectRatio="4 / 5"
+          rounded="rounded-[28px]"
+          placeholderCompact
+          onSlideClick={(index) => {
+            if (!galleryItems[index]?.imageUrl) return;
+            setLightboxIndex(index);
+          }}
+        />
         <div className="mt-3">
           <Link
             to="/community/cat/$id"
@@ -111,7 +140,7 @@ function StudDetail() {
           <Info label="身份" value={stud.role || "待补充"} />
           <Info label="颜色" value={stud.color || "待补充"} />
           <Info label="繁育状态" value={reproductiveStateLabel(stud.reproductiveState)} />
-          <Info label="性别 / 生日" value={formatMeta(stud.gender, stud.birthday)} />
+          <Info label="生日" value={stud.birthday || "待补充"} />
           <Info label="来源 / 血线" value={stud.source || "待补充"} className="col-span-2" />
         </div>
       </Section>
@@ -152,13 +181,149 @@ function StudDetail() {
           </div>
         </div>
       </Section>
+
+      {lightboxIndex !== null && galleryItems[lightboxIndex]?.imageUrl && (
+        <DetailImageLightbox
+          title={stud.name}
+          items={
+            galleryItems.filter((item) => Boolean(item.imageUrl)) as (DetailCarouselSlide & {
+              imageUrl: string;
+            })[]
+          }
+          index={Math.max(
+            0,
+            galleryItems
+              .filter((item) => item.imageUrl)
+              .findIndex((item) => item.id === galleryItems[lightboxIndex]?.id),
+          )}
+          onClose={() => setLightboxIndex(null)}
+          onPrev={() =>
+            setLightboxIndex((current) =>
+              current === null ? current : findNextLightboxIndex(galleryItems, current, -1),
+            )
+          }
+          onNext={() =>
+            setLightboxIndex((current) =>
+              current === null ? current : findNextLightboxIndex(galleryItems, current, 1),
+            )
+          }
+        />
+      )}
     </PhoneFrame>
   );
 }
 
-function formatMeta(gender: string, birthday: string) {
-  if (gender && birthday) return `${gender} / ${birthday}`;
-  return gender || birthday || "待补充";
+function DetailImageLightbox({
+  title,
+  items,
+  index,
+  onClose,
+  onPrev,
+  onNext,
+}: {
+  title: string;
+  items: (DetailCarouselSlide & { imageUrl: string })[];
+  index: number;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const current = items[index];
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft") onPrev();
+      if (event.key === "ArrowRight") onNext();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, onNext, onPrev]);
+
+  if (!current) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-black/88"
+      data-detail-lightbox={title}
+      onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
+        dragStart.current = { x: event.clientX, y: event.clientY };
+      }}
+      onPointerUp={(event: PointerEvent<HTMLDivElement>) => {
+        if (!dragStart.current || items.length <= 1) return;
+        const deltaX = event.clientX - dragStart.current.x;
+        const deltaY = event.clientY - dragStart.current.y;
+        dragStart.current = null;
+        if (Math.abs(deltaX) < 36 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+        if (deltaX < 0) onNext();
+        else onPrev();
+      }}
+      onPointerCancel={() => {
+        dragStart.current = null;
+      }}
+    >
+      <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
+        <div>
+          <p className="text-[13px] font-semibold">{title}</p>
+          <p className="text-[11px] text-white/70">
+            {index + 1} / {items.length}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full border border-white/20 px-3 py-1.5 text-[12px] font-medium text-white"
+        >
+          关闭
+        </button>
+      </div>
+
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-4">
+        <img
+          src={current.imageUrl}
+          alt={current.label}
+          className="max-h-full w-full object-contain"
+          draggable={false}
+          data-detail-lightbox-image={current.id}
+        />
+      </div>
+
+      {items.length > 1 && (
+        <div className="flex items-center justify-between gap-3 px-4 pb-4 text-white">
+          <button
+            type="button"
+            onClick={onPrev}
+            className="rounded-full border border-white/20 px-4 py-2 text-[12px] font-medium"
+          >
+            上一张
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className="rounded-full border border-white/20 px-4 py-2 text-[12px] font-medium"
+          >
+            下一张
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function findNextLightboxIndex(
+  items: DetailCarouselSlide[],
+  startIndex: number,
+  direction: -1 | 1,
+) {
+  if (!items.length) return startIndex;
+  let nextIndex = startIndex;
+  for (let step = 0; step < items.length; step += 1) {
+    nextIndex = (nextIndex + direction + items.length) % items.length;
+    if (items[nextIndex]?.imageUrl) return nextIndex;
+  }
+  return startIndex;
 }
 
 function reproductiveStateLabel(value: string) {
@@ -168,7 +333,7 @@ function reproductiveStateLabel(value: string) {
     case "semiRetired":
       return "半退役";
     case "retired":
-      return "退役";
+      return "退休";
     case "archived":
       return "已归档";
     default:

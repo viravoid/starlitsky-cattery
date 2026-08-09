@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
 import { PhoneFrame } from "./PhoneFrame";
 import { Carousel } from "./Carousel";
 import { Section, SectionTitle, Card } from "./ui";
 import { MoonStars, Cottage, Rosette, HeartPaw, CurledCat, DnaHelix } from "./illustrations";
 import { formatAspectRatio, type AboutContent, type AboutFactKey } from "@/lib/about-content";
-import { getSitePageImageBlob } from "@/lib/site-page-storage";
+import { useSitePageImageUrls } from "@/hooks/use-site-page-image-urls";
 
 const FACTS: { key: AboutFactKey; Art: typeof MoonStars }[] = [
   { key: "founded", Art: MoonStars },
@@ -22,7 +21,7 @@ export function AboutView({
   content: AboutContent;
   preview?: boolean;
 }) {
-  const imageUrls = useAboutImageUrls(content);
+  const imageUrls = useSitePageImageUrls(content.hero.slides.map((slide) => slide.imageId));
   const slides = content.hero.slides.map((slide) => ({
     label: slide.label,
     imageUrl: slide.imageId ? imageUrls[slide.imageId] : undefined,
@@ -86,39 +85,4 @@ export function AboutView({
       </Section>
     </PhoneFrame>
   );
-}
-
-function useAboutImageUrls(content: AboutContent) {
-  const [urls, setUrls] = useState<Record<string, string>>({});
-  const imageKey = useMemo(
-    () => content.hero.slides.map((slide) => slide.imageId ?? "").join("|"),
-    [content.hero.slides],
-  );
-
-  useEffect(() => {
-    let active = true;
-    const objectUrls: string[] = [];
-
-    async function load() {
-      const next: Record<string, string> = {};
-      for (const slide of content.hero.slides) {
-        if (!slide.imageId) continue;
-        const blob = await getSitePageImageBlob(slide.imageId);
-        if (!blob || !active) continue;
-        const url = URL.createObjectURL(blob);
-        objectUrls.push(url);
-        next[slide.imageId] = url;
-      }
-      if (active) setUrls(next);
-    }
-
-    void load();
-
-    return () => {
-      active = false;
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [content.hero.slides, imageKey]);
-
-  return urls;
 }

@@ -1,17 +1,25 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
+import { CroppedImageFrame } from "@/components/CroppedImageFrame";
+import type { LegacyResolvedPresentation } from "@/lib/cat-image-presentation";
+import type { CropRect } from "@/lib/cattery-store";
 import { Placeholder } from "./ui";
 import { cn } from "@/lib/utils";
-
-type FocalPoint = {
-  x: number;
-  y: number;
-};
 
 export type SegmentedImageSlide = {
   id: string;
   label: string;
   imageUrl?: string;
-  focalPoint?: FocalPoint;
+  aspectRatio?: number;
+  cropRect?: CropRect;
+  legacyPresentation?: LegacyResolvedPresentation;
+  mode?: "original" | "crop" | "legacy";
 };
 
 export function SegmentedImageCarousel({
@@ -19,11 +27,13 @@ export function SegmentedImageCarousel({
   aspectRatio,
   rounded = "rounded-[8px]",
   placeholderCompact = false,
+  onSlideClick,
 }: {
   slides: SegmentedImageSlide[];
   aspectRatio: string;
   rounded?: string;
   placeholderCompact?: boolean;
+  onSlideClick?: (index: number) => void;
 }) {
   const safeSlides = slides.length ? slides : [{ id: "placeholder", label: "示例图片（待替换）" }];
   const [index, setIndex] = useState(0);
@@ -35,6 +45,16 @@ export function SegmentedImageCarousel({
 
   const showSlide = (nextIndex: number) => {
     setIndex(Math.max(0, Math.min(safeSlides.length - 1, nextIndex)));
+  };
+
+  const showPrevious = () => {
+    if (safeSlides.length <= 1) return;
+    setIndex((current) => (current - 1 + safeSlides.length) % safeSlides.length);
+  };
+
+  const showNext = () => {
+    if (safeSlides.length <= 1) return;
+    setIndex((current) => (current + 1) % safeSlides.length);
   };
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -52,14 +72,32 @@ export function SegmentedImageCarousel({
     showSlide(index + (deltaX < 0 ? 1 : -1));
   };
 
-  const frameStyle: CSSProperties = { aspectRatio };
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (safeSlides.length <= 1) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      showPrevious();
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      showNext();
+    }
+  };
+
+  const activeAspectRatio = safeSlides[index]?.aspectRatio ?? parseAspectRatio(aspectRatio);
+  const frameStyle: CSSProperties = { aspectRatio: activeAspectRatio };
 
   return (
     <div className="grid gap-2">
       <div
         className={cn("relative overflow-hidden bg-muted [touch-action:pan-y]", rounded)}
+        role="region"
+        style={frameStyle}
+        tabIndex={safeSlides.length > 1 ? 0 : -1}
+        aria-label="图片轮播"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
+        onKeyDown={onKeyDown}
         onPointerCancel={() => {
           dragStart.current = null;
         }}
@@ -69,21 +107,47 @@ export function SegmentedImageCarousel({
             {index + 1} / {safeSlides.length}
           </span>
         )}
+        {safeSlides.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={showPrevious}
+              aria-label="上一张"
+              className="absolute left-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white backdrop-blur-sm transition hover:bg-black/55"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={showNext}
+              aria-label="下一张"
+              className="absolute right-3 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white backdrop-blur-sm transition hover:bg-black/55"
+            >
+              ›
+            </button>
+          </>
+        )}
         <div
-          className="flex transition-transform duration-300 ease-out"
+          className="flex h-full transition-transform duration-300 ease-out"
           style={{ transform: `translateX(-${index * 100}%)` }}
         >
-          {safeSlides.map((slide) => (
-            <div key={slide.id} className="relative w-full shrink-0" style={frameStyle}>
+          {safeSlides.map((slide, slideIndex) => (
+            <button
+              key={slide.id}
+              type="button"
+              className="relative h-full w-full shrink-0 text-left"
+              style={frameStyle}
+              onClick={() => onSlideClick?.(slideIndex)}
+              disabled={!onSlideClick}
+            >
               {slide.imageUrl ? (
-                <img
-                  src={slide.imageUrl}
-                  alt=""
-                  className="h-full w-full select-none object-cover"
-                  style={{
-                    objectPosition: `${slide.focalPoint?.x ?? 50}% ${slide.focalPoint?.y ?? 50}%`,
-                  }}
-                  draggable={false}
+                <CroppedImageFrame
+                  imageUrl={slide.imageUrl}
+                  aspectRatio={slide.aspectRatio ?? activeAspectRatio}
+                  cropRect={slide.cropRect}
+                  legacyPresentation={slide.legacyPresentation}
+                  mode={slide.mode ?? "legacy"}
+                  className="h-full w-full"
                 />
               ) : (
                 <Placeholder
@@ -94,7 +158,7 @@ export function SegmentedImageCarousel({
                   style={frameStyle}
                 />
               )}
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -119,14 +183,13 @@ export function SegmentedImageCarousel({
                 )}
               >
                 {slide.imageUrl ? (
-                  <img
-                    src={slide.imageUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    style={{
-                      objectPosition: `${slide.focalPoint?.x ?? 50}% ${slide.focalPoint?.y ?? 50}%`,
-                    }}
-                    draggable={false}
+                  <CroppedImageFrame
+                    imageUrl={slide.imageUrl}
+                    aspectRatio={slide.aspectRatio ?? 1}
+                    cropRect={slide.cropRect}
+                    legacyPresentation={slide.legacyPresentation}
+                    mode={slide.mode ?? "legacy"}
+                    className="h-full w-full"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-gradient-cream text-[11px] font-semibold text-warm">
@@ -143,4 +206,10 @@ export function SegmentedImageCarousel({
       )}
     </div>
   );
+}
+
+function parseAspectRatio(value: string) {
+  const [left, right] = value.split("/").map((part) => Number(part.trim()));
+  if (!left || !right) return 1;
+  return left / right;
 }

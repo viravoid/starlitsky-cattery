@@ -22,6 +22,7 @@ import {
   type QuestionnaireSubmissionFieldKey,
   type QuestionnaireSubmissionStatus,
 } from "./questionnaire-submissions";
+import { STUD_REAL_IMAGE_ASSIGNMENTS } from "./real-photo-manifest.generated";
 
 export { QUESTIONNAIRE_SUBMISSION_STATUSES, questionnaireSubmissionStatusTone };
 export type {
@@ -74,6 +75,50 @@ export interface FamilyCatFields {
   note?: string;
 }
 
+export const CAT_COVER_PRESENTATION_KEYS = [
+  "listCard",
+  "detailHero",
+  "breedingPlanCard",
+  "communityProfile",
+] as const;
+
+export type CatCoverPresentationKey = (typeof CAT_COVER_PRESENTATION_KEYS)[number];
+
+export interface ImageCropPresentation {
+  objectPositionX: number;
+  objectPositionY: number;
+  zoom: number;
+}
+
+export type CatCoverPresentations = Partial<Record<CatCoverPresentationKey, ImageCropPresentation>>;
+export type DetailCarouselPresentations = Partial<Record<string, ImageCropPresentation>>;
+
+export interface CropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface EntryCoverSelection {
+  imageId: string;
+  cropRect?: CropRect;
+}
+
+export type EntryCoverSelections = Partial<
+  Record<Exclude<CatCoverPresentationKey, "detailHero">, EntryCoverSelection>
+>;
+
+export type DetailImagePresentation =
+  | { mode: "original" }
+  | {
+      mode: "crop";
+      aspectRatio: number;
+      cropRect: CropRect;
+    };
+
+export type DetailImagePresentations = Partial<Record<string, DetailImagePresentation>>;
+
 export interface CatteryCat {
   id: CatId;
   kind: "kitten" | "stud" | "family";
@@ -86,6 +131,10 @@ export interface CatteryCat {
   ownerId?: UserId;
   ownerLabel?: string;
   coverImageId?: string;
+  entryCoverSelections?: EntryCoverSelections;
+  detailImagePresentations?: DetailImagePresentations;
+  coverPresentations?: CatCoverPresentations;
+  detailCarouselPresentations?: DetailCarouselPresentations;
   galleryImageIds: string[];
   visibility: Visibility;
   createdAt?: string;
@@ -132,6 +181,10 @@ export interface KittenRecord {
   story?: string[];
   structureRating?: StructureRating;
   coverImageId?: string;
+  entryCoverSelections?: EntryCoverSelections;
+  detailImagePresentations?: DetailImagePresentations;
+  coverPresentations?: CatCoverPresentations;
+  detailCarouselPresentations?: DetailCarouselPresentations;
   galleryImageIds: string[];
   visibility: Visibility;
   createdAt?: string;
@@ -175,6 +228,10 @@ export interface StudRecord {
   source: string;
   reproductiveState: StudFields["reproductiveState"];
   coverImageId?: string;
+  entryCoverSelections?: EntryCoverSelections;
+  detailImagePresentations?: DetailImagePresentations;
+  coverPresentations?: CatCoverPresentations;
+  detailCarouselPresentations?: DetailCarouselPresentations;
   galleryImageIds: string[];
   visibility: Visibility;
   createdAt?: string;
@@ -244,6 +301,38 @@ export const PARENT_HUHU = "parent-huhu";
 
 const CAT_ALIASES: Record<string, string> = {
   "cat-chonglou": "chonglou",
+};
+
+const PLACEHOLDER_STUD_SOURCE = "示例文字（缺少来源 / 血线）";
+
+const LEGACY_RELEASED_STUD_TEXT_BY_ID: Partial<
+  Record<string, { color?: string; story?: string[] }>
+> = {
+  chonglou: {
+    color: "红虎斑 d22",
+    story: [
+      "来自一家俄罗斯老牌猫舍，该猫舍主理人曾任国内 WCF 协会裁判，繁育的小猫结构细节都很出色。",
+      "重楼头版强壮敦厚，额头饱满转折清晰，耳位端正耳朵又大又直，而且他也来自一条大体格血线，身体肌肉轮廓清晰强健有力，骨量优秀，体重接近二十斤，运动能力优秀，热爱跑跳和小猫玩。体检心脏、髋关节都很健康。",
+      "与此同时他还有着非常温顺的性格，对人友好，喜欢陪小猫玩，对母猫也很温柔。",
+      "他的风格比较符合我理想中甜美帅气结合的样子，尽管他身价不菲，但我还是毅然决然地接他回家。",
+      "一转眼他已经打工四年啦，时间证明了结构优秀的种猫是不会过时的，他为我们留下了很多非常优秀的小猫。现在半退役生活在我家享受退役猫待遇，因为他不乱尿可以偶尔出来玩耍，在新房也给他准备了最大的公猫房~",
+    ],
+  },
+  hupo: { color: "棕虎斑麻纹加白 n2509" },
+  shulongyin: { color: "黑银鱼骨纹 ns23" },
+  tianhe: { color: "银虎斑加白 ns2203" },
+  sanmingzhi: { color: "棕虎斑 n22" },
+  yunmu: { color: "黑银麻纹加白 ns2503" },
+  niaotuan: { color: "银玳瑁虎斑 fs22" },
+  guihuagao: { color: "玳瑁麻纹加白 f2509" },
+  zhaoyue: { color: "黑银鱼骨纹 ns23" },
+  jingzhe: { color: "蓝银虎斑 as22" },
+  xiongmao: { color: "棕麻纹加白 n2509" },
+  yunyue: { color: "银玳瑁虎斑 fs22" },
+  xiaoxiaxian: { color: "银玳瑁麻纹 fs25" },
+  manao: { color: "玳瑁虎斑加白 f2209" },
+  xiaobianmu: { color: "玳瑁虎斑 f22" },
+  xiaotao: { color: "玳瑁麻纹 f25" },
 };
 
 const LITTER_ALIASES: Record<string, string> = {
@@ -528,7 +617,7 @@ const defaultData: CatteryData = {
   version: 1,
   users: DEFAULT_USERS,
   cats: [
-    ...LEGACY_STUDS.map(studToCat),
+    ...LEGACY_STUDS.map(studToCat).map(applyDefaultStudImageAssignment),
     ...LEGACY_KITTENS.map(kittenToCat),
     ...DEFAULT_FAMILY_CATS,
   ],
@@ -1306,6 +1395,12 @@ export function selectKittenRecords(
         story: cat.story ? [...cat.story] : undefined,
         structureRating: cloneStructureRating(cat.kitten?.structureRating),
         coverImageId: cat.coverImageId,
+        entryCoverSelections: cloneEntryCoverSelections(cat.entryCoverSelections),
+        detailImagePresentations: cloneDetailImagePresentations(cat.detailImagePresentations),
+        coverPresentations: cloneCatCoverPresentations(cat.coverPresentations),
+        detailCarouselPresentations: cloneDetailCarouselPresentations(
+          cat.detailCarouselPresentations,
+        ),
         galleryImageIds: [...cat.galleryImageIds],
         visibility: cat.visibility,
         createdAt: cat.createdAt,
@@ -1394,6 +1489,12 @@ export function selectStudRecords(
       source: cat.stud?.source ?? "",
       reproductiveState: cat.stud?.reproductiveState ?? "active",
       coverImageId: cat.coverImageId,
+      entryCoverSelections: cloneEntryCoverSelections(cat.entryCoverSelections),
+      detailImagePresentations: cloneDetailImagePresentations(cat.detailImagePresentations),
+      coverPresentations: cloneCatCoverPresentations(cat.coverPresentations),
+      detailCarouselPresentations: cloneDetailCarouselPresentations(
+        cat.detailCarouselPresentations,
+      ),
       galleryImageIds: [...cat.galleryImageIds],
       visibility: cat.visibility,
       createdAt: cat.createdAt,
@@ -1561,7 +1662,57 @@ function normalizeCats(value: unknown) {
     seen.add(cat.id);
     return true;
   });
-  return cats.length > 0 ? cats : fallback;
+  const merged = mergeKnownDefaultCats(cats, fallback);
+  return merged.length > 0 ? merged : fallback;
+}
+
+function mergeKnownDefaultCats(cats: CatteryCat[], fallback: CatteryCat[]) {
+  const defaultsById = new Map(fallback.map((cat) => [cat.id, cat] as const));
+  const currentById = new Map(cats.map((cat) => [cat.id, cat] as const));
+  const merged = fallback.map((defaultCat) => {
+    const current = currentById.get(defaultCat.id);
+    return current ? mergeKnownDefaultCat(current, defaultCat) : defaultCat;
+  });
+
+  for (const cat of cats) {
+    if (!defaultsById.has(cat.id)) merged.push(cat);
+  }
+
+  return merged;
+}
+
+function mergeKnownDefaultCat(current: CatteryCat, defaultCat: CatteryCat): CatteryCat {
+  if (current.kind !== defaultCat.kind) return current;
+  if (current.kind !== "stud" || !current.stud || !defaultCat.stud) return current;
+
+  const legacy = LEGACY_RELEASED_STUD_TEXT_BY_ID[current.id];
+  const nextColor = shouldUseDefaultText(current.color, defaultCat.color, legacy?.color)
+    ? defaultCat.color
+    : current.color;
+  const nextStory = shouldUseDefaultStory(current.story, defaultCat.story, legacy?.story)
+    ? cloneStringArray(defaultCat.story)
+    : cloneStringArray(current.story);
+  const nextSource = shouldUseDefaultText(
+    current.stud.source,
+    defaultCat.stud.source,
+    PLACEHOLDER_STUD_SOURCE,
+  )
+    ? defaultCat.stud.source
+    : current.stud.source;
+
+  return normalizeCat({
+    ...current,
+    color: nextColor,
+    coverImageId: current.coverImageId ?? defaultCat.coverImageId,
+    galleryImageIds: current.galleryImageIds.length
+      ? [...current.galleryImageIds]
+      : [...defaultCat.galleryImageIds],
+    story: nextStory,
+    stud: {
+      ...current.stud,
+      source: nextSource,
+    },
+  });
 }
 
 function normalizeCat(value: unknown): CatteryCat {
@@ -1582,6 +1733,12 @@ function normalizeCat(value: unknown): CatteryCat {
     ownerId: optionalString(input.ownerId, undefined),
     ownerLabel: optionalString(input.ownerLabel, undefined),
     coverImageId: optionalString(input.coverImageId, undefined),
+    entryCoverSelections: normalizeEntryCoverSelections(input.entryCoverSelections, kind),
+    detailImagePresentations: normalizeDetailImagePresentations(input.detailImagePresentations),
+    coverPresentations: normalizeCatCoverPresentations(input.coverPresentations, kind),
+    detailCarouselPresentations: normalizeDetailCarouselPresentations(
+      input.detailCarouselPresentations,
+    ),
     galleryImageIds: optionalStringArray(input.galleryImageIds) ?? [],
     visibility: normalizeVisibility(input.visibility),
     createdAt: optionalString(input.createdAt, undefined),
@@ -1857,6 +2014,21 @@ function studToCat(stud: Stud): CatteryCat {
   };
 }
 
+function applyDefaultStudImageAssignment(cat: CatteryCat): CatteryCat {
+  if (cat.kind !== "stud") return cat;
+  const assignment =
+    STUD_REAL_IMAGE_ASSIGNMENTS[cat.id as keyof typeof STUD_REAL_IMAGE_ASSIGNMENTS];
+  if (!assignment) return cat;
+
+  return {
+    ...cat,
+    coverImageId: cat.coverImageId ?? assignment.coverImageId,
+    galleryImageIds: cat.galleryImageIds.length
+      ? [...cat.galleryImageIds]
+      : [...assignment.galleryImageIds],
+  };
+}
+
 function kittenToCat(kitten: Kitten): CatteryCat {
   return {
     id: kitten.id,
@@ -1983,6 +2155,22 @@ function safeCatPatch(patch: Partial<CatteryCat>, actor: EditableActor) {
   if (safe.personality !== undefined) parentSafe.personality = safe.personality;
   if (safe.story !== undefined) parentSafe.story = safe.story;
   if (safe.coverImageId !== undefined) parentSafe.coverImageId = safe.coverImageId;
+  if (safe.entryCoverSelections !== undefined) {
+    parentSafe.entryCoverSelections = cloneEntryCoverSelections(safe.entryCoverSelections);
+  }
+  if (safe.detailImagePresentations !== undefined) {
+    parentSafe.detailImagePresentations = cloneDetailImagePresentations(
+      safe.detailImagePresentations,
+    );
+  }
+  if (safe.coverPresentations !== undefined) {
+    parentSafe.coverPresentations = cloneCatCoverPresentations(safe.coverPresentations);
+  }
+  if (safe.detailCarouselPresentations !== undefined) {
+    parentSafe.detailCarouselPresentations = cloneDetailCarouselPresentations(
+      safe.detailCarouselPresentations,
+    );
+  }
   if (safe.galleryImageIds !== undefined) parentSafe.galleryImageIds = safe.galleryImageIds;
   if (safe.family !== undefined) parentSafe.family = safe.family;
   if (safe.updatedAt !== undefined) parentSafe.updatedAt = safe.updatedAt;
@@ -2003,6 +2191,12 @@ function cloneCatteryData(content: CatteryData): CatteryData {
     cats: content.cats.map((cat) => ({
       ...cat,
       story: cat.story ? [...cat.story] : undefined,
+      entryCoverSelections: cloneEntryCoverSelections(cat.entryCoverSelections),
+      detailImagePresentations: cloneDetailImagePresentations(cat.detailImagePresentations),
+      coverPresentations: cloneCatCoverPresentations(cat.coverPresentations),
+      detailCarouselPresentations: cloneDetailCarouselPresentations(
+        cat.detailCarouselPresentations,
+      ),
       galleryImageIds: [...cat.galleryImageIds],
       kitten: cat.kitten
         ? {
@@ -2052,6 +2246,195 @@ function cloneStructureRating(value: StructureRating | undefined): StructureRati
   };
 }
 
+function cloneCatCoverPresentations(
+  value: CatCoverPresentations | undefined,
+): CatCoverPresentations | undefined {
+  if (!value) return undefined;
+  const next: CatCoverPresentations = {};
+  for (const key of CAT_COVER_PRESENTATION_KEYS) {
+    const presentation = value[key];
+    if (!presentation) continue;
+    next[key] = { ...presentation };
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function cloneEntryCoverSelections(
+  value: EntryCoverSelections | undefined,
+): EntryCoverSelections | undefined {
+  if (!value) return undefined;
+  const next: EntryCoverSelections = {};
+  for (const key of CAT_COVER_PRESENTATION_KEYS) {
+    if (key === "detailHero") continue;
+    const selection = value[key];
+    if (!selection?.imageId) continue;
+    next[key] = {
+      imageId: selection.imageId,
+      cropRect: selection.cropRect ? { ...selection.cropRect } : undefined,
+    };
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function cloneDetailCarouselPresentations(
+  value: DetailCarouselPresentations | undefined,
+): DetailCarouselPresentations | undefined {
+  if (!value) return undefined;
+  const next: DetailCarouselPresentations = {};
+  for (const [imageId, presentation] of Object.entries(value)) {
+    if (!imageId || !presentation) continue;
+    next[imageId] = { ...presentation };
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function cloneDetailImagePresentations(
+  value: DetailImagePresentations | undefined,
+): DetailImagePresentations | undefined {
+  if (!value) return undefined;
+  const next: DetailImagePresentations = {};
+  for (const [imageId, presentation] of Object.entries(value)) {
+    if (!imageId || !presentation) continue;
+    next[imageId] =
+      presentation.mode === "original"
+        ? { mode: "original" }
+        : {
+            mode: "crop",
+            aspectRatio: presentation.aspectRatio,
+            cropRect: { ...presentation.cropRect },
+          };
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function normalizeEntryCoverSelections(
+  value: unknown,
+  kind: CatteryCat["kind"],
+): EntryCoverSelections | undefined {
+  const input = objectValue(value);
+  const next: EntryCoverSelections = {};
+  for (const key of CAT_COVER_PRESENTATION_KEYS) {
+    if (key === "detailHero") continue;
+    if (key === "breedingPlanCard" && kind !== "stud") continue;
+    const selection = normalizeEntryCoverSelection(input[key]);
+    if (!selection) continue;
+    next[key] = selection;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function normalizeCatCoverPresentations(
+  value: unknown,
+  kind: CatteryCat["kind"],
+): CatCoverPresentations | undefined {
+  const input = objectValue(value);
+  const next: CatCoverPresentations = {};
+  for (const key of CAT_COVER_PRESENTATION_KEYS) {
+    if (key === "breedingPlanCard" && kind !== "stud") continue;
+    const presentation = normalizeImageCropPresentation(input[key]);
+    if (!presentation) continue;
+    next[key] = presentation;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function normalizeDetailImagePresentations(value: unknown): DetailImagePresentations | undefined {
+  const input = objectValue(value);
+  const next: DetailImagePresentations = {};
+  for (const [imageId, rawPresentation] of Object.entries(input)) {
+    if (!imageId) continue;
+    const presentation = normalizeDetailImagePresentation(rawPresentation);
+    if (!presentation) continue;
+    next[imageId] = presentation;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function normalizeDetailCarouselPresentations(
+  value: unknown,
+): DetailCarouselPresentations | undefined {
+  const input = objectValue(value);
+  const next: DetailCarouselPresentations = {};
+  for (const [imageId, rawPresentation] of Object.entries(input)) {
+    if (!imageId) continue;
+    const presentation = normalizeImageCropPresentation(rawPresentation);
+    if (!presentation) continue;
+    next[imageId] = presentation;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function normalizeEntryCoverSelection(value: unknown): EntryCoverSelection | undefined {
+  const input = objectValue(value);
+  const imageId = optionalString(input.imageId, undefined);
+  if (!imageId) return undefined;
+  return {
+    imageId,
+    cropRect: normalizeCropRect(input.cropRect),
+  };
+}
+
+function normalizeDetailImagePresentation(value: unknown): DetailImagePresentation | undefined {
+  const input = objectValue(value);
+  if (input.mode === "original") return { mode: "original" };
+  if (input.mode !== "crop") return undefined;
+  const cropRect = normalizeCropRect(input.cropRect);
+  const aspectRatio = normalizeAspectRatio(input.aspectRatio);
+  if (!cropRect || !aspectRatio) return undefined;
+  return {
+    mode: "crop",
+    aspectRatio,
+    cropRect,
+  };
+}
+
+function normalizeCropRect(value: unknown): CropRect | undefined {
+  const input = objectValue(value);
+  if (!Object.keys(input).length) return undefined;
+  const width = clampUnitNumber(input.width, 1);
+  const height = clampUnitNumber(input.height, 1);
+  const x = clampUnitNumber(input.x, 0);
+  const y = clampUnitNumber(input.y, 0);
+  const safeWidth = Math.max(0.01, Math.min(1, width));
+  const safeHeight = Math.max(0.01, Math.min(1, height));
+  return {
+    x: clampUnitNumber(x, 0, 1 - safeWidth),
+    y: clampUnitNumber(y, 0, 1 - safeHeight),
+    width: safeWidth,
+    height: safeHeight,
+  };
+}
+
+function normalizeImageCropPresentation(value: unknown): ImageCropPresentation | undefined {
+  const input = objectValue(value);
+  if (!Object.keys(input).length) return undefined;
+  return {
+    objectPositionX: clampNormalizedPercent(input.objectPositionX),
+    objectPositionY: clampNormalizedPercent(input.objectPositionY),
+    zoom: clampImageCropZoom(input.zoom),
+  };
+}
+
+function clampNormalizedPercent(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 50;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function clampImageCropZoom(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(2.5, Math.round(value * 100) / 100));
+}
+
+function normalizeAspectRatio(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return undefined;
+  return Math.round(value * 1000) / 1000;
+}
+
+function clampUnitNumber(value: unknown, fallback: number, max = 1) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(max, Math.round(value * 10000) / 10000));
+}
+
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -2065,6 +2448,35 @@ function optionalString(value: unknown, fallback: string | undefined) {
 function optionalStringArray(value: unknown) {
   if (!Array.isArray(value)) return undefined;
   return value.map((item) => (typeof item === "string" ? item : "")).filter(Boolean);
+}
+
+function cloneStringArray(value: string[] | undefined) {
+  return value ? [...value] : undefined;
+}
+
+function shouldUseDefaultText(
+  current: string | undefined,
+  fallback: string | undefined,
+  legacyDefault?: string,
+) {
+  if (!fallback) return false;
+  if (!current || !current.trim()) return true;
+  return legacyDefault !== undefined && current === legacyDefault;
+}
+
+function shouldUseDefaultStory(
+  current: string[] | undefined,
+  fallback: string[] | undefined,
+  legacyDefault?: string[],
+) {
+  if (!fallback?.length) return false;
+  if (!current?.length) return true;
+  return legacyDefault !== undefined && stringArraysEqual(current, legacyDefault);
+}
+
+function stringArraysEqual(left: string[], right: string[]) {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
 }
 
 function normalizeVisibility(value: unknown): Visibility {

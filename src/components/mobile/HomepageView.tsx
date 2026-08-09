@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
+import { Fragment, type ComponentType, type SVGProps } from "react";
 import { Link } from "@tanstack/react-router";
 import { PhoneFrame } from "./PhoneFrame";
 import { Section } from "./ui";
@@ -10,7 +10,7 @@ import {
   type HomepageContent,
   type HomepageArtKey,
 } from "@/lib/homepage-content";
-import { getHomepageImageBlob } from "@/lib/homepage-storage";
+import { useHomepageImageUrls } from "@/hooks/use-homepage-image-urls";
 
 const ART: Record<HomepageArtKey, ComponentType<SVGProps<SVGSVGElement>>> = {
   catProfile: CatProfile,
@@ -26,7 +26,7 @@ export function HomepageView({
   content: HomepageContent;
   preview?: boolean;
 }) {
-  const imageUrls = useHomepageImageUrls(content);
+  const imageUrls = useHomepageImageUrls(content.hero.slides.map((slide) => slide.imageId));
   const slides = content.hero.slides.map((slide) => ({
     label: slide.label,
     imageUrl: slide.imageId ? imageUrls[slide.imageId] : undefined,
@@ -208,39 +208,4 @@ function HomepageEntryLink({
       {content}
     </Link>
   );
-}
-
-function useHomepageImageUrls(content: HomepageContent) {
-  const [urls, setUrls] = useState<Record<string, string>>({});
-  const imageKey = useMemo(
-    () => content.hero.slides.map((slide) => slide.imageId ?? "").join("|"),
-    [content.hero.slides],
-  );
-
-  useEffect(() => {
-    let active = true;
-    const objectUrls: string[] = [];
-
-    async function load() {
-      const next: Record<string, string> = {};
-      for (const slide of content.hero.slides) {
-        if (!slide.imageId) continue;
-        const blob = await getHomepageImageBlob(slide.imageId);
-        if (!blob || !active) continue;
-        const url = URL.createObjectURL(blob);
-        objectUrls.push(url);
-        next[slide.imageId] = url;
-      }
-      if (active) setUrls(next);
-    }
-
-    void load();
-
-    return () => {
-      active = false;
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [content.hero.slides, imageKey]);
-
-  return urls;
 }

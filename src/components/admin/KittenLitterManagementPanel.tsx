@@ -4,13 +4,25 @@ import {
   useMemo,
   useState,
   type ChangeEvent,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import { cn } from "@/lib/utils";
+import { CatCoverPresentationEditor } from "./CatCoverPresentationEditor";
+import { DetailCarouselPresentationEditor } from "./DetailCarouselPresentationEditor";
+import {
+  sanitizeDetailImagePresentations,
+  sanitizeEntryCoverSelections,
+} from "@/lib/cat-image-presentation";
 import {
   KEEPER_YUEQI,
   catteryActions,
   getCatteryDataSnapshot,
+  type CatCoverPresentations,
+  type DetailCarouselPresentations,
+  type DetailImagePresentations,
+  type EntryCoverSelections,
   selectKittenRecords,
   selectLitterRecords,
   useCattery,
@@ -57,8 +69,14 @@ type KittenDraft = {
   storyText: string;
   visibility: Visibility;
   coverImageId?: string;
+  entryCoverSelections?: EntryCoverSelections;
+  detailImagePresentations?: DetailImagePresentations;
+  coverPresentations?: CatCoverPresentations;
+  detailCarouselPresentations?: DetailCarouselPresentations;
   galleryImageIds: string[];
 };
+
+const KITTEN_COVER_PRESENTATION_ENTRIES = ["listCard", "communityProfile"] as const;
 
 type LitterDraft = {
   name: string;
@@ -139,6 +157,15 @@ export function KittenLitterManagementPanel({ onNotice }: { onNotice: (message: 
       setLitterBaseline(serializeDraft(empty));
     }
   }, [litterRecords, selectedLitterId]);
+
+  useEffect(() => {
+    if (kittenMode !== "edit" || kittenDirty || !selectedKitten) return;
+    const next = createKittenDraft(selectedKitten);
+    const nextSerialized = serializeDraft(next);
+    if (nextSerialized === kittenBaseline) return;
+    setKittenDraft(next);
+    setKittenBaseline(nextSerialized);
+  }, [kittenBaseline, kittenDirty, kittenMode, selectedKitten]);
 
   const openKittenEditor = (kitten: KittenRecord) => {
     if (kittenDirty && !confirm("当前小猫表单有未保存修改，确定切换吗？")) return;
@@ -443,8 +470,7 @@ export function KittenLitterManagementPanel({ onNotice }: { onNotice: (message: 
               onNotice={onNotice}
               entityId={kittenMode === "edit" ? selectedKittenId : ""}
               onApplyImages={(next) => {
-                const nextDraft = { ...kittenDraft, ...next };
-                setKittenDraft(nextDraft);
+                setKittenDraft((current) => ({ ...current, ...next }));
                 if (kittenMode !== "edit" || !selectedKittenId) return true;
                 return catteryActions.updateKitten(selectedKittenId, next, ADMIN_CONTEXT);
               }}
@@ -570,7 +596,7 @@ function KittenEditor({
 }: {
   mode: "idle" | "create" | "edit";
   draft: KittenDraft;
-  onDraftChange: (draft: KittenDraft) => void;
+  onDraftChange: Dispatch<SetStateAction<KittenDraft>>;
   onCancel: () => void;
   onSave: () => void;
   parentUsers: CatteryUser[];
@@ -579,7 +605,13 @@ function KittenEditor({
   litterOptions: { value: string; label: string }[];
   onNotice: (message: string) => void;
   entityId: string;
-  onApplyImages: (next: { coverImageId?: string; galleryImageIds: string[] }) => boolean;
+  onApplyImages: (next: {
+    coverImageId?: string;
+    entryCoverSelections?: EntryCoverSelections;
+    detailImagePresentations?: DetailImagePresentations;
+    galleryImageIds: string[];
+    detailCarouselPresentations?: DetailCarouselPresentations;
+  }) => boolean;
 }) {
   if (mode === "idle") {
     return (
@@ -717,10 +749,27 @@ function KittenEditor({
         />
 
         <EntityImageEditor
+          catId={entityId}
           entityId={entityId}
           coverImageId={draft.coverImageId}
+          entryCoverSelections={draft.entryCoverSelections}
+          detailImagePresentations={draft.detailImagePresentations}
+          coverPresentations={draft.coverPresentations}
+          detailCarouselPresentations={draft.detailCarouselPresentations}
           galleryImageIds={draft.galleryImageIds}
           onNotice={onNotice}
+          onEntryCoverSelectionChange={(entryCoverSelections) =>
+            onDraftChange((current) => ({ ...current, entryCoverSelections }))
+          }
+          onDetailImagePresentationChange={(detailImagePresentations) =>
+            onDraftChange((current) => ({ ...current, detailImagePresentations }))
+          }
+          onPresentationChange={(coverPresentations) =>
+            onDraftChange((current) => ({ ...current, coverPresentations }))
+          }
+          onDetailCarouselPresentationChange={(detailCarouselPresentations) =>
+            onDraftChange((current) => ({ ...current, detailCarouselPresentations }))
+          }
           onApply={onApplyImages}
         />
 
@@ -886,17 +935,41 @@ function LitterEditor({
 }
 
 function EntityImageEditor({
+  catId,
   entityId,
   coverImageId,
+  entryCoverSelections,
+  detailImagePresentations,
+  coverPresentations,
+  detailCarouselPresentations,
   galleryImageIds,
   onNotice,
+  onEntryCoverSelectionChange,
+  onDetailImagePresentationChange,
+  onPresentationChange,
+  onDetailCarouselPresentationChange,
   onApply,
 }: {
+  catId?: string;
   entityId: string;
   coverImageId?: string;
+  entryCoverSelections?: EntryCoverSelections;
+  detailImagePresentations?: DetailImagePresentations;
+  coverPresentations?: CatCoverPresentations;
+  detailCarouselPresentations?: DetailCarouselPresentations;
   galleryImageIds: string[];
   onNotice: (message: string) => void;
-  onApply: (next: { coverImageId?: string; galleryImageIds: string[] }) => boolean;
+  onEntryCoverSelectionChange: (next: EntryCoverSelections | undefined) => void;
+  onDetailImagePresentationChange: (next: DetailImagePresentations | undefined) => void;
+  onPresentationChange: (next: CatCoverPresentations | undefined) => void;
+  onDetailCarouselPresentationChange: (next: DetailCarouselPresentations | undefined) => void;
+  onApply: (next: {
+    coverImageId?: string;
+    entryCoverSelections?: EntryCoverSelections;
+    detailImagePresentations?: DetailImagePresentations;
+    galleryImageIds: string[];
+    detailCarouselPresentations?: DetailCarouselPresentations;
+  }) => boolean;
 }) {
   const urls = useCatteryImageUrls([coverImageId, ...galleryImageIds]);
 
@@ -912,7 +985,22 @@ function EntityImageEditor({
     if (!file || !requireSavedRecord()) return;
 
     const record = await saveEntityImage("cat", entityId, "cover", file);
-    const ok = onApply({ coverImageId: record.id, galleryImageIds });
+    const ok = onApply({
+      coverImageId: record.id,
+      entryCoverSelections: sanitizeEntryCoverSelections(entryCoverSelections, [
+        record.id,
+        ...galleryImageIds,
+      ]),
+      detailImagePresentations: sanitizeDetailImagePresentations(detailImagePresentations, [
+        record.id,
+        ...galleryImageIds,
+      ]),
+      galleryImageIds,
+      detailCarouselPresentations: omitDetailCarouselPresentation(
+        detailCarouselPresentations,
+        coverImageId,
+      ),
+    });
     if (!ok) {
       await deleteEntityImageBlob(record.id);
       onNotice("封面保存失败，请重试。");
@@ -931,7 +1019,13 @@ function EntityImageEditor({
       files.map((file) => saveEntityImage("cat", entityId, "gallery", file)),
     );
     const nextIds = [...galleryImageIds, ...records.map((record) => record.id)];
-    const ok = onApply({ coverImageId, galleryImageIds: nextIds });
+    const ok = onApply({
+      coverImageId,
+      entryCoverSelections,
+      detailImagePresentations,
+      galleryImageIds: nextIds,
+      detailCarouselPresentations,
+    });
     if (!ok) {
       await deleteEntityImageBlobs(records.map((record) => record.id));
       onNotice("相册保存失败，请重试。");
@@ -950,7 +1044,22 @@ function EntityImageEditor({
     const nextIds = galleryImageIds.map((item, itemIndex) =>
       itemIndex === index ? record.id : item,
     );
-    const ok = onApply({ coverImageId, galleryImageIds: nextIds });
+    const ok = onApply({
+      coverImageId,
+      entryCoverSelections: sanitizeEntryCoverSelections(
+        entryCoverSelections,
+        [coverImageId, ...nextIds].filter((imageId): imageId is string => Boolean(imageId)),
+      ),
+      detailImagePresentations: sanitizeDetailImagePresentations(
+        detailImagePresentations,
+        [coverImageId, ...nextIds].filter((imageId): imageId is string => Boolean(imageId)),
+      ),
+      galleryImageIds: nextIds,
+      detailCarouselPresentations: omitDetailCarouselPresentation(
+        detailCarouselPresentations,
+        previousId,
+      ),
+    });
     if (!ok) {
       await deleteEntityImageBlob(record.id);
       onNotice("替换相册图片失败，请重试。");
@@ -962,7 +1071,19 @@ function EntityImageEditor({
 
   const deleteCover = async () => {
     if (!coverImageId) return;
-    const ok = onApply({ coverImageId: undefined, galleryImageIds });
+    const ok = onApply({
+      coverImageId: undefined,
+      entryCoverSelections: sanitizeEntryCoverSelections(entryCoverSelections, galleryImageIds),
+      detailImagePresentations: sanitizeDetailImagePresentations(
+        detailImagePresentations,
+        galleryImageIds,
+      ),
+      galleryImageIds,
+      detailCarouselPresentations: omitDetailCarouselPresentation(
+        detailCarouselPresentations,
+        coverImageId,
+      ),
+    });
     if (!ok) {
       onNotice("封面删除失败，请重试。");
       return;
@@ -974,7 +1095,22 @@ function EntityImageEditor({
   const deleteGalleryImage = async (index: number) => {
     const previousId = galleryImageIds[index];
     const nextIds = galleryImageIds.filter((_, itemIndex) => itemIndex !== index);
-    const ok = onApply({ coverImageId, galleryImageIds: nextIds });
+    const ok = onApply({
+      coverImageId,
+      entryCoverSelections: sanitizeEntryCoverSelections(
+        entryCoverSelections,
+        [coverImageId, ...nextIds].filter((imageId): imageId is string => Boolean(imageId)),
+      ),
+      detailImagePresentations: sanitizeDetailImagePresentations(
+        detailImagePresentations,
+        [coverImageId, ...nextIds].filter((imageId): imageId is string => Boolean(imageId)),
+      ),
+      galleryImageIds: nextIds,
+      detailCarouselPresentations: omitDetailCarouselPresentation(
+        detailCarouselPresentations,
+        previousId,
+      ),
+    });
     if (!ok) {
       onNotice("删除相册图片失败，请重试。");
       return;
@@ -1045,6 +1181,30 @@ function EntityImageEditor({
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="mt-3">
+        <CatCoverPresentationEditor
+          catId={catId || undefined}
+          coverImageId={coverImageId}
+          galleryImageIds={galleryImageIds}
+          value={entryCoverSelections}
+          legacyValue={coverPresentations}
+          entries={KITTEN_COVER_PRESENTATION_ENTRIES}
+          onChange={onEntryCoverSelectionChange}
+        />
+      </div>
+
+      <div className="mt-3">
+        <DetailCarouselPresentationEditor
+          catId={catId || undefined}
+          coverImageId={coverImageId}
+          galleryImageIds={galleryImageIds}
+          value={detailImagePresentations}
+          legacyCoverPresentations={coverPresentations}
+          legacyDetailPresentations={detailCarouselPresentations}
+          onChange={onDetailImagePresentationChange}
+        />
       </div>
     </div>
   );
@@ -1301,6 +1461,10 @@ function createEmptyKittenDraft(): KittenDraft {
     storyText: "",
     visibility: "visible",
     coverImageId: undefined,
+    entryCoverSelections: undefined,
+    detailImagePresentations: undefined,
+    coverPresentations: undefined,
+    detailCarouselPresentations: undefined,
     galleryImageIds: [],
   };
 }
@@ -1334,6 +1498,10 @@ function createKittenDraft(kitten: KittenRecord): KittenDraft {
     storyText: (kitten.story ?? []).join("\n"),
     visibility: kitten.visibility,
     coverImageId: kitten.coverImageId,
+    entryCoverSelections: kitten.entryCoverSelections,
+    detailImagePresentations: kitten.detailImagePresentations,
+    coverPresentations: kitten.coverPresentations,
+    detailCarouselPresentations: kitten.detailCarouselPresentations,
     galleryImageIds: [...kitten.galleryImageIds],
   };
 }
@@ -1361,6 +1529,10 @@ function createKittenPayload(draft: KittenDraft, existing: CatteryCat | null) {
     personality: draft.personality.trim(),
     story: splitStory(draft.storyText),
     coverImageId: draft.coverImageId,
+    entryCoverSelections: draft.entryCoverSelections,
+    detailImagePresentations: draft.detailImagePresentations,
+    coverPresentations: draft.coverPresentations,
+    detailCarouselPresentations: draft.detailCarouselPresentations,
     galleryImageIds: [...draft.galleryImageIds],
     visibility: draft.visibility,
     kitten: {
@@ -1439,6 +1611,16 @@ function splitStory(value: string) {
 
 function serializeDraft(value: unknown) {
   return JSON.stringify(value);
+}
+
+function omitDetailCarouselPresentation(
+  value: DetailCarouselPresentations | undefined,
+  imageId?: string,
+) {
+  if (!value || !imageId) return value;
+  const next = { ...value };
+  delete next[imageId];
+  return Object.keys(next).length > 0 ? next : undefined;
 }
 
 function visibilityLabel(visibility: Visibility) {

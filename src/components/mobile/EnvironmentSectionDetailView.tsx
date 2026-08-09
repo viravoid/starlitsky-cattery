@@ -3,7 +3,6 @@ import { PhoneFrame } from "./PhoneFrame";
 import { Card, Pill, Placeholder, Section } from "./ui";
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "./icons";
 import {
-  getEnvironmentSectionCoverImage,
   getEnvironmentSectionImages,
   type EnvironmentContent,
   type EnvironmentRoom,
@@ -24,7 +23,7 @@ const HIDE_ROOM_DESCRIPTION_SECTION_IDS = new Set([
 ]);
 
 export function EnvironmentSectionDetailView({
-  content,
+  content: _content,
   section,
   preview = false,
   previewToken,
@@ -34,10 +33,9 @@ export function EnvironmentSectionDetailView({
   preview?: boolean;
   previewToken?: string;
 }) {
+  void _content;
   const sectionImages = useMemo(() => getEnvironmentSectionImages(section), [section]);
   const imageUrls = useSitePageImageUrls(sectionImages.map(({ image }) => image.imageId));
-  const cover = getEnvironmentSectionCoverImage(section);
-  const coverUrl = cover?.image.imageId ? imageUrls[cover.image.imageId] : undefined;
   const [lightbox, setLightbox] = useState<{ items: LightboxItem[]; index: number } | null>(null);
   const overviewHref = buildEnvironmentOverviewHref(previewToken);
   const showRoomDescriptions = !HIDE_ROOM_DESCRIPTION_SECTION_IDS.has(section.id);
@@ -72,34 +70,17 @@ export function EnvironmentSectionDetailView({
         }
       >
         <Section className="pt-1">
-          <Card className="overflow-hidden bg-gradient-cream p-0">
-            <div className="p-3">
-              {coverUrl ? (
-                <img
-                  src={coverUrl}
-                  alt=""
-                  className="aspect-[16/10] w-full rounded-[22px] object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <Placeholder
-                  label={`示例图片（${section.title}封面，待替换）`}
-                  ratio="aspect-[16/10]"
-                />
-              )}
-            </div>
-            <div className="px-4 pb-4">
-              <h2 className="text-[17px] font-semibold leading-tight text-heading">
-                {section.title}
-              </h2>
-              <p className="mt-3 whitespace-pre-line text-[13px] leading-[1.85] text-muted-foreground">
-                {section.summary}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <Pill tone="creamblue">{section.rooms.length} 个房间 / 子区域</Pill>
-                <Pill tone="sky">{sectionImages.length} 张照片</Pill>
-                {section.meta.trim() && <Pill tone="mint">{section.meta}</Pill>}
-              </div>
+          <Card className="bg-gradient-cream p-4">
+            <h2 className="text-[17px] font-semibold leading-tight text-heading">
+              {section.title}
+            </h2>
+            <p className="mt-3 whitespace-pre-line text-[13px] leading-[1.85] text-muted-foreground">
+              {section.summary}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <Pill tone="creamblue">{section.rooms.length} 个房间 / 子区域</Pill>
+              <Pill tone="sky">{sectionImages.length} 张照片</Pill>
+              {section.meta.trim() && <Pill tone="mint">{section.meta}</Pill>}
             </div>
           </Card>
         </Section>
