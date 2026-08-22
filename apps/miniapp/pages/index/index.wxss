@@ -1,0 +1,18 @@
+.foundation-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 96rpx 40rpx;
+  background: #fffaf1;
+}
+
+.title {
+  color: #7a9ac0;
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin-top: 16rpx;
+  color: #8c929a;
+  font-size: 26rpx;
+}

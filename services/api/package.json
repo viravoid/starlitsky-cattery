@@ -1,0 +1,9 @@
+{
+  "name": "@starlitsky/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.mjs",
+    "start": "node src/server.mjs"
+  }
+}

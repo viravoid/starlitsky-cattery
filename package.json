@@ -3,11 +3,20 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite dev",
+    "dev:admin": "vite --config apps/admin/vite.config.ts --host 127.0.0.1 --port 5174",
+    "dev:api": "node services/api/src/server.mjs",
     "build": "vite build",
+    "build:admin": "vite build --config apps/admin/vite.config.ts",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
+    "typecheck:shared": "tsc -p packages/shared/tsconfig.json --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."
