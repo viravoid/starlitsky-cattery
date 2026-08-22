@@ -10,14 +10,20 @@ body {
 
 .page {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
   padding: 32px;
   box-sizing: border-box;
 }
 
+.layout {
+  width: min(960px, 100%);
+  margin: 0 auto;
+}
+
+.layout-header {
+  margin-bottom: 20px;
+}
+
 .panel {
-  width: min(520px, 100%);
   border: 1px solid #e9ddbf;
   border-radius: 12px;
   background: #fffdf8;
@@ -42,4 +48,8 @@ h1 {
 
 p {
   line-height: 1.7;
+}
+
+.muted {
+  color: #8c929a;
 }

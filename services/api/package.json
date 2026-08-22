@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check": "node --check src/server.mjs",
     "dev": "node src/server.mjs",
-    "start": "node src/server.mjs"
+    "start": "node src/server.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

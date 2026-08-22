@@ -1,0 +1,10 @@
+:root {
+  --xy-color-background: #fffaf1;
+  --xy-color-surface: #fffdf8;
+  --xy-color-text: #58616c;
+  --xy-color-muted: #8c929a;
+  --xy-color-primary: #7a9ac0;
+  --xy-color-accent: #e7c15d;
+  --xy-color-border: #e9ddbf;
+  --xy-radius-card: 16rpx;
+}

@@ -1,0 +1,17 @@
+.foundation-page {
+  min-height: 100vh;
+  padding: 96rpx 40rpx;
+  background: var(--xy-color-background);
+}
+
+.foundation-title {
+  color: var(--xy-color-primary);
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.foundation-note {
+  margin-top: 16rpx;
+  color: var(--xy-color-muted);
+  font-size: 26rpx;
+}

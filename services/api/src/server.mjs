@@ -1,34 +1,30 @@
 import { createServer } from "node:http";
+import { config } from "./config/env.mjs";
+import { handleError } from "./middleware/error-handler.mjs";
+import { attachRequestLogger } from "./middleware/request-logger.mjs";
+import { routeRequest } from "./routes/index.mjs";
+import { logger } from "./utils/logger.mjs";
 
-const host = process.env.API_HOST || "127.0.0.1";
-const port = Number(process.env.API_PORT || process.env.PORT || 4310);
+const server = createServer(async (request, response) => {
+  attachRequestLogger(request, response);
 
-const server = createServer((request, response) => {
-  const url = new URL(request.url || "/", `http://${request.headers.host || `${host}:${port}`}`);
-
-  if (request.method === "GET" && url.pathname === "/health") {
-    sendJson(response, 200, {
-      status: "ok",
-      service: "starlitsky-api",
-      timestamp: new Date().toISOString()
-    });
-    return;
+  try {
+    await routeRequest(request, response, { config });
+  } catch (error) {
+    handleError(error, response);
   }
-
-  sendJson(response, 404, {
-    status: "not_found",
-    message: "Route not found"
-  });
 });
 
-server.listen(port, host, () => {
-  console.log(`starlitsky-api listening at http://${host}:${port}`);
+server.listen(config.server.port, config.server.host, () => {
+  logger.info(
+    `starlitsky-api listening at http://${config.server.host}:${config.server.port}`,
+  );
 });
 
-function sendJson(response, statusCode, body) {
-  response.writeHead(statusCode, {
-    "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store"
-  });
-  response.end(JSON.stringify(body));
-}
+process.on("unhandledRejection", (reason) => {
+  logger.error("Unhandled promise rejection", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  logger.error("Uncaught exception", error);
+});

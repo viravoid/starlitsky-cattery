@@ -1,18 +1,17 @@
 .foundation-page {
   min-height: 100vh;
-  box-sizing: border-box;
   padding: 96rpx 40rpx;
-  background: #fffaf1;
+  background: var(--xy-color-background);
 }
 
-.title {
-  color: #7a9ac0;
+.foundation-title {
+  color: var(--xy-color-primary);
   font-size: 40rpx;
   font-weight: 600;
 }
 
-.subtitle {
+.foundation-note {
   margin-top: 16rpx;
-  color: #8c929a;
+  color: var(--xy-color-muted);
   font-size: 26rpx;
 }

@@ -1,10 +1,30 @@
 {
-  "pages": ["pages/index/index"],
+  "pages": ["pages/home/index", "pages/community/index", "pages/cats/index"],
   "window": {
     "navigationBarTitleText": "星月缅因猫舍",
     "navigationBarBackgroundColor": "#fffaf1",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#fffaf1"
+  },
+  "tabBar": {
+    "color": "#8c929a",
+    "selectedColor": "#7a9ac0",
+    "backgroundColor": "#fffaf1",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/community/index",
+        "text": "猫友圈"
+      },
+      {
+        "pagePath": "pages/cats/index",
+        "text": "我们的猫"
+      }
+    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"
