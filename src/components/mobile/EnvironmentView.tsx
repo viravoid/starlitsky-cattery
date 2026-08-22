@@ -78,8 +78,12 @@ function EnvironmentOverviewCard({
   preview: boolean;
   previewToken?: string;
 }) {
-  const roomCount = section.rooms.length;
+  const hasAnyRoomImages = section.rooms.some((room) => room.images.length > 0);
+  const roomCount = !preview && hasAnyRoomImages ? section.rooms.filter((room) => room.images.length > 0).length : section.rooms.length;
   const photoCount = getEnvironmentSectionImages(section).length;
+  if (!preview && section.id === "environment-zone-common" && photoCount === 0) {
+    return null;
+  }
   const detailHref = buildEnvironmentSectionHref(section.id, previewToken);
   const content = (
     <Card className="h-full p-0">

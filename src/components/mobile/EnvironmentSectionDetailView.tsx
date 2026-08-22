@@ -35,6 +35,8 @@ export function EnvironmentSectionDetailView({
 }) {
   void _content;
   const sectionImages = useMemo(() => getEnvironmentSectionImages(section), [section]);
+  const hasAnyRoomImages = section.rooms.some((room) => room.images.length > 0);
+  const visibleRooms = !preview && hasAnyRoomImages ? section.rooms.filter((room) => room.images.length > 0) : section.rooms;
   const imageUrls = useSitePageImageUrls(sectionImages.map(({ image }) => image.imageId));
   const [lightbox, setLightbox] = useState<{ items: LightboxItem[]; index: number } | null>(null);
   const overviewHref = buildEnvironmentOverviewHref(previewToken);
@@ -78,7 +80,7 @@ export function EnvironmentSectionDetailView({
               {section.summary}
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <Pill tone="creamblue">{section.rooms.length} 个房间 / 子区域</Pill>
+              <Pill tone="creamblue">{visibleRooms.length} 个房间 / 子区域</Pill>
               <Pill tone="sky">{sectionImages.length} 张照片</Pill>
               {section.meta.trim() && <Pill tone="mint">{section.meta}</Pill>}
             </div>
@@ -86,7 +88,7 @@ export function EnvironmentSectionDetailView({
         </Section>
 
         <Section className="mb-10 mt-5 space-y-4">
-          {section.rooms.map((room) => (
+          {visibleRooms.map((room) => (
             <Card key={room.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
