@@ -217,6 +217,38 @@ export function completeMediaUpload(id: string, data: CompleteMediaUploadRequest
   );
 }
 
+export async function uploadCatImage(catId: string, file: File) {
+  if (!file.type) {
+    throw new Error("Image file MIME type is required");
+  }
+
+  const imageUpload = await requestImageUpload({
+    altText: file.name,
+    fileName: file.name || "cat-image",
+    mimeType: file.type,
+    ownerId: catId,
+    ownerType: "cat",
+    sizeBytes: file.size,
+    title: file.name,
+    usage: "cover",
+    bindingVisibility: "visible",
+  });
+
+  const uploadResponse = await fetch(imageUpload.upload.url, {
+    body: file,
+    headers: imageUpload.upload.headers,
+    method: imageUpload.upload.method,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`Object storage upload failed with HTTP ${uploadResponse.status}`);
+  }
+
+  return completeMediaUpload(imageUpload.media.id, {
+    sizeBytes: file.size,
+  });
+}
+
 export function createMediaBinding(mediaId: string, data: CreateMediaBindingRequest) {
   return unwrap<MediaBindingData, CreateMediaBindingRequest>(
     adminPost(`/media/${encodeURIComponent(mediaId)}/bindings`, data),
