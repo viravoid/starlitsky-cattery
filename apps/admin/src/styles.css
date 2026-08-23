@@ -279,7 +279,8 @@ td {
   object-fit: contain;
 }
 
-.cat-image-uploader {
+.cat-image-uploader,
+.image-uploader {
   display: grid;
   gap: 12px;
   border: 1px solid #e2e8f0;
@@ -289,7 +290,9 @@ td {
 }
 
 .cat-image-preview,
-.cat-image-placeholder {
+.cat-image-placeholder,
+.image-preview,
+.image-placeholder {
   width: 100%;
   min-height: 180px;
   border: 1px solid #e2e8f0;
@@ -297,12 +300,14 @@ td {
   background: #ffffff;
 }
 
-.cat-image-preview {
+.cat-image-preview,
+.image-preview {
   max-height: 280px;
   object-fit: contain;
 }
 
-.cat-image-placeholder {
+.cat-image-placeholder,
+.image-placeholder {
   display: grid;
   place-items: center;
   color: #94a3b8;
