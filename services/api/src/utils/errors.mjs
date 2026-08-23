@@ -32,3 +32,12 @@ export function methodNotAllowed(message = "Method not allowed") {
     message,
   });
 }
+
+export function serviceUnavailable(message = "Service unavailable", details) {
+  return new ApiError({
+    statusCode: 503,
+    code: "SERVICE_UNAVAILABLE",
+    message,
+    details,
+  });
+}

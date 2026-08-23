@@ -9,6 +9,7 @@ import {
   updateMedia,
   updateMediaBinding,
 } from "../services/media-service.mjs";
+import { completeMediaUpload, requestImageUpload } from "../services/media-upload-service.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
@@ -52,6 +53,32 @@ export async function routeMediaRequest(request, response, url) {
         statusCode: 201,
         data: await createMediaBinding(bindingRoute.mediaId, await readJsonBody(request)),
         message: "Media binding created",
+      });
+      return;
+    }
+
+    throw methodNotAllowed();
+  }
+
+  if (url.pathname === "/media/uploads") {
+    if (request.method === "POST") {
+      sendSuccess(response, {
+        statusCode: 201,
+        data: await requestImageUpload(await readJsonBody(request)),
+        message: "Media upload created",
+      });
+      return;
+    }
+
+    throw methodNotAllowed();
+  }
+
+  const uploadCompleteRoute = matchMediaUploadCompleteRoute(url.pathname);
+  if (uploadCompleteRoute) {
+    if (request.method === "POST") {
+      sendSuccess(response, {
+        data: await completeMediaUpload(uploadCompleteRoute.mediaId, await readJsonBody(request)),
+        message: "Media upload completed",
       });
       return;
     }
@@ -122,5 +149,13 @@ function matchMediaBindingRoute(pathname) {
   return {
     mediaId: decodeURIComponent(match[1]),
     bindingId: match[2] ? decodeURIComponent(match[2]) : null,
+  };
+}
+
+function matchMediaUploadCompleteRoute(pathname) {
+  const match = pathname.match(/^\/media\/([^/]+)\/upload\/complete$/);
+  if (!match) return null;
+  return {
+    mediaId: decodeURIComponent(match[1]),
   };
 }

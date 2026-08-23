@@ -6,11 +6,14 @@ import type {
   CreateBreedingCatProfileRequest,
   CreateCatRequest,
   CreateKittenProfileRequest,
+  CreateImageUploadRequest,
   CreateLitterRequest,
   CreateMediaAssetRequest,
   CreateMediaBindingRequest,
+  CompleteMediaUploadRequest,
   FixedPageData,
   FixedPageListData,
+  ImageUploadData,
   CreateParentCatLinkRequest,
   CreateParentProfileRequest,
   KittenProfileData,
@@ -202,6 +205,16 @@ export function updateMedia(id: string, data: UpdateMediaAssetRequest) {
 
 export function archiveMedia(id: string) {
   return unwrap<MediaAssetData>(adminDelete(`/media/${encodeURIComponent(id)}`));
+}
+
+export function requestImageUpload(data: CreateImageUploadRequest) {
+  return unwrap<ImageUploadData, CreateImageUploadRequest>(adminPost("/media/uploads", data));
+}
+
+export function completeMediaUpload(id: string, data: CompleteMediaUploadRequest = {}) {
+  return unwrap<MediaAssetData, CompleteMediaUploadRequest>(
+    adminPost(`/media/${encodeURIComponent(id)}/upload/complete`, data),
+  );
 }
 
 export function createMediaBinding(mediaId: string, data: CreateMediaBindingRequest) {

@@ -293,8 +293,9 @@ model FixedPage {
   @@map("fixed_pages")
 }
 
-/// Media records deliberately store only business metadata and source URLs.
-/// Upload signing, object storage, and file processing are out of scope here.
+/// Media records store business metadata and the resolved public source URL.
+/// Upload signing lives in the API service and stores object metadata in
+/// metadata_json until a dedicated asset-processing pipeline exists.
 model MediaAsset {
   id               String    @id @default(uuid())
   kind             String    @default("image")

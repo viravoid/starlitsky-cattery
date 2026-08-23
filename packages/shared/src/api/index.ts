@@ -290,6 +290,45 @@ export type UpdateMediaBindingRequest = Partial<
 
 export type MediaAssetListData = PaginatedResponse<MediaAssetData>;
 
+export interface CreateImageUploadRequest {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  title?: string | null;
+  altText?: string | null;
+  checksum?: string | null;
+  width?: number | null;
+  height?: number | null;
+  ownerType?: string;
+  ownerId?: string;
+  usage?: string;
+  sortOrder?: number;
+  bindingVisibility?: string;
+}
+
+export interface MediaUploadInstructionsData {
+  method: "PUT";
+  url: string;
+  headers: Record<string, string>;
+  expiresAt: string;
+  expiresInSeconds: number;
+}
+
+export interface ImageUploadData {
+  media: MediaAssetData;
+  upload: MediaUploadInstructionsData;
+  objectKey: string;
+  publicUrl: string;
+}
+
+export interface CompleteMediaUploadRequest {
+  checksum?: string | null;
+  sizeBytes?: number | null;
+  width?: number | null;
+  height?: number | null;
+  thumbnailUrl?: string | null;
+}
+
 export type FixedPageSlug =
   | "home"
   | "about"
