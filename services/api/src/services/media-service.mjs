@@ -1,10 +1,11 @@
 import { prisma } from "../db/prisma.mjs";
+import { ensureActiveFixedPageExists } from "./fixed-page-service.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parseBooleanParam, parsePagination } from "../utils/request.mjs";
 
 const MEDIA_KIND_VALUES = new Set(["image", "video", "document", "audio"]);
 const MEDIA_STATUS_VALUES = new Set(["pending", "active", "rejected", "archived"]);
-const OWNER_TYPE_VALUES = new Set(["cat", "litter", "post", "parent_profile"]);
+const OWNER_TYPE_VALUES = new Set(["cat", "litter", "post", "parent_profile", "fixed_page"]);
 const VISIBILITY_VALUES = new Set(["visible", "hidden", "archived"]);
 
 const MEDIA_CREATE_FIELDS = [
@@ -436,8 +437,11 @@ async function findOwner(ownerType, ownerId, client) {
         },
         select: { id: true },
       });
+    case "fixed_page":
+      await ensureActiveFixedPageExists(ownerId, client);
+      return { id: ownerId };
     default:
-      throw badRequest("ownerType must be cat, litter, post, or parent_profile");
+      throw badRequest("ownerType must be cat, litter, post, parent_profile, or fixed_page");
   }
 }
 

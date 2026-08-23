@@ -271,6 +271,28 @@ model PostLike {
   @@map("post_likes")
 }
 
+/// Fixed website/miniapp pages whose structure is owned by the product. This
+/// is intentionally not an article CMS: pages are addressed by known slugs and
+/// store structured content JSON for the corresponding fixed template.
+model FixedPage {
+  id                     String    @id @default(uuid())
+  slug                   String    @unique
+  title                  String
+  status                 String    @default("draft")
+  seo_title              String?
+  seo_description        String?
+  content_schema_version Int       @default(1)
+  content_json           Json?
+  published_at           DateTime?
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+  deleted_at             DateTime?
+
+  @@index([status])
+  @@index([published_at])
+  @@map("fixed_pages")
+}
+
 /// Media records deliberately store only business metadata and source URLs.
 /// Upload signing, object storage, and file processing are out of scope here.
 model MediaAsset {

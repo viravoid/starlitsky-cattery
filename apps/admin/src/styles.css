@@ -69,6 +69,12 @@ textarea {
   resize: vertical;
 }
 
+.code-textarea {
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

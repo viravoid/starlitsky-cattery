@@ -13,6 +13,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <a href="#cats">猫咪管理</a>
             <a href="#litters">窝次管理</a>
             <a href="#media">媒体管理</a>
+            <a href="#fixed-pages">固定页面</a>
           </nav>
         </header>
         {children}

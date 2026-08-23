@@ -1,5 +1,6 @@
 import { handleHealth } from "./health.mjs";
 import { routeCatsRequest } from "./cats.mjs";
+import { routeFixedPagesRequest } from "./fixed-pages.mjs";
 import { routeLittersRequest } from "./litters.mjs";
 import { routeMediaRequest } from "./media.mjs";
 import { routeParentsRequest } from "./parents.mjs";
@@ -29,6 +30,11 @@ export async function routeRequest(request, response, context) {
 
   if (url.pathname === "/litters" || url.pathname.startsWith("/litters/")) {
     await routeLittersRequest(request, response, url);
+    return;
+  }
+
+  if (url.pathname === "/fixed-pages" || url.pathname.startsWith("/fixed-pages/")) {
+    await routeFixedPagesRequest(request, response, url);
     return;
   }
 

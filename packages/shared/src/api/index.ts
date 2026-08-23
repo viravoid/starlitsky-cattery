@@ -289,3 +289,43 @@ export type UpdateMediaBindingRequest = Partial<
 >;
 
 export type MediaAssetListData = PaginatedResponse<MediaAssetData>;
+
+export type FixedPageSlug =
+  | "home"
+  | "about"
+  | "philosophy"
+  | "environment"
+  | "feeding"
+  | "process"
+  | "aftercare"
+  | "contact"
+  | "questionnaire"
+  | "breeding-plan";
+
+export type FixedPageStatus = "draft" | "published" | "hidden";
+
+export interface FixedPageData {
+  id: string;
+  slug: FixedPageSlug;
+  title: string;
+  status: FixedPageStatus;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  contentSchemaVersion: number;
+  contentJson: unknown;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export type FixedPageListData = FixedPageData[];
+
+export interface UpdateFixedPageRequest {
+  title?: string;
+  status?: FixedPageStatus;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  contentSchemaVersion?: number;
+  contentJson?: unknown;
+}

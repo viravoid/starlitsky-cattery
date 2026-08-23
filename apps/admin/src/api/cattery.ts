@@ -9,6 +9,8 @@ import type {
   CreateLitterRequest,
   CreateMediaAssetRequest,
   CreateMediaBindingRequest,
+  FixedPageData,
+  FixedPageListData,
   CreateParentCatLinkRequest,
   CreateParentProfileRequest,
   KittenProfileData,
@@ -24,6 +26,7 @@ import type {
   UpdateCatRequest,
   UpdateKittenProfileRequest,
   UpdateLitterRequest,
+  UpdateFixedPageRequest,
   UpdateMediaAssetRequest,
   UpdateMediaBindingRequest,
   UpdateParentCatLinkRequest,
@@ -167,6 +170,20 @@ export function updateParentCatLink(id: string, data: UpdateParentCatLinkRequest
 
 export function listMedia(params: ListMediaParams = {}) {
   return unwrap<MediaAssetListData>(adminGet(`/media${toSearch(params)}`));
+}
+
+export function listFixedPages() {
+  return unwrap<FixedPageListData>(adminGet("/fixed-pages"));
+}
+
+export function getFixedPage(slug: string) {
+  return unwrap<FixedPageData>(adminGet(`/fixed-pages/${encodeURIComponent(slug)}`));
+}
+
+export function updateFixedPage(slug: string, data: UpdateFixedPageRequest) {
+  return unwrap<FixedPageData, UpdateFixedPageRequest>(
+    adminPatch(`/fixed-pages/${encodeURIComponent(slug)}`, data),
+  );
 }
 
 export function getMedia(id: string) {

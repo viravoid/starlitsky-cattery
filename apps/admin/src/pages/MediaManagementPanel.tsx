@@ -2,6 +2,7 @@ import type {
   CatData,
   CreateMediaAssetRequest,
   CreateMediaBindingRequest,
+  FixedPageData,
   LitterData,
   MediaAssetData,
   MediaBindingData,
@@ -87,6 +88,7 @@ const STATUS_OPTIONS = [
 const OWNER_TYPE_OPTIONS = [
   { label: "猫", value: "cat" },
   { label: "窝次", value: "litter" },
+  { label: "固定页面", value: "fixed_page" },
   { label: "动态", value: "post" },
   { label: "家长", value: "parent_profile" },
 ];
@@ -106,9 +108,11 @@ const VISIBILITY_OPTIONS = [
 
 export function MediaManagementPanel({
   cats,
+  fixedPages,
   litters,
 }: {
   cats: CatData[];
+  fixedPages: FixedPageData[];
   litters: LitterData[];
 }) {
   const [mediaItems, setMediaItems] = useState<MediaAssetData[]>([]);
@@ -151,7 +155,8 @@ export function MediaManagementPanel({
     setSelectedMedia(null);
     setForm({
       ...DEFAULT_MEDIA_FORM,
-      ownerId: buildOwnerOptions(DEFAULT_MEDIA_FORM.ownerType, cats, litters)[0]?.value ?? "",
+      ownerId:
+        buildOwnerOptions(DEFAULT_MEDIA_FORM.ownerType, cats, litters, fixedPages)[0]?.value ?? "",
     });
     setEditorMode("create");
     setConfirmingArchiveId("");
@@ -179,7 +184,9 @@ export function MediaManagementPanel({
       setSelectedMedia(freshMedia);
       setBindingForm({
         ...DEFAULT_BINDING_FORM,
-        ownerId: buildOwnerOptions(DEFAULT_BINDING_FORM.ownerType, cats, litters)[0]?.value ?? "",
+        ownerId:
+          buildOwnerOptions(DEFAULT_BINDING_FORM.ownerType, cats, litters, fixedPages)[0]?.value ??
+          "",
       });
     } catch (selectError) {
       setError(getErrorMessage(selectError));
@@ -409,6 +416,7 @@ export function MediaManagementPanel({
           {editorMode ? (
             <MediaForm
               cats={cats}
+              fixedPages={fixedPages}
               form={form}
               isSaving={isSaving}
               litters={litters}
@@ -429,6 +437,7 @@ export function MediaManagementPanel({
                 <h4>新增业务绑定</h4>
                 <OwnerFields
                   cats={cats}
+                  fixedPages={fixedPages}
                   form={bindingForm}
                   litters={litters}
                   onChange={setBindingForm}
@@ -468,6 +477,7 @@ export function MediaManagementPanel({
 
 function MediaForm({
   cats,
+  fixedPages,
   form,
   isSaving,
   litters,
@@ -477,6 +487,7 @@ function MediaForm({
   onSubmit,
 }: {
   cats: CatData[];
+  fixedPages: FixedPageData[];
   form: MediaFormState;
   isSaving: boolean;
   litters: LitterData[];
@@ -552,7 +563,13 @@ function MediaForm({
       {mode === "create" ? (
         <div className="inline-form">
           <h4>初始业务绑定</h4>
-          <OwnerFields cats={cats} form={form} litters={litters} onChange={onChange} />
+          <OwnerFields
+            cats={cats}
+            fixedPages={fixedPages}
+            form={form}
+            litters={litters}
+            onChange={onChange}
+          />
           <div className="form-grid">
             <FieldSelect
               label="用途"
@@ -582,16 +599,18 @@ function MediaForm({
 
 function OwnerFields<TForm extends { ownerId: string; ownerType: string }>({
   cats,
+  fixedPages,
   form,
   litters,
   onChange,
 }: {
   cats: CatData[];
+  fixedPages: FixedPageData[];
   form: TForm;
   litters: LitterData[];
   onChange: (form: TForm) => void;
 }) {
-  const ownerOptions = buildOwnerOptions(form.ownerType, cats, litters);
+  const ownerOptions = buildOwnerOptions(form.ownerType, cats, litters, fixedPages);
   const usesSelect = ownerOptions.length > 0;
 
   return (
@@ -604,7 +623,7 @@ function OwnerFields<TForm extends { ownerId: string; ownerType: string }>({
           onChange({
             ...form,
             ownerType,
-            ownerId: buildOwnerOptions(ownerType, cats, litters)[0]?.value ?? "",
+            ownerId: buildOwnerOptions(ownerType, cats, litters, fixedPages)[0]?.value ?? "",
           })
         }
       />
@@ -843,12 +862,20 @@ function toBindingPayload(form: BindingFormState): CreateMediaBindingRequest {
   };
 }
 
-function buildOwnerOptions(ownerType: string, cats: CatData[], litters: LitterData[]) {
+function buildOwnerOptions(
+  ownerType: string,
+  cats: CatData[],
+  litters: LitterData[],
+  fixedPages: FixedPageData[],
+) {
   if (ownerType === "cat") {
     return cats.map((cat) => ({ label: cat.name, value: cat.id }));
   }
   if (ownerType === "litter") {
     return litters.map((litter) => ({ label: litter.name, value: litter.id }));
+  }
+  if (ownerType === "fixed_page") {
+    return fixedPages.map((page) => ({ label: page.title, value: page.id }));
   }
   return [];
 }

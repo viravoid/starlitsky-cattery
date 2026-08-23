@@ -2,6 +2,7 @@ import type {
   CatData,
   CreateCatRequest,
   CreateLitterRequest,
+  FixedPageData,
   LitterData,
   UpdateCatRequest,
   UpdateLitterRequest,
@@ -14,6 +15,7 @@ import {
   getCat,
   getLitter,
   listCats,
+  listFixedPages,
   listLitters,
   updateCat,
   updateLitter,
@@ -21,9 +23,10 @@ import {
 import { PageContainer } from "../components/PageContainer";
 import { getErrorMessage } from "../utils/errors";
 import { CatArchivePanel, LitterKittensPanel } from "./CatteryProfilePanels";
+import { FixedPagesPanel } from "./FixedPagesPanel";
 import { MediaManagementPanel } from "./MediaManagementPanel";
 
-type SectionKey = "cats" | "litters" | "media";
+type SectionKey = "cats" | "litters" | "media" | "fixedPages";
 type EditorMode = "create" | "edit" | null;
 
 interface CatFormState {
@@ -102,6 +105,7 @@ const DEFAULT_LITTER_FORM: LitterFormState = {
 export function CatteryManagementPage() {
   const [activeSection, setActiveSection] = useState<SectionKey>(getSectionFromHash());
   const [cats, setCats] = useState<CatData[]>([]);
+  const [fixedPages, setFixedPages] = useState<FixedPageData[]>([]);
   const [litters, setLitters] = useState<LitterData[]>([]);
   const [selectedCat, setSelectedCat] = useState<CatData | null>(null);
   const [selectedLitter, setSelectedLitter] = useState<LitterData | null>(null);
@@ -124,7 +128,7 @@ export function CatteryManagementPage() {
     setError("");
 
     try {
-      const [catList, litterList] = await Promise.all([
+      const [catList, litterList, fixedPageList] = await Promise.all([
         listCats({
           includeDeleted: includeArchivedCats,
           pageSize: 100,
@@ -133,9 +137,11 @@ export function CatteryManagementPage() {
           includeDeleted: includeArchivedLitters,
           pageSize: 100,
         }),
+        listFixedPages(),
       ]);
 
       setCats(catList.items);
+      setFixedPages(fixedPageList);
       setLitters(litterList.items);
       setSelectedCat((current) =>
         current ? (catList.items.find((cat) => cat.id === current.id) ?? null) : null,
@@ -326,6 +332,9 @@ export function CatteryManagementPage() {
           <button type="button" onClick={() => setActiveSection("media")}>
             媒体管理
           </button>
+          <button type="button" onClick={() => setActiveSection("fixedPages")}>
+            固定页面
+          </button>
         </div>
       </div>
 
@@ -354,14 +363,25 @@ export function CatteryManagementPage() {
         >
           媒体列表
         </button>
+        <button
+          aria-selected={activeSection === "fixedPages"}
+          className={activeSection === "fixedPages" ? "active-tab" : ""}
+          type="button"
+          onClick={() => setActiveSection("fixedPages")}
+        >
+          固定页面
+        </button>
       </div>
 
       {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="error-banner">{error}</div> : null}
 
-      {activeSection === "media" ? (
+      {activeSection === "fixedPages" ? (
+        <FixedPagesPanel isLoading={isLoading} pages={fixedPages} onReload={loadData} />
+      ) : activeSection === "media" ? (
         <MediaManagementPanel
           cats={activeCats}
+          fixedPages={fixedPages}
           litters={litters.filter((litter) => !litter.deletedAt)}
         />
       ) : activeSection === "cats" ? (
@@ -1127,5 +1147,6 @@ function formatDateTime(value: string | null) {
 function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#litters") return "litters";
   if (window.location.hash === "#media") return "media";
+  if (window.location.hash === "#fixed-pages") return "fixedPages";
   return "cats";
 }
