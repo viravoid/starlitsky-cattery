@@ -1,5 +1,5 @@
-import { DashboardPage } from "../pages/DashboardPage";
+import { CatteryManagementPage } from "../pages/CatteryManagementPage";
 
 export const routes = {
-  dashboard: DashboardPage
+  catteryManagement: CatteryManagementPage,
 };

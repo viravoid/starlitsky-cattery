@@ -1,8 +1,4 @@
-import type {
-  ApiErrorResponse,
-  ApiSuccessResponse,
-  HealthCheckData,
-} from "@starlitsky/shared";
+import type { ApiErrorResponse, ApiSuccessResponse, HealthCheckData } from "@starlitsky/shared";
 
 export type HealthApiResponse = ApiSuccessResponse<HealthCheckData>;
 

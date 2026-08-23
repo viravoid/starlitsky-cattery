@@ -16,9 +16,7 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(config.server.port, config.server.host, () => {
-  logger.info(
-    `starlitsky-api listening at http://${config.server.host}:${config.server.port}`,
-  );
+  logger.info(`starlitsky-api listening at http://${config.server.host}:${config.server.port}`);
 });
 
 process.on("unhandledRejection", (reason) => {

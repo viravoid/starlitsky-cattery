@@ -13,7 +13,7 @@ export function badRequest(message = "Invalid request parameters", details) {
     statusCode: 400,
     code: "BAD_REQUEST",
     message,
-    details
+    details,
   });
 }
 
@@ -21,6 +21,14 @@ export function notFound(message = "Not found") {
   return new ApiError({
     statusCode: 404,
     code: "NOT_FOUND",
-    message
+    message,
+  });
+}
+
+export function methodNotAllowed(message = "Method not allowed") {
+  return new ApiError({
+    statusCode: 405,
+    code: "METHOD_NOT_ALLOWED",
+    message,
   });
 }

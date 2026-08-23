@@ -1,0 +1,325 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Application user account. Roles are intentionally stored in UserRole so one
+/// user can hold multiple roles over time.
+model User {
+  id             String    @id @default(uuid())
+  wechat_openid  String?   @unique
+  wechat_unionid String?
+  nickname       String?
+  avatar_url     String?
+  phone          String?
+  status         String    @default("active")
+  last_login_at  DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  roles                    UserRole[]
+  parent_profile           ParentProfile?
+  created_parent_cat_links ParentCatLink[] @relation("ParentCatLinkCreator")
+  posts                    Post[]
+  comments                 Comment[]
+  post_likes               PostLike[]
+
+  @@map("users")
+}
+
+/// Supported role values for v1: user, parent, admin.
+model UserRole {
+  id         String    @id @default(uuid())
+  user_id    String
+  role       String
+  granted_by String?
+  granted_at DateTime  @default(now())
+  revoked_at DateTime?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([role])
+  @@map("user_roles")
+}
+
+model ParentProfile {
+  id             String    @id @default(uuid())
+  user_id        String    @unique
+  display_name   String
+  real_name      String?
+  contact_phone  String?
+  contact_wechat String?
+  city           String?
+  status         String    @default("active")
+  activated_at   DateTime?
+  note           String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  user             User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  parent_cat_links ParentCatLink[]
+
+  @@index([status])
+  @@map("parent_profiles")
+}
+
+/// One cat keeps the same id across birth, finding a home, retention,
+/// breeding, retirement, and archival.
+model Cat {
+  id               String    @id @default(uuid())
+  name             String
+  gender           String?
+  color            String?
+  birthday         DateTime?
+  lifecycle_status String    @default("growing")
+  personality      String?
+  story_json       Json?
+  visibility       String    @default("visible")
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime?
+
+  breeding_profile BreedingCatProfile?
+  kitten_profile   KittenProfile?
+  parent_cat_links ParentCatLink[]
+  father_litters   Litter[]            @relation("LitterFather")
+  mother_litters   Litter[]            @relation("LitterMother")
+  post_cats        PostCat[]
+
+  @@index([lifecycle_status])
+  @@index([visibility])
+  @@map("cats")
+}
+
+model BreedingCatProfile {
+  cat_id             String  @id
+  breeding_role      String
+  reproductive_state String
+  status_label       String?
+  trait              String?
+  source             String?
+  health_summary     String?
+  sort_order         Int     @default(0)
+
+  cat Cat @relation(fields: [cat_id], references: [id], onDelete: Cascade)
+
+  @@index([breeding_role])
+  @@index([reproductive_state])
+  @@map("breeding_cat_profiles")
+}
+
+model KittenProfile {
+  cat_id                String    @id
+  litter_id             String
+  sale_status           String    @default("evaluating")
+  price_text            String?
+  structure_rating_json Json?
+  adopted_at            DateTime?
+
+  cat    Cat    @relation(fields: [cat_id], references: [id], onDelete: Cascade)
+  litter Litter @relation(fields: [litter_id], references: [id], onDelete: Restrict)
+
+  @@index([litter_id])
+  @@index([sale_status])
+  @@map("kitten_profiles")
+}
+
+model Litter {
+  id                   String    @id @default(uuid())
+  name                 String
+  birth_date           DateTime?
+  expected_birth_date  DateTime?
+  status               String    @default("planned")
+  father_cat_id        String
+  mother_cat_id        String
+  possible_colors_json Json?
+  color_note           String?
+  note                 String?
+  visibility           String    @default("visible")
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+  deleted_at           DateTime?
+
+  father_cat      Cat             @relation("LitterFather", fields: [father_cat_id], references: [id], onDelete: Restrict)
+  mother_cat      Cat             @relation("LitterMother", fields: [mother_cat_id], references: [id], onDelete: Restrict)
+  kitten_profiles KittenProfile[]
+  post_litters    PostLitter[]
+
+  @@index([father_cat_id])
+  @@index([mother_cat_id])
+  @@index([status])
+  @@index([visibility])
+  @@map("litters")
+}
+
+/// Supported relationship values for v1: owner, co_owner, caregiver.
+model ParentCatLink {
+  id                String    @id @default(uuid())
+  parent_profile_id String
+  cat_id            String
+  relationship      String
+  status            String    @default("active")
+  started_at        DateTime?
+  ended_at          DateTime?
+  note              String?
+  created_by        String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  deleted_at        DateTime?
+
+  parent_profile ParentProfile @relation(fields: [parent_profile_id], references: [id], onDelete: Cascade)
+  cat            Cat           @relation(fields: [cat_id], references: [id], onDelete: Cascade)
+  creator        User?         @relation("ParentCatLinkCreator", fields: [created_by], references: [id], onDelete: SetNull)
+
+  @@index([parent_profile_id])
+  @@index([cat_id])
+  @@index([relationship])
+  @@index([status])
+  @@map("parent_cat_links")
+}
+
+/// Supported category values for community MVP: cattery_daily, parent_share,
+/// personal_thoughts. Creation permissions are enforced by application logic.
+model Post {
+  id                   String    @id @default(uuid())
+  author_user_id       String
+  author_role_snapshot String
+  author_name_snapshot String
+  category             String
+  content              String
+  visibility           String    @default("visible")
+  pinned               Boolean   @default(false)
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+  deleted_at           DateTime?
+
+  author       User         @relation(fields: [author_user_id], references: [id], onDelete: Restrict)
+  post_cats    PostCat[]
+  post_litters PostLitter[]
+  comments     Comment[]
+  likes        PostLike[]
+
+  @@index([author_user_id])
+  @@index([category])
+  @@index([visibility])
+  @@index([pinned])
+  @@index([created_at])
+  @@map("posts")
+}
+
+model PostCat {
+  post_id    String
+  cat_id     String
+  created_at DateTime @default(now())
+
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  cat  Cat  @relation(fields: [cat_id], references: [id], onDelete: Cascade)
+
+  @@id([post_id, cat_id])
+  @@index([cat_id])
+  @@map("post_cats")
+}
+
+model PostLitter {
+  post_id    String
+  litter_id  String
+  created_at DateTime @default(now())
+
+  post   Post   @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  litter Litter @relation(fields: [litter_id], references: [id], onDelete: Cascade)
+
+  @@id([post_id, litter_id])
+  @@index([litter_id])
+  @@map("post_litters")
+}
+
+model Comment {
+  id             String    @id @default(uuid())
+  post_id        String
+  author_user_id String
+  content        String
+  visibility     String    @default("visible")
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  deleted_at     DateTime?
+
+  post   Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  author User @relation(fields: [author_user_id], references: [id], onDelete: Restrict)
+
+  @@index([post_id])
+  @@index([author_user_id])
+  @@index([visibility])
+  @@map("comments")
+}
+
+model PostLike {
+  id         String   @id @default(uuid())
+  post_id    String
+  user_id    String
+  created_at DateTime @default(now())
+
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, user_id])
+  @@index([user_id])
+  @@map("post_likes")
+}
+
+/// Media records deliberately store only business metadata and source URLs.
+/// Upload signing, object storage, and file processing are out of scope here.
+model MediaAsset {
+  id               String    @id @default(uuid())
+  kind             String    @default("image")
+  source_url       String
+  thumbnail_url    String?
+  title            String?
+  alt_text         String?
+  mime_type        String?
+  size_bytes       Int?
+  width            Int?
+  height           Int?
+  duration_seconds Int?
+  checksum         String?
+  status           String    @default("active")
+  metadata_json    Json?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime?
+
+  bindings MediaBinding[]
+
+  @@index([kind])
+  @@index([status])
+  @@index([created_at])
+  @@map("media_assets")
+}
+
+/// Polymorphic business binding for cats, litters, posts, and parent profiles.
+/// owner_id integrity is checked in service code because Prisma cannot model a
+/// conditional foreign key.
+model MediaBinding {
+  id         String    @id @default(uuid())
+  media_id   String
+  owner_type String
+  owner_id   String
+  usage      String    @default("gallery")
+  sort_order Int       @default(0)
+  visibility String    @default("visible")
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  media MediaAsset @relation(fields: [media_id], references: [id], onDelete: Cascade)
+
+  @@index([media_id])
+  @@index([owner_type, owner_id])
+  @@index([usage])
+  @@index([visibility])
+  @@map("media_bindings")
+}

@@ -8,7 +8,7 @@ export const logger = {
   error(message, error) {
     console.error(format("error", message));
     if (error) console.error(error);
-  }
+  },
 };
 
 function format(level, message) {

@@ -9,7 +9,7 @@ export function handleError(error, response) {
       : new ApiError({
           statusCode: 500,
           code: "INTERNAL_ERROR",
-          message: "Internal server error"
+          message: "Internal server error",
         });
 
   logger.error(apiError.message, error);

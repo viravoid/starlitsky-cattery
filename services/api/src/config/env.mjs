@@ -6,12 +6,12 @@ export const config = {
   isDevelopment: !isProduction,
   isProduction,
   service: {
-    name: "starlitsky-api"
+    name: "starlitsky-api",
   },
   server: {
     host: process.env.API_HOST || (isProduction ? "0.0.0.0" : "127.0.0.1"),
-    port: parsePort(process.env.API_PORT || process.env.PORT, isProduction ? 8080 : 4310)
-  }
+    port: parsePort(process.env.API_PORT || process.env.PORT, isProduction ? 8080 : 4310),
+  },
 };
 
 function parsePort(value, fallback) {

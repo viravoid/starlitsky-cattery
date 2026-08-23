@@ -1,7 +1,7 @@
 import type { ApiErrorResponse, ApiResponse } from "@starlitsky/shared";
 import { getApiBaseUrl } from "../config/env";
 
-type RequestMethod = "GET" | "POST";
+type RequestMethod = "DELETE" | "GET" | "PATCH" | "POST";
 
 export interface AdminRequestOptions<TBody = unknown> {
   path: string;
@@ -17,6 +17,14 @@ export function adminPost<TData, TBody = unknown>(path: string, data?: TBody) {
   return adminRequest<TData, TBody>({ path, data }, "POST");
 }
 
+export function adminPatch<TData, TBody = unknown>(path: string, data?: TBody) {
+  return adminRequest<TData, TBody>({ path, data }, "PATCH");
+}
+
+export function adminDelete<TData>(path: string) {
+  return adminRequest<TData>({ path }, "DELETE");
+}
+
 async function adminRequest<TData, TBody = unknown>(
   options: AdminRequestOptions<TBody>,
   method: RequestMethod,
@@ -25,9 +33,9 @@ async function adminRequest<TData, TBody = unknown>(
     method,
     headers: {
       "content-type": "application/json",
-      ...options.headers
+      ...options.headers,
     },
-    body: options.data === undefined ? undefined : JSON.stringify(options.data)
+    body: options.data === undefined ? undefined : JSON.stringify(options.data),
   });
 
   const payload = (await response.json().catch(() => createParseError())) as ApiResponse<TData>;
@@ -46,7 +54,7 @@ function normalizeErrorResponse(value: ApiResponse<unknown>, status: number): Ap
   return {
     success: false,
     error: { code: `HTTP_${status}` },
-    message: "Request failed"
+    message: "Request failed",
   };
 }
 
@@ -54,6 +62,6 @@ function createParseError(): ApiErrorResponse {
   return {
     success: false,
     error: { code: "INVALID_JSON" },
-    message: "Invalid API response"
+    message: "Invalid API response",
   };
 }
