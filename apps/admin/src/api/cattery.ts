@@ -217,20 +217,32 @@ export function completeMediaUpload(id: string, data: CompleteMediaUploadRequest
   );
 }
 
-export async function uploadCatImage(catId: string, file: File) {
+async function uploadImageForOwner({
+  fallbackFileName,
+  file,
+  ownerId,
+  ownerType,
+  usage,
+}: {
+  fallbackFileName: string;
+  file: File;
+  ownerId: string;
+  ownerType: string;
+  usage: string;
+}) {
   if (!file.type) {
     throw new Error("Image file MIME type is required");
   }
 
   const imageUpload = await requestImageUpload({
     altText: file.name,
-    fileName: file.name || "cat-image",
+    fileName: file.name || fallbackFileName,
     mimeType: file.type,
-    ownerId: catId,
-    ownerType: "cat",
+    ownerId,
+    ownerType,
     sizeBytes: file.size,
     title: file.name,
-    usage: "cover",
+    usage,
     bindingVisibility: "visible",
   });
 
@@ -246,6 +258,26 @@ export async function uploadCatImage(catId: string, file: File) {
 
   return completeMediaUpload(imageUpload.media.id, {
     sizeBytes: file.size,
+  });
+}
+
+export function uploadCatImage(catId: string, file: File) {
+  return uploadImageForOwner({
+    fallbackFileName: "cat-image",
+    file,
+    ownerId: catId,
+    ownerType: "cat",
+    usage: "cover",
+  });
+}
+
+export function uploadFixedPageImage(pageId: string, file: File) {
+  return uploadImageForOwner({
+    fallbackFileName: "fixed-page-image",
+    file,
+    ownerId: pageId,
+    ownerType: "fixed_page",
+    usage: "gallery",
   });
 }
 

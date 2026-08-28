@@ -1,6 +1,6 @@
-import type { FixedPageData, UpdateFixedPageRequest } from "@starlitsky/shared";
+import type { FixedPageData, MediaAssetData, UpdateFixedPageRequest } from "@starlitsky/shared";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { getFixedPage, updateFixedPage } from "../api/cattery";
+import { getFixedPage, listMedia, updateFixedPage, uploadFixedPageImage } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
 
 interface FixedPageFormState {
@@ -11,6 +11,8 @@ interface FixedPageFormState {
   status: string;
   title: string;
 }
+
+type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 
 const STATUS_OPTIONS = [
   { label: "草稿", value: "draft" },
@@ -30,6 +32,10 @@ export function FixedPagesPanel({
   const [selectedSlug, setSelectedSlug] = useState("");
   const [selectedPage, setSelectedPage] = useState<FixedPageData | null>(null);
   const [form, setForm] = useState<FixedPageFormState>(() => toForm(null));
+  const [imagesByPageId, setImagesByPageId] = useState<Record<string, MediaAssetData[]>>({});
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [imageUploadState, setImageUploadState] = useState<ImageUploadState>("idle");
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -38,24 +44,64 @@ export function FixedPagesPanel({
     () => pages.find((page) => page.slug === selectedSlug) ?? pages[0] ?? null,
     [pages, selectedSlug],
   );
+  const selectedPageImages = selectedPage ? (imagesByPageId[selectedPage.id] ?? []) : [];
 
   useEffect(() => {
     if (!selectedSlug && pages[0]) setSelectedSlug(pages[0].slug);
   }, [pages, selectedSlug]);
 
-  const selectPage = useCallback(async (slug: string) => {
-    setSelectedSlug(slug);
-    setNotice("");
-    setError("");
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
 
-    try {
-      const page = await getFixedPage(slug);
-      setSelectedPage(page);
-      setForm(toForm(page));
-    } catch (selectError) {
-      setError(getErrorMessage(selectError));
-    }
+  const loadPageImages = useCallback(async (pageId: string) => {
+    const mediaList = await listMedia({
+      kind: "image",
+      ownerId: pageId,
+      ownerType: "fixed_page",
+      pageSize: 20,
+      status: "active",
+    });
+    setImagesByPageId((current) => ({
+      ...current,
+      [pageId]: mediaList.items,
+    }));
+    return mediaList.items;
   }, []);
+
+  const clearPendingImage = useCallback(() => {
+    setPendingImageFile(null);
+    setImagePreviewUrl((current) => {
+      if (current.startsWith("blob:")) {
+        URL.revokeObjectURL(current);
+      }
+      return "";
+    });
+    setImageUploadState("idle");
+  }, []);
+
+  const selectPage = useCallback(
+    async (slug: string) => {
+      setSelectedSlug(slug);
+      setNotice("");
+      setError("");
+
+      try {
+        const page = await getFixedPage(slug);
+        setSelectedPage(page);
+        setForm(toForm(page));
+        clearPendingImage();
+        await loadPageImages(page.id);
+      } catch (selectError) {
+        setError(getErrorMessage(selectError));
+      }
+    },
+    [clearPendingImage, loadPageImages],
+  );
 
   useEffect(() => {
     if (!currentListPage) return;
@@ -75,13 +121,53 @@ export function FixedPagesPanel({
       const updated = await updateFixedPage(selectedPage.slug, payload);
       setSelectedPage(updated);
       setForm(toForm(updated));
-      setNotice("固定页面内容已保存");
+      const hadPendingImage = Boolean(pendingImageFile);
+
+      if (pendingImageFile) {
+        try {
+          await uploadPendingImage(updated.id);
+        } catch (uploadError) {
+          setError(`固定页面内容已保存，但图片上传失败：${getErrorMessage(uploadError)}`);
+          setImageUploadState("pending");
+          await onReload();
+          return;
+        }
+      } else {
+        await loadPageImages(updated.id);
+      }
+
+      setNotice(hadPendingImage ? "固定页面内容和图片已保存" : "固定页面内容已保存");
       await onReload();
     } catch (saveError) {
       setError(getErrorMessage(saveError));
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleImageSelected(file: File | null) {
+    clearPendingImage();
+
+    if (!file) return;
+
+    setPendingImageFile(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+    setImageUploadState("pending");
+  }
+
+  async function uploadPendingImage(pageId: string) {
+    if (!pendingImageFile) return null;
+
+    setImageUploadState("uploading");
+    const media = await uploadFixedPageImage(pageId, pendingImageFile);
+    setImagesByPageId((current) => ({
+      ...current,
+      [pageId]: [media, ...(current[pageId] ?? []).filter((item) => item.id !== media.id)],
+    }));
+    setPendingImageFile(null);
+    setImagePreviewUrl(media.thumbnailUrl || media.sourceUrl);
+    setImageUploadState("uploaded");
+    return media;
   }
 
   return (
@@ -222,6 +308,13 @@ export function FixedPagesPanel({
                   onChange={(event) => setForm({ ...form, contentJson: event.target.value })}
                 />
               </label>
+              <FixedPageImageUploadField
+                disabled={isSaving}
+                images={selectedPageImages}
+                previewUrl={imagePreviewUrl}
+                state={imageUploadState}
+                onChange={handleImageSelected}
+              />
               <div className="form-actions">
                 <button disabled={isSaving} type="submit">
                   {isSaving ? "保存中..." : "保存固定页面"}
@@ -235,6 +328,84 @@ export function FixedPagesPanel({
       </div>
     </>
   );
+}
+
+function FixedPageImageUploadField({
+  disabled,
+  images,
+  previewUrl,
+  state,
+  onChange,
+}: {
+  disabled: boolean;
+  images: MediaAssetData[];
+  previewUrl: string;
+  state: ImageUploadState;
+  onChange: (file: File | null) => void;
+}) {
+  const currentImage = getPrimaryPageImage(images);
+  const displayUrl = previewUrl || currentImage?.thumbnailUrl || currentImage?.sourceUrl || "";
+
+  return (
+    <div className="image-uploader">
+      <div className="subsection-heading">
+        <h4>页面图片</h4>
+        <span className={`upload-state upload-state-${state}`}>{formatImageState(state)}</span>
+      </div>
+      {displayUrl ? (
+        <img
+          alt={currentImage?.altText || currentImage?.title || "固定页面图片预览"}
+          className="image-preview"
+          src={displayUrl}
+        />
+      ) : (
+        <div className="image-placeholder">暂无图片</div>
+      )}
+      <label>
+        选择图片
+        <input
+          accept="image/*"
+          aria-label="选择固定页面图片"
+          disabled={disabled}
+          type="file"
+          onChange={(event) => {
+            onChange(event.target.files?.[0] ?? null);
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
+      <p className="muted compact">
+        {state === "pending"
+          ? "图片将在保存固定页面时上传并绑定。"
+          : "保存后会通过媒体绑定持久化到当前固定页面。"}
+      </p>
+    </div>
+  );
+}
+
+function getPrimaryPageImage(images: MediaAssetData[]) {
+  return (
+    images.find((media) =>
+      media.bindings.some(
+        (binding) => binding.usage === "cover" && binding.visibility === "visible",
+      ),
+    ) ??
+    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
+    images[0]
+  );
+}
+
+function formatImageState(state: ImageUploadState) {
+  switch (state) {
+    case "pending":
+      return "待保存";
+    case "uploading":
+      return "上传中";
+    case "uploaded":
+      return "已上传";
+    default:
+      return "未选择";
+  }
 }
 
 function toForm(page: FixedPageData | null): FixedPageFormState {
