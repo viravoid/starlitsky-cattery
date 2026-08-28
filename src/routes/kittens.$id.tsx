@@ -1,26 +1,33 @@
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { createFileRoute, Link, notFound, useParams } from "@tanstack/react-router";
+import {
+  SegmentedImageCarousel,
+  type SegmentedImageSlide,
+} from "@/components/mobile/SegmentedImageCarousel";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill } from "@/components/mobile/ui";
-import { Carousel } from "@/components/mobile/Carousel";
-import { PaperIcon, CheckIcon } from "@/components/mobile/icons";
+import { PaperIcon } from "@/components/mobile/icons";
 import { statusTone, type StructureRating } from "@/lib/cattery-data";
 import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
+import { getResolvedDetailCarouselPresentation } from "@/lib/cat-image-presentation";
 import { hasHydratedCatteryData, selectKittenRecords, useCattery } from "@/lib/cattery-store";
+
+type DetailCarouselSlide = SegmentedImageSlide;
 
 function StarRow({ label, value }: { label: string; value?: number }) {
   const filled = Math.max(0, Math.min(6, value ?? 0));
   const showSix = filled === 6;
   const baseCount = 5;
   return (
-    <div className="flex items-center justify-between gap-3 py-1.5 whitespace-nowrap">
+    <div className="flex items-center justify-between gap-3 whitespace-nowrap py-1.5">
       <span className="shrink-0 text-[13px] text-foreground/80">{label}</span>
       {value === undefined ? (
         <span className="shrink-0 text-[11px] text-muted-foreground/70">待评估</span>
       ) : (
         <span className="flex shrink-0 items-center gap-[3px]">
           {showSix && <Star active highlight />}
-          {Array.from({ length: baseCount }).map((_, i) => (
-            <Star key={i} active={i < filled} />
+          {Array.from({ length: baseCount }).map((_, index) => (
+            <Star key={index} active={index < filled} />
           ))}
         </span>
       )}
@@ -50,8 +57,10 @@ function Star({ active, highlight }: { active: boolean; highlight?: boolean }) {
 function StructureBlock({ rating }: { rating: StructureRating }) {
   const face = rating.face || {};
   const body = rating.body || {};
-  const faceEmpty = ![face.eyes, face.ears, face.muzzle, face.profile].some((v) => v !== undefined);
-  const bodyEmpty = ![body.length, body.build, body.overall].some((v) => v !== undefined);
+  const faceEmpty = ![face.eyes, face.ears, face.muzzle, face.profile].some(
+    (value) => value !== undefined,
+  );
+  const bodyEmpty = ![body.length, body.build, body.overall].some((value) => value !== undefined);
   if (faceEmpty && bodyEmpty) {
     return (
       <div className="rounded-[22px] border border-border/70 bg-cream/40 px-5 py-4 text-center text-[12px] text-muted-foreground">
@@ -93,22 +102,6 @@ function Info({ label, value, className }: { label: string; value: string; class
   );
 }
 
-function Progress({ label, value, done }: { label: string; value: string; done: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-3.5 py-3">
-      <span className="text-[13px] font-medium text-card-foreground">{label}</span>
-      <span
-        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-          done ? "bg-sky/30 text-[#6b8db3]" : "bg-sunny/50 text-[#b48725]"
-        }`}
-      >
-        {done && <CheckIcon className="h-3.5 w-3.5" />}
-        {value}
-      </span>
-    </div>
-  );
-}
-
 function KittenDetail() {
   const { id } = useParams({ from: "/kittens/$id" });
   const catteryState = useCattery((snapshot) => snapshot);
@@ -117,23 +110,39 @@ function KittenDetail() {
     (imageId): imageId is string => Boolean(imageId),
   );
   const imageUrls = useCatteryImageUrls(imageIds);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
   if (!kitten && !hasHydratedCatteryData()) {
     return (
       <PhoneFrame title="小猫详情" showBack>
         <Section className="py-10 text-center text-[13px] text-muted-foreground">
-          正在加载小猫资料…
+          正在加载小猫资料...
         </Section>
       </PhoneFrame>
     );
   }
   if (!kitten) throw notFound();
-  const gallerySlides =
-    imageIds.length > 0
-      ? imageIds.map((imageId, index) => ({
-          label: `小猫图片 ${index + 1}`,
-          imageUrl: imageUrls[imageId],
-        }))
-      : [{ label: "示例图片（小猫照片 1，待替换）" }, { label: "示例图片（小猫照片 2，待替换）" }];
+
+  const galleryItems = imageIds.map((imageId, index) => {
+    const presentation = getResolvedDetailCarouselPresentation({
+      catId: kitten.id,
+      imageId,
+      coverImageId: kitten.coverImageId,
+      manualPresentations: kitten.detailImagePresentations,
+      legacyCoverPresentations: kitten.coverPresentations,
+      legacyDetailPresentations: kitten.detailCarouselPresentations,
+    });
+
+    return {
+      id: imageId,
+      label: `小猫图片 ${index + 1}`,
+      imageUrl: imageUrls[imageId],
+      mode: presentation.mode,
+      aspectRatio: 4 / 5,
+      cropRect: presentation.mode === "crop" ? presentation.cropRect : undefined,
+      legacyPresentation: presentation.mode === "legacy" ? presentation.legacy : undefined,
+    } satisfies DetailCarouselSlide;
+  });
   const paragraphs =
     kitten.story && kitten.story.length > 0
       ? kitten.story
@@ -154,7 +163,16 @@ function KittenDetail() {
       }
     >
       <Section className="pt-1">
-        <Carousel slides={gallerySlides} ratio="aspect-square" />
+        <SegmentedImageCarousel
+          slides={galleryItems}
+          aspectRatio="4 / 5"
+          rounded="rounded-[28px]"
+          placeholderCompact
+          onSlideClick={(index) => {
+            if (!galleryItems[index]?.imageUrl) return;
+            setLightboxIndex(index);
+          }}
+        />
         <div className="mt-3 flex gap-2">
           <Link
             to="/community/cat/$id"
@@ -181,9 +199,8 @@ function KittenDetail() {
           <Pill tone={statusTone(kitten.status)}>{kitten.status}</Pill>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2.5">
-          <Info label="性别" value={kitten.gender} />
           <Info label="颜色" value={kitten.color} />
-          <Info label="出生日期" value={kitten.birthday} />
+          <Info label="生日" value={kitten.birthday} />
           {kitten.status !== "已有家" && <Info label="是否已绝育" value="示例文字（待更新）" />}
           <Info label="父亲" value={kitten.fatherName} />
           <Info label="母亲" value={kitten.motherName} />
@@ -207,7 +224,6 @@ function KittenDetail() {
         </Section>
       )}
 
-      {/* 「关于这只小猫」完整介绍 */}
       <Section className="mb-10 mt-8">
         <div className="relative">
           <div className="mb-5 flex items-center gap-3">
@@ -218,19 +234,19 @@ function KittenDetail() {
 
           <h2 className="text-[17px] font-semibold leading-snug text-heading">关于{kitten.name}</h2>
           <p className="mt-1 text-[11px] tracking-wider text-muted-foreground/80">
-            主理人手记 · Keeper's Note
+            主理人手记 · Keeper&apos;s Note
           </p>
 
           <div className="relative mt-5 rounded-[22px] bg-gradient-to-b from-cream/60 to-transparent px-1 py-2">
             <div className="space-y-4 px-4 py-3">
-              {paragraphs.map((p, i) => (
+              {paragraphs.map((paragraph, index) => (
                 <p
-                  key={i}
+                  key={`${index}-${paragraph}`}
                   className="text-[14.5px] leading-[1.95] tracking-[0.01em] text-foreground/90"
                 >
-                  {i === 0 && <span className="mr-1 align-baseline text-violet/60">「</span>}
-                  {p}
-                  {i === paragraphs.length - 1 && (
+                  {index === 0 && <span className="mr-1 align-baseline text-violet/60">「</span>}
+                  {paragraph}
+                  {index === paragraphs.length - 1 && (
                     <span className="ml-0.5 align-baseline text-violet/60">」</span>
                   )}
                 </p>
@@ -244,6 +260,147 @@ function KittenDetail() {
           </div>
         </div>
       </Section>
+
+      {lightboxIndex !== null && galleryItems[lightboxIndex]?.imageUrl && (
+        <DetailImageLightbox
+          title={kitten.name}
+          items={
+            galleryItems.filter((item) => Boolean(item.imageUrl)) as (DetailCarouselSlide & {
+              imageUrl: string;
+            })[]
+          }
+          index={Math.max(
+            0,
+            galleryItems
+              .filter((item) => item.imageUrl)
+              .findIndex((item) => item.id === galleryItems[lightboxIndex]?.id),
+          )}
+          onClose={() => setLightboxIndex(null)}
+          onPrev={() =>
+            setLightboxIndex((current) =>
+              current === null ? current : findNextLightboxIndex(galleryItems, current, -1),
+            )
+          }
+          onNext={() =>
+            setLightboxIndex((current) =>
+              current === null ? current : findNextLightboxIndex(galleryItems, current, 1),
+            )
+          }
+        />
+      )}
     </PhoneFrame>
   );
+}
+
+function DetailImageLightbox({
+  title,
+  items,
+  index,
+  onClose,
+  onPrev,
+  onNext,
+}: {
+  title: string;
+  items: (DetailCarouselSlide & { imageUrl: string })[];
+  index: number;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const current = items[index];
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft") onPrev();
+      if (event.key === "ArrowRight") onNext();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, onNext, onPrev]);
+
+  if (!current) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-black/88"
+      data-detail-lightbox={title}
+      onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
+        dragStart.current = { x: event.clientX, y: event.clientY };
+      }}
+      onPointerUp={(event: PointerEvent<HTMLDivElement>) => {
+        if (!dragStart.current || items.length <= 1) return;
+        const deltaX = event.clientX - dragStart.current.x;
+        const deltaY = event.clientY - dragStart.current.y;
+        dragStart.current = null;
+        if (Math.abs(deltaX) < 36 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+        if (deltaX < 0) onNext();
+        else onPrev();
+      }}
+      onPointerCancel={() => {
+        dragStart.current = null;
+      }}
+    >
+      <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
+        <div>
+          <p className="text-[13px] font-semibold">{title}</p>
+          <p className="text-[11px] text-white/70">
+            {index + 1} / {items.length}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full border border-white/20 px-3 py-1.5 text-[12px] font-medium text-white"
+        >
+          关闭
+        </button>
+      </div>
+
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-4">
+        <img
+          src={current.imageUrl}
+          alt={current.label}
+          className="max-h-full w-full object-contain"
+          draggable={false}
+          data-detail-lightbox-image={current.id}
+        />
+      </div>
+
+      {items.length > 1 && (
+        <div className="flex items-center justify-between gap-3 px-4 pb-4 text-white">
+          <button
+            type="button"
+            onClick={onPrev}
+            className="rounded-full border border-white/20 px-4 py-2 text-[12px] font-medium"
+          >
+            上一张
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className="rounded-full border border-white/20 px-4 py-2 text-[12px] font-medium"
+          >
+            下一张
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function findNextLightboxIndex(
+  items: DetailCarouselSlide[],
+  startIndex: number,
+  direction: -1 | 1,
+) {
+  if (!items.length) return startIndex;
+  let nextIndex = startIndex;
+  for (let step = 0; step < items.length; step += 1) {
+    nextIndex = (nextIndex + direction + items.length) % items.length;
+    if (items[nextIndex]?.imageUrl) return nextIndex;
+  }
+  return startIndex;
 }

@@ -6,7 +6,6 @@ import {
   normalizeFeedingContent,
   sanitizeFeedingAspectRatio,
   type FeedingContent,
-  type FeedingModule,
   type FeedingModuleImage,
 } from "@/lib/feeding-content";
 import {
@@ -23,7 +22,6 @@ import {
   TextareaField,
   TextField,
 } from "./SitePageEditorPrimitives";
-import { createStableId, moveById, moveToId } from "./site-page-editor-utils";
 
 type PanelKey = "intro" | "ratio" | "modules";
 
@@ -36,7 +34,6 @@ export function FeedingContentPanel({
 }) {
   const [saved, setSaved] = useState<FeedingContent>(() => loadSavedFeedingContent());
   const [draft, setDraft] = useState<FeedingContent>(() => loadSavedFeedingContent());
-  const [draggingModuleId, setDraggingModuleId] = useState<string | null>(null);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [openPanels, setOpenPanels] = useState<Record<PanelKey, boolean>>({
     intro: true,
@@ -91,44 +88,10 @@ export function FeedingContentPanel({
     window.open("/feeding?sitePagePreview=feeding-draft", "_blank", "noopener,noreferrer");
   };
 
-  const addModule = () => {
-    updateDraft((content) => {
-      const id = `feeding-module-${createStableId()}`;
-      content.modules.push({
-        id,
-        title: "新喂养模块",
-        body: "",
-        images: [{ id: `${id}-image-${createStableId()}`, focalPoint: { x: 50, y: 50 } }],
-      });
-      return content;
-    });
-  };
-
-  const deleteModule = (id: string) => {
-    if (!window.confirm("确定删除这个喂养模块吗？模块内图片设置也会从草稿中移除。")) return;
-    updateDraft((content) => {
-      content.modules = content.modules.filter((module) => module.id !== id);
-      return content;
-    });
-  };
-
-  const moveModule = (id: string, direction: -1 | 1) => {
-    updateDraft((content) => {
-      content.modules = moveById(content.modules, id, direction);
-      return content;
-    });
-  };
-
-  const dropModule = (targetId: string) => {
-    if (!draggingModuleId) return;
-    updateDraft((content) => {
-      content.modules = moveToId(content.modules, draggingModuleId, targetId);
-      return content;
-    });
-    setDraggingModuleId(null);
-  };
-
-  const updateModule = (id: string, patch: Partial<FeedingModule>) => {
+  const updateModule = (
+    id: string,
+    patch: { title?: string; body?: string; images?: FeedingModuleImage[] },
+  ) => {
     updateDraft((content) => {
       content.modules = content.modules.map((module) =>
         module.id === id ? { ...module, ...patch } : module,
@@ -197,52 +160,21 @@ export function FeedingContentPanel({
 
           <EditorSection
             title="喂养模块"
-            desc="可新增、删除、排序；桌面支持拖拽，同时保留上移和下移。"
+            desc="当前固定为三个业务模块；旧五模块数据会在读取时自动合并并保留文字与图片。"
             open={openPanels.modules}
             onToggle={() => togglePanel("modules")}
           >
             <div className="grid gap-3">
-              <div className="flex justify-end">
-                <EditorButton onClick={addModule}>新增模块</EditorButton>
-              </div>
-              {draft.modules.length === 0 && (
-                <p className="rounded-[6px] border border-dashed border-border px-3 py-6 text-center text-[13px] text-muted-foreground">
-                  暂无喂养模块。
-                </p>
-              )}
               {draft.modules.map((module, index) => (
                 <div
                   key={module.id}
-                  draggable
-                  onDragStart={() => setDraggingModuleId(module.id)}
-                  onDragEnd={() => setDraggingModuleId(null)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => dropModule(module.id)}
                   className="grid gap-3 rounded-[6px] border border-border/80 bg-background p-3"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-display text-[13px] italic text-warm/80">
-                      #{index + 1}
+                      #{String(index + 1).padStart(2, "0")}
                     </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      <EditorButton
-                        tone="quiet"
-                        onClick={() => moveModule(module.id, -1)}
-                        disabled={index === 0}
-                      >
-                        上移
-                      </EditorButton>
-                      <EditorButton
-                        tone="quiet"
-                        onClick={() => moveModule(module.id, 1)}
-                        disabled={index === draft.modules.length - 1}
-                      >
-                        下移
-                      </EditorButton>
-                      <EditorButton tone="danger" onClick={() => deleteModule(module.id)}>
-                        删除
-                      </EditorButton>
-                    </div>
+                    <span className="text-[11.5px] text-muted-foreground">固定模块</span>
                   </div>
                   <TextField
                     label="模块标题"
@@ -252,7 +184,7 @@ export function FeedingContentPanel({
                   <TextareaField
                     label="模块正文"
                     value={module.body}
-                    rows={5}
+                    rows={7}
                     onChange={(body) => updateModule(module.id, { body })}
                   />
                   <ImageListEditor<FeedingModuleImage>

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { BreedingPlanView } from "@/components/mobile/BreedingPlanView";
 import { cloneBreedingPlanContent, type BreedingPlanContent } from "@/lib/breeding-plan-content";
-import { STUDS } from "@/lib/cattery-data";
+import { selectStudRecords, useCattery } from "@/lib/cattery-store";
 import {
   loadDraftPreviewBreedingPlanContent,
   loadSavedBreedingPlanContent,
@@ -25,6 +25,8 @@ export const Route = createFileRoute("/breeding-plan")({
 
 function BreedingPlan() {
   const [content, setContent] = useState<BreedingPlanContent>(() => cloneBreedingPlanContent());
+  const catteryState = useCattery((snapshot) => snapshot);
+  const studs = useMemo(() => selectStudRecords(catteryState, "all"), [catteryState]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -39,5 +41,5 @@ function BreedingPlan() {
     return subscribeToSavedBreedingPlanContent(() => setContent(loadSavedBreedingPlanContent()));
   }, []);
 
-  return <BreedingPlanView content={content} studs={STUDS} />;
+  return <BreedingPlanView content={content} studs={studs} />;
 }

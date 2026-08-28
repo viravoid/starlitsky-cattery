@@ -1,0 +1,12 @@
+@import "./styles/theme.wxss";
+
+page {
+  background: var(--xy-color-background);
+  color: var(--xy-color-text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+}
+
+view,
+text {
+  box-sizing: border-box;
+}

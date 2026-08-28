@@ -2,17 +2,21 @@ import { useMemo } from "react";
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { z } from "zod";
+import { CroppedImageFrame } from "@/components/CroppedImageFrame";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
 import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
 import { CurledCat } from "@/components/mobile/illustrations";
 import { statusTone, type StudCategory } from "@/lib/cattery-data";
+import { getResolvedCatCoverPresentation } from "@/lib/cat-image-presentation";
 import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
 import {
+  type EntryCoverSelections,
   selectKittenRecords,
   selectLitterRecords,
   selectStudRecords,
   useCattery,
+  type CatCoverPresentations,
 } from "@/lib/cattery-store";
 
 const searchSchema = z
@@ -54,10 +58,13 @@ function Meta({ k, v }: { k: string; v: string }) {
   );
 }
 
-/** One shared card layout used for both kittens and studs. */
 function CatCard({
-  imageUrl,
+  catId,
+  coverImageId,
+  galleryImageIds,
   imageLabel,
+  entryCoverSelections,
+  coverPresentations,
   pill,
   litter,
   name,
@@ -65,8 +72,12 @@ function CatCard({
   to,
   params,
 }: {
-  imageUrl?: string;
+  catId: string;
+  coverImageId?: string;
+  galleryImageIds: string[];
   imageLabel: string;
+  entryCoverSelections?: EntryCoverSelections;
+  coverPresentations?: CatCoverPresentations;
   pill: { text: string; tone: string };
   litter?: string;
   name: string;
@@ -74,6 +85,17 @@ function CatCard({
   to: string;
   params: Record<string, string>;
 }) {
+  const imageUrls = useCatteryImageUrls([coverImageId, ...galleryImageIds]);
+  const presentation = getResolvedCatCoverPresentation({
+    catId,
+    entry: "listCard",
+    coverImageId,
+    galleryImageIds,
+    manualSelections: entryCoverSelections,
+    legacyPresentations: coverPresentations,
+  });
+  const imageUrl = presentation.imageId ? imageUrls[presentation.imageId] : undefined;
+
   return (
     <Link
       to={to}
@@ -83,7 +105,14 @@ function CatCard({
       <div className="relative">
         {imageUrl ? (
           <div className="aspect-[16/10] overflow-hidden rounded-none bg-card">
-            <img src={imageUrl} alt="" className="h-full w-full object-cover" draggable={false} />
+            <CroppedImageFrame
+              imageUrl={imageUrl}
+              aspectRatio={presentation.aspectRatio}
+              cropRect={presentation.mode === "crop" ? presentation.cropRect : undefined}
+              legacyPresentation={presentation.mode === "legacy" ? presentation.legacy : undefined}
+              mode={presentation.mode}
+              className="h-full w-full"
+            />
           </div>
         ) : (
           <Placeholder label={imageLabel} ratio="aspect-[16/10]" rounded="rounded-none" />
@@ -96,8 +125,8 @@ function CatCard({
       <div className="space-y-2.5 p-4">
         <h3 className="text-[15px] font-semibold leading-snug text-heading">{name}</h3>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-          {meta.map((m) => (
-            <Meta key={m.k} k={m.k} v={m.v} />
+          {meta.map((item) => (
+            <Meta key={item.k} k={item.k} v={item.v} />
           ))}
         </div>
         <span className="mt-1 flex items-center justify-center gap-1 rounded-full border border-primary bg-card py-2.5 text-[13px] font-semibold text-primary shadow-card">
@@ -117,8 +146,8 @@ function Cats() {
   const studRecords = useMemo(() => selectStudRecords(catteryState), [catteryState]);
 
   const tab = search.tab ?? "kittens";
-  const kFilter = search.kittenFilter ?? "待找家";
-  const sFilter = search.studFilter ?? "现役公猫";
+  const kittenFilter = search.kittenFilter ?? "待找家";
+  const studFilter = search.studFilter ?? "现役公猫";
   const litter = search.litter ?? "全部";
   const litterOpen = search.litterOpen ?? false;
   const litterOptions = useMemo(
@@ -130,17 +159,17 @@ function Cats() {
       ? "全部"
       : (litterOptions.find((item) => item.value === litter)?.label ?? "全部");
 
-  const setTab = (t: "kittens" | "studs") =>
-    navigate({ search: (prev: CatsSearch) => ({ ...prev, tab: t }) });
-  const setKFilter = (f: (typeof KITTEN_FILTERS)[number]) =>
-    navigate({ search: (prev: CatsSearch) => ({ ...prev, kittenFilter: f }) });
-  const setSFilter = (f: StudCategory) =>
-    navigate({ search: (prev: CatsSearch) => ({ ...prev, studFilter: f }) });
-  const setLitter = (l: string | "全部") =>
+  const setTab = (nextTab: "kittens" | "studs") =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, tab: nextTab }) });
+  const setKittenFilter = (value: (typeof KITTEN_FILTERS)[number]) =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, kittenFilter: value }) });
+  const setStudFilter = (value: StudCategory) =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, studFilter: value }) });
+  const setLitter = (value: string | "全部") =>
     navigate({
       search: (prev: CatsSearch) => ({
         ...prev,
-        litter: l === "全部" ? undefined : l,
+        litter: value === "全部" ? undefined : value,
         litterOpen: false,
       }),
     });
@@ -148,15 +177,9 @@ function Cats() {
     navigate({ search: (prev: CatsSearch) => ({ ...prev, litterOpen: open }) });
 
   const kittenList = kittenRecords.filter(
-    (kitten) => kitten.status === kFilter && (litter === "全部" || kitten.litterId === litter),
+    (kitten) => kitten.status === kittenFilter && (litter === "全部" || kitten.litterId === litter),
   );
-  const filteredStuds = studRecords.filter((stud) => stud.category === sFilter);
-  const kittenImageUrls = useCatteryImageUrls(
-    kittenList.map((kitten) => kitten.coverImageId).filter(Boolean),
-  );
-  const studImageUrls = useCatteryImageUrls(
-    filteredStuds.map((stud) => stud.coverImageId).filter(Boolean),
-  );
+  const filteredStuds = studRecords.filter((stud) => stud.category === studFilter);
 
   return (
     <PhoneFrame
@@ -173,32 +196,30 @@ function Cats() {
         </div>
       }
     >
-      {/* Header */}
       <div className="px-5 pb-1 pt-4">
         <p className="font-display text-[11px] uppercase tracking-[0.3em] text-warm">Our Cats</p>
         <h1 className="mt-1 text-[22px] font-bold text-heading">我们的猫</h1>
       </div>
 
-      {/* Category switch: 小猫 / 种猫 — underline nav, no pills */}
       <div
         className="sticky top-0 z-10 px-5 pt-2 backdrop-blur"
         style={{ backgroundColor: "rgba(255, 250, 242, 0.95)" }}
       >
         <div className="grid grid-cols-2 border-b border-border/70">
-          {(["kittens", "studs"] as const).map((t) => {
-            const on = tab === t;
+          {(["kittens", "studs"] as const).map((item) => {
+            const active = tab === item;
             return (
               <button
-                key={t}
-                onClick={() => setTab(t)}
+                key={item}
+                onClick={() => setTab(item)}
                 className="pressable relative py-2.5 text-[15px]"
                 style={{
-                  color: on ? "#7a9ac0" : "#8c929a",
-                  fontWeight: on ? 600 : 500,
+                  color: active ? "#7a9ac0" : "#8c929a",
+                  fontWeight: active ? 600 : 500,
                 }}
               >
-                {t === "kittens" ? "小猫" : "种猫"}
-                {on && (
+                {item === "kittens" ? "小猫" : "种猫"}
+                {active && (
                   <span
                     aria-hidden
                     className="absolute inset-x-0 -bottom-px mx-auto h-[3px] w-8 rounded-full"
@@ -210,21 +231,20 @@ function Cats() {
           })}
         </div>
 
-        {/* Sub-filters — deep blue filled selected, outlined unselected */}
         <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-2">
-          {(tab === "kittens" ? KITTEN_FILTERS : STUD_FILTERS).map((f) => {
-            const on = tab === "kittens" ? kFilter === f : sFilter === f;
+          {(tab === "kittens" ? KITTEN_FILTERS : STUD_FILTERS).map((item) => {
+            const active = tab === "kittens" ? kittenFilter === item : studFilter === item;
             return (
               <button
-                key={f}
+                key={item}
                 onClick={() =>
                   tab === "kittens"
-                    ? setKFilter(f as (typeof KITTEN_FILTERS)[number])
-                    : setSFilter(f as StudCategory)
+                    ? setKittenFilter(item as (typeof KITTEN_FILTERS)[number])
+                    : setStudFilter(item as StudCategory)
                 }
                 className="pressable shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-semibold"
                 style={
-                  on
+                  active
                     ? {
                         backgroundColor: "#f9f0d4",
                         color: "#b48725",
@@ -237,7 +257,7 @@ function Cats() {
                       }
                 }
               >
-                {f}
+                {item}
               </button>
             );
           })}
@@ -265,22 +285,23 @@ function Cats() {
         </div>
       </div>
 
-      {/* ── Kittens ─────────────────────────────── */}
       {tab === "kittens" && (
         <Section className="mb-6 mt-2 space-y-4">
           {litterOpen && (
             <div className="flex flex-wrap gap-2">
-              {(["全部", ...litterOptions.map((item) => item.value)] as const).map((l) => {
+              {(["全部", ...litterOptions.map((item) => item.value)] as const).map((item) => {
                 const label =
-                  l === "全部" ? l : (litterOptions.find((item) => item.value === l)?.label ?? l);
-                const on = litter === l;
+                  item === "全部"
+                    ? item
+                    : (litterOptions.find((option) => option.value === item)?.label ?? item);
+                const active = litter === item;
                 return (
                   <button
-                    key={l}
-                    onClick={() => setLitter(l)}
+                    key={item}
+                    onClick={() => setLitter(item)}
                     className="pressable shrink-0 rounded-full px-3 py-1 text-[12px]"
                     style={
-                      on
+                      active
                         ? {
                             backgroundColor: "#f9f0d4",
                             color: "#b48725",
@@ -302,56 +323,62 @@ function Cats() {
 
           {kittenList.length === 0 ? (
             <p className="mt-16 text-center text-[13px] text-muted-foreground">
-              示例文字（暂无「{kFilter}」小猫）
+              示例文字（暂无「{kittenFilter}」小猫）
             </p>
           ) : (
-            kittenList.map((k) => (
+            kittenList.map((kitten) => (
               <CatCard
-                key={k.id}
-                imageUrl={k.coverImageId ? kittenImageUrls[k.coverImageId] : undefined}
+                key={kitten.id}
+                catId={kitten.id}
+                coverImageId={kitten.coverImageId}
+                galleryImageIds={kitten.galleryImageIds}
                 imageLabel="示例图片（小猫照片，待替换）"
-                pill={{ text: k.status, tone: statusTone(k.status) }}
-                litter={k.litterName}
-                name={k.name}
+                entryCoverSelections={kitten.entryCoverSelections}
+                coverPresentations={kitten.coverPresentations}
+                pill={{ text: kitten.status, tone: statusTone(kitten.status) }}
+                litter={kitten.litterName}
+                name={kitten.name}
                 meta={[
-                  { k: "性别", v: k.gender },
-                  { k: "颜色", v: k.color },
-                  { k: "生日", v: k.birthday },
-                  { k: "价格", v: k.price },
+                  { k: "性别", v: kitten.gender },
+                  { k: "颜色", v: kitten.color },
+                  { k: "生日", v: kitten.birthday },
+                  { k: "价格", v: kitten.price },
                 ]}
                 to="/kittens/$id"
-                params={{ id: k.id }}
+                params={{ id: kitten.id }}
               />
             ))
           )}
         </Section>
       )}
 
-      {/* ── Studs (same layout) ─────────────────── */}
       {tab === "studs" && (
         <Section className="mb-6 mt-2 space-y-4">
           {filteredStuds.length === 0 ? (
             <div className="mt-16 flex flex-col items-center gap-3 text-center">
               <CurledCat className="h-14 w-14 text-warm" />
-              <p className="text-[13px] text-muted-foreground">示例文字（缺少「{sFilter}」资料）</p>
+              <p className="text-[13px] text-muted-foreground">
+                示例文字（缺少「{studFilter}」资料）
+              </p>
             </div>
           ) : (
-            filteredStuds.map((s) => (
+            filteredStuds.map((stud) => (
               <CatCard
-                key={s.id}
-                imageUrl={s.coverImageId ? studImageUrls[s.coverImageId] : undefined}
+                key={stud.id}
+                catId={stud.id}
+                coverImageId={stud.coverImageId}
+                galleryImageIds={stud.galleryImageIds}
                 imageLabel="示例图片（种猫照片，待替换）"
-                pill={{
-                  text: s.status,
-                  tone: "sunny",
-                }}
-                name={s.name}
+                entryCoverSelections={stud.entryCoverSelections}
+                coverPresentations={stud.coverPresentations}
+                pill={{ text: stud.status, tone: "sunny" }}
+                name={stud.name}
                 meta={[
-                  { k: "身份", v: s.role },
-                  { k: "颜色", v: s.color },
+                  { k: "身份", v: stud.role },
+                  { k: "颜色", v: stud.color },
                 ]}
                 to="/studs/$id"
-                params={{ id: s.id }}
+                params={{ id: stud.id }}
               />
             ))
           )}

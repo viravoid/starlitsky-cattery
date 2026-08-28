@@ -2,11 +2,20 @@ import {
   startTransition,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import { cn } from "@/lib/utils";
+import { CatCoverPresentationEditor } from "./CatCoverPresentationEditor";
+import { DetailCarouselPresentationEditor } from "./DetailCarouselPresentationEditor";
+import {
+  sanitizeDetailImagePresentations,
+  sanitizeEntryCoverSelections,
+} from "@/lib/cat-image-presentation";
 import type { StudCategory } from "@/lib/cattery-data";
 import {
   KEEPER_YUEQI,
@@ -14,7 +23,11 @@ import {
   getCatteryDataSnapshot,
   selectStudRecords,
   useCattery,
+  type CatCoverPresentations,
   type CatteryCat,
+  type DetailCarouselPresentations,
+  type DetailImagePresentations,
+  type EntryCoverSelections,
   type StudFields,
   type StudRecord,
   type Visibility,
@@ -71,8 +84,18 @@ type StudDraft = {
   reproductiveState: StudFields["reproductiveState"];
   visibility: Visibility;
   coverImageId?: string;
+  entryCoverSelections?: EntryCoverSelections;
+  detailImagePresentations?: DetailImagePresentations;
+  coverPresentations?: CatCoverPresentations;
+  detailCarouselPresentations?: DetailCarouselPresentations;
   galleryImageIds: string[];
 };
+
+const STUD_COVER_PRESENTATION_ENTRIES = [
+  "listCard",
+  "breedingPlanCard",
+  "communityProfile",
+] as const;
 
 export function StudManagementPanel({ onNotice }: { onNotice: (message: string) => void }) {
   const state = useCattery((snapshot) => snapshot);
@@ -89,6 +112,13 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
   const [mode, setMode] = useState<StudPanelMode>("idle");
   const [draft, setDraft] = useState<StudDraft>(createEmptyStudDraft());
   const [baseline, setBaseline] = useState(serializeDraft(createEmptyStudDraft()));
+  const draftRef = useRef(draft);
+  const commitDraft: Dispatch<SetStateAction<StudDraft>> = (update) => {
+    const current = draftRef.current;
+    const next = typeof update === "function" ? update(current) : update;
+    draftRef.current = next;
+    setDraft(next);
+  };
 
   const selectedStud = studRecords.find((stud) => stud.id === selectedStudId) ?? null;
   const formDirty = (mode === "create" || mode === "edit") && serializeDraft(draft) !== baseline;
@@ -98,17 +128,20 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
       setSelectedStudId("");
       setMode("idle");
       const empty = createEmptyStudDraft();
-      setDraft(empty);
+      commitDraft(empty);
       setBaseline(serializeDraft(empty));
     }
   }, [selectedStudId, studRecords]);
 
   useEffect(() => {
-    if (mode !== "view" || !selectedStud) return;
+    if (!selectedStud) return;
+    if (mode !== "view" && (mode !== "edit" || formDirty)) return;
     const next = createStudDraft(selectedStud);
-    setDraft(next);
-    setBaseline(serializeDraft(next));
-  }, [mode, selectedStud]);
+    const nextSerialized = serializeDraft(next);
+    if (nextSerialized === baseline) return;
+    commitDraft(next);
+    setBaseline(nextSerialized);
+  }, [baseline, formDirty, mode, selectedStud]);
 
   const openStudDetail = (stud: StudRecord) => {
     if (formDirty && !confirm("当前种猫表单有未保存修改，确定切换吗？")) return;
@@ -116,7 +149,7 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
       setSelectedStudId(stud.id);
       setMode("view");
       const next = createStudDraft(stud);
-      setDraft(next);
+      commitDraft(next);
       setBaseline(serializeDraft(next));
     });
   };
@@ -127,7 +160,7 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
       setSelectedStudId(stud.id);
       setMode("edit");
       const next = createStudDraft(stud);
-      setDraft(next);
+      commitDraft(next);
       setBaseline(serializeDraft(next));
     });
   };
@@ -138,7 +171,7 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
       setSelectedStudId("");
       setMode("create");
       const next = createEmptyStudDraft();
-      setDraft(next);
+      commitDraft(next);
       setBaseline(serializeDraft(next));
     });
   };
@@ -147,26 +180,27 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
     if (formDirty && !confirm("确定放弃当前种猫表单修改吗？")) return;
     if (selectedStud) {
       const next = createStudDraft(selectedStud);
-      setDraft(next);
+      commitDraft(next);
       setBaseline(serializeDraft(next));
       setMode("view");
       return;
     }
     const empty = createEmptyStudDraft();
-    setDraft(empty);
+    commitDraft(empty);
     setBaseline(serializeDraft(empty));
     setMode("idle");
   };
 
   const saveStud = () => {
-    const validation = validateStudDraft(draft);
+    const currentDraft = draftRef.current;
+    const validation = validateStudDraft(currentDraft);
     if (validation) {
       onNotice(validation);
       return;
     }
 
     const payload = createStudPayload(
-      draft,
+      currentDraft,
       selectedStud ? (studRawMap.get(selectedStud.id) ?? null) : null,
     );
 
@@ -177,10 +211,10 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
         return;
       }
       const created = selectStudRecords(catterySnapshot(), "all").find((item) => item.id === id);
-      const nextDraft = created ? createStudDraft(created) : draft;
+      const nextDraft = created ? createStudDraft(created) : currentDraft;
       setSelectedStudId(id);
       setMode("edit");
-      setDraft(nextDraft);
+      commitDraft(nextDraft);
       setBaseline(serializeDraft(nextDraft));
       onNotice("已新增种猫并写入本地数据。");
       return;
@@ -197,12 +231,12 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
       return;
     }
 
-    const nextDraft = createStudDraft(
+    const nextDraft =
       selectStudRecords(catterySnapshot(), "all").find((item) => item.id === selectedStud.id) ??
-        selectedStud,
-    );
-    setDraft(nextDraft);
-    setBaseline(serializeDraft(nextDraft));
+      selectedStud;
+    const committedNextDraft = createStudDraft(nextDraft);
+    commitDraft(committedNextDraft);
+    setBaseline(serializeDraft(committedNextDraft));
     onNotice("已保存种猫资料。");
   };
 
@@ -325,14 +359,13 @@ export function StudManagementPanel({ onNotice }: { onNotice: (message: string) 
           <StudEditor
             mode={mode}
             draft={draft}
-            onDraftChange={setDraft}
+            onDraftChange={commitDraft}
             onCancel={cancelEdit}
             onSave={saveStud}
             onNotice={onNotice}
             entityId={mode === "edit" ? selectedStudId : ""}
             onApplyImages={(next) => {
-              const nextDraft = { ...draft, ...next };
-              setDraft(nextDraft);
+              commitDraft((current) => ({ ...current, ...next }));
               if (mode !== "edit" || !selectedStudId) return true;
               return catteryActions.updateStud(selectedStudId, next, ADMIN_CONTEXT);
             }}
@@ -454,12 +487,18 @@ function StudEditor({
 }: {
   mode: StudPanelMode;
   draft: StudDraft;
-  onDraftChange: (draft: StudDraft) => void;
+  onDraftChange: Dispatch<SetStateAction<StudDraft>>;
   onCancel: () => void;
   onSave: () => void;
   onNotice: (message: string) => void;
   entityId: string;
-  onApplyImages: (next: { coverImageId?: string; galleryImageIds: string[] }) => boolean;
+  onApplyImages: (next: {
+    coverImageId?: string;
+    entryCoverSelections?: EntryCoverSelections;
+    detailImagePresentations?: DetailImagePresentations;
+    galleryImageIds: string[];
+    detailCarouselPresentations?: DetailCarouselPresentations;
+  }) => boolean;
 }) {
   if (mode === "idle") {
     return (
@@ -574,10 +613,27 @@ function StudEditor({
         />
 
         <EntityImageEditor
+          catId={entityId}
           entityId={entityId}
           coverImageId={draft.coverImageId}
+          entryCoverSelections={draft.entryCoverSelections}
+          detailImagePresentations={draft.detailImagePresentations}
+          coverPresentations={draft.coverPresentations}
+          detailCarouselPresentations={draft.detailCarouselPresentations}
           galleryImageIds={draft.galleryImageIds}
           onNotice={onNotice}
+          onEntryCoverSelectionChange={(entryCoverSelections) =>
+            onDraftChange((current) => ({ ...current, entryCoverSelections }))
+          }
+          onDetailImagePresentationChange={(detailImagePresentations) =>
+            onDraftChange((current) => ({ ...current, detailImagePresentations }))
+          }
+          onPresentationChange={(coverPresentations) =>
+            onDraftChange((current) => ({ ...current, coverPresentations }))
+          }
+          onDetailCarouselPresentationChange={(detailCarouselPresentations) =>
+            onDraftChange((current) => ({ ...current, detailCarouselPresentations }))
+          }
           onApply={onApplyImages}
         />
 
@@ -595,17 +651,41 @@ function StudEditor({
 }
 
 function EntityImageEditor({
+  catId,
   entityId,
   coverImageId,
+  entryCoverSelections,
+  detailImagePresentations,
+  coverPresentations,
+  detailCarouselPresentations,
   galleryImageIds,
   onNotice,
+  onEntryCoverSelectionChange,
+  onDetailImagePresentationChange,
+  onPresentationChange,
+  onDetailCarouselPresentationChange,
   onApply,
 }: {
+  catId?: string;
   entityId: string;
   coverImageId?: string;
+  entryCoverSelections?: EntryCoverSelections;
+  detailImagePresentations?: DetailImagePresentations;
+  coverPresentations?: CatCoverPresentations;
+  detailCarouselPresentations?: DetailCarouselPresentations;
   galleryImageIds: string[];
   onNotice: (message: string) => void;
-  onApply: (next: { coverImageId?: string; galleryImageIds: string[] }) => boolean;
+  onEntryCoverSelectionChange: (next: EntryCoverSelections | undefined) => void;
+  onDetailImagePresentationChange: (next: DetailImagePresentations | undefined) => void;
+  onPresentationChange: (next: CatCoverPresentations | undefined) => void;
+  onDetailCarouselPresentationChange: (next: DetailCarouselPresentations | undefined) => void;
+  onApply: (next: {
+    coverImageId?: string;
+    entryCoverSelections?: EntryCoverSelections;
+    detailImagePresentations?: DetailImagePresentations;
+    galleryImageIds: string[];
+    detailCarouselPresentations?: DetailCarouselPresentations;
+  }) => boolean;
 }) {
   const urls = useCatteryImageUrls([coverImageId, ...galleryImageIds]);
 
@@ -621,7 +701,22 @@ function EntityImageEditor({
     if (!file || !requireSavedRecord()) return;
 
     const record = await saveEntityImage("cat", entityId, "cover", file);
-    const ok = onApply({ coverImageId: record.id, galleryImageIds });
+    const ok = onApply({
+      coverImageId: record.id,
+      entryCoverSelections: sanitizeEntryCoverSelections(entryCoverSelections, [
+        record.id,
+        ...galleryImageIds,
+      ]),
+      detailImagePresentations: sanitizeDetailImagePresentations(detailImagePresentations, [
+        record.id,
+        ...galleryImageIds,
+      ]),
+      galleryImageIds,
+      detailCarouselPresentations: omitDetailCarouselPresentation(
+        detailCarouselPresentations,
+        coverImageId,
+      ),
+    });
     if (!ok) {
       await deleteEntityImageBlob(record.id);
       onNotice("封面保存失败，请重试。");
@@ -640,7 +735,13 @@ function EntityImageEditor({
       files.map((file) => saveEntityImage("cat", entityId, "gallery", file)),
     );
     const nextIds = [...galleryImageIds, ...records.map((record) => record.id)];
-    const ok = onApply({ coverImageId, galleryImageIds: nextIds });
+    const ok = onApply({
+      coverImageId,
+      entryCoverSelections,
+      detailImagePresentations,
+      galleryImageIds: nextIds,
+      detailCarouselPresentations,
+    });
     if (!ok) {
       await deleteEntityImageBlobs(records.map((record) => record.id));
       onNotice("相册保存失败，请重试。");
@@ -659,7 +760,22 @@ function EntityImageEditor({
     const nextIds = galleryImageIds.map((item, itemIndex) =>
       itemIndex === index ? record.id : item,
     );
-    const ok = onApply({ coverImageId, galleryImageIds: nextIds });
+    const ok = onApply({
+      coverImageId,
+      entryCoverSelections: sanitizeEntryCoverSelections(
+        entryCoverSelections,
+        [coverImageId, ...nextIds].filter((imageId): imageId is string => Boolean(imageId)),
+      ),
+      detailImagePresentations: sanitizeDetailImagePresentations(
+        detailImagePresentations,
+        [coverImageId, ...nextIds].filter((imageId): imageId is string => Boolean(imageId)),
+      ),
+      galleryImageIds: nextIds,
+      detailCarouselPresentations: omitDetailCarouselPresentation(
+        detailCarouselPresentations,
+        previousId,
+      ),
+    });
     if (!ok) {
       await deleteEntityImageBlob(record.id);
       onNotice("替换相册图片失败，请重试。");
@@ -671,7 +787,19 @@ function EntityImageEditor({
 
   const deleteCover = async () => {
     if (!coverImageId) return;
-    const ok = onApply({ coverImageId: undefined, galleryImageIds });
+    const ok = onApply({
+      coverImageId: undefined,
+      entryCoverSelections: sanitizeEntryCoverSelections(entryCoverSelections, galleryImageIds),
+      detailImagePresentations: sanitizeDetailImagePresentations(
+        detailImagePresentations,
+        galleryImageIds,
+      ),
+      galleryImageIds,
+      detailCarouselPresentations: omitDetailCarouselPresentation(
+        detailCarouselPresentations,
+        coverImageId,
+      ),
+    });
     if (!ok) {
       onNotice("封面删除失败，请重试。");
       return;
@@ -683,7 +811,22 @@ function EntityImageEditor({
   const deleteGalleryImage = async (index: number) => {
     const previousId = galleryImageIds[index];
     const nextIds = galleryImageIds.filter((_, itemIndex) => itemIndex !== index);
-    const ok = onApply({ coverImageId, galleryImageIds: nextIds });
+    const ok = onApply({
+      coverImageId,
+      entryCoverSelections: sanitizeEntryCoverSelections(
+        entryCoverSelections,
+        [coverImageId, ...nextIds].filter((imageId): imageId is string => Boolean(imageId)),
+      ),
+      detailImagePresentations: sanitizeDetailImagePresentations(
+        detailImagePresentations,
+        [coverImageId, ...nextIds].filter((imageId): imageId is string => Boolean(imageId)),
+      ),
+      galleryImageIds: nextIds,
+      detailCarouselPresentations: omitDetailCarouselPresentation(
+        detailCarouselPresentations,
+        previousId,
+      ),
+    });
     if (!ok) {
       onNotice("删除相册图片失败，请重试。");
       return;
@@ -754,6 +897,30 @@ function EntityImageEditor({
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="mt-3">
+        <CatCoverPresentationEditor
+          catId={catId || undefined}
+          coverImageId={coverImageId}
+          galleryImageIds={galleryImageIds}
+          value={entryCoverSelections}
+          legacyValue={coverPresentations}
+          entries={STUD_COVER_PRESENTATION_ENTRIES}
+          onChange={onEntryCoverSelectionChange}
+        />
+      </div>
+
+      <div className="mt-3">
+        <DetailCarouselPresentationEditor
+          catId={catId || undefined}
+          coverImageId={coverImageId}
+          galleryImageIds={galleryImageIds}
+          value={detailImagePresentations}
+          legacyCoverPresentations={coverPresentations}
+          legacyDetailPresentations={detailCarouselPresentations}
+          onChange={onDetailImagePresentationChange}
+        />
       </div>
     </div>
   );
@@ -1050,6 +1217,10 @@ function createEmptyStudDraft(): StudDraft {
     reproductiveState: "active",
     visibility: "visible",
     coverImageId: undefined,
+    entryCoverSelections: undefined,
+    detailImagePresentations: undefined,
+    coverPresentations: undefined,
+    detailCarouselPresentations: undefined,
     galleryImageIds: [],
   };
 }
@@ -1070,6 +1241,10 @@ function createStudDraft(stud: StudRecord): StudDraft {
     reproductiveState: stud.reproductiveState,
     visibility: stud.visibility,
     coverImageId: stud.coverImageId,
+    entryCoverSelections: stud.entryCoverSelections,
+    detailImagePresentations: stud.detailImagePresentations,
+    coverPresentations: stud.coverPresentations,
+    detailCarouselPresentations: stud.detailCarouselPresentations,
     galleryImageIds: [...stud.galleryImageIds],
   };
 }
@@ -1083,6 +1258,10 @@ function createStudPayload(draft: StudDraft, existing: CatteryCat | null) {
     personality: optionalText(draft.personality),
     story: splitStory(draft.storyText),
     coverImageId: draft.coverImageId,
+    entryCoverSelections: draft.entryCoverSelections,
+    detailImagePresentations: draft.detailImagePresentations,
+    coverPresentations: draft.coverPresentations,
+    detailCarouselPresentations: draft.detailCarouselPresentations,
     galleryImageIds: [...draft.galleryImageIds],
     visibility: draft.visibility,
     stud: {
@@ -1118,6 +1297,16 @@ function splitStory(value: string) {
 
 function serializeDraft(value: unknown) {
   return JSON.stringify(value);
+}
+
+function omitDetailCarouselPresentation(
+  value: DetailCarouselPresentations | undefined,
+  imageId?: string,
+) {
+  if (!value || !imageId) return value;
+  const next = { ...value };
+  delete next[imageId];
+  return Object.keys(next).length > 0 ? next : undefined;
 }
 
 function visibilityLabel(visibility: Visibility) {

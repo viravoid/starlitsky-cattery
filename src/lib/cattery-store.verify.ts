@@ -1,5 +1,9 @@
 import { cloneAftercareContent } from "./aftercare-content";
 import {
+  getResolvedCatCoverPresentation,
+  getResolvedDetailCarouselPresentation,
+} from "./cat-image-presentation";
+import {
   CATTERY_STORAGE_KEY,
   catteryActions,
   cloneDefaultCatteryData,
@@ -34,15 +38,20 @@ import {
 } from "./cattery-images";
 import { actions as communityActions } from "./community-store";
 import { cloneEnvironmentContent, normalizeEnvironmentContent } from "./environment-content";
+import { cloneFeedingContent, normalizeFeedingContent } from "./feeding-content";
 import {
   deleteSitePageAssetBlob,
   getSitePageAssetBlob,
+  loadDraftPreviewFeedingContent,
   loadSavedAftercareContent,
+  loadSavedFeedingContent,
   loadDraftPreviewEnvironmentContent,
   loadSavedEnvironmentContent,
   saveAftercareContent,
+  saveDraftPreviewFeedingContent,
   saveDraftPreviewEnvironmentContent,
   saveEnvironmentContent,
+  saveFeedingContent,
   saveSitePageAsset,
   subscribeToSavedAftercareContent,
 } from "./site-page-storage";
@@ -556,6 +565,37 @@ const tests: TestCase[] = [
           assert(!getCatteryDataSnapshot().cats.some((cat) => cat.id === "kitten-hydrated"));
           hydrateCatteryDataFromStorage();
           assert(getCatteryDataSnapshot().cats.some((cat) => cat.id === "kitten-hydrated"));
+        },
+      );
+    },
+  },
+  {
+    name: "hydrate helper restores default stud real-photo assignments into legacy saved snapshots",
+    run() {
+      resetCatteryDataForTests();
+      const saved = cloneDefaultCatteryData();
+      const savedLuoyiyi = saved.cats.find((cat) => cat.id === "luoyiyi");
+      assert(savedLuoyiyi && savedLuoyiyi.kind === "stud");
+      savedLuoyiyi.coverImageId = undefined;
+      savedLuoyiyi.galleryImageIds = [];
+
+      withWindowObject(
+        {
+          localStorage: createStorage(JSON.stringify(saved)),
+          dispatchEvent() {},
+          addEventListener() {},
+          removeEventListener() {},
+        },
+        () => {
+          hydrateCatteryDataFromStorage();
+          const hydrated = selectStudRecords(undefined, "all").find(
+            (stud) => stud.id === "luoyiyi",
+          );
+          assert(hydrated?.coverImageId === "static:studs/luoyiyi/cover");
+          assert(
+            JSON.stringify(hydrated?.galleryImageIds) ===
+              JSON.stringify(["static:studs/luoyiyi/gallery-1", "static:studs/luoyiyi/gallery-2"]),
+          );
         },
       );
     },
@@ -1772,6 +1812,562 @@ const tests: TestCase[] = [
       const second = cloneDefaultCatteryData();
       first.cats[0]?.galleryImageIds.push("mutated");
       assert(!second.cats[0]?.galleryImageIds.includes("mutated"));
+    },
+  },
+  {
+    name: "confirmed stud colors and stories ship in default data by stable id",
+    run() {
+      const data = cloneDefaultCatteryData();
+      const expectedStuds: Array<[string, string, number]> = [
+        ["chonglou", "红虎斑（d22）", 5],
+        ["hupo", "棕虎斑麻纹加白（n2509）", 5],
+        ["shulongyin", "黑银鱼骨纹（高银）（ns23）", 6],
+        ["tianhe", "银虎斑加白（ns2203）", 6],
+        ["sanmingzhi", "棕虎斑（n22）", 5],
+        ["yunmu", "黑银麻纹加白（ns2503）", 6],
+        ["niaotuan", "银玳瑁虎斑（fs22）", 6],
+        ["guihuagao", "玳瑁麻纹加白（f2509）", 5],
+        ["zhaoyue", "黑银鱼骨纹（ns23）", 5],
+        ["jingzhe", "蓝银虎斑（as22）", 8],
+        ["xiongmao", "棕麻纹加白（n2509）", 6],
+        ["yunyue", "银玳瑁虎斑（fs22）", 4],
+        ["xiaoxiaxian", "银玳瑁麻纹（fs25）", 4],
+        ["manao", "玳瑁虎斑加白（f2209）", 6],
+        ["xiaobianmu", "玳瑁虎斑（f22）", 5],
+        ["xiaotao", "玳瑁麻纹（f25）", 3],
+      ];
+
+      for (const [id, color, storyLength] of expectedStuds) {
+        const stud = data.cats.find((cat) => cat.id === id);
+        assert(stud?.kind === "stud");
+        assert(stud.color === color);
+        assert(stud.story?.length === storyLength);
+      }
+
+      assert(
+        data.cats.find((cat) => cat.id === "niaotuan")?.story?.at(-1) ===
+          "后续也会尝试更多搭配，保留长处、优化短板，让她的后代从小到大",
+      );
+      assert(data.cats.find((cat) => cat.id === "huqing")?.color === "示例文字（缺少颜色）");
+      assert(
+        data.cats.find((cat) => cat.id === "huqing")?.story?.[0] ===
+          "（示例文字：主理人的完整介绍待补充）",
+      );
+      assert(data.cats.find((cat) => cat.id === "luoyiyi")?.color === "示例文字（缺少颜色）");
+      assert(
+        data.cats.find((cat) => cat.id === "luoyiyi")?.story?.[0] ===
+          "（示例文字：主理人的完整介绍待补充）",
+      );
+    },
+  },
+  {
+    name: "normalize backfills missing stud defaults without overwriting custom browser-local stories",
+    run() {
+      const data = cloneDefaultCatteryData();
+      const hupo = data.cats.find((cat) => cat.id === "hupo");
+      const chonglou = data.cats.find((cat) => cat.id === "chonglou");
+      const xiongmao = data.cats.find((cat) => cat.id === "xiongmao");
+      assert(hupo?.kind === "stud" && hupo.stud);
+      assert(chonglou?.kind === "stud" && chonglou.stud);
+      assert(xiongmao?.kind === "stud" && xiongmao.stud);
+
+      hupo.color = "棕虎斑麻纹加白 n2509";
+      hupo.story = undefined;
+      hupo.stud.source = "示例文字（缺少来源 / 血线）";
+
+      chonglou.color = "红虎斑 d22";
+      chonglou.story = [
+        "来自一家俄罗斯老牌猫舍，该猫舍主理人曾任国内 WCF 协会裁判，繁育的小猫结构细节都很出色。",
+        "重楼头版强壮敦厚，额头饱满转折清晰，耳位端正耳朵又大又直，而且他也来自一条大体格血线，身体肌肉轮廓清晰强健有力，骨量优秀，体重接近二十斤，运动能力优秀，热爱跑跳和小猫玩。体检心脏、髋关节都很健康。",
+        "与此同时他还有着非常温顺的性格，对人友好，喜欢陪小猫玩，对母猫也很温柔。",
+        "他的风格比较符合我理想中甜美帅气结合的样子，尽管他身价不菲，但我还是毅然决然地接他回家。",
+        "一转眼他已经打工四年啦，时间证明了结构优秀的种猫是不会过时的，他为我们留下了很多非常优秀的小猫。现在半退役生活在我家享受退役猫待遇，因为他不乱尿可以偶尔出来玩耍，在新房也给他准备了最大的公猫房~",
+      ];
+
+      xiongmao.color = "用户自定义颜色";
+      xiongmao.story = ["用户写过的完整介绍"];
+      xiongmao.stud.source = "用户自定义来源";
+
+      const migrated = normalizeCatteryData(data);
+      const migratedHupo = migrated.cats.find((cat) => cat.id === "hupo");
+      const migratedChonglou = migrated.cats.find((cat) => cat.id === "chonglou");
+      const migratedXiongmao = migrated.cats.find((cat) => cat.id === "xiongmao");
+      assert(migratedHupo?.kind === "stud" && migratedHupo.stud);
+      assert(migratedChonglou?.kind === "stud" && migratedChonglou.stud);
+      assert(migratedXiongmao?.kind === "stud" && migratedXiongmao.stud);
+
+      assert(migratedHupo.color === "棕虎斑麻纹加白（n2509）");
+      assert(migratedHupo.story?.length === 5);
+      assert(migratedHupo.stud.source === "国内知名老牌美血猫舍");
+
+      assert(migratedChonglou.color === "红虎斑（d22）");
+      assert(
+        migratedChonglou.story?.[1] ===
+          "重楼头版强壮敦厚，额头饱满、转折清晰，耳位端正，耳朵又大又直。而且他也来自一条大体格血线，身体肌肉轮廓清晰，强健有力，骨量优秀，体重接近二十斤。运动能力优秀，热爱跑跳和小猫玩，体检心脏、髋关节都很健康。",
+      );
+
+      assert(migratedXiongmao.color === "用户自定义颜色");
+      assert(migratedXiongmao.story?.[0] === "用户写过的完整介绍");
+      assert(migratedXiongmao.stud.source === "用户自定义来源");
+
+      const migratedAgain = normalizeCatteryData(migrated);
+      assert(JSON.stringify(migratedAgain) === JSON.stringify(migrated));
+    },
+  },
+  {
+    name: "normalize restores missing default stud records by stable id",
+    run() {
+      const base = cloneDefaultCatteryData();
+      const trimmed: CatteryData = {
+        ...base,
+        cats: base.cats.filter((cat) => cat.id !== "hupo" && cat.id !== "xiaotao"),
+      };
+
+      const migrated = normalizeCatteryData(trimmed);
+      assert(migrated.cats.some((cat) => cat.id === "hupo"));
+      assert(migrated.cats.some((cat) => cat.id === "xiaotao"));
+    },
+  },
+  {
+    name: "real photo stud aliases map to existing stable ids without creating unknown cats",
+    run() {
+      const studs = selectStudRecords(cloneDefaultCatteryData(), "all");
+      const luoyiyi = studs.find((stud) => stud.id === "luoyiyi");
+      const xiaoxiaxian = studs.find((stud) => stud.id === "xiaoxiaxian");
+
+      assert(luoyiyi?.coverImageId === "static:studs/luoyiyi/cover");
+      assert(
+        JSON.stringify(luoyiyi?.galleryImageIds) ===
+          JSON.stringify(["static:studs/luoyiyi/gallery-1", "static:studs/luoyiyi/gallery-2"]),
+      );
+      assert(xiaoxiaxian?.coverImageId === "static:studs/xiaoxiaxian/cover");
+      assert(
+        JSON.stringify(xiaoxiaxian?.galleryImageIds) ===
+          JSON.stringify([
+            "static:studs/xiaoxiaxian/gallery-1",
+            "static:studs/xiaoxiaxian/gallery-2",
+          ]),
+      );
+      assert(!studs.some((stud) => stud.id === "kabi"));
+      assert(!studs.some((stud) => stud.id === "luoshui"));
+      assert(!studs.some((stud) => stud.id === "hongdou"));
+      assert(!studs.some((stud) => stud.id === "zhongling"));
+    },
+  },
+  {
+    name: "manual cover presentations override fallback per entry and keep other entries isolated",
+    run() {
+      const manual = {
+        listCard: {
+          imageId: "static:studs/tianhe/cover",
+          cropRect: { x: 0.1, y: 0.2, width: 0.6, height: 0.375 },
+        },
+      };
+
+      const listCard = getResolvedCatCoverPresentation({
+        catId: "tianhe",
+        coverImageId: "static:studs/tianhe/cover",
+        entry: "listCard",
+        manualSelections: manual,
+      });
+      const breedingPlan = getResolvedCatCoverPresentation({
+        catId: "tianhe",
+        coverImageId: "static:studs/tianhe/cover",
+        entry: "breedingPlanCard",
+        manualSelections: manual,
+      });
+
+      assert(listCard.source === "manual");
+      assert(listCard.mode === "crop");
+      assert(listCard.cropRect.x === 0.1);
+      assert(listCard.cropRect.height === 0.375);
+      assert(breedingPlan.source === "fallback");
+      assert(breedingPlan.mode === "legacy");
+      assert(breedingPlan.imageId === "static:studs/tianhe/cover");
+    },
+  },
+  {
+    name: "detail carousel presentations resolve by stable image id and cover can fall back to legacy detail hero",
+    run() {
+      const manual = {
+        "static:studs/tianhe/gallery-1": {
+          mode: "crop" as const,
+          aspectRatio: 4 / 3,
+          cropRect: { x: 0.08, y: 0.1, width: 0.72, height: 0.6 },
+        },
+      };
+      const legacyCover = {
+        detailHero: { objectPositionX: 61, objectPositionY: 19, zoom: 1.33 },
+      };
+
+      const cover = getResolvedDetailCarouselPresentation({
+        catId: "tianhe",
+        imageId: "static:studs/tianhe/cover",
+        coverImageId: "static:studs/tianhe/cover",
+        manualPresentations: manual,
+        legacyCoverPresentations: legacyCover,
+      });
+      const gallery = getResolvedDetailCarouselPresentation({
+        catId: "tianhe",
+        imageId: "static:studs/tianhe/gallery-1",
+        coverImageId: "static:studs/tianhe/cover",
+        manualPresentations: manual,
+        legacyCoverPresentations: legacyCover,
+      });
+      const fallback = getResolvedDetailCarouselPresentation({
+        catId: "tianhe",
+        imageId: "static:studs/tianhe/gallery-2",
+        coverImageId: "static:studs/tianhe/cover",
+        manualPresentations: manual,
+        legacyCoverPresentations: legacyCover,
+      });
+
+      assert(cover.source === "legacy");
+      assert(cover.mode === "legacy");
+      assert(cover.legacy.objectPositionX === 61);
+      assert(gallery.source === "manual");
+      assert(gallery.mode === "crop");
+      assert(gallery.cropRect.width === 0.72);
+      assert(gallery.aspectRatio === 4 / 3);
+      assert(fallback.source === "fallback");
+      assert(fallback.mode === "legacy");
+      assert(fallback.legacy.zoom === 1);
+      assert(fallback.legacy.objectPositionY !== cover.legacy.objectPositionY);
+    },
+  },
+  {
+    name: "cover presentations normalize safely and kitten records omit breeding plan entry",
+    run() {
+      const normalized = normalizeCatteryData({
+        version: 1,
+        users: cloneDefaultCatteryData().users,
+        cats: [
+          {
+            id: "kitten-crop-check",
+            kind: "kitten",
+            name: "Kitten Crop",
+            galleryImageIds: [],
+            visibility: "visible",
+            coverPresentations: {
+              listCard: { objectPositionX: 12.4, objectPositionY: 150, zoom: 9 },
+              breedingPlanCard: { objectPositionX: 80, objectPositionY: 20, zoom: 1.6 },
+            },
+            kitten: {
+              status: "待找家",
+              price: "",
+            },
+          },
+          {
+            id: "stud-crop-check",
+            kind: "stud",
+            name: "Stud Crop",
+            galleryImageIds: [],
+            visibility: "visible",
+            coverPresentations: {
+              listCard: { objectPositionX: -10, objectPositionY: 25, zoom: 0.4 },
+              breedingPlanCard: { objectPositionX: 48, objectPositionY: 16, zoom: 1.52 },
+            },
+            stud: {
+              role: "",
+              category: "现役公猫",
+              status: "在役",
+              trait: "",
+              source: "",
+              reproductiveState: "active",
+            },
+          },
+        ],
+        litters: cloneDefaultCatteryData().litters,
+        posts: cloneDefaultCatteryData().posts,
+        questionnaireSubmissions: cloneDefaultCatteryData().questionnaireSubmissions,
+      });
+
+      const kitten = selectKittenRecords(normalized, "all").find(
+        (item) => item.id === "kitten-crop-check",
+      );
+      const stud = selectStudRecords(normalized, "all").find(
+        (item) => item.id === "stud-crop-check",
+      );
+
+      assert(kitten?.coverPresentations?.listCard?.objectPositionX === 12);
+      assert(kitten?.coverPresentations?.listCard?.objectPositionY === 100);
+      assert(kitten?.coverPresentations?.listCard?.zoom === 2.5);
+      assert(!kitten?.coverPresentations?.breedingPlanCard);
+      assert(stud?.coverPresentations?.listCard?.objectPositionX === 0);
+      assert(stud?.coverPresentations?.listCard?.zoom === 1);
+      assert(stud?.coverPresentations?.breedingPlanCard?.zoom === 1.52);
+    },
+  },
+  {
+    name: "saved cover presentations survive browser-local round trip and refresh",
+    run() {
+      withWindowObject(
+        {
+          localStorage: createStorage(null),
+          dispatchEvent() {},
+          addEventListener() {},
+          removeEventListener() {},
+        },
+        () => {
+          resetCatteryDataForTests();
+          assert(
+            catteryActions.updateStud(
+              "luoyiyi",
+              {
+                coverPresentations: {
+                  listCard: { objectPositionX: 24, objectPositionY: 18, zoom: 1.11 },
+                  detailHero: { objectPositionX: 55, objectPositionY: 22, zoom: 1.37 },
+                  breedingPlanCard: { objectPositionX: 43, objectPositionY: 14, zoom: 1.52 },
+                },
+                detailCarouselPresentations: {
+                  "static:studs/luoyiyi/cover": {
+                    objectPositionX: 49,
+                    objectPositionY: 16,
+                    zoom: 1.28,
+                  },
+                  "static:studs/luoyiyi/gallery-2": {
+                    objectPositionX: 62,
+                    objectPositionY: 41,
+                    zoom: 1.46,
+                  },
+                },
+              },
+              { role: "keeper", currentUserId: "keeper-yueqi" },
+            ),
+          );
+
+          const stored = loadSavedCatteryData();
+          const savedCat = stored.cats.find((cat) => cat.id === "luoyiyi");
+          assert(savedCat?.coverPresentations?.detailHero?.zoom === 1.37);
+          assert(
+            savedCat?.detailCarouselPresentations?.["static:studs/luoyiyi/gallery-2"]?.zoom ===
+              1.46,
+          );
+
+          resetCatteryDataForTests();
+          hydrateCatteryDataFromStorage();
+          const rehydrated = selectStudRecords(undefined, "all").find(
+            (stud) => stud.id === "luoyiyi",
+          );
+          assert(rehydrated?.coverPresentations?.listCard?.objectPositionX === 24);
+          assert(rehydrated?.coverPresentations?.breedingPlanCard?.objectPositionY === 14);
+          assert(rehydrated?.coverPresentations?.detailHero?.zoom === 1.37);
+          assert(
+            rehydrated?.detailCarouselPresentations?.["static:studs/luoyiyi/cover"]
+              ?.objectPositionY === 16,
+          );
+          assert(
+            rehydrated?.detailCarouselPresentations?.["static:studs/luoyiyi/gallery-2"]?.zoom ===
+              1.46,
+          );
+        },
+      );
+    },
+  },
+  {
+    name: "saved entry cover selections survive browser-local round trip and refresh",
+    run() {
+      withWindowObject(
+        {
+          localStorage: createStorage(null),
+          dispatchEvent() {},
+          addEventListener() {},
+          removeEventListener() {},
+        },
+        () => {
+          resetCatteryDataForTests();
+          assert(
+            catteryActions.updateStud(
+              "luoyiyi",
+              {
+                entryCoverSelections: {
+                  listCard: {
+                    imageId: "static:studs/luoyiyi/cover",
+                    cropRect: { x: 0.12, y: 0.18, width: 0.68, height: 0.42 },
+                  },
+                  breedingPlanCard: {
+                    imageId: "static:studs/luoyiyi/gallery-1",
+                    cropRect: { x: 0.1, y: 0.11, width: 0.82, height: 0.82 },
+                  },
+                  communityProfile: {
+                    imageId: "static:studs/luoyiyi/gallery-2",
+                    cropRect: { x: 0.08, y: 0.14, width: 0.72, height: 0.54 },
+                  },
+                },
+              },
+              { role: "keeper", currentUserId: "keeper-yueqi" },
+            ),
+          );
+
+          const stored = loadSavedCatteryData();
+          const savedCat = stored.cats.find((cat) => cat.id === "luoyiyi");
+          const savedListCard = savedCat?.entryCoverSelections?.listCard;
+          const savedBreedingPlan = savedCat?.entryCoverSelections?.breedingPlanCard;
+          const savedCommunityProfile = savedCat?.entryCoverSelections?.communityProfile;
+          assert(savedListCard?.imageId === "static:studs/luoyiyi/cover");
+          assert(savedBreedingPlan?.imageId === "static:studs/luoyiyi/gallery-1");
+          assert(savedCommunityProfile?.imageId === "static:studs/luoyiyi/gallery-2");
+          assert(savedListCard?.cropRect?.x === 0.12);
+          assert(savedBreedingPlan?.cropRect?.height === 0.82);
+          assert(savedCommunityProfile?.cropRect?.width === 0.72);
+
+          resetCatteryDataForTests();
+          hydrateCatteryDataFromStorage();
+          const rehydrated = selectStudRecords(undefined, "all").find(
+            (stud) => stud.id === "luoyiyi",
+          );
+          const rehydratedListCard = rehydrated?.entryCoverSelections?.listCard;
+          const rehydratedBreedingPlan = rehydrated?.entryCoverSelections?.breedingPlanCard;
+          const rehydratedCommunityProfile = rehydrated?.entryCoverSelections?.communityProfile;
+          assert(rehydratedListCard?.imageId === "static:studs/luoyiyi/cover");
+          assert(rehydratedBreedingPlan?.imageId === "static:studs/luoyiyi/gallery-1");
+          assert(rehydratedCommunityProfile?.imageId === "static:studs/luoyiyi/gallery-2");
+          assert(rehydratedListCard?.cropRect?.x === 0.12);
+          assert(rehydratedBreedingPlan?.cropRect?.height === 0.82);
+          assert(rehydratedCommunityProfile?.cropRect?.width === 0.72);
+
+          const normalized = normalizeCatteryData(stored);
+          const normalizedCat = normalized.cats.find((cat) => cat.id === "luoyiyi");
+          const normalizedCommunityProfile = normalizedCat?.entryCoverSelections?.communityProfile;
+          assert(normalizedCommunityProfile?.imageId === "static:studs/luoyiyi/gallery-2");
+        },
+      );
+    },
+  },
+  {
+    name: "feeding legacy five modules migrate to three canonical modules and keep copy plus images",
+    run() {
+      const migrated = normalizeFeedingContent({
+        version: 1,
+        intro: "legacy intro",
+        imageAspectRatio: { width: 4, height: 3 },
+        modules: [
+          {
+            id: "feeding-module-cooked",
+            title: "熟自制",
+            body: "熟自制正文",
+            images: [
+              {
+                id: "cooked-a",
+                imageId: "static:feeding/cooked/custom",
+                focalPoint: { x: 30, y: 40 },
+              },
+            ],
+          },
+          {
+            id: "feeding-module-kibble",
+            title: "猫粮",
+            body: "猫粮正文",
+            images: [{ id: "merged-a", imageId: "merged-a", focalPoint: { x: 50, y: 50 } }],
+          },
+          {
+            id: "feeding-module-cans",
+            title: "罐头",
+            body: "罐头正文",
+            images: [{ id: "shared-image", imageId: "shared-image", focalPoint: { x: 51, y: 52 } }],
+          },
+          {
+            id: "feeding-module-freezedried",
+            title: "冻干",
+            body: "冻干正文",
+            images: [
+              { id: "shared-image-2", imageId: "shared-image", focalPoint: { x: 53, y: 54 } },
+            ],
+          },
+          {
+            id: "feeding-module-supplements",
+            title: "保健品",
+            body: "保健品正文",
+            images: [{ id: "supp-a", imageId: "supp-a", focalPoint: { x: 60, y: 70 } }],
+          },
+        ],
+      });
+
+      assert(migrated.modules.length === 3);
+      assert(migrated.modules[0]?.id === "feeding-module-cooked");
+      assert(migrated.modules[1]?.id === "feeding-module-kibble");
+      assert(migrated.modules[2]?.id === "feeding-module-supplements");
+      assert(migrated.modules[1]?.title === "猫粮 · 罐头 · 冻干");
+      assert(
+        migrated.modules[1]?.body ===
+          ["猫粮", "猫粮正文", "", "罐头", "罐头正文", "", "冻干", "冻干正文"].join("\n"),
+      );
+      assert(migrated.modules[1]?.images.length === 2);
+      assert(migrated.modules[1]?.images[0]?.imageId === "merged-a");
+      assert(migrated.modules[1]?.images[1]?.imageId === "shared-image");
+      assert(migrated.modules[0]?.body === "熟自制正文");
+      assert(migrated.modules[2]?.body === "保健品正文");
+
+      const migratedAgain = normalizeFeedingContent(migrated);
+      assert(JSON.stringify(migratedAgain) === JSON.stringify(migrated));
+    },
+  },
+  {
+    name: "feeding saved and draft preview stay isolated after three-module migration",
+    run() {
+      withWindowObject(
+        {
+          localStorage: createStorage(null),
+          dispatchEvent() {},
+          addEventListener() {},
+          removeEventListener() {},
+        },
+        () => {
+          const saved = cloneFeedingContent();
+          saved.modules[1]!.body = "已保存合并模块";
+          saveFeedingContent(saved);
+
+          saveDraftPreviewFeedingContent({
+            version: 1,
+            intro: saved.intro,
+            imageAspectRatio: saved.imageAspectRatio,
+            modules: [
+              {
+                id: "feeding-module-cooked",
+                title: "熟自制",
+                body: "草稿熟自制",
+                images: [],
+              },
+              {
+                id: "feeding-module-kibble",
+                title: "猫粮",
+                body: "草稿猫粮",
+                images: [],
+              },
+              {
+                id: "feeding-module-cans",
+                title: "罐头",
+                body: "草稿罐头",
+                images: [],
+              },
+              {
+                id: "feeding-module-freezedried",
+                title: "冻干",
+                body: "草稿冻干",
+                images: [],
+              },
+              {
+                id: "feeding-module-supplements",
+                title: "保健品",
+                body: "草稿保健品",
+                images: [],
+              },
+            ],
+          });
+
+          const storedSaved = loadSavedFeedingContent();
+          const storedDraft = loadDraftPreviewFeedingContent();
+          assert(storedSaved.modules.length === 3);
+          assert(storedDraft.modules.length === 3);
+          assert(storedSaved.modules[1]?.body === "已保存合并模块");
+          assert(
+            storedDraft.modules[1]?.body ===
+              ["猫粮", "草稿猫粮", "", "罐头", "草稿罐头", "", "冻干", "草稿冻干"].join("\n"),
+          );
+          assert(storedDraft.modules[0]?.body === "草稿熟自制");
+          assert(storedDraft.modules[2]?.body === "草稿保健品");
+        },
+      );
     },
   },
 ];

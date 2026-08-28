@@ -1,17 +1,31 @@
+import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
+import { CroppedImageFrame } from "@/components/CroppedImageFrame";
 import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Placeholder, Pill, Section } from "@/components/mobile/ui";
 import { PawTrail } from "@/components/mobile/illustrations";
 import { StarIcon } from "@/components/mobile/icons";
+import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
+import { getResolvedCatCoverPresentation } from "@/lib/cat-image-presentation";
 import {
   BREEDING_PLAN_PAGE_EYEBROW,
   BREEDING_PLAN_PAGE_TITLE,
   type BreedingPlanContent,
   type BreedingPlanPairing,
 } from "@/lib/breeding-plan-content";
-import type { Stud } from "@/lib/cattery-data";
+import type { StudRecord } from "@/lib/cattery-store";
 
-type StudMap = Map<string, Stud>;
+type BreedingPlanStud = Pick<
+  StudRecord,
+  | "id"
+  | "name"
+  | "color"
+  | "coverImageId"
+  | "galleryImageIds"
+  | "entryCoverSelections"
+  | "coverPresentations"
+>;
+type StudMap = Map<string, BreedingPlanStud>;
 
 export function BreedingPlanView({
   content,
@@ -19,10 +33,15 @@ export function BreedingPlanView({
   preview = false,
 }: {
   content: BreedingPlanContent;
-  studs: Stud[];
+  studs: BreedingPlanStud[];
   preview?: boolean;
 }) {
-  const studMap: StudMap = new Map(studs.map((stud) => [stud.id, stud]));
+  const studMap: StudMap = useMemo(() => new Map(studs.map((stud) => [stud.id, stud])), [studs]);
+  const studImageUrls = useCatteryImageUrls(
+    studs
+      .flatMap((stud) => [stud.coverImageId, ...(stud.galleryImageIds ?? [])])
+      .filter((imageId): imageId is string => Boolean(imageId)),
+  );
   const period = content.period.trim();
   const introduction = content.introduction.trim();
   const colorDisclaimer = content.disclaimer.color.trim();
@@ -84,14 +103,19 @@ export function BreedingPlanView({
               )}
 
               <div className="flex flex-col gap-4">
-                {group.pairings.map((pairing) => (
-                  <PairingCard
-                    key={pairing.id}
-                    pairing={pairing}
-                    male={studMap.get(pairing.maleStudId)}
-                    female={studMap.get(pairing.femaleStudId)}
-                  />
-                ))}
+                {group.pairings.map((pairing) => {
+                  const male = studMap.get(pairing.maleStudId);
+                  const female = studMap.get(pairing.femaleStudId);
+                  return (
+                    <PairingCard
+                      key={pairing.id}
+                      pairing={pairing}
+                      male={male}
+                      female={female}
+                      studImageUrls={studImageUrls}
+                    />
+                  );
+                })}
               </div>
             </Section>
           );
@@ -119,10 +143,12 @@ function PairingCard({
   pairing,
   male,
   female,
+  studImageUrls,
 }: {
   pairing: BreedingPlanPairing;
-  male?: Stud;
-  female?: Stud;
+  male?: BreedingPlanStud;
+  female?: BreedingPlanStud;
+  studImageUrls: Record<string, string>;
 }) {
   const timeLabel = pairing.timeLabel.trim();
 
@@ -138,12 +164,24 @@ function PairingCard({
 
       <div className="px-3.5 pb-4 pt-3.5">
         <div className="grid grid-cols-[minmax(0,1fr)_2.25rem_minmax(0,1fr)] items-stretch gap-2.5">
-          <StudLink stud={male} fallbackId={pairing.maleStudId} genderLabel="公猫" />
+          <StudLink
+            stud={male}
+            fallbackId={pairing.maleStudId}
+            genderLabel="公猫"
+            imageUrl={undefined}
+            imageUrls={studImageUrls}
+          />
           <div className="flex flex-col items-center justify-center gap-2 text-center">
             <span className="font-display text-[24px] leading-none text-sunflower">×</span>
             <span className="h-px w-full bg-gradient-to-r from-transparent via-sunflower/40 to-transparent" />
           </div>
-          <StudLink stud={female} fallbackId={pairing.femaleStudId} genderLabel="母猫" />
+          <StudLink
+            stud={female}
+            fallbackId={pairing.femaleStudId}
+            genderLabel="母猫"
+            imageUrl={undefined}
+            imageUrls={studImageUrls}
+          />
         </div>
 
         <PossibleColors
@@ -159,10 +197,13 @@ function StudLink({
   stud,
   fallbackId,
   genderLabel,
+  imageUrls,
 }: {
-  stud?: Stud;
+  stud?: BreedingPlanStud;
   fallbackId: string;
   genderLabel: string;
+  imageUrl?: string;
+  imageUrls: Record<string, string>;
 }) {
   if (!stud) {
     return (
@@ -181,6 +222,16 @@ function StudLink({
     );
   }
 
+  const coverPresentation = getResolvedCatCoverPresentation({
+    catId: stud.id,
+    entry: "breedingPlanCard",
+    coverImageId: stud.coverImageId,
+    galleryImageIds: stud.galleryImageIds,
+    manualSelections: stud.entryCoverSelections,
+    legacyPresentations: stud.coverPresentations,
+  });
+  const imageUrl = coverPresentation.imageId ? imageUrls[coverPresentation.imageId] : undefined;
+
   return (
     <Link
       to="/studs/$id"
@@ -188,12 +239,25 @@ function StudLink({
       aria-label={`查看${stud.name}的种猫详情`}
       className="pressable group min-w-0 rounded-[1.15rem] border border-border bg-cream/90 p-2.5 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
-      <Placeholder
-        label={`${stud.name}的种猫照片，待替换`}
-        ratio="aspect-square"
-        rounded="rounded-[0.95rem]"
-        compact
-      />
+      {imageUrl ? (
+        <CroppedImageFrame
+          imageUrl={imageUrl}
+          aspectRatio={coverPresentation.aspectRatio}
+          cropRect={coverPresentation.mode === "crop" ? coverPresentation.cropRect : undefined}
+          legacyPresentation={
+            coverPresentation.mode === "legacy" ? coverPresentation.legacy : undefined
+          }
+          mode={coverPresentation.mode}
+          className="aspect-square w-full rounded-[0.95rem]"
+        />
+      ) : (
+        <Placeholder
+          label={`${stud.name}的种猫照片，待替换`}
+          ratio="aspect-square"
+          rounded="rounded-[0.95rem]"
+          compact
+        />
+      )}
       <p className="mt-2 text-[10.5px] font-medium text-muted-foreground">{genderLabel}</p>
       <h3 className="mt-0.5 break-words text-[15px] font-semibold leading-snug text-heading">
         {stud.name}

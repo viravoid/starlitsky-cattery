@@ -11,6 +11,7 @@ export interface Slide {
   imageUrl?: string;
   overlay?: ReactNode;
   focalPoint?: SlideFocalPoint;
+  zoom?: number;
 }
 
 export function Carousel({
@@ -61,6 +62,8 @@ export function Carousel({
                   className="h-full w-full object-cover"
                   style={{
                     objectPosition: `${s.focalPoint?.x ?? 50}% ${s.focalPoint?.y ?? 50}%`,
+                    transform: `scale(${s.zoom ?? 1})`,
+                    transformOrigin: "center center",
                   }}
                   draggable={false}
                 />
