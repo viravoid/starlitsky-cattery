@@ -4,6 +4,7 @@ import type {
   CreateLitterRequest,
   FixedPageData,
   LitterData,
+  MediaAssetData,
   UpdateCatRequest,
   UpdateLitterRequest,
 } from "@starlitsky/shared";
@@ -17,8 +18,10 @@ import {
   listCats,
   listFixedPages,
   listLitters,
+  listMedia,
   updateCat,
   updateLitter,
+  uploadCatImage,
 } from "../api/cattery";
 import { PageContainer } from "../components/PageContainer";
 import { getErrorMessage } from "../utils/errors";
@@ -28,6 +31,7 @@ import { MediaManagementPanel } from "./MediaManagementPanel";
 
 type SectionKey = "cats" | "litters" | "media" | "fixedPages";
 type EditorMode = "create" | "edit" | null;
+type CatImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 
 interface CatFormState {
   birthday: string;
@@ -112,6 +116,10 @@ export function CatteryManagementPage() {
   const [catEditorMode, setCatEditorMode] = useState<EditorMode>(null);
   const [litterEditorMode, setLitterEditorMode] = useState<EditorMode>(null);
   const [catForm, setCatForm] = useState<CatFormState>(DEFAULT_CAT_FORM);
+  const [catImagesByCatId, setCatImagesByCatId] = useState<Record<string, MediaAssetData[]>>({});
+  const [catImagePreviewUrl, setCatImagePreviewUrl] = useState("");
+  const [pendingCatImageFile, setPendingCatImageFile] = useState<File | null>(null);
+  const [catImageUploadState, setCatImageUploadState] = useState<CatImageUploadState>("idle");
   const [litterForm, setLitterForm] = useState<LitterFormState>(DEFAULT_LITTER_FORM);
   const [includeArchivedCats, setIncludeArchivedCats] = useState(false);
   const [includeArchivedLitters, setIncludeArchivedLitters] = useState(false);
@@ -122,6 +130,7 @@ export function CatteryManagementPage() {
   const [error, setError] = useState("");
 
   const activeCats = useMemo(() => cats.filter((cat) => !cat.deletedAt), [cats]);
+  const selectedCatImages = selectedCat ? (catImagesByCatId[selectedCat.id] ?? []) : [];
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -161,6 +170,14 @@ export function CatteryManagementPage() {
   }, [loadData]);
 
   useEffect(() => {
+    return () => {
+      if (catImagePreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(catImagePreviewUrl);
+      }
+    };
+  }, [catImagePreviewUrl]);
+
+  useEffect(() => {
     function handleHashChange() {
       setActiveSection(getSectionFromHash());
     }
@@ -173,6 +190,7 @@ export function CatteryManagementPage() {
     setActiveSection("cats");
     setSelectedCat(null);
     setCatForm(DEFAULT_CAT_FORM);
+    clearPendingCatImage();
     setCatEditorMode("create");
     setConfirmingArchiveCatId("");
     setNotice("");
@@ -183,10 +201,12 @@ export function CatteryManagementPage() {
     setActiveSection("cats");
     setSelectedCat(cat);
     setCatForm(toCatForm(cat));
+    clearPendingCatImage();
     setCatEditorMode("edit");
     setConfirmingArchiveCatId("");
     setNotice("");
     setError("");
+    void loadCatImages(cat.id).catch((loadError) => setError(getErrorMessage(loadError)));
   }
 
   async function selectCat(cat: CatData) {
@@ -197,10 +217,63 @@ export function CatteryManagementPage() {
     setError("");
 
     try {
-      setSelectedCat(await getCat(cat.id));
+      const freshCat = await getCat(cat.id);
+      setSelectedCat(freshCat);
+      await loadCatImages(freshCat.id);
     } catch (selectError) {
       setError(getErrorMessage(selectError));
     }
+  }
+
+  async function loadCatImages(catId: string) {
+    const mediaList = await listMedia({
+      kind: "image",
+      ownerId: catId,
+      ownerType: "cat",
+      pageSize: 20,
+      status: "active",
+    });
+    setCatImagesByCatId((current) => ({
+      ...current,
+      [catId]: mediaList.items,
+    }));
+    return mediaList.items;
+  }
+
+  function handleCatImageSelected(file: File | null) {
+    clearPendingCatImage();
+
+    if (!file) return;
+
+    setPendingCatImageFile(file);
+    setCatImagePreviewUrl(URL.createObjectURL(file));
+    setCatImageUploadState("pending");
+  }
+
+  function clearPendingCatImage() {
+    setPendingCatImageFile(null);
+    setCatImagePreviewUrl((current) => {
+      if (current.startsWith("blob:")) {
+        URL.revokeObjectURL(current);
+      }
+      return "";
+    });
+    setCatImageUploadState("idle");
+  }
+
+  async function uploadPendingCatImage(catId: string) {
+    if (!pendingCatImageFile) return null;
+
+    setCatImageUploadState("uploading");
+    const media = await uploadCatImage(catId, pendingCatImageFile);
+    setCatImagesByCatId((current) => ({
+      ...current,
+      [catId]: [media, ...(current[catId] ?? []).filter((item) => item.id !== media.id)],
+    }));
+    setPendingCatImageFile(null);
+    setCatImagePreviewUrl(media.thumbnailUrl || media.sourceUrl);
+    setCatImageUploadState("uploaded");
+    return media;
   }
 
   async function handleCatSubmit(event: FormEvent<HTMLFormElement>) {
@@ -217,6 +290,18 @@ export function CatteryManagementPage() {
           : await createCat(payload as CreateCatRequest);
 
       setSelectedCat(savedCat);
+      if (pendingCatImageFile) {
+        try {
+          await uploadPendingCatImage(savedCat.id);
+        } catch (uploadError) {
+          await loadData();
+          setError(`猫咪资料已保存，但图片上传失败：${getErrorMessage(uploadError)}`);
+          setCatImageUploadState("pending");
+          return;
+        }
+      } else {
+        await loadCatImages(savedCat.id);
+      }
       setCatEditorMode(null);
       setNotice(catEditorMode === "edit" ? "猫咪资料已更新" : "猫咪已新增");
       await loadData();
@@ -390,16 +475,23 @@ export function CatteryManagementPage() {
           confirmingArchiveCatId={confirmingArchiveCatId}
           editorMode={catEditorMode}
           form={catForm}
+          imagePreviewUrl={catImagePreviewUrl}
+          imageUploadState={catImageUploadState}
           includeArchived={includeArchivedCats}
           isLoading={isLoading}
           isSaving={isSaving}
           litters={litters}
           selectedCat={selectedCat}
+          selectedCatImages={selectedCatImages}
           onArchive={handleArchiveCat}
-          onCancelEditor={() => setCatEditorMode(null)}
+          onCancelEditor={() => {
+            clearPendingCatImage();
+            setCatEditorMode(null);
+          }}
           onCreate={openCreateCat}
           onEdit={openEditCat}
           onFormChange={setCatForm}
+          onImageChange={handleCatImageSelected}
           onIncludeArchivedChange={setIncludeArchivedCats}
           onSelect={selectCat}
           onSubmit={handleCatSubmit}
@@ -432,16 +524,20 @@ function CatManagementSection({
   confirmingArchiveCatId,
   editorMode,
   form,
+  imagePreviewUrl,
+  imageUploadState,
   includeArchived,
   isLoading,
   isSaving,
   litters,
   selectedCat,
+  selectedCatImages,
   onArchive,
   onCancelEditor,
   onCreate,
   onEdit,
   onFormChange,
+  onImageChange,
   onIncludeArchivedChange,
   onSelect,
   onSubmit,
@@ -450,16 +546,20 @@ function CatManagementSection({
   confirmingArchiveCatId: string;
   editorMode: EditorMode;
   form: CatFormState;
+  imagePreviewUrl: string;
+  imageUploadState: CatImageUploadState;
   includeArchived: boolean;
   isLoading: boolean;
   isSaving: boolean;
   litters: LitterData[];
   selectedCat: CatData | null;
+  selectedCatImages: MediaAssetData[];
   onArchive: (cat: CatData) => void;
   onCancelEditor: () => void;
   onCreate: () => void;
   onEdit: (cat: CatData) => void;
   onFormChange: (form: CatFormState) => void;
+  onImageChange: (file: File | null) => void;
   onIncludeArchivedChange: (value: boolean) => void;
   onSelect: (cat: CatData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -547,16 +647,21 @@ function CatManagementSection({
         {editorMode ? (
           <CatForm
             form={form}
+            imagePreviewUrl={imagePreviewUrl}
+            imageUploadState={imageUploadState}
             isSaving={isSaving}
             mode={editorMode}
+            selectedCatImages={selectedCatImages}
             onCancel={onCancelEditor}
             onChange={onFormChange}
+            onImageChange={onImageChange}
             onSubmit={onSubmit}
           />
         ) : selectedCat ? (
           <div className="detail-stack">
             <CatDetail
               cat={selectedCat}
+              images={selectedCatImages}
               confirmingArchiveCatId={confirmingArchiveCatId}
               onArchive={onArchive}
               onEdit={onEdit}
@@ -702,17 +807,25 @@ function LitterManagementSection({
 
 function CatForm({
   form,
+  imagePreviewUrl,
+  imageUploadState,
   isSaving,
   mode,
+  selectedCatImages,
   onCancel,
   onChange,
+  onImageChange,
   onSubmit,
 }: {
   form: CatFormState;
+  imagePreviewUrl: string;
+  imageUploadState: CatImageUploadState;
   isSaving: boolean;
   mode: Exclude<EditorMode, null>;
+  selectedCatImages: MediaAssetData[];
   onCancel: () => void;
   onChange: (form: CatFormState) => void;
+  onImageChange: (file: File | null) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
@@ -803,8 +916,66 @@ function CatForm({
           onChange={(event) => onChange({ ...form, personality: event.target.value })}
         />
       </label>
+      <CatImageUploadField
+        disabled={isSaving}
+        images={selectedCatImages}
+        previewUrl={imagePreviewUrl}
+        state={imageUploadState}
+        onChange={onImageChange}
+      />
       <FormActions isSaving={isSaving} onCancel={onCancel} />
     </form>
+  );
+}
+
+function CatImageUploadField({
+  disabled,
+  images,
+  previewUrl,
+  state,
+  onChange,
+}: {
+  disabled: boolean;
+  images: MediaAssetData[];
+  previewUrl: string;
+  state: CatImageUploadState;
+  onChange: (file: File | null) => void;
+}) {
+  const currentImage = getPrimaryCatImage(images);
+  const displayUrl = previewUrl || currentImage?.thumbnailUrl || currentImage?.sourceUrl || "";
+
+  return (
+    <div className="cat-image-uploader">
+      <div className="subsection-heading">
+        <h4>猫咪图片</h4>
+        <span className={`upload-state upload-state-${state}`}>{formatCatImageState(state)}</span>
+      </div>
+      {displayUrl ? (
+        <img
+          alt={currentImage?.altText || currentImage?.title || "猫咪图片预览"}
+          className="cat-image-preview"
+          src={displayUrl}
+        />
+      ) : (
+        <div className="cat-image-placeholder">暂无图片</div>
+      )}
+      <label>
+        选择图片
+        <input
+          accept="image/*"
+          aria-label="选择猫咪图片"
+          disabled={disabled}
+          type="file"
+          onChange={(event) => {
+            onChange(event.target.files?.[0] ?? null);
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
+      <p className="muted compact">
+        {state === "pending" ? "图片将在保存猫咪资料时上传并绑定。" : "保存后会通过媒体绑定持久化到这只猫。"}
+      </p>
+    </div>
   );
 }
 
@@ -963,15 +1134,19 @@ function FormActions({ isSaving, onCancel }: { isSaving: boolean; onCancel: () =
 
 function CatDetail({
   cat,
+  images,
   confirmingArchiveCatId,
   onArchive,
   onEdit,
 }: {
   cat: CatData;
+  images: MediaAssetData[];
   confirmingArchiveCatId: string;
   onArchive: (cat: CatData) => void;
   onEdit: (cat: CatData) => void;
 }) {
+  const primaryImage = getPrimaryCatImage(images);
+
   return (
     <div className="detail-stack">
       <div className="section-heading">
@@ -998,6 +1173,13 @@ function CatDetail({
           ) : null}
         </div>
       </div>
+      {primaryImage ? (
+        <img
+          alt={primaryImage.altText || primaryImage.title || `${cat.name} 图片`}
+          className="cat-image-preview"
+          src={primaryImage.thumbnailUrl || primaryImage.sourceUrl}
+        />
+      ) : null}
       <DescriptionList
         items={[
           ["性别", formatGender(cat.gender)],
@@ -1062,6 +1244,31 @@ function DescriptionList({ items }: { items: Array<[string, string]> }) {
       ))}
     </dl>
   );
+}
+
+function getPrimaryCatImage(images: MediaAssetData[]) {
+  return (
+    images.find((media) =>
+      media.bindings.some((binding) => binding.usage === "cover" && binding.visibility === "visible"),
+    ) ??
+    images.find((media) =>
+      media.bindings.some((binding) => binding.visibility === "visible"),
+    ) ??
+    images[0]
+  );
+}
+
+function formatCatImageState(state: CatImageUploadState) {
+  switch (state) {
+    case "pending":
+      return "待保存";
+    case "uploading":
+      return "上传中";
+    case "uploaded":
+      return "已上传";
+    default:
+      return "未选择";
+  }
 }
 
 function toCatForm(cat: CatData): CatFormState {
