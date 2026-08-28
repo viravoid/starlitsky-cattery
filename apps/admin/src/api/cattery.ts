@@ -271,6 +271,16 @@ export function uploadCatImage(catId: string, file: File) {
   });
 }
 
+export function uploadLitterImage(litterId: string, file: File) {
+  return uploadImageForOwner({
+    fallbackFileName: "litter-image",
+    file,
+    ownerId: litterId,
+    ownerType: "litter",
+    usage: "gallery",
+  });
+}
+
 export function uploadFixedPageImage(pageId: string, file: File) {
   return uploadImageForOwner({
     fallbackFileName: "fixed-page-image",
