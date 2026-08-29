@@ -51,9 +51,9 @@ const STUD_FILTERS: StudCategory[] = ["现役公猫", "现役母猫", "预备役
 
 function Meta({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex gap-2 text-[12px]">
+    <div className="flex min-w-0 gap-1.5 text-[11.5px] leading-snug">
       <span className="shrink-0 text-muted-foreground">{k}</span>
-      <span className="truncate text-card-foreground">{v}</span>
+      <span className="min-w-0 truncate text-card-foreground">{v}</span>
     </div>
   );
 }
@@ -100,11 +100,11 @@ function CatCard({
     <Link
       to={to}
       params={params}
-      className="pressable block overflow-hidden rounded-3xl border border-border bg-card shadow-card"
+      className="pressable flex min-h-[128px] gap-3 overflow-hidden rounded-[22px] border border-border bg-card p-2.5 shadow-card"
     >
-      <div className="relative">
+      <div className="relative w-[32%] min-w-[104px] shrink-0 self-stretch overflow-hidden rounded-[18px] bg-cream">
         {imageUrl ? (
-          <div className="aspect-[16/10] overflow-hidden rounded-none bg-card">
+          <div className="h-full min-h-[108px] overflow-hidden bg-card">
             <CroppedImageFrame
               imageUrl={imageUrl}
               aspectRatio={presentation.aspectRatio}
@@ -115,21 +115,34 @@ function CatCard({
             />
           </div>
         ) : (
-          <Placeholder label={imageLabel} ratio="aspect-[16/10]" rounded="rounded-none" />
+          <Placeholder
+            label={imageLabel}
+            ratio="h-full min-h-[108px]"
+            rounded="rounded-none"
+            compact
+          />
         )}
-        <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-          <Pill tone={pill.tone}>{pill.text}</Pill>
-          {litter && <Pill tone="sunny">{litter}</Pill>}
-        </div>
       </div>
-      <div className="space-y-2.5 p-4">
-        <h3 className="text-[15px] font-semibold leading-snug text-heading">{name}</h3>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+      <div className="flex min-w-0 flex-1 flex-col py-1 pr-1">
+        <div className="flex flex-wrap gap-1.5">
+          <Pill tone={pill.tone} className="px-2 py-0 text-[10.5px]">
+            {pill.text}
+          </Pill>
+          {litter && (
+            <Pill tone="sunny" className="px-2 py-0 text-[10.5px]">
+              {litter}
+            </Pill>
+          )}
+        </div>
+        <h3 className="mt-2 line-clamp-2 text-[15px] font-semibold leading-snug text-heading">
+          {name}
+        </h3>
+        <div className="mt-2 space-y-1">
           {meta.map((item) => (
             <Meta key={item.k} k={item.k} v={item.v} />
           ))}
         </div>
-        <span className="mt-1 flex items-center justify-center gap-1 rounded-full border border-primary bg-card py-2.5 text-[13px] font-semibold text-primary shadow-card">
+        <span className="mt-auto flex items-center justify-end gap-0.5 pt-2 text-[12px] font-semibold text-primary">
           了解详情 <ChevronRightIcon className="h-3.5 w-3.5" />
         </span>
       </div>

@@ -69,7 +69,7 @@ export function NavHeader({
     }
   };
   return (
-    <div className="relative flex h-12 shrink-0 items-center justify-center px-14">
+    <div className="relative flex h-12 shrink-0 items-center justify-center px-20">
       {showBack && (
         <Link
           to={(to ?? "/") as string}
