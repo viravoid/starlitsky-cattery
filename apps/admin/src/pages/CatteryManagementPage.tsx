@@ -29,8 +29,10 @@ import { getErrorMessage } from "../utils/errors";
 import { CatArchivePanel, LitterKittensPanel } from "./CatteryProfilePanels";
 import { FixedPagesPanel } from "./FixedPagesPanel";
 import { MediaManagementPanel } from "./MediaManagementPanel";
+import { ParentApplicationsPanel, ParentInvitesPanel } from "./ParentInvitationReviewPanel";
 
-type SectionKey = "cats" | "litters" | "media" | "fixedPages";
+type SectionKey =
+  "cats" | "litters" | "media" | "fixedPages" | "parentInvites" | "parentApplications";
 type EditorMode = "create" | "edit" | null;
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 
@@ -506,6 +508,12 @@ export function CatteryManagementPage() {
           <button type="button" onClick={() => setActiveSection("fixedPages")}>
             固定页面
           </button>
+          <button type="button" onClick={() => setActiveSection("parentInvites")}>
+            家长邀请
+          </button>
+          <button type="button" onClick={() => setActiveSection("parentApplications")}>
+            申请审核
+          </button>
         </div>
       </div>
 
@@ -542,12 +550,32 @@ export function CatteryManagementPage() {
         >
           固定页面
         </button>
+        <button
+          aria-selected={activeSection === "parentInvites"}
+          className={activeSection === "parentInvites" ? "active-tab" : ""}
+          type="button"
+          onClick={() => setActiveSection("parentInvites")}
+        >
+          家长邀请
+        </button>
+        <button
+          aria-selected={activeSection === "parentApplications"}
+          className={activeSection === "parentApplications" ? "active-tab" : ""}
+          type="button"
+          onClick={() => setActiveSection("parentApplications")}
+        >
+          申请审核
+        </button>
       </div>
 
       {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="error-banner">{error}</div> : null}
 
-      {activeSection === "fixedPages" ? (
+      {activeSection === "parentInvites" ? (
+        <ParentInvitesPanel />
+      ) : activeSection === "parentApplications" ? (
+        <ParentApplicationsPanel />
+      ) : activeSection === "fixedPages" ? (
         <FixedPagesPanel isLoading={isLoading} pages={fixedPages} onReload={loadData} />
       ) : activeSection === "media" ? (
         <MediaManagementPanel
@@ -1078,7 +1106,9 @@ function CatImageUploadField({
         />
       </label>
       <p className="muted compact">
-        {state === "pending" ? "图片将在保存猫咪资料时上传并绑定。" : "保存后会通过媒体绑定持久化到这只猫。"}
+        {state === "pending"
+          ? "图片将在保存猫咪资料时上传并绑定。"
+          : "保存后会通过媒体绑定持久化到这只猫。"}
       </p>
     </div>
   );
@@ -1433,11 +1463,11 @@ function DescriptionList({ items }: { items: Array<[string, string]> }) {
 function getPrimaryCatImage(images: MediaAssetData[]) {
   return (
     images.find((media) =>
-      media.bindings.some((binding) => binding.usage === "cover" && binding.visibility === "visible"),
+      media.bindings.some(
+        (binding) => binding.usage === "cover" && binding.visibility === "visible",
+      ),
     ) ??
-    images.find((media) =>
-      media.bindings.some((binding) => binding.visibility === "visible"),
-    ) ??
+    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
     images[0]
   );
 }
@@ -1449,9 +1479,7 @@ function getPrimaryLitterImage(images: MediaAssetData[]) {
         (binding) => binding.usage === "cover" && binding.visibility === "visible",
       ),
     ) ??
-    images.find((media) =>
-      media.bindings.some((binding) => binding.visibility === "visible"),
-    ) ??
+    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
     images[0]
   );
 }
@@ -1553,5 +1581,7 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#litters") return "litters";
   if (window.location.hash === "#media") return "media";
   if (window.location.hash === "#fixed-pages") return "fixedPages";
+  if (window.location.hash === "#parent-invites") return "parentInvites";
+  if (window.location.hash === "#parent-applications") return "parentApplications";
   return "cats";
 }

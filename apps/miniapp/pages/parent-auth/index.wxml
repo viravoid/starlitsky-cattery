@@ -1,0 +1,109 @@
+<view class="page">
+  <view class="hero">
+    <text class="eyebrow">Parent Verification</text>
+    <text class="title">家长认证申请</text>
+    <text class="subtitle">邀请码只用于提交申请，审核通过后才会开通家长权限。</text>
+  </view>
+
+  <view wx:if="{{application}}" class="status-panel">
+    <text class="section-title">我的申请状态</text>
+    <text class="status {{application.status}}">{{application.status}}</text>
+    <text class="muted">提交时间：{{application.createdAt}}</text>
+    <text wx:if="{{application.adminNote}}" class="muted">审核备注：{{application.adminNote}}</text>
+  </view>
+
+  <view class="panel">
+    <text class="section-title">邀请凭证</text>
+    <view class="field">
+      <text>短邀请码</text>
+      <input placeholder="请输入主理人提供的邀请码" value="{{inviteCode}}" bindinput="onInviteCodeInput" />
+    </view>
+    <button class="secondary" loading="{{isVerifying}}" bindtap="onVerifyCode">验证邀请码</button>
+    <text wx:if="{{inviteMessage}}" class="hint">{{inviteMessage}}</text>
+  </view>
+
+  <view class="panel">
+    <text class="section-title">家长资料</text>
+    <view class="field">
+      <text>展示昵称</text>
+      <input placeholder="社区中显示的名称" value="{{displayName}}" bindinput="onDisplayNameInput" />
+    </view>
+    <view class="field">
+      <text>真实姓名</text>
+      <input placeholder="便于后台核验，可选" value="{{realName}}" bindinput="onRealNameInput" />
+    </view>
+    <view class="field">
+      <text>手机号</text>
+      <input placeholder="可选" value="{{contactPhone}}" bindinput="onContactPhoneInput" />
+    </view>
+    <view class="field">
+      <text>微信号</text>
+      <input placeholder="可选" value="{{contactWechat}}" bindinput="onContactWechatInput" />
+    </view>
+    <view class="field">
+      <text>城市</text>
+      <input placeholder="可选" value="{{city}}" bindinput="onCityInput" />
+    </view>
+  </view>
+
+  <view class="panel">
+    <text class="section-title">我的猫</text>
+    <view class="switch-row">
+      <button class="{{catMode === 'existing' ? 'active' : 'secondary'}}" bindtap="useExistingCat">猫库选择</button>
+      <button class="{{catMode === 'new' ? 'active' : 'secondary'}}" bindtap="useNewCat">填写新猫</button>
+    </view>
+
+    <view wx:if="{{catMode === 'existing'}}">
+      <view class="field">
+        <text>搜索猫咪</text>
+        <input placeholder="输入猫咪名字或颜色" value="{{catQuery}}" bindinput="onCatQueryInput" />
+      </view>
+      <button class="secondary" loading="{{isSearchingCats}}" bindtap="onSearchCats">搜索</button>
+      <view class="cat-list">
+        <button
+          wx:for="{{cats}}"
+          wx:key="id"
+          class="{{existingCatId === item.id ? 'cat-row selected' : 'cat-row'}}"
+          data-cat-id="{{item.id}}"
+          data-cat-name="{{item.name}}"
+          bindtap="onSelectExistingCat"
+        >
+          {{item.name}} · {{item.color || '未填颜色'}}
+        </button>
+      </view>
+      <view wx:if="{{existingCatId}}" class="field">
+        <text>关系备注</text>
+        <input placeholder="例如：主人" value="{{existingCatNote}}" bindinput="onExistingCatNoteInput" />
+      </view>
+    </view>
+
+    <view wx:if="{{catMode === 'new'}}">
+      <view class="field">
+        <text>猫咪名字</text>
+        <input placeholder="必填" value="{{newCatName}}" bindinput="onNewCatNameInput" />
+      </view>
+      <view class="field">
+        <text>性别</text>
+        <input placeholder="male / female / unknown，可选" value="{{newCatGender}}" bindinput="onNewCatGenderInput" />
+      </view>
+      <view class="field">
+        <text>颜色</text>
+        <input placeholder="可选" value="{{newCatColor}}" bindinput="onNewCatColorInput" />
+      </view>
+      <view class="field">
+        <text>生日</text>
+        <input placeholder="YYYY-MM-DD，可选" value="{{newCatBirthday}}" bindinput="onNewCatBirthdayInput" />
+      </view>
+      <view class="field">
+        <text>到家日期</text>
+        <input placeholder="YYYY-MM-DD，可选" value="{{newCatArrivedAt}}" bindinput="onNewCatArrivedAtInput" />
+      </view>
+      <view class="field">
+        <text>性格/备注</text>
+        <textarea placeholder="可选" value="{{newCatPersonality}}" bindinput="onNewCatPersonalityInput" />
+      </view>
+    </view>
+  </view>
+
+  <button class="submit" loading="{{isSubmitting}}" bindtap="onSubmit">提交家长申请</button>
+</view>

@@ -1,5 +1,10 @@
 {
-  "pages": ["pages/home/index", "pages/community/index", "pages/cats/index"],
+  "pages": [
+    "pages/home/index",
+    "pages/community/index",
+    "pages/cats/index",
+    "pages/parent-auth/index"
+  ],
   "window": {
     "navigationBarTitleText": "星月缅因猫舍",
     "navigationBarBackgroundColor": "#fffaf1",
