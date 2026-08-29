@@ -275,6 +275,16 @@ export interface ParentInviteData {
 
 export interface CreatedParentInviteData extends ParentInviteData {
   token: string;
+  qr: ParentInviteQrData;
+}
+
+export interface ParentInviteQrData {
+  provider: "wechat" | "dev-mock" | "unavailable";
+  status: "ready" | "mock" | "unavailable";
+  page: string;
+  scene: string;
+  imageDataUrl: string | null;
+  message: string;
 }
 
 export interface ParentInvitePublicData {
@@ -334,6 +344,7 @@ export interface NewCatApplicationData {
 export interface SubmitParentApplicationRequest {
   inviteCode?: string;
   inviteToken?: string;
+  qrCredential?: string;
   displayName: string;
   realName?: string | null;
   contactPhone?: string | null;
@@ -380,6 +391,17 @@ export interface ParentApplicationData {
 
 export type ParentInviteListData = PaginatedResponse<ParentInviteData>;
 export type ParentApplicationListData = PaginatedResponse<ParentApplicationData>;
+
+export interface ParentClaimCatCandidateData {
+  id: string;
+  name: string;
+  gender: string | null;
+  color: string | null;
+  birthday: string | null;
+  lifecycleStatus: string;
+}
+
+export type ParentClaimCatCandidateListData = PaginatedResponse<ParentClaimCatCandidateData>;
 
 export interface MediaBindingData {
   id: string;

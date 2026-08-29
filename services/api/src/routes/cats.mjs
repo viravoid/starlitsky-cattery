@@ -1,4 +1,5 @@
 import { createCat, deleteCat, getCat, listCats, updateCat } from "../services/cat-service.mjs";
+import { getCurrentUserFromRequest } from "../services/auth-service.mjs";
 import {
   createBreedingProfile,
   createCatParentLink,
@@ -15,11 +16,12 @@ import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
 export async function routeCatsRequest(request, response, url, context) {
+  const readOptions = await resolveCatReadOptions(request, context.config);
   const breedingProfileCatId = matchNestedCatId(url.pathname, "breeding-profile");
   if (breedingProfileCatId) {
     if (request.method === "GET") {
       sendSuccess(response, {
-        data: await getBreedingProfile(breedingProfileCatId),
+        data: await getBreedingProfile(breedingProfileCatId, readOptions),
       });
       return;
     }
@@ -50,7 +52,7 @@ export async function routeCatsRequest(request, response, url, context) {
   if (kittenProfileCatId) {
     if (request.method === "GET") {
       sendSuccess(response, {
-        data: await getKittenProfile(kittenProfileCatId),
+        data: await getKittenProfile(kittenProfileCatId, readOptions),
       });
       return;
     }
@@ -105,7 +107,7 @@ export async function routeCatsRequest(request, response, url, context) {
   if (url.pathname === "/cats") {
     if (request.method === "GET") {
       sendSuccess(response, {
-        data: await listCats(url.searchParams),
+        data: await listCats(url.searchParams, readOptions),
       });
       return;
     }
@@ -126,7 +128,7 @@ export async function routeCatsRequest(request, response, url, context) {
   if (id) {
     if (request.method === "GET") {
       sendSuccess(response, {
-        data: await getCat(id),
+        data: await getCat(id, readOptions),
       });
       return;
     }
@@ -153,6 +155,13 @@ export async function routeCatsRequest(request, response, url, context) {
   }
 
   throw notFound("Cat route not found");
+}
+
+async function resolveCatReadOptions(request, config) {
+  const user = await getCurrentUserFromRequest(request, config);
+  return {
+    includeHidden: Boolean(user?.roles.some((role) => role === "admin" || role === "keeper")),
+  };
 }
 
 function matchCatId(pathname) {

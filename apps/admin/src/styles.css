@@ -227,6 +227,21 @@ td {
   overflow-wrap: anywhere;
 }
 
+.qr-preview {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  margin-top: 16px;
+}
+
+.qr-preview img {
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  display: block;
+  height: 180px;
+  width: 180px;
+}
+
 .mini-list {
   display: grid;
   gap: 8px;

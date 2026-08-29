@@ -1,5 +1,5 @@
 import type {
-  CatData,
+  ParentClaimCatCandidateData,
   ParentApplicationData,
   SubmitParentApplicationRequest,
 } from "@starlitsky/shared";
@@ -13,6 +13,7 @@ import {
 
 interface ParentAuthLoadOptions {
   code?: string;
+  qrCredential?: string;
   scene?: string;
   token?: string;
 }
@@ -33,12 +34,18 @@ interface ParentAuthPage {
   data: ParentAuthData;
   loadMyApplication(): Promise<void>;
   setData(data: Partial<ParentAuthData>): void;
-  verifyInvite(credential?: { code?: string; token?: string }): Promise<boolean>;
+  verifyInvite(credential?: InviteCredential): Promise<boolean>;
+}
+
+interface InviteCredential {
+  code?: string;
+  token?: string;
+  qrCredential?: string;
 }
 
 interface ParentAuthData {
   application: ParentApplicationData | null;
-  cats: CatData[];
+  cats: ParentClaimCatCandidateData[];
   catMode: "existing" | "new";
   catQuery: string;
   city: string;
@@ -50,6 +57,7 @@ interface ParentAuthData {
   existingCatNote: string;
   inviteCode: string;
   inviteMessage: string;
+  inviteQrCredential: string;
   inviteToken: string;
   inviteValid: boolean;
   isSearchingCats: boolean;
@@ -78,6 +86,7 @@ const DEFAULT_DATA: ParentAuthData = {
   existingCatNote: "",
   inviteCode: "",
   inviteMessage: "",
+  inviteQrCredential: "",
   inviteToken: "",
   inviteValid: false,
   isSearchingCats: false,
@@ -99,13 +108,14 @@ Page({
     const credential = getCredentialFromOptions(options);
     this.setData({
       inviteCode: credential.code,
+      inviteQrCredential: credential.qrCredential,
       inviteToken: credential.token,
     });
 
     await refreshCurrentUser();
     await this.loadMyApplication();
 
-    if (credential.code || credential.token) {
+    if (credential.code || credential.token || credential.qrCredential) {
       await this.verifyInvite(credential);
     }
   },
@@ -119,17 +129,18 @@ Page({
     }
   },
 
-  async verifyInvite(this: ParentAuthPage, credential?: { code?: string; token?: string }) {
+  async verifyInvite(this: ParentAuthPage, credential?: InviteCredential) {
     const code = credential?.code ?? this.data.inviteCode;
     const token = credential?.token ?? this.data.inviteToken;
-    if (!code && !token) {
+    const qrCredential = credential?.qrCredential ?? this.data.inviteQrCredential;
+    if (!code && !token && !qrCredential) {
       this.setData({ inviteMessage: "请先输入邀请码", inviteValid: false });
       return false;
     }
 
     this.setData({ isVerifying: true, inviteMessage: "" });
     try {
-      const result = await verifyParentInvite({ code, token });
+      const result = await verifyParentInvite({ code, token, qrCredential });
       this.setData({
         inviteValid: result.valid,
         inviteMessage: result.valid
@@ -152,7 +163,8 @@ Page({
   async onSearchCats(this: ParentAuthPage) {
     this.setData({ isSearchingCats: true });
     try {
-      const cats = await searchCats(this.data.catQuery);
+      await loginWithWechat();
+      const cats = await searchCats(this.data.catQuery, getCredentialFromData(this.data));
       this.setData({ cats });
     } catch (error) {
       showToast(getErrorMessage(error));
@@ -196,7 +208,12 @@ Page({
   },
 
   onInviteCodeInput(this: ParentAuthPage, event: InputEvent) {
-    this.setData({ inviteCode: event.detail.value, inviteToken: "", inviteValid: false });
+    this.setData({
+      inviteCode: event.detail.value,
+      inviteQrCredential: "",
+      inviteToken: "",
+      inviteValid: false,
+    });
   },
   onDisplayNameInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ displayName: event.detail.value });
@@ -240,13 +257,22 @@ Page({
 });
 
 function getCredentialFromOptions(options: ParentAuthLoadOptions) {
-  if (options.token) return { code: "", token: decodeURIComponent(options.token) };
-  if (options.code) return { code: decodeURIComponent(options.code), token: "" };
+  if (options.token)
+    return { code: "", token: decodeURIComponent(options.token), qrCredential: "" };
+  if (options.code) return { code: decodeURIComponent(options.code), token: "", qrCredential: "" };
+  if (options.qrCredential) {
+    return { code: "", token: "", qrCredential: decodeURIComponent(options.qrCredential) };
+  }
 
   const scene = options.scene ? decodeURIComponent(options.scene) : "";
-  if (scene.startsWith("token=")) return { code: "", token: scene.slice("token=".length) };
-  if (scene.startsWith("code=")) return { code: scene.slice("code=".length), token: "" };
-  return { code: "", token: scene };
+  if (scene.startsWith("token=")) {
+    return { code: "", token: scene.slice("token=".length), qrCredential: "" };
+  }
+  if (scene.startsWith("code=")) {
+    return { code: scene.slice("code=".length), token: "", qrCredential: "" };
+  }
+  if (scene.startsWith("i=")) return { code: "", token: "", qrCredential: scene.slice(2) };
+  return { code: "", token: "", qrCredential: scene };
 }
 
 function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest | null {
@@ -261,7 +287,7 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
     contactPhone: emptyToNull(data.contactPhone),
     contactWechat: emptyToNull(data.contactWechat),
     city: emptyToNull(data.city),
-    ...(data.inviteToken ? { inviteToken: data.inviteToken } : { inviteCode: data.inviteCode }),
+    ...getCredentialFromData(data),
   };
 
   if (data.catMode === "existing") {
@@ -295,6 +321,12 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
     },
   ];
   return payload;
+}
+
+function getCredentialFromData(data: ParentAuthData): InviteCredential {
+  if (data.inviteQrCredential) return { qrCredential: data.inviteQrCredential };
+  if (data.inviteToken) return { token: data.inviteToken };
+  return { code: data.inviteCode };
 }
 
 function emptyToNull(value: string) {

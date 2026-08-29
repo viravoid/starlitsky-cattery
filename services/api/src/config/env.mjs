@@ -20,7 +20,11 @@ export const config = {
   wechat: {
     appId: process.env.WECHAT_APP_ID || "",
     appSecret: process.env.WECHAT_APP_SECRET || "",
-    mockLoginEnabled: !isProduction && parseBoolean(process.env.WECHAT_MOCK_LOGIN_ENABLED || "true"),
+    mockLoginEnabled:
+      !isProduction && parseBoolean(process.env.WECHAT_MOCK_LOGIN_ENABLED || "true"),
+    mockQrEnabled: !isProduction && parseBoolean(process.env.WECHAT_MOCK_QR_ENABLED || "true"),
+    qrEnvVersion: process.env.WECHAT_MINIAPP_QR_ENV_VERSION || (isProduction ? "release" : "trial"),
+    qrCheckPath: parseBoolean(process.env.WECHAT_MINIAPP_QR_CHECK_PATH || "true"),
   },
   storage: {
     provider: process.env.STORAGE_PROVIDER || "s3",

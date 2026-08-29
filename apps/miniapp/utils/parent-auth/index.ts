@@ -1,12 +1,16 @@
 import type {
-  CatListData,
+  ParentClaimCatCandidateListData,
   ParentApplicationData,
   SubmitParentApplicationRequest,
   VerifyParentInviteData,
 } from "@starlitsky/shared";
 import { get, post } from "../request";
 
-export async function verifyParentInvite(params: { code?: string; token?: string }) {
+export async function verifyParentInvite(params: {
+  code?: string;
+  token?: string;
+  qrCredential?: string;
+}) {
   const response = await get<VerifyParentInviteData>(`/parent-invites/verify${toSearch(params)}`);
   if (!response.success) throw new Error(response.message);
   return response.data;
@@ -27,9 +31,16 @@ export async function getMyParentApplication() {
   return response.data;
 }
 
-export async function searchCats(query: string) {
-  const response = await get<CatListData>(
-    `/cats${toSearch({ pageSize: "20", q: query.trim(), visibility: "visible" })}`,
+export async function searchCats(
+  query: string,
+  credential: { code?: string; token?: string; qrCredential?: string },
+) {
+  const response = await get<ParentClaimCatCandidateListData>(
+    `/parent-applications/cat-candidates${toSearch({
+      pageSize: "20",
+      q: query.trim(),
+      ...credential,
+    })}`,
   );
   if (!response.success) throw new Error(response.message);
   return response.data.items;

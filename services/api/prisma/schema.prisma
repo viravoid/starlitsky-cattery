@@ -94,19 +94,20 @@ model ParentProfile {
 
 /// Invitations gate parent applications only. They never grant roles directly.
 model ParentInvite {
-  id         String    @id @default(uuid())
-  token_hash String    @unique
-  short_code String    @unique
-  status     String    @default("active")
-  max_uses   Int       @default(1)
-  used_count Int       @default(0)
-  expires_at DateTime?
-  note       String?
-  created_by String?
-  revoked_by String?
-  revoked_at DateTime?
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  token_hash    String    @unique
+  qr_scene_hash String?   @unique
+  short_code    String    @unique
+  status        String    @default("active")
+  max_uses      Int       @default(1)
+  used_count    Int       @default(0)
+  expires_at    DateTime?
+  note          String?
+  created_by    String?
+  revoked_by    String?
+  revoked_at    DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 
   creator      User?               @relation("ParentInviteCreator", fields: [created_by], references: [id], onDelete: SetNull)
   revoker      User?               @relation("ParentInviteRevoker", fields: [revoked_by], references: [id], onDelete: SetNull)
@@ -124,6 +125,7 @@ model ParentApplication {
   id                         String    @id @default(uuid())
   user_id                    String
   invite_id                  String
+  pending_dedup_key          String?   @unique
   status                     String    @default("pending")
   display_name               String
   real_name                  String?
@@ -245,6 +247,7 @@ model ParentCatLink {
   id                String    @id @default(uuid())
   parent_profile_id String
   cat_id            String
+  active_dedup_key  String?   @unique
   relationship      String
   status            String    @default("active")
   started_at        DateTime?

@@ -25,6 +25,9 @@ const config = {
     appId: "",
     appSecret: "",
     mockLoginEnabled: true,
+    mockQrEnabled: true,
+    qrEnvVersion: "trial",
+    qrCheckPath: true,
   },
 };
 
@@ -39,6 +42,15 @@ const cat = await prisma.cat.create({
     visibility: "visible",
   },
 });
+const hiddenCat = await prisma.cat.create({
+  data: {
+    name: "Verify Hidden Parent Cat",
+    gender: "female",
+    color: "hidden smoke",
+    lifecycle_status: "adopted",
+    visibility: "hidden",
+  },
+});
 
 await assertRejects("no invite cannot submit", () =>
   submitParentApplication(
@@ -51,11 +63,56 @@ await assertRejects("no invite cannot submit", () =>
 );
 
 const invite = await createParentInvite({ maxUses: 1, note: "verify invite" }, admin);
+assert.equal(invite.qr.status, "mock", "local verification should expose an explicit dev mock QR");
+assert.ok(invite.qr.imageDataUrl?.startsWith("data:image/svg+xml;base64,"));
 const validByCode = await verifyParentInvite({ code: invite.shortCode });
 assert.equal(validByCode.valid, true, "valid short code should pass verification");
 
 const validByToken = await verifyParentInvite({ token: invite.token });
 assert.equal(validByToken.valid, true, "QR token should use the same invite flow");
+
+const validByQrScene = await verifyParentInvite({ scene: invite.qr.scene });
+assert.equal(validByQrScene.valid, true, "QR scene credential should verify the same invite");
+assert.equal(
+  validByQrScene.invite?.id,
+  validByCode.invite?.id,
+  "QR credential and short code should resolve to the same invite",
+);
+
+const validCandidateData = await routeGet(
+  `/parent-applications/cat-candidates?q=hidden&scene=${encodeURIComponent(invite.qr.scene)}`,
+  user,
+);
+assert.equal(
+  validCandidateData.items.some((item) => item.id === hiddenCat.id),
+  true,
+  "valid parent application context should find hidden non-deleted cats",
+);
+assert.equal(
+  Object.hasOwn(validCandidateData.items[0], "visibility"),
+  false,
+  "parent claim cat candidates should not expose admin-only visibility fields",
+);
+
+await assertRouteRejects(
+  "logged-in user without invite cannot search hidden cat candidates",
+  `/parent-applications/cat-candidates?q=hidden`,
+  user,
+  400,
+);
+await assertRouteRejects(
+  "anonymous user cannot search hidden cat candidates",
+  `/parent-applications/cat-candidates?q=hidden&scene=${encodeURIComponent(invite.qr.scene)}`,
+  null,
+  401,
+);
+
+const publicCatsData = await routeGet("/cats?q=hidden", null);
+assert.equal(
+  publicCatsData.items.some((item) => item.id === hiddenCat.id),
+  false,
+  "ordinary public cats API must not return hidden cats",
+);
 
 const revoked = await createParentInvite({}, admin);
 await revokeParentInvite(revoked.id, { adminNote: "verify revoke" }, admin);
@@ -96,6 +153,70 @@ await assertRejects("same user cannot submit another pending application", () =>
     },
     user,
   ),
+);
+
+const singleUseRaceInvite = await createParentInvite({ maxUses: 1 }, admin);
+const raceUserA = await createUserWithRole("verify-race-user-a", "user");
+const raceUserB = await createUserWithRole("verify-race-user-b", "user");
+const maxUseRaceResults = await Promise.allSettled([
+  submitParentApplication(
+    {
+      inviteCode: singleUseRaceInvite.shortCode,
+      displayName: "Race Parent A",
+      existingCatClaims: [{ catId: cat.id }],
+    },
+    raceUserA,
+  ),
+  submitParentApplication(
+    {
+      inviteCode: singleUseRaceInvite.shortCode,
+      displayName: "Race Parent B",
+      existingCatClaims: [{ catId: cat.id }],
+    },
+    raceUserB,
+  ),
+]);
+assert.equal(
+  maxUseRaceResults.filter((result) => result.status === "fulfilled").length,
+  1,
+  "single-use invite should allow only one concurrent submission",
+);
+const consumedRaceInvite = await prisma.parentInvite.findUnique({
+  where: { id: singleUseRaceInvite.id },
+});
+assert.equal(consumedRaceInvite?.used_count, 1, "single-use invite must not be over-consumed");
+
+const sameUserRaceInvite = await createParentInvite({ maxUses: 2 }, admin);
+const sameUserRace = await createUserWithRole("verify-same-user-race", "user");
+const sameUserResults = await Promise.allSettled([
+  submitParentApplication(
+    {
+      inviteCode: sameUserRaceInvite.shortCode,
+      displayName: "Same User Race A",
+      existingCatClaims: [{ catId: cat.id }],
+    },
+    sameUserRace,
+  ),
+  submitParentApplication(
+    {
+      inviteCode: sameUserRaceInvite.shortCode,
+      displayName: "Same User Race B",
+      existingCatClaims: [{ catId: hiddenCat.id }],
+    },
+    sameUserRace,
+  ),
+]);
+assert.equal(
+  sameUserResults.filter((result) => result.status === "fulfilled").length,
+  1,
+  "same user should not create two concurrent pending applications",
+);
+assert.equal(
+  await prisma.parentApplication.count({
+    where: { user_id: sameUserRace.id, status: "pending" },
+  }),
+  1,
+  "same user race should leave exactly one pending application",
 );
 
 await assertRouteRejectsForbidden(application.id, user);
@@ -234,12 +355,68 @@ async function assertRouteRejectsForbidden(applicationId, actingUser) {
   );
 }
 
+async function routeGet(url, actingUser) {
+  const response = createJsonResponse();
+  const token = actingUser ? await createSessionToken(actingUser) : "";
+  await routeRequest(createRequest({ method: "GET", url, token }), response, { config });
+  return response.data.data;
+}
+
+async function assertRouteRejects(label, url, actingUser, statusCode) {
+  const token = actingUser ? await createSessionToken(actingUser) : "";
+  await assert.rejects(
+    () => routeRequest(createRequest({ method: "GET", url, token }), createResponse(), { config }),
+    (error) => error?.statusCode === statusCode,
+    label,
+  );
+}
+
+function createRequest({ method, url, token = "", body = "" }) {
+  const request = Readable.from(body ? [body] : []);
+  request.method = method;
+  request.url = url;
+  request.headers = {
+    host: "127.0.0.1",
+  };
+  if (token) {
+    request.headers.authorization = `Bearer ${token}`;
+  }
+  return request;
+}
+
+async function createSessionToken(actingUser) {
+  const token = `token-${actingUser.id}-${randomString()}`;
+  await prisma.userSession.create({
+    data: {
+      user_id: actingUser.id,
+      token_hash: createHash("sha256").update(`${config.auth.tokenSecret}:${token}`).digest("hex"),
+      expires_at: new Date(Date.now() + 60_000),
+    },
+  });
+  return token;
+}
+
 function createResponse() {
   return {
     setHeader() {},
     writeHead() {},
     end() {},
   };
+}
+
+function createJsonResponse() {
+  return {
+    data: null,
+    setHeader() {},
+    writeHead() {},
+    end(payload) {
+      this.data = JSON.parse(payload);
+    },
+  };
+}
+
+function randomString() {
+  return Math.random().toString(36).slice(2);
 }
 
 async function assertRejects(label, action) {

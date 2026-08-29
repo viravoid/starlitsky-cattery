@@ -15,9 +15,9 @@ const CREATE_FIELDS = [
 ];
 const UPDATE_FIELDS = CREATE_FIELDS;
 
-export async function listCats(searchParams) {
+export async function listCats(searchParams, options = {}) {
   const { page, pageSize, skip, take } = parsePagination(searchParams);
-  const where = buildCatWhere(searchParams);
+  const where = buildCatWhere(searchParams, options);
 
   const [items, total] = await prisma.$transaction([
     prisma.cat.findMany({
@@ -35,11 +35,12 @@ export async function listCats(searchParams) {
   };
 }
 
-export async function getCat(id) {
+export async function getCat(id, options = {}) {
   const cat = await prisma.cat.findFirst({
     where: {
       id,
       deleted_at: null,
+      ...(options.includeHidden ? {} : { visibility: "visible" }),
     },
   });
 
@@ -130,7 +131,7 @@ export async function ensureActiveParentCatsExist(fatherCatId, motherCatId) {
   ]);
 }
 
-function buildCatWhere(searchParams) {
+function buildCatWhere(searchParams, options = {}) {
   const includeDeleted = parseBooleanParam(searchParams.get("includeDeleted"));
   const query = searchParams.get("q");
   const lifecycleStatus = searchParams.get("lifecycleStatus");
@@ -139,7 +140,11 @@ function buildCatWhere(searchParams) {
   const where = {};
   if (!includeDeleted) where.deleted_at = null;
   if (lifecycleStatus) where.lifecycle_status = lifecycleStatus;
-  if (visibility) where.visibility = visibility;
+  if (options.includeHidden) {
+    if (visibility) where.visibility = visibility;
+  } else {
+    where.visibility = "visible";
+  }
   if (query) {
     where.OR = [
       { name: { contains: query } },

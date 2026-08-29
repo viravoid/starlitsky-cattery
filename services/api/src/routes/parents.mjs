@@ -11,6 +11,7 @@ import {
   listParentInvites,
   rejectParentApplication,
   revokeParentInvite,
+  searchParentClaimCatCandidates,
   submitParentApplication,
   verifyParentInvite,
 } from "../services/parent-application-service.mjs";
@@ -45,7 +46,7 @@ export async function routeParentsRequest(request, response, url, context) {
       const adminUser = await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
-        data: await createParentInvite(await readJsonBody(request), adminUser),
+        data: await createParentInvite(await readJsonBody(request), adminUser, context.config),
         message: "Parent invite created",
       });
       return;
@@ -71,6 +72,21 @@ export async function routeParentsRequest(request, response, url, context) {
     sendSuccess(response, {
       data: await getMyParentApplication(user),
       message: "Current parent application",
+    });
+    return;
+  }
+
+  if (url.pathname === "/parent-applications/cat-candidates") {
+    if (request.method !== "GET") throw methodNotAllowed();
+    await requireAuth(request, context.config);
+    sendSuccess(response, {
+      data: await searchParentClaimCatCandidates(url.searchParams, {
+        code: url.searchParams.get("code"),
+        token: url.searchParams.get("token"),
+        qrCredential: url.searchParams.get("qrCredential"),
+        scene: url.searchParams.get("scene"),
+      }),
+      message: "Parent claim cat candidates",
     });
     return;
   }

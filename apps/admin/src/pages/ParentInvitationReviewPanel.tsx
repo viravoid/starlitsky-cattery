@@ -65,7 +65,11 @@ export function ParentInvitesPanel() {
       });
       setCreatedInvite(invite);
       setForm(DEFAULT_INVITE_FORM);
-      setNotice("邀请已创建，请立即复制二维码 token 或短邀请码。");
+      setNotice(
+        invite.qr.status === "ready"
+          ? "邀请已创建，小程序码已生成。"
+          : "邀请已创建；当前显示的是开发占位图或二维码暂不可用。",
+      );
       await loadData();
     } catch (saveError) {
       setError(getErrorMessage(saveError));
@@ -116,10 +120,29 @@ export function ParentInvitesPanel() {
           <DescriptionList
             items={[
               ["短邀请码", createdInvite.shortCode],
-              ["二维码入口", `pages/parent-auth/index?token=${createdInvite.token}`],
-              ["二维码 token", createdInvite.token],
+              ["小程序码页面", createdInvite.qr.page],
+              ["小程序码 scene", createdInvite.qr.scene],
+              ["小程序码状态", formatQrStatus(createdInvite.qr.status)],
+              ["一次性 token", createdInvite.token],
             ]}
           />
+          <div className="qr-preview">
+            {createdInvite.qr.imageDataUrl ? (
+              <>
+                <img src={createdInvite.qr.imageDataUrl} alt="家长邀请小程序码" />
+                <a
+                  className="secondary-button"
+                  download={`parent-invite-${createdInvite.shortCode}.png`}
+                  href={createdInvite.qr.imageDataUrl}
+                >
+                  保存图片
+                </a>
+              </>
+            ) : (
+              <div className="empty-state">二维码暂不可用</div>
+            )}
+            <p className="muted compact">{createdInvite.qr.message}</p>
+          </div>
         </div>
       ) : null}
 
@@ -445,6 +468,12 @@ function formatApplicationStatus(status: string) {
   if (status === "approved") return "已通过";
   if (status === "rejected") return "已拒绝";
   return status;
+}
+
+function formatQrStatus(status: string) {
+  if (status === "ready") return "微信小程序码已生成";
+  if (status === "mock") return "开发占位图，不是真实微信小程序码";
+  return "暂不可用";
 }
 
 function formatDateTime(value: string | null) {
