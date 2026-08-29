@@ -12,6 +12,16 @@ export const config = {
     host: process.env.API_HOST || (isProduction ? "0.0.0.0" : "127.0.0.1"),
     port: parsePort(process.env.API_PORT || process.env.PORT, isProduction ? 8080 : 4310),
   },
+  auth: {
+    tokenSecret:
+      process.env.AUTH_TOKEN_SECRET || process.env.JWT_SECRET || "development-auth-token-secret",
+    sessionTtlDays: parsePositiveInteger(process.env.AUTH_SESSION_TTL_DAYS, 30),
+  },
+  wechat: {
+    appId: process.env.WECHAT_APP_ID || "",
+    appSecret: process.env.WECHAT_APP_SECRET || "",
+    mockLoginEnabled: !isProduction && parseBoolean(process.env.WECHAT_MOCK_LOGIN_ENABLED || "true"),
+  },
   storage: {
     provider: process.env.STORAGE_PROVIDER || "s3",
     bucket: process.env.STORAGE_BUCKET || "",

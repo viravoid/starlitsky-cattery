@@ -26,6 +26,38 @@ export interface HealthCheckData {
   timestamp: string;
 }
 
+export type UserRole = "user" | "parent" | "keeper" | "admin";
+
+export interface CurrentUserData {
+  id: string;
+  nickname: string | null;
+  avatarUrl: string | null;
+  status: string;
+  roles: UserRole[];
+  currentRole: UserRole;
+  parentProfile: {
+    id: string;
+    displayName: string;
+    status: string;
+    activatedAt: string | null;
+  } | null;
+}
+
+export interface WechatLoginRequest {
+  code: string;
+}
+
+export interface AuthSessionData {
+  token: string;
+  expiresAt: string;
+  user: CurrentUserData;
+  verificationMode: "wechat" | "mock";
+}
+
+export interface CurrentUserResponseData {
+  user: CurrentUserData;
+}
+
 export interface CatData {
   id: string;
   name: string;

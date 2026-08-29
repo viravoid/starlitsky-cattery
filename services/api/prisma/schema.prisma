@@ -22,6 +22,7 @@ model User {
   updated_at     DateTime  @updatedAt
 
   roles                    UserRole[]
+  sessions                 UserSession[]
   parent_profile           ParentProfile?
   created_parent_cat_links ParentCatLink[] @relation("ParentCatLinkCreator")
   posts                    Post[]
@@ -31,7 +32,7 @@ model User {
   @@map("users")
 }
 
-/// Supported role values for v1: user, parent, admin.
+/// Supported role values for v1: user, parent, keeper, admin.
 model UserRole {
   id         String    @id @default(uuid())
   user_id    String
@@ -45,6 +46,24 @@ model UserRole {
   @@index([user_id])
   @@index([role])
   @@map("user_roles")
+}
+
+model UserSession {
+  id           String    @id @default(uuid())
+  user_id      String
+  token_hash   String    @unique
+  user_agent   String?
+  expires_at   DateTime
+  revoked_at   DateTime?
+  created_at   DateTime  @default(now())
+  last_seen_at DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@index([revoked_at])
+  @@map("user_sessions")
 }
 
 model ParentProfile {

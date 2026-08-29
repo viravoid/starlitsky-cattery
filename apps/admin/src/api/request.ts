@@ -1,5 +1,6 @@
 import type { ApiErrorResponse, ApiResponse } from "@starlitsky/shared";
 import { getApiBaseUrl } from "../config/env";
+import { clearAdminAuthToken, getAdminAuthToken } from "./auth-token";
 
 type RequestMethod = "DELETE" | "GET" | "PATCH" | "POST";
 
@@ -29,10 +30,12 @@ async function adminRequest<TData, TBody = unknown>(
   options: AdminRequestOptions<TBody>,
   method: RequestMethod,
 ): Promise<ApiResponse<TData>> {
+  const token = getAdminAuthToken();
   const response = await fetch(buildUrl(options.path), {
     method,
     headers: {
       "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
     body: options.data === undefined ? undefined : JSON.stringify(options.data),
@@ -40,6 +43,7 @@ async function adminRequest<TData, TBody = unknown>(
 
   const payload = (await response.json().catch(() => createParseError())) as ApiResponse<TData>;
   if (response.ok) return payload;
+  if (response.status === 401) clearAdminAuthToken();
 
   return normalizeErrorResponse(payload, response.status);
 }

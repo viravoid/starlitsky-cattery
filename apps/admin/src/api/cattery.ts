@@ -5,6 +5,7 @@ import type {
   BreedingCatProfileData,
   CreateBreedingCatProfileRequest,
   CreateCatRequest,
+  CurrentUserResponseData,
   CreateKittenProfileRequest,
   CreateImageUploadRequest,
   CreateLitterRequest,
@@ -67,6 +68,10 @@ export interface ListMediaParams {
 
 export function listCats(params: ListCatsParams = {}) {
   return unwrap<CatListData>(adminGet(`/cats${toSearch(params)}`));
+}
+
+export function getCurrentAdminUser() {
+  return unwrap<CurrentUserResponseData>(adminGet("/auth/me"));
 }
 
 export function getCat(id: string) {

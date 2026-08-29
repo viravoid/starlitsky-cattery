@@ -10,15 +10,17 @@ import {
   updateMediaBinding,
 } from "../services/media-service.mjs";
 import { completeMediaUpload, requestImageUpload } from "../services/media-upload-service.mjs";
+import { requireAdminMutationRole } from "../middleware/auth.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
-export async function routeMediaRequest(request, response, url) {
+export async function routeMediaRequest(request, response, url, context) {
   const bindingRoute = matchMediaBindingRoute(url.pathname);
   if (bindingRoute) {
     if (bindingRoute.bindingId) {
       if (request.method === "PATCH") {
+        await requireAdminMutationRole(request, context.config);
         sendSuccess(response, {
           data: await updateMediaBinding(
             bindingRoute.mediaId,
@@ -31,6 +33,7 @@ export async function routeMediaRequest(request, response, url) {
       }
 
       if (request.method === "DELETE") {
+        await requireAdminMutationRole(request, context.config);
         sendSuccess(response, {
           data: await deleteMediaBinding(bindingRoute.mediaId, bindingRoute.bindingId),
           message: "Media binding deleted",
@@ -49,6 +52,7 @@ export async function routeMediaRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await createMediaBinding(bindingRoute.mediaId, await readJsonBody(request)),
@@ -62,6 +66,7 @@ export async function routeMediaRequest(request, response, url) {
 
   if (url.pathname === "/media/uploads") {
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await requestImageUpload(await readJsonBody(request)),
@@ -76,6 +81,7 @@ export async function routeMediaRequest(request, response, url) {
   const uploadCompleteRoute = matchMediaUploadCompleteRoute(url.pathname);
   if (uploadCompleteRoute) {
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await completeMediaUpload(uploadCompleteRoute.mediaId, await readJsonBody(request)),
         message: "Media upload completed",
@@ -97,6 +103,7 @@ export async function routeMediaRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await createMedia(await readJsonBody(request)),
@@ -117,6 +124,7 @@ export async function routeMediaRequest(request, response, url) {
     }
 
     if (request.method === "PATCH") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await updateMedia(id, await readJsonBody(request)),
         message: "Media asset updated",
@@ -125,6 +133,7 @@ export async function routeMediaRequest(request, response, url) {
     }
 
     if (request.method === "DELETE") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await deleteMedia(id),
         message: "Media asset deleted",

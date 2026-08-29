@@ -1,3 +1,8 @@
+import { refreshCurrentUser } from "./utils/session/auth";
+
 App({
-  globalData: {}
+  onLaunch() {
+    void refreshCurrentUser();
+  },
+  globalData: {},
 });

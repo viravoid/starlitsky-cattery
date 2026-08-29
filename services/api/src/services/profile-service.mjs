@@ -231,6 +231,11 @@ export async function createParentProfile(input) {
     const user = await transaction.user.create({
       data: {
         nickname: nullableString(input.displayName, "displayName"),
+        roles: {
+          create: {
+            role: "parent",
+          },
+        },
       },
     });
 
