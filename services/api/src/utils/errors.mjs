@@ -17,6 +17,22 @@ export function badRequest(message = "Invalid request parameters", details) {
   });
 }
 
+export function unauthorized(message = "Authentication required") {
+  return new ApiError({
+    statusCode: 401,
+    code: "UNAUTHORIZED",
+    message,
+  });
+}
+
+export function forbidden(message = "Insufficient permissions") {
+  return new ApiError({
+    statusCode: 403,
+    code: "FORBIDDEN",
+    message,
+  });
+}
+
 export function notFound(message = "Not found") {
   return new ApiError({
     statusCode: 404,

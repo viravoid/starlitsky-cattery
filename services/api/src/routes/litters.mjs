@@ -6,11 +6,12 @@ import {
   updateLitter,
 } from "../services/litter-service.mjs";
 import { attachExistingCatToLitter, listLitterKittens } from "../services/profile-service.mjs";
+import { requireAdminMutationRole } from "../middleware/auth.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
-export async function routeLittersRequest(request, response, url) {
+export async function routeLittersRequest(request, response, url, context) {
   const kittensLitterId = matchNestedLitterId(url.pathname, "kittens");
   if (kittensLitterId) {
     if (request.method === "GET") {
@@ -21,6 +22,7 @@ export async function routeLittersRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await attachExistingCatToLitter(kittensLitterId, await readJsonBody(request)),
@@ -43,6 +45,7 @@ export async function routeLittersRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await createLitter(await readJsonBody(request)),
@@ -63,6 +66,7 @@ export async function routeLittersRequest(request, response, url) {
     }
 
     if (request.method === "PATCH") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await updateLitter(id, await readJsonBody(request)),
         message: "Litter updated",
@@ -71,6 +75,7 @@ export async function routeLittersRequest(request, response, url) {
     }
 
     if (request.method === "DELETE") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await deleteLitter(id),
         message: "Litter deleted",

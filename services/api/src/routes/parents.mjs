@@ -3,13 +3,15 @@ import {
   listParentProfiles,
   updateParentCatLink,
 } from "../services/profile-service.mjs";
+import { requireAdminMutationRole } from "../middleware/auth.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
-export async function routeParentsRequest(request, response, url) {
+export async function routeParentsRequest(request, response, url, context) {
   if (url.pathname === "/parent-profiles") {
     if (request.method === "GET") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await listParentProfiles(url.searchParams),
       });
@@ -17,6 +19,7 @@ export async function routeParentsRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await createParentProfile(await readJsonBody(request)),
@@ -31,6 +34,7 @@ export async function routeParentsRequest(request, response, url) {
   const parentCatLinkId = matchParentCatLinkId(url.pathname);
   if (parentCatLinkId) {
     if (request.method === "PATCH") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await updateParentCatLink(parentCatLinkId, await readJsonBody(request)),
         message: "Parent cat link updated",

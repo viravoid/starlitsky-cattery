@@ -9,11 +9,12 @@ import {
   updateBreedingProfile,
   updateKittenProfile,
 } from "../services/profile-service.mjs";
+import { requireAdminMutationRole } from "../middleware/auth.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
-export async function routeCatsRequest(request, response, url) {
+export async function routeCatsRequest(request, response, url, context) {
   const breedingProfileCatId = matchNestedCatId(url.pathname, "breeding-profile");
   if (breedingProfileCatId) {
     if (request.method === "GET") {
@@ -24,6 +25,7 @@ export async function routeCatsRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await createBreedingProfile(breedingProfileCatId, await readJsonBody(request)),
@@ -33,6 +35,7 @@ export async function routeCatsRequest(request, response, url) {
     }
 
     if (request.method === "PATCH") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await updateBreedingProfile(breedingProfileCatId, await readJsonBody(request)),
         message: "Breeding profile updated",
@@ -53,6 +56,7 @@ export async function routeCatsRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await createKittenProfile(kittenProfileCatId, await readJsonBody(request)),
@@ -62,6 +66,7 @@ export async function routeCatsRequest(request, response, url) {
     }
 
     if (request.method === "PATCH") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await updateKittenProfile(kittenProfileCatId, await readJsonBody(request)),
         message: "Kitten profile updated",
@@ -75,6 +80,7 @@ export async function routeCatsRequest(request, response, url) {
   const parentLinksCatId = matchNestedCatId(url.pathname, "parent-links");
   if (parentLinksCatId) {
     if (request.method === "GET") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await listCatParentLinks(parentLinksCatId),
       });
@@ -82,6 +88,7 @@ export async function routeCatsRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await createCatParentLink(parentLinksCatId, await readJsonBody(request)),
@@ -104,6 +111,7 @@ export async function routeCatsRequest(request, response, url) {
     }
 
     if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
         data: await createCat(await readJsonBody(request)),
@@ -124,6 +132,7 @@ export async function routeCatsRequest(request, response, url) {
     }
 
     if (request.method === "PATCH") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await updateCat(id, await readJsonBody(request)),
         message: "Cat updated",
@@ -132,6 +141,7 @@ export async function routeCatsRequest(request, response, url) {
     }
 
     if (request.method === "DELETE") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await deleteCat(id),
         message: "Cat deleted",

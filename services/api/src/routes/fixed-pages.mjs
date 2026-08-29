@@ -1,9 +1,10 @@
 import { getFixedPage, listFixedPages, updateFixedPage } from "../services/fixed-page-service.mjs";
+import { requireAdminMutationRole } from "../middleware/auth.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
-export async function routeFixedPagesRequest(request, response, url) {
+export async function routeFixedPagesRequest(request, response, url, context) {
   if (url.pathname === "/fixed-pages") {
     if (request.method === "GET") {
       sendSuccess(response, {
@@ -25,6 +26,7 @@ export async function routeFixedPagesRequest(request, response, url) {
     }
 
     if (request.method === "PATCH") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await updateFixedPage(slug, await readJsonBody(request)),
         message: "Fixed page updated",

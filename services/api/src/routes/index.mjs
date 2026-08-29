@@ -1,3 +1,4 @@
+import { routeAuthRequest } from "./auth.mjs";
 import { handleHealth } from "./health.mjs";
 import { routeCatsRequest } from "./cats.mjs";
 import { routeFixedPagesRequest } from "./fixed-pages.mjs";
@@ -23,28 +24,33 @@ export async function routeRequest(request, response, context) {
     return;
   }
 
+  if (url.pathname === "/auth" || url.pathname.startsWith("/auth/")) {
+    await routeAuthRequest(request, response, url, context);
+    return;
+  }
+
   if (url.pathname === "/cats" || url.pathname.startsWith("/cats/")) {
-    await routeCatsRequest(request, response, url);
+    await routeCatsRequest(request, response, url, context);
     return;
   }
 
   if (url.pathname === "/litters" || url.pathname.startsWith("/litters/")) {
-    await routeLittersRequest(request, response, url);
+    await routeLittersRequest(request, response, url, context);
     return;
   }
 
   if (url.pathname === "/fixed-pages" || url.pathname.startsWith("/fixed-pages/")) {
-    await routeFixedPagesRequest(request, response, url);
+    await routeFixedPagesRequest(request, response, url, context);
     return;
   }
 
   if (url.pathname === "/media" || url.pathname.startsWith("/media/")) {
-    await routeMediaRequest(request, response, url);
+    await routeMediaRequest(request, response, url, context);
     return;
   }
 
   if (url.pathname === "/parent-profiles" || url.pathname.startsWith("/parent-cat-links/")) {
-    await routeParentsRequest(request, response, url);
+    await routeParentsRequest(request, response, url, context);
     return;
   }
 

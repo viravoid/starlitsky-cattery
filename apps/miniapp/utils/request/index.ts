@@ -1,8 +1,8 @@
 import type { ApiErrorResponse, ApiResponse } from "@starlitsky/shared";
 import { getApiBaseUrl } from "../../config/env";
-import { getToken } from "../session/token-storage";
+import { clearToken, getToken } from "../session/token-storage";
 
-type RequestMethod = "GET" | "POST";
+type RequestMethod = "DELETE" | "GET" | "PATCH" | "POST";
 
 export interface RequestOptions<TBody = unknown> {
   url: string;
@@ -20,6 +20,18 @@ export function post<TResponse, TBody = unknown>(
   options: Omit<RequestOptions<TBody>, "url" | "data"> = {},
 ) {
   return request<TResponse>({ ...options, url, data }, "POST");
+}
+
+export function patch<TResponse, TBody = unknown>(
+  url: string,
+  data?: TBody,
+  options: Omit<RequestOptions<TBody>, "url" | "data"> = {},
+) {
+  return request<TResponse>({ ...options, url, data }, "PATCH");
+}
+
+export function del<TResponse>(url: string, options: Omit<RequestOptions, "url"> = {}) {
+  return request<TResponse>({ ...options, url }, "DELETE");
 }
 
 function request<TResponse, TBody = unknown>(
@@ -44,7 +56,11 @@ function request<TResponse, TBody = unknown>(
           return;
         }
 
-        reject(normalizeError(response.statusCode));
+        if (response.statusCode === 401) {
+          clearToken();
+        }
+
+        reject(normalizeError(response.statusCode, response.data));
       },
       fail(error) {
         reject({
@@ -62,7 +78,16 @@ function buildUrl(path: string) {
   return `${getApiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-function normalizeError(statusCode: number): ApiErrorResponse {
+function normalizeError(statusCode: number, data: unknown): ApiErrorResponse {
+  if (
+    data &&
+    typeof data === "object" &&
+    "success" in data &&
+    (data as { success?: unknown }).success === false
+  ) {
+    return data as ApiErrorResponse;
+  }
+
   return {
     success: false,
     error: { code: `HTTP_${statusCode}` },
