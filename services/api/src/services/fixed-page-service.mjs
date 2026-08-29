@@ -7,7 +7,7 @@ const FIXED_PAGE_DEFINITIONS = [
   { slug: "philosophy", title: "繁育理念" },
   { slug: "environment", title: "猫舍环境" },
   { slug: "feeding", title: "喂养体系" },
-  { slug: "process", title: "选猫流程" },
+  { slug: "process", title: "价格与接猫流程" },
   { slug: "aftercare", title: "售后保障" },
   { slug: "contact", title: "联系方式" },
   { slug: "questionnaire", title: "选猫问卷" },

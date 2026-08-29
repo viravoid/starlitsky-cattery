@@ -68,9 +68,27 @@ export interface CatData {
   personality: string | null;
   storyJson: unknown;
   visibility: string;
+  breedingProfile: BreedingCatProfileData | null;
+  kittenProfile:
+    | (KittenProfileData & {
+        litter?: KittenProfileData["litter"] | null;
+      })
+    | null;
+  mediaAssets: CatMediaAssetData[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+}
+
+export interface CatMediaAssetData {
+  id: string;
+  kind: string;
+  sourceUrl: string;
+  thumbnailUrl: string | null;
+  title: string | null;
+  altText: string | null;
+  usage: string;
+  sortOrder: number;
 }
 
 export interface CreateCatRequest {

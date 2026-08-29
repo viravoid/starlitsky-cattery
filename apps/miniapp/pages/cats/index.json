@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "我们的猫"
+  "navigationBarTitleText": "我们的猫",
+  "enablePullDownRefresh": true
 }
