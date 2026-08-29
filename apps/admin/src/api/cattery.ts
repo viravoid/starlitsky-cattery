@@ -5,8 +5,10 @@ import type {
   BreedingCatProfileData,
   CreateBreedingCatProfileRequest,
   CreateCatRequest,
+  CreatedParentInviteData,
   CurrentUserResponseData,
   CreateKittenProfileRequest,
+  CreateParentInviteRequest,
   CreateImageUploadRequest,
   CreateLitterRequest,
   CreateMediaAssetRequest,
@@ -23,9 +25,14 @@ import type {
   MediaAssetData,
   MediaAssetListData,
   MediaBindingData,
+  ParentApplicationData,
+  ParentApplicationListData,
   ParentCatLinkData,
   ParentProfileData,
   ParentProfileListData,
+  ParentInviteData,
+  ParentInviteListData,
+  ReviewParentApplicationRequest,
   UpdateBreedingCatProfileRequest,
   UpdateCatRequest,
   UpdateKittenProfileRequest,
@@ -176,6 +183,38 @@ export function updateParentCatLink(id: string, data: UpdateParentCatLinkRequest
   );
 }
 
+export function listParentInvites(params: ListParentInvitesParams = {}) {
+  return unwrap<ParentInviteListData>(adminGet(`/parent-invites${toSearch(params)}`));
+}
+
+export function createParentInvite(data: CreateParentInviteRequest) {
+  return unwrap<CreatedParentInviteData, CreateParentInviteRequest>(
+    adminPost("/parent-invites", data),
+  );
+}
+
+export function revokeParentInvite(id: string, data: ReviewParentApplicationRequest = {}) {
+  return unwrap<ParentInviteData, ReviewParentApplicationRequest>(
+    adminPost(`/parent-invites/${encodeURIComponent(id)}/revoke`, data),
+  );
+}
+
+export function listParentApplications(params: ListParentApplicationsParams = {}) {
+  return unwrap<ParentApplicationListData>(adminGet(`/parent-applications${toSearch(params)}`));
+}
+
+export function approveParentApplication(id: string, data: ReviewParentApplicationRequest = {}) {
+  return unwrap<ParentApplicationData, ReviewParentApplicationRequest>(
+    adminPost(`/parent-applications/${encodeURIComponent(id)}/approve`, data),
+  );
+}
+
+export function rejectParentApplication(id: string, data: ReviewParentApplicationRequest = {}) {
+  return unwrap<ParentApplicationData, ReviewParentApplicationRequest>(
+    adminPost(`/parent-applications/${encodeURIComponent(id)}/reject`, data),
+  );
+}
+
 export function listMedia(params: ListMediaParams = {}) {
   return unwrap<MediaAssetListData>(adminGet(`/media${toSearch(params)}`));
 }
@@ -322,6 +361,20 @@ export function archiveMediaBinding(mediaId: string, bindingId: string) {
 }
 
 export interface ListParentProfilesParams {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: string;
+}
+
+export interface ListParentInvitesParams {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: string;
+}
+
+export interface ListParentApplicationsParams {
   page?: number;
   pageSize?: number;
   q?: string;

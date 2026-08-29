@@ -15,6 +15,7 @@ declare const wx: {
     success(response: { code: string; errMsg?: string }): void;
     fail(error: { errMsg?: string }): void;
   }): void;
+  showToast(options: { title: string; icon?: "none" | "success" | "error" | "loading" }): void;
   getStorageSync(key: string): string;
   setStorageSync(key: string, value: string): void;
   removeStorageSync(key: string): void;

@@ -24,7 +24,11 @@ model User {
   roles                    UserRole[]
   sessions                 UserSession[]
   parent_profile           ParentProfile?
-  created_parent_cat_links ParentCatLink[] @relation("ParentCatLinkCreator")
+  created_parent_invites   ParentInvite[]      @relation("ParentInviteCreator")
+  reviewed_parent_invites  ParentInvite[]      @relation("ParentInviteRevoker")
+  parent_applications      ParentApplication[] @relation("ParentApplicationUser")
+  reviewed_applications    ParentApplication[] @relation("ParentApplicationReviewer")
+  created_parent_cat_links ParentCatLink[]     @relation("ParentCatLinkCreator")
   posts                    Post[]
   comments                 Comment[]
   post_likes               PostLike[]
@@ -80,11 +84,73 @@ model ParentProfile {
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
-  user             User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user             User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
   parent_cat_links ParentCatLink[]
+  applications     ParentApplication[]
 
   @@index([status])
   @@map("parent_profiles")
+}
+
+/// Invitations gate parent applications only. They never grant roles directly.
+model ParentInvite {
+  id            String    @id @default(uuid())
+  token_hash    String    @unique
+  qr_scene_hash String?   @unique
+  short_code    String    @unique
+  status        String    @default("active")
+  max_uses      Int       @default(1)
+  used_count    Int       @default(0)
+  expires_at    DateTime?
+  note          String?
+  created_by    String?
+  revoked_by    String?
+  revoked_at    DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  creator      User?               @relation("ParentInviteCreator", fields: [created_by], references: [id], onDelete: SetNull)
+  revoker      User?               @relation("ParentInviteRevoker", fields: [revoked_by], references: [id], onDelete: SetNull)
+  applications ParentApplication[]
+
+  @@index([short_code])
+  @@index([status])
+  @@index([expires_at])
+  @@map("parent_invites")
+}
+
+/// Parent self-service applications keep unapproved claims out of canonical
+/// ParentProfile, ParentCatLink, and Cat records until an admin approves them.
+model ParentApplication {
+  id                         String    @id @default(uuid())
+  user_id                    String
+  invite_id                  String
+  pending_dedup_key          String?   @unique
+  status                     String    @default("pending")
+  display_name               String
+  real_name                  String?
+  contact_phone              String?
+  contact_wechat             String?
+  city                       String?
+  existing_cat_claims_json   Json?
+  new_cats_json              Json?
+  admin_note                 String?
+  reviewed_by                String?
+  reviewed_at                DateTime?
+  approved_parent_profile_id String?
+  created_at                 DateTime  @default(now())
+  updated_at                 DateTime  @updatedAt
+
+  user                    User           @relation("ParentApplicationUser", fields: [user_id], references: [id], onDelete: Cascade)
+  invite                  ParentInvite   @relation(fields: [invite_id], references: [id], onDelete: Restrict)
+  reviewer                User?          @relation("ParentApplicationReviewer", fields: [reviewed_by], references: [id], onDelete: SetNull)
+  approved_parent_profile ParentProfile? @relation(fields: [approved_parent_profile_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([invite_id])
+  @@index([status])
+  @@index([created_at])
+  @@map("parent_applications")
 }
 
 /// One cat keeps the same id across birth, finding a home, retention,
@@ -181,6 +247,7 @@ model ParentCatLink {
   id                String    @id @default(uuid())
   parent_profile_id String
   cat_id            String
+  active_dedup_key  String?   @unique
   relationship      String
   status            String    @default("active")
   started_at        DateTime?

@@ -246,6 +246,163 @@ export interface UpdateParentCatLinkRequest {
   status: string;
 }
 
+export type ParentInviteStatus = "active" | "used" | "revoked";
+export type ParentApplicationStatus = "pending" | "approved" | "rejected";
+
+export interface UserSummaryData {
+  id: string;
+  nickname: string | null;
+  avatarUrl: string | null;
+  phone: string | null;
+}
+
+export interface ParentInviteData {
+  id: string;
+  shortCode: string;
+  status: ParentInviteStatus | string;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  note: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: UserSummaryData | null;
+  revokedBy: UserSummaryData | null;
+  isUsable: boolean;
+  invalidReason: string | null;
+}
+
+export interface CreatedParentInviteData extends ParentInviteData {
+  token: string;
+  qr: ParentInviteQrData;
+}
+
+export interface ParentInviteQrData {
+  provider: "wechat" | "dev-mock" | "unavailable";
+  status: "ready" | "mock" | "unavailable";
+  page: string;
+  scene: string;
+  imageDataUrl: string | null;
+  message: string;
+}
+
+export interface ParentInvitePublicData {
+  id: string;
+  shortCode: string;
+  status: ParentInviteStatus | string;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  isUsable: boolean;
+  invalidReason: string | null;
+}
+
+export interface VerifyParentInviteData {
+  valid: boolean;
+  reason: string | null;
+  invite: ParentInvitePublicData | null;
+}
+
+export interface CreateParentInviteRequest {
+  expiresAt?: string | null;
+  maxUses?: number;
+  note?: string | null;
+}
+
+export interface ReviewParentApplicationRequest {
+  adminNote?: string | null;
+}
+
+export interface ExistingCatClaimData {
+  catId: string;
+  relationship: string;
+  startedAt: string | null;
+  note: string | null;
+  cat?: {
+    id: string;
+    name: string;
+    gender: string | null;
+    color: string | null;
+    lifecycleStatus: string;
+    visibility: string;
+    deletedAt: string | null;
+  } | null;
+}
+
+export interface NewCatApplicationData {
+  name: string;
+  gender: string | null;
+  color: string | null;
+  birthday: string | null;
+  arrivedAt: string | null;
+  personality: string | null;
+  note: string | null;
+  relationship: string;
+}
+
+export interface SubmitParentApplicationRequest {
+  inviteCode?: string;
+  inviteToken?: string;
+  qrCredential?: string;
+  displayName: string;
+  realName?: string | null;
+  contactPhone?: string | null;
+  contactWechat?: string | null;
+  city?: string | null;
+  existingCatClaims?: Array<{
+    catId: string;
+    relationship?: string;
+    startedAt?: string | null;
+    note?: string | null;
+  }>;
+  newCats?: Array<{
+    name: string;
+    gender?: string | null;
+    color?: string | null;
+    birthday?: string | null;
+    arrivedAt?: string | null;
+    personality?: string | null;
+    note?: string | null;
+    relationship?: string;
+  }>;
+}
+
+export interface ParentApplicationData {
+  id: string;
+  userId: string;
+  status: ParentApplicationStatus | string;
+  displayName: string;
+  realName: string | null;
+  contactPhone: string | null;
+  contactWechat: string | null;
+  city: string | null;
+  existingCatClaims: ExistingCatClaimData[];
+  newCats: NewCatApplicationData[];
+  adminNote: string | null;
+  reviewedAt: string | null;
+  approvedParentProfileId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: UserSummaryData | null;
+  invite: ParentInvitePublicData | null;
+  reviewedBy: UserSummaryData | null;
+}
+
+export type ParentInviteListData = PaginatedResponse<ParentInviteData>;
+export type ParentApplicationListData = PaginatedResponse<ParentApplicationData>;
+
+export interface ParentClaimCatCandidateData {
+  id: string;
+  name: string;
+  gender: string | null;
+  color: string | null;
+  birthday: string | null;
+  lifecycleStatus: string;
+}
+
+export type ParentClaimCatCandidateListData = PaginatedResponse<ParentClaimCatCandidateData>;
+
 export interface MediaBindingData {
   id: string;
   mediaId: string;

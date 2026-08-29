@@ -38,8 +38,8 @@ const PARENT_LINK_CREATE_FIELDS = [
 ];
 const PARENT_LINK_UPDATE_FIELDS = ["status"];
 
-export async function getBreedingProfile(catId) {
-  await ensureActiveCatExists(catId);
+export async function getBreedingProfile(catId, options = { includeHidden: true }) {
+  await ensureActiveCatExists(catId, options);
   const profile = await prisma.breedingCatProfile.findUnique({
     where: { cat_id: catId },
   });
@@ -86,8 +86,8 @@ export async function updateBreedingProfile(catId, input) {
   return toBreedingProfileDto(profile);
 }
 
-export async function getKittenProfile(catId) {
-  await ensureActiveCatExists(catId);
+export async function getKittenProfile(catId, options = { includeHidden: true }) {
+  await ensureActiveCatExists(catId, options);
   const profile = await prisma.kittenProfile.findUnique({
     where: { cat_id: catId },
     include: {
@@ -276,20 +276,32 @@ export async function createCatParentLink(catId, input) {
   await ensureActiveCatExists(catId);
 
   const parentProfileId = requiredString(input.parentProfileId, "parentProfileId");
+  const relationship = requiredString(input.relationship, "relationship");
+  const status = optionalString(input.status, "status") ?? "active";
   await ensureParentProfileExists(parentProfileId);
 
-  const link = await prisma.parentCatLink.create({
-    data: {
-      cat_id: catId,
-      parent_profile_id: parentProfileId,
-      relationship: requiredString(input.relationship, "relationship"),
-      status: optionalString(input.status, "status") ?? "active",
-      started_at: parseNullableDate(input.startedAt, "startedAt"),
-      ended_at: parseNullableDate(input.endedAt, "endedAt"),
-      note: nullableString(input.note, "note"),
-    },
-    include: { parent_profile: true },
-  });
+  let link;
+  try {
+    link = await prisma.parentCatLink.create({
+      data: {
+        cat_id: catId,
+        parent_profile_id: parentProfileId,
+        active_dedup_key:
+          status === "active"
+            ? buildParentCatLinkDedupKey(parentProfileId, catId, relationship)
+            : null,
+        relationship,
+        status,
+        started_at: parseNullableDate(input.startedAt, "startedAt"),
+        ended_at: parseNullableDate(input.endedAt, "endedAt"),
+        note: nullableString(input.note, "note"),
+      },
+      include: { parent_profile: true },
+    });
+  } catch (error) {
+    if (error?.code === "P2002") throw badRequest("Parent cat link already exists");
+    throw error;
+  }
 
   return toParentCatLinkDto(link);
 }
@@ -310,6 +322,14 @@ export async function updateParentCatLink(linkId, input) {
     where: { id: linkId },
     data: {
       status: requiredString(input.status, "status"),
+      active_dedup_key:
+        input.status === "active"
+          ? buildParentCatLinkDedupKey(
+              existing.parent_profile_id,
+              existing.cat_id,
+              existing.relationship,
+            )
+          : null,
     },
     include: { parent_profile: true },
   });
@@ -317,11 +337,12 @@ export async function updateParentCatLink(linkId, input) {
   return toParentCatLinkDto(link);
 }
 
-async function ensureActiveCatExists(catId) {
+async function ensureActiveCatExists(catId, options = { includeHidden: true }) {
   const cat = await prisma.cat.findFirst({
     where: {
       id: catId,
       deleted_at: null,
+      ...(options.includeHidden ? {} : { visibility: "visible" }),
     },
     select: { id: true },
   });
@@ -563,6 +584,10 @@ function parseNullableDate(value, fieldName) {
 
 function removeUndefined(data) {
   return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+}
+
+function buildParentCatLinkDedupKey(parentProfileId, catId, relationship) {
+  return `${parentProfileId}:${catId}:${relationship}`;
 }
 
 function toIsoString(value) {
