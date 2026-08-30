@@ -3,6 +3,7 @@
     <text class="eyebrow">Community</text>
     <text class="title">猫友圈</text>
     <text class="subtitle">猫舍日常、碎碎念和家长分享</text>
+    <button wx:if="{{canPublish}}" class="publish-button" bindtap="openPublish">发布动态</button>
   </view>
 
   <scroll-view class="category-tabs" scroll-x enable-flex>
@@ -73,6 +74,13 @@
       </view>
 
       <view class="post-foot">
+        <button
+          class="{{item.likedByMe ? 'like-button liked' : 'like-button'}}"
+          data-id="{{item.id}}"
+          catchtap="toggleLike"
+        >
+          {{item.likedByMe ? '已喜欢' : '喜欢'}}
+        </button>
         <text>{{item.meta}}</text>
         <text wx:if="{{item.imageCount > 1}}">{{item.imageCount}} 张图片</text>
         <text class="read-more">查看详情 ›</text>

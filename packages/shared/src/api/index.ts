@@ -525,6 +525,7 @@ export interface CommunityPostRelatedCatData {
   gender: string | null;
   color: string | null;
   lifecycleStatus: string;
+  visibility?: string;
 }
 
 export interface CommunityPostRelatedLitterData {
@@ -533,6 +534,20 @@ export interface CommunityPostRelatedLitterData {
   status: string;
   birthDate: string | null;
   expectedBirthDate: string | null;
+  visibility?: string;
+}
+
+export interface CommunityCommentData {
+  id: string;
+  postId: string;
+  authorName: string;
+  authorRole: string;
+  content: string;
+  visibility: string;
+  canDelete: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
 }
 
 export interface CommunityPostData {
@@ -541,17 +556,53 @@ export interface CommunityPostData {
   authorRole: string;
   category: CommunityPostCategory | string;
   content: string;
+  visibility: string;
   pinned: boolean;
   cats: CommunityPostRelatedCatData[];
   litters: CommunityPostRelatedLitterData[];
   mediaAssets: CommunityPostMediaAssetData[];
+  comments: CommunityCommentData[];
   commentCount: number;
   likeCount: number;
+  likedByMe: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export type CommunityPostListData = PaginatedResponse<CommunityPostData>;
+
+export interface CommunityPostOptionsData {
+  categories: CommunityPostCategory[];
+  cats: Array<
+    CommunityPostRelatedCatData & {
+      relationship?: string;
+      startedAt?: string | null;
+    }
+  >;
+  litters: CommunityPostRelatedLitterData[];
+}
+
+export interface CreateCommunityPostRequest {
+  category: CommunityPostCategory;
+  content: string;
+  catIds?: string[];
+  litterIds?: string[];
+  visibility?: string;
+  pinned?: boolean;
+}
+
+export type UpdateCommunityPostRequest = Partial<CreateCommunityPostRequest>;
+
+export interface ToggleCommunityPostLikeData {
+  liked: boolean;
+  likeCount: number;
+}
+
+export interface CreateCommunityCommentRequest {
+  content: string;
+}
 
 export interface MediaBindingData {
   id: string;
