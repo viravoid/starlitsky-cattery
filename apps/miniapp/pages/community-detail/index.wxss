@@ -1,0 +1,163 @@
+.page {
+  min-height: 100vh;
+  padding: 30rpx 24rpx calc(88rpx + env(safe-area-inset-bottom));
+  background: var(--xy-color-background);
+}
+
+.state {
+  padding: 120rpx 20rpx;
+  color: var(--xy-color-muted);
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.error {
+  color: #b42318;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22rpx;
+}
+
+.retry-button {
+  min-width: 176rpx;
+  padding: 0 28rpx;
+  border-radius: 999rpx;
+  background: var(--xy-color-primary);
+  color: #ffffff;
+  font-size: 25rpx;
+  line-height: 72rpx;
+}
+
+.retry-button::after {
+  border: 0;
+}
+
+.post {
+  padding: 26rpx 22rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 24rpx;
+  background: var(--xy-color-surface);
+}
+
+.post-head,
+.tag-row,
+.links,
+.link-group,
+.meta-row {
+  display: flex;
+}
+
+.post-head {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.author,
+.date,
+.content,
+.link-label,
+.meta-row text {
+  display: block;
+}
+
+.author {
+  color: #41546c;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.date {
+  margin-top: 6rpx;
+  color: var(--xy-color-muted);
+  font-size: 22rpx;
+}
+
+.tag-row {
+  flex-shrink: 0;
+  gap: 8rpx;
+}
+
+.pin,
+.category,
+.link-pill {
+  border-radius: 999rpx;
+  font-weight: 700;
+}
+
+.pin,
+.category {
+  padding: 4rpx 14rpx;
+  font-size: 21rpx;
+}
+
+.pin {
+  background: #f6dfc5;
+  color: #9a5b28;
+}
+
+.category {
+  background: #e9f1f8;
+  color: #55799f;
+}
+
+.content {
+  margin-top: 28rpx;
+  color: var(--xy-color-text);
+  font-size: 29rpx;
+  line-height: 1.72;
+  white-space: pre-wrap;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+  margin-top: 24rpx;
+}
+
+.gallery-image {
+  width: 100%;
+  height: 260rpx;
+  border-radius: 20rpx;
+  background: #f6ecd3;
+}
+
+.links {
+  flex-direction: column;
+  gap: 18rpx;
+  margin-top: 26rpx;
+  padding-top: 22rpx;
+  border-top: 1rpx solid var(--xy-color-border);
+}
+
+.link-group {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.link-label {
+  width: 128rpx;
+  color: var(--xy-color-muted);
+  font-size: 23rpx;
+}
+
+.link-pill {
+  max-width: 460rpx;
+  padding: 6rpx 16rpx;
+  background: #f9f0d4;
+  color: #9a7424;
+  font-size: 23rpx;
+}
+
+.meta-row {
+  justify-content: flex-end;
+  margin-top: 24rpx;
+  color: var(--xy-color-muted);
+  font-size: 24rpx;
+}

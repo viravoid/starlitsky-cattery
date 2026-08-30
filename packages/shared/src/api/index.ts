@@ -506,6 +506,53 @@ export interface UpdateSelectionApplicationReviewRequest {
   adminNote?: string | null;
 }
 
+export type CommunityPostCategory = "cattery_daily" | "parent_share" | "personal_thoughts";
+
+export interface CommunityPostMediaAssetData {
+  id: string;
+  kind: string;
+  sourceUrl: string;
+  thumbnailUrl: string | null;
+  title: string | null;
+  altText: string | null;
+  usage: string;
+  sortOrder: number;
+}
+
+export interface CommunityPostRelatedCatData {
+  id: string;
+  name: string;
+  gender: string | null;
+  color: string | null;
+  lifecycleStatus: string;
+}
+
+export interface CommunityPostRelatedLitterData {
+  id: string;
+  name: string;
+  status: string;
+  birthDate: string | null;
+  expectedBirthDate: string | null;
+}
+
+export interface CommunityPostData {
+  id: string;
+  authorName: string;
+  authorRole: string;
+  category: CommunityPostCategory | string;
+  content: string;
+  pinned: boolean;
+  cats: CommunityPostRelatedCatData[];
+  litters: CommunityPostRelatedLitterData[];
+  mediaAssets: CommunityPostMediaAssetData[];
+  commentCount: number;
+  likeCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CommunityPostListData = PaginatedResponse<CommunityPostData>;
+
 export interface MediaBindingData {
   id: string;
   mediaId: string;

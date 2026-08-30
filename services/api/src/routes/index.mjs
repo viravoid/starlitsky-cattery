@@ -1,6 +1,7 @@
 import { routeAuthRequest } from "./auth.mjs";
 import { handleHealth } from "./health.mjs";
 import { routeCatsRequest } from "./cats.mjs";
+import { routeCommunityRequest } from "./community.mjs";
 import { routeFixedPagesRequest } from "./fixed-pages.mjs";
 import { routeLittersRequest } from "./litters.mjs";
 import { routeMediaRequest } from "./media.mjs";
@@ -32,6 +33,11 @@ export async function routeRequest(request, response, context) {
 
   if (url.pathname === "/cats" || url.pathname.startsWith("/cats/")) {
     await routeCatsRequest(request, response, url, context);
+    return;
+  }
+
+  if (url.pathname === "/community/posts" || url.pathname.startsWith("/community/posts/")) {
+    await routeCommunityRequest(request, response, url, context);
     return;
   }
 
