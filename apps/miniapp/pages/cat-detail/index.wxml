@@ -1,0 +1,44 @@
+<view class="page">
+  <view wx:if="{{isLoading}}" class="state">正在加载猫咪详情...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+
+  <view wx:elif="{{cat}}">
+    <view class="gallery">
+      <block wx:if="{{gallery.length}}">
+        <image
+          wx:for="{{gallery}}"
+          wx:key="*this"
+          class="hero-image"
+          src="{{item}}"
+          mode="aspectFill"
+          data-url="{{item}}"
+          bindtap="previewImage"
+        />
+      </block>
+      <view wx:else class="hero-empty">星月缅因猫舍</view>
+    </view>
+
+    <view class="title-row">
+      <view>
+        <text class="eyebrow">{{kindLabel}}</text>
+        <text class="name">{{cat.name}}</text>
+      </view>
+      <text class="pill">{{statusLabel}}</text>
+    </view>
+
+    <view class="info-grid">
+      <view wx:for="{{info}}" wx:key="label" class="info-card">
+        <text class="info-label">{{item.label}}</text>
+        <text class="info-value">{{item.value}}</text>
+      </view>
+    </view>
+
+    <view class="note">
+      <text class="note-title">主理人手记</text>
+      <text class="note-body">{{note}}</text>
+    </view>
+  </view>
+</view>

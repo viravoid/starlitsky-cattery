@@ -1,0 +1,150 @@
+.page {
+  min-height: 100vh;
+  padding: 24rpx 30rpx calc(72rpx + env(safe-area-inset-bottom));
+  background: var(--xy-color-background);
+}
+
+.state {
+  padding: 120rpx 20rpx;
+  color: var(--xy-color-muted);
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.error {
+  color: #b42318;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22rpx;
+}
+
+.retry-button {
+  min-width: 176rpx;
+  padding: 0 28rpx;
+  border-radius: 999rpx;
+  background: var(--xy-color-primary);
+  color: #ffffff;
+  font-size: 25rpx;
+  line-height: 72rpx;
+}
+
+.retry-button::after {
+  border: 0;
+}
+
+.gallery {
+  display: flex;
+  gap: 16rpx;
+  overflow-x: auto;
+  min-height: 520rpx;
+}
+
+.hero-image,
+.hero-empty {
+  width: 82vw;
+  height: 520rpx;
+  flex-shrink: 0;
+  border-radius: 42rpx;
+  background: #f6ecd3;
+}
+
+.hero-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(122, 154, 192, 0.72);
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 30rpx;
+}
+
+.eyebrow {
+  display: block;
+  color: #b48725;
+  font-size: 21rpx;
+  letter-spacing: 4rpx;
+  text-transform: uppercase;
+}
+
+.name {
+  display: block;
+  margin-top: 8rpx;
+  color: #41546c;
+  font-size: 42rpx;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.pill {
+  max-width: 220rpx;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: #f9f0d4;
+  color: #b48725;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+  margin-top: 26rpx;
+}
+
+.info-card {
+  min-height: 104rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 18rpx;
+  background: var(--xy-color-surface);
+}
+
+.info-label {
+  display: block;
+  color: var(--xy-color-muted);
+  font-size: 22rpx;
+}
+
+.info-value {
+  display: block;
+  margin-top: 8rpx;
+  color: #41546c;
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.note {
+  margin-top: 42rpx;
+  padding: 32rpx 28rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 22rpx;
+  background: linear-gradient(180deg, #fffdf8 0%, rgba(255, 253, 248, 0.4) 100%);
+}
+
+.note-title {
+  display: block;
+  color: #41546c;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.note-body {
+  display: block;
+  margin-top: 20rpx;
+  white-space: pre-line;
+  color: var(--xy-color-text);
+  font-size: 28rpx;
+  line-height: 1.95;
+}

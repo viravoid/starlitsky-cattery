@@ -1,4 +1,42 @@
-<view class="foundation-page">
-  <view class="foundation-title">我们的猫</view>
-  <view class="foundation-note">基础工程占位</view>
+<view class="page">
+  <view class="header">
+    <text class="eyebrow">Our Cats</text>
+    <text class="title">我们的猫</text>
+  </view>
+
+  <view class="tabs">
+    <button class="{{activeTab === 'kittens' ? 'tab active' : 'tab'}}" data-tab="kittens" bindtap="switchTab">小猫</button>
+    <button class="{{activeTab === 'studs' ? 'tab active' : 'tab'}}" data-tab="studs" bindtap="switchTab">种猫</button>
+  </view>
+
+  <scroll-view class="filters" scroll-x enable-flex>
+    <button wx:for="{{filters}}" wx:key="*this" class="{{activeFilter === item ? 'filter active-filter' : 'filter'}}" data-filter="{{item}}" bindtap="setFilter">
+      {{item}}
+    </button>
+  </scroll-view>
+
+  <view wx:if="{{isLoading}}" class="state">正在加载猫咪资料...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+  <view wx:elif="{{!visibleItems.length}}" class="state">暂无可展示猫咪</view>
+
+  <view wx:else class="list">
+    <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
+      <view class="thumb">
+        <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill" />
+        <view wx:else class="thumb-empty">星月</view>
+      </view>
+      <view class="info">
+        <view class="pill-row">
+          <text class="pill">{{item.pill}}</text>
+        </view>
+        <text class="name">{{item.name}}</text>
+        <text class="meta">{{item.lineOne}}</text>
+        <text class="meta">{{item.lineTwo}}</text>
+        <text class="detail">了解详情 ›</text>
+      </view>
+    </button>
+  </view>
 </view>

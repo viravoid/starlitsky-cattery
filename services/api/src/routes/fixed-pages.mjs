@@ -1,14 +1,17 @@
 import { getFixedPage, listFixedPages, updateFixedPage } from "../services/fixed-page-service.mjs";
 import { requireAdminMutationRole } from "../middleware/auth.mjs";
+import { getCurrentUserFromRequest } from "../services/auth-service.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
 export async function routeFixedPagesRequest(request, response, url, context) {
+  const readOptions = await resolveFixedPageReadOptions(request, context.config);
+
   if (url.pathname === "/fixed-pages") {
     if (request.method === "GET") {
       sendSuccess(response, {
-        data: await listFixedPages(),
+        data: await listFixedPages(readOptions),
       });
       return;
     }
@@ -20,7 +23,7 @@ export async function routeFixedPagesRequest(request, response, url, context) {
   if (slug) {
     if (request.method === "GET") {
       sendSuccess(response, {
-        data: await getFixedPage(slug),
+        data: await getFixedPage(slug, readOptions),
       });
       return;
     }
@@ -38,6 +41,13 @@ export async function routeFixedPagesRequest(request, response, url, context) {
   }
 
   throw notFound("Fixed page route not found");
+}
+
+async function resolveFixedPageReadOptions(request, config) {
+  const user = await getCurrentUserFromRequest(request, config);
+  return {
+    includeHidden: Boolean(user?.roles.some((role) => role === "admin" || role === "keeper")),
+  };
 }
 
 function matchFixedPageSlug(pathname) {

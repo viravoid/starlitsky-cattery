@@ -1,0 +1,76 @@
+<view class="page">
+  <view class="header">
+    <text class="eyebrow">StarlitSky</text>
+    <text class="title">{{title}}</text>
+  </view>
+
+  <view wx:if="{{isLoading}}" class="state">正在加载内容...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+
+  <view wx:else>
+    <image
+      wx:if="{{coverImage}}"
+      class="cover-image"
+      src="{{coverImage.url}}"
+      mode="aspectFill"
+      data-url="{{coverImage.url}}"
+      bindtap="previewPageImage"
+    />
+
+    <view wx:if="{{isContact}}" class="contact-intro">
+      <text>{{introduction}}</text>
+    </view>
+
+    <view wx:if="{{facts.length}}" class="facts">
+      <view wx:for="{{facts}}" wx:key="*this" class="fact">
+        <text>{{item}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{body}}" class="body-card">
+      <text class="body">{{body}}</text>
+    </view>
+
+    <view wx:if="{{sections.length}}" class="section-list">
+      <view wx:for="{{sections}}" wx:key="title" class="section-card">
+        <text class="section-title">{{item.title}}</text>
+        <text class="section-body">{{item.body}}</text>
+      </view>
+    </view>
+
+    <scroll-view wx:if="{{galleryImages.length}}" class="gallery" scroll-x enable-flex>
+      <image
+        wx:for="{{galleryImages}}"
+        wx:key="id"
+        class="gallery-image"
+        src="{{item.url}}"
+        mode="aspectFill"
+        data-url="{{item.url}}"
+        bindtap="previewPageImage"
+      />
+    </scroll-view>
+
+    <view wx:if="{{accounts.length}}" class="accounts">
+      <button
+        wx:for="{{accounts}}"
+        wx:key="id"
+        class="account"
+        data-value="{{item.value}}"
+        bindtap="copyAccount"
+      >
+        <text class="account-label">{{item.label}}</text>
+        <text class="account-value">{{item.value}}</text>
+        <text class="copy">复制</text>
+      </button>
+    </view>
+
+    <view wx:if="{{footerNotice}}" class="footer">
+      <text>{{footerNotice}}</text>
+    </view>
+
+    <view wx:if="{{!body && !sections.length && !accounts.length && !coverImage && !galleryImages.length}}" class="state">暂无内容</view>
+  </view>
+</view>

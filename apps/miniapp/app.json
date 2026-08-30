@@ -1,8 +1,10 @@
 {
   "pages": [
     "pages/home/index",
+    "pages/fixed-page/index",
     "pages/community/index",
     "pages/cats/index",
+    "pages/cat-detail/index",
     "pages/parent-auth/index"
   ],
   "window": {

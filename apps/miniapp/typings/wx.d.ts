@@ -16,6 +16,12 @@ declare const wx: {
     fail(error: { errMsg?: string }): void;
   }): void;
   showToast(options: { title: string; icon?: "none" | "success" | "error" | "loading" }): void;
+  navigateTo(options: { url: string }): void;
+  previewImage(options: { current: string; urls: string[] }): void;
+  setClipboardData(options: { data: string }): void;
+  setNavigationBarTitle(options: { title: string }): void;
+  stopPullDownRefresh(): void;
+  switchTab(options: { url: string }): void;
   getStorageSync(key: string): string;
   setStorageSync(key: string, value: string): void;
   removeStorageSync(key: string): void;
