@@ -5,6 +5,7 @@
     "pages/questionnaire/index",
     "pages/community/index",
     "pages/community-detail/index",
+    "pages/community-publish/index",
     "pages/cats/index",
     "pages/cat-detail/index",
     "pages/parent-auth/index"

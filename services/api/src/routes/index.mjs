@@ -36,7 +36,11 @@ export async function routeRequest(request, response, context) {
     return;
   }
 
-  if (url.pathname === "/community/posts" || url.pathname.startsWith("/community/posts/")) {
+  if (
+    url.pathname === "/community/post-options" ||
+    url.pathname === "/community/posts" ||
+    url.pathname.startsWith("/community/posts/")
+  ) {
     await routeCommunityRequest(request, response, url, context);
     return;
   }

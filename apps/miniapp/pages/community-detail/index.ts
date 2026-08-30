@@ -1,5 +1,12 @@
-import type { CommunityPostData } from "@starlitsky/shared";
-import { getCommunityPost } from "../../utils/public-content";
+import type { CommunityCommentData, CommunityPostData } from "@starlitsky/shared";
+import {
+  createCommunityComment,
+  deleteCommunityComment,
+  deleteCommunityPost,
+  getCommunityPost,
+  toggleCommunityPostLike,
+} from "../../utils/public-content";
+import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 
 interface DetailOptions {
   id?: string;
@@ -14,7 +21,11 @@ interface DetailImage {
 
 interface CommunityDetailData {
   author: string;
+  canDelete: boolean;
+  canEdit: boolean;
   category: string;
+  commentText: string;
+  comments: CommentView[];
   content: string;
   date: string;
   error: string;
@@ -23,6 +34,7 @@ interface CommunityDetailData {
   isLoading: boolean;
   linkedCats: string[];
   linkedLitters: string[];
+  likedByMe: boolean;
   meta: string;
   pinned: boolean;
   previewUrls: string[];
@@ -41,10 +53,28 @@ interface TapEvent {
   };
 }
 
+interface InputEvent {
+  detail: {
+    value: string;
+  };
+}
+
+interface CommentView {
+  author: string;
+  canDelete: boolean;
+  content: string;
+  date: string;
+  id: string;
+}
+
 Page({
   data: {
     author: "",
+    canDelete: false,
+    canEdit: false,
     category: "",
+    commentText: "",
+    comments: [],
     content: "",
     date: "",
     error: "",
@@ -53,6 +83,7 @@ Page({
     isLoading: true,
     linkedCats: [],
     linkedLitters: [],
+    likedByMe: false,
     meta: "",
     pinned: false,
     previewUrls: [],
@@ -94,6 +125,71 @@ Page({
     if (!url || this.data.previewUrls.length === 0) return;
     wx.previewImage({ current: url, urls: this.data.previewUrls });
   },
+
+  onCommentInput(this: CommunityDetailPage, event: InputEvent) {
+    this.setData({ commentText: event.detail.value });
+  },
+
+  async toggleLike(this: CommunityDetailPage) {
+    if (!this.data.id) return;
+    try {
+      await ensureLoggedIn();
+      await toggleCommunityPostLike(this.data.id);
+      await this.loadPost(this.data.id);
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
+  },
+
+  async submitComment(this: CommunityDetailPage) {
+    const content = this.data.commentText.trim();
+    if (!content) {
+      showToast("请先写下评论");
+      return;
+    }
+
+    try {
+      await ensureLoggedIn();
+      await createCommunityComment(this.data.id, content);
+      this.setData({ commentText: "" });
+      await this.loadPost(this.data.id);
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
+  },
+
+  openEdit(this: CommunityDetailPage) {
+    if (!this.data.canEdit || !this.data.id) return;
+    wx.navigateTo({ url: `/pages/community-publish/index?id=${encodeURIComponent(this.data.id)}` });
+  },
+
+  async deletePost(this: CommunityDetailPage) {
+    if (!this.data.canDelete || !this.data.id) return;
+    const confirmed = await confirm("确定删除这条动态吗？");
+    if (!confirmed) return;
+
+    try {
+      await deleteCommunityPost(this.data.id);
+      showToast("已删除");
+      wx.switchTab({ url: "/pages/community/index" });
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
+  },
+
+  async deleteComment(this: CommunityDetailPage, event: TapEvent) {
+    const commentId = event.currentTarget.dataset.id;
+    if (!commentId || !this.data.id) return;
+    const confirmed = await confirm("确定删除这条评论吗？");
+    if (!confirmed) return;
+
+    try {
+      await deleteCommunityComment(this.data.id, commentId);
+      await this.loadPost(this.data.id);
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
+  },
 });
 
 function toDetailView(post: CommunityPostData) {
@@ -113,15 +209,29 @@ function toDetailView(post: CommunityPostData) {
 
   return {
     author: post.authorName || "星月猫友",
+    canDelete: post.canDelete,
+    canEdit: post.canEdit,
     category: categoryLabel(post.category),
+    comments: post.comments.map(toCommentView),
     content: post.content,
     date: formatDate(post.createdAt),
     images,
     linkedCats: post.cats.map((cat) => cat.name),
     linkedLitters: post.litters.map((litter) => litter.name),
+    likedByMe: post.likedByMe,
     meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
     pinned: post.pinned,
     previewUrls: images.map((item) => item.url),
+  };
+}
+
+function toCommentView(comment: CommunityCommentData): CommentView {
+  return {
+    author: comment.authorName || "星月猫友",
+    canDelete: comment.canDelete,
+    content: comment.content,
+    date: formatDate(comment.createdAt),
+    id: comment.id,
   };
 }
 
@@ -144,4 +254,32 @@ function pad(value: number) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "动态详情加载失败";
+}
+
+async function ensureLoggedIn() {
+  const user = await refreshCurrentUser();
+  if (user) return user;
+  const session = await loginWithWechat();
+  return session.user;
+}
+
+function showToast(title: string) {
+  wx.showToast({ icon: "none", title });
+}
+
+function confirm(content: string) {
+  return new Promise<boolean>((resolve) => {
+    wx.showModal({
+      title: "确认操作",
+      content,
+      confirmText: "确定",
+      cancelText: "取消",
+      success(response) {
+        resolve(response.confirm);
+      },
+      fail() {
+        resolve(false);
+      },
+    });
+  });
 }

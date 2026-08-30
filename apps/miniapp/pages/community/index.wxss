@@ -32,6 +32,18 @@
   line-height: 1.45;
 }
 
+.publish-button {
+  display: inline-flex;
+  margin-top: 18rpx;
+  padding: 0 28rpx;
+  border-radius: 999rpx;
+  background: var(--xy-color-primary);
+  color: #ffffff;
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 70rpx;
+}
+
 .category-tabs,
 .litter-tabs {
   width: 100%;
@@ -76,6 +88,8 @@
 
 .category-tab::after,
 .litter-tab::after,
+.publish-button::after,
+.like-button::after,
 .retry-button::after {
   border: 0;
 }
@@ -212,6 +226,24 @@
   margin-top: 18rpx;
   color: var(--xy-color-muted);
   font-size: 24rpx;
+}
+
+.like-button {
+  flex-shrink: 0;
+  min-width: 108rpx;
+  padding: 0 18rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #6b8db3;
+  font-size: 23rpx;
+  line-height: 56rpx;
+}
+
+.like-button.liked {
+  border-color: #e4b4b4;
+  background: #fff0f0;
+  color: #b42318;
 }
 
 .read-more {

@@ -1,0 +1,93 @@
+<view class="page">
+  <view wx:if="{{isLoading}}" class="state">正在加载发布权限...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+
+  <view wx:else class="form">
+    <view class="section">
+      <text class="label">分类</text>
+      <view class="option-row">
+        <button
+          wx:for="{{categories}}"
+          wx:key="value"
+          class="{{category === item.value ? 'option active' : 'option'}}"
+          data-value="{{item.value}}"
+          bindtap="setCategory"
+        >
+          {{item.label}}
+        </button>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="label">正文</text>
+      <textarea
+        class="content-input"
+        maxlength="2000"
+        placeholder="记录今天想分享的猫咪时刻"
+        value="{{content}}"
+        bindinput="onContentInput"
+      />
+    </view>
+
+    <view class="section">
+      <text class="label">关联猫咪</text>
+      <view wx:if="{{!cats.length}}" class="empty-box">暂无可关联猫咪</view>
+      <view wx:else class="option-row">
+        <button
+          wx:for="{{cats}}"
+          wx:key="id"
+          class="{{item.selected ? 'option active' : 'option'}}"
+          data-id="{{item.id}}"
+          bindtap="toggleCat"
+        >
+          {{item.name}}
+        </button>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="label">关联窝次</text>
+      <view wx:if="{{!litters.length}}" class="empty-box">暂无可关联窝次</view>
+      <view wx:else class="option-row">
+        <button
+          wx:for="{{litters}}"
+          wx:key="id"
+          class="{{item.selected ? 'option active' : 'option'}}"
+          data-id="{{item.id}}"
+          bindtap="toggleLitter"
+        >
+          {{item.name}}
+        </button>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="label">图片</text>
+      <view class="image-grid">
+        <image
+          wx:for="{{existingImages}}"
+          wx:key="*this"
+          class="image-tile"
+          src="{{item}}"
+          mode="aspectFill"
+        />
+        <view wx:for="{{selectedImages}}" wx:key="tempFilePath" wx:for-index="index" class="image-wrap">
+          <image class="image-tile" src="{{item.tempFilePath}}" mode="aspectFill" />
+          <button class="remove-image" data-index="{{index}}" bindtap="removeSelectedImage">×</button>
+        </view>
+        <button class="add-image" bindtap="chooseImages">+</button>
+      </view>
+    </view>
+
+    <button
+      class="submit-button"
+      disabled="{{!canSubmit || isSubmitting}}"
+      bindtap="submit"
+    >
+      {{isSubmitting ? '提交中...' : isEditing ? '保存动态' : '发布动态'}}
+    </button>
+  </view>
+</view>

@@ -45,5 +45,42 @@
     <view class="meta-row">
       <text>{{meta}}</text>
     </view>
+
+    <view class="action-row">
+      <button class="{{likedByMe ? 'like-button liked' : 'like-button'}}" bindtap="toggleLike">
+        {{likedByMe ? '已喜欢' : '喜欢'}}
+      </button>
+      <button wx:if="{{canEdit}}" class="secondary-button" bindtap="openEdit">编辑</button>
+      <button wx:if="{{canDelete}}" class="danger-button" bindtap="deletePost">删除</button>
+    </view>
+
+    <view class="comments">
+      <text class="comments-title">评论</text>
+      <view wx:if="{{!comments.length}}" class="empty-comments">还没有评论</view>
+      <view wx:for="{{comments}}" wx:key="id" class="comment-row">
+        <view class="comment-main">
+          <text class="comment-author">{{item.author}}</text>
+          <text class="comment-content">{{item.content}}</text>
+          <text class="comment-date">{{item.date}}</text>
+        </view>
+        <button
+          wx:if="{{item.canDelete}}"
+          class="comment-delete"
+          data-id="{{item.id}}"
+          bindtap="deleteComment"
+        >
+          删除
+        </button>
+      </view>
+      <view class="comment-form">
+        <input
+          class="comment-input"
+          placeholder="写一条评论"
+          value="{{commentText}}"
+          bindinput="onCommentInput"
+        />
+        <button class="comment-submit" bindtap="submitComment">发送</button>
+      </view>
+    </view>
   </view>
 </view>

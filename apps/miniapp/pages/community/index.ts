@@ -1,5 +1,7 @@
 import type { CommunityPostCategory, CommunityPostData } from "@starlitsky/shared";
-import { listCommunityPosts } from "../../utils/public-content";
+import { listCommunityPosts, toggleCommunityPostLike } from "../../utils/public-content";
+import { getSessionState } from "../../store/session";
+import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 
 interface CategoryTab {
   key: "" | CommunityPostCategory;
@@ -20,6 +22,7 @@ interface CommunityPostCard {
   firstImageUrl: string;
   imageCount: number;
   isPinned: boolean;
+  likedByMe: boolean;
   linkedCats: string;
   linkedLitters: string;
   meta: string;
@@ -29,6 +32,7 @@ interface CommunityPostCard {
 interface CommunityData {
   activeCategory: "" | CommunityPostCategory;
   activeLitterId: string;
+  canPublish: boolean;
   categoryTabs: CategoryTab[];
   error: string;
   isLoading: boolean;
@@ -60,6 +64,7 @@ Page({
   data: {
     activeCategory: "",
     activeLitterId: "",
+    canPublish: false,
     categoryTabs: CATEGORY_TABS,
     error: "",
     isLoading: true,
@@ -68,6 +73,8 @@ Page({
   } as CommunityData,
 
   async onLoad(this: CommunityPage) {
+    await refreshCurrentUser();
+    this.setData({ canPublish: canPublish() });
     await this.loadPosts();
   },
 
@@ -123,6 +130,22 @@ Page({
     wx.navigateTo({ url: `/pages/community-detail/index?id=${encodeURIComponent(id)}` });
   },
 
+  openPublish() {
+    wx.navigateTo({ url: "/pages/community-publish/index" });
+  },
+
+  async toggleLike(this: CommunityPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    try {
+      await ensureLoggedIn();
+      await toggleCommunityPostLike(id);
+      await this.loadPosts();
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
+  },
+
   previewImage(this: CommunityPage, event: TapEvent) {
     const index = Number(event.currentTarget.dataset.index || 0);
     const post = this.data.posts[index];
@@ -158,11 +181,33 @@ function toPostCard(post: CommunityPostData): CommunityPostCard {
     firstImageUrl: images[0] ?? "",
     imageCount: images.length,
     isPinned: post.pinned,
+    likedByMe: post.likedByMe,
     linkedCats: post.cats.map((cat) => cat.name).join("、"),
     linkedLitters: post.litters.map((litter) => litter.name).join("、"),
     meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
     previewUrls: images,
   };
+}
+
+function canPublish() {
+  const session = getSessionState();
+  const roles = session.roles;
+  return (
+    roles.includes("admin") ||
+    roles.includes("keeper") ||
+    (roles.includes("parent") && session.user?.parentProfile?.status === "active")
+  );
+}
+
+async function ensureLoggedIn() {
+  const user = await refreshCurrentUser();
+  if (user) return user;
+  const session = await loginWithWechat();
+  return session.user;
+}
+
+function showToast(title: string) {
+  wx.showToast({ icon: "none", title });
 }
 
 function categoryLabel(value: string) {
