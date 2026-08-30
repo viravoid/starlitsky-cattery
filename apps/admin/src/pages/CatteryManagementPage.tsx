@@ -30,9 +30,16 @@ import { CatArchivePanel, LitterKittensPanel } from "./CatteryProfilePanels";
 import { FixedPagesPanel } from "./FixedPagesPanel";
 import { MediaManagementPanel } from "./MediaManagementPanel";
 import { ParentApplicationsPanel, ParentInvitesPanel } from "./ParentInvitationReviewPanel";
+import { SelectionApplicationsPanel } from "./SelectionApplicationsPanel";
 
 type SectionKey =
-  "cats" | "litters" | "media" | "fixedPages" | "parentInvites" | "parentApplications";
+  | "cats"
+  | "litters"
+  | "media"
+  | "fixedPages"
+  | "parentInvites"
+  | "parentApplications"
+  | "selectionApplications";
 type EditorMode = "create" | "edit" | null;
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 
@@ -514,6 +521,9 @@ export function CatteryManagementPage() {
           <button type="button" onClick={() => setActiveSection("parentApplications")}>
             申请审核
           </button>
+          <button type="button" onClick={() => setActiveSection("selectionApplications")}>
+            选猫问卷
+          </button>
         </div>
       </div>
 
@@ -566,6 +576,14 @@ export function CatteryManagementPage() {
         >
           申请审核
         </button>
+        <button
+          aria-selected={activeSection === "selectionApplications"}
+          className={activeSection === "selectionApplications" ? "active-tab" : ""}
+          type="button"
+          onClick={() => setActiveSection("selectionApplications")}
+        >
+          选猫问卷
+        </button>
       </div>
 
       {notice ? <div className="notice">{notice}</div> : null}
@@ -575,6 +593,8 @@ export function CatteryManagementPage() {
         <ParentInvitesPanel />
       ) : activeSection === "parentApplications" ? (
         <ParentApplicationsPanel />
+      ) : activeSection === "selectionApplications" ? (
+        <SelectionApplicationsPanel />
       ) : activeSection === "fixedPages" ? (
         <FixedPagesPanel isLoading={isLoading} pages={fixedPages} onReload={loadData} />
       ) : activeSection === "media" ? (
@@ -1583,5 +1603,6 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#fixed-pages") return "fixedPages";
   if (window.location.hash === "#parent-invites") return "parentInvites";
   if (window.location.hash === "#parent-applications") return "parentApplications";
+  if (window.location.hash === "#selection-applications") return "selectionApplications";
   return "cats";
 }

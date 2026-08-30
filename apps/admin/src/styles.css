@@ -263,6 +263,32 @@ td {
   min-width: 0;
 }
 
+.answer-list {
+  display: grid;
+  gap: 10px;
+}
+
+.answer-row {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.answer-row span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.answer-row p {
+  color: #111827;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .media-binding-row {
   display: grid;
   grid-template-columns:

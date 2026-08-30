@@ -21,17 +21,19 @@ model User {
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
-  roles                    UserRole[]
-  sessions                 UserSession[]
-  parent_profile           ParentProfile?
-  created_parent_invites   ParentInvite[]      @relation("ParentInviteCreator")
-  reviewed_parent_invites  ParentInvite[]      @relation("ParentInviteRevoker")
-  parent_applications      ParentApplication[] @relation("ParentApplicationUser")
-  reviewed_applications    ParentApplication[] @relation("ParentApplicationReviewer")
-  created_parent_cat_links ParentCatLink[]     @relation("ParentCatLinkCreator")
-  posts                    Post[]
-  comments                 Comment[]
-  post_likes               PostLike[]
+  roles                           UserRole[]
+  sessions                        UserSession[]
+  parent_profile                  ParentProfile?
+  created_parent_invites          ParentInvite[]         @relation("ParentInviteCreator")
+  reviewed_parent_invites         ParentInvite[]         @relation("ParentInviteRevoker")
+  parent_applications             ParentApplication[]    @relation("ParentApplicationUser")
+  reviewed_applications           ParentApplication[]    @relation("ParentApplicationReviewer")
+  selection_applications          SelectionApplication[] @relation("SelectionApplicationUser")
+  reviewed_selection_applications SelectionApplication[] @relation("SelectionApplicationReviewer")
+  created_parent_cat_links        ParentCatLink[]        @relation("ParentCatLinkCreator")
+  posts                           Post[]
+  comments                        Comment[]
+  post_likes                      PostLike[]
 
   @@map("users")
 }
@@ -267,6 +269,42 @@ model ParentCatLink {
   @@index([relationship])
   @@index([status])
   @@map("parent_cat_links")
+}
+
+/// Public selection questionnaire submitted from the miniapp. The structure is
+/// intentionally dedicated to this product flow, not a generic form builder.
+model SelectionApplication {
+  id                      String    @id @default(uuid())
+  user_id                 String?
+  client_dedup_key        String?   @unique
+  contact_name            String
+  contact_gender          String
+  contact_phone           String
+  contact_age             String
+  contact_job             String
+  contact_city            String
+  cat_experience_json     Json
+  existing_pets_json      Json
+  living_environment_json Json
+  maine_coon_knowledge    String?
+  preferences_json        Json
+  commitments_json        Json
+  additional_note         String?
+  status                  String    @default("submitted")
+  submitted_at            DateTime  @default(now())
+  admin_note              String?
+  reviewed_by             String?
+  reviewed_at             DateTime?
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+
+  user     User? @relation("SelectionApplicationUser", fields: [user_id], references: [id], onDelete: SetNull)
+  reviewer User? @relation("SelectionApplicationReviewer", fields: [reviewed_by], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([status])
+  @@index([submitted_at])
+  @@map("selection_applications")
 }
 
 /// Supported category values for community MVP: cattery_daily, parent_share,
