@@ -1,4 +1,82 @@
-<view class="foundation-page">
-  <view class="foundation-title">猫友圈</view>
-  <view class="foundation-note">基础工程占位</view>
+<view class="page">
+  <view class="header">
+    <text class="eyebrow">Community</text>
+    <text class="title">猫友圈</text>
+    <text class="subtitle">猫舍日常、碎碎念和家长分享</text>
+  </view>
+
+  <scroll-view class="category-tabs" scroll-x enable-flex>
+    <button
+      wx:for="{{categoryTabs}}"
+      wx:key="key"
+      class="{{activeCategory === item.key ? 'category-tab active-category' : 'category-tab'}}"
+      data-key="{{item.key}}"
+      bindtap="setCategory"
+    >
+      {{item.label}}
+    </button>
+  </scroll-view>
+
+  <scroll-view wx:if="{{litterFilters.length > 1}}" class="litter-tabs" scroll-x enable-flex>
+    <button
+      wx:for="{{litterFilters}}"
+      wx:key="id"
+      class="{{activeLitterId === item.id ? 'litter-tab active-litter' : 'litter-tab'}}"
+      data-id="{{item.id}}"
+      bindtap="setLitter"
+    >
+      {{item.name}}
+    </button>
+  </scroll-view>
+
+  <view wx:if="{{isLoading}}" class="state">正在加载猫友圈...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+  <view wx:elif="{{!posts.length}}" class="state">暂无可展示动态</view>
+
+  <view wx:else class="feed">
+    <view
+      wx:for="{{posts}}"
+      wx:key="id"
+      wx:for-index="index"
+      class="post-card"
+      data-id="{{item.id}}"
+      bindtap="openPost"
+    >
+      <view class="post-head">
+        <view class="author-block">
+          <text class="author">{{item.author}}</text>
+          <text class="date">{{item.date}}</text>
+        </view>
+        <view class="tag-row">
+          <text wx:if="{{item.isPinned}}" class="pin">置顶</text>
+          <text class="category">{{item.category}}</text>
+        </view>
+      </view>
+
+      <image
+        wx:if="{{item.firstImageUrl}}"
+        class="post-image"
+        src="{{item.firstImageUrl}}"
+        mode="aspectFill"
+        data-index="{{index}}"
+        catchtap="previewImage"
+      />
+
+      <text class="content">{{item.content}}</text>
+
+      <view wx:if="{{item.linkedLitters || item.linkedCats}}" class="links">
+        <text wx:if="{{item.linkedLitters}}">窝次：{{item.linkedLitters}}</text>
+        <text wx:if="{{item.linkedCats}}">猫咪：{{item.linkedCats}}</text>
+      </view>
+
+      <view class="post-foot">
+        <text>{{item.meta}}</text>
+        <text wx:if="{{item.imageCount > 1}}">{{item.imageCount}} 张图片</text>
+        <text class="read-more">查看详情 ›</text>
+      </view>
+    </view>
+  </view>
 </view>

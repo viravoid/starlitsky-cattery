@@ -1,0 +1,49 @@
+<view class="page">
+  <view wx:if="{{isLoading}}" class="state">正在加载动态...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+
+  <view wx:else class="post">
+    <view class="post-head">
+      <view>
+        <text class="author">{{author}}</text>
+        <text class="date">{{date}}</text>
+      </view>
+      <view class="tag-row">
+        <text wx:if="{{pinned}}" class="pin">置顶</text>
+        <text class="category">{{category}}</text>
+      </view>
+    </view>
+
+    <text class="content">{{content}}</text>
+
+    <view wx:if="{{images.length}}" class="gallery">
+      <image
+        wx:for="{{images}}"
+        wx:key="id"
+        class="gallery-image"
+        src="{{item.url}}"
+        mode="aspectFill"
+        data-url="{{item.url}}"
+        bindtap="previewImage"
+      />
+    </view>
+
+    <view wx:if="{{linkedLitters.length || linkedCats.length}}" class="links">
+      <view wx:if="{{linkedLitters.length}}" class="link-group">
+        <text class="link-label">相关窝次</text>
+        <text wx:for="{{linkedLitters}}" wx:key="*this" class="link-pill">{{item}}</text>
+      </view>
+      <view wx:if="{{linkedCats.length}}" class="link-group">
+        <text class="link-label">相关猫咪</text>
+        <text wx:for="{{linkedCats}}" wx:key="*this" class="link-pill">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="meta-row">
+      <text>{{meta}}</text>
+    </view>
+  </view>
+</view>

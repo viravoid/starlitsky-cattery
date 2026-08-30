@@ -1,6 +1,9 @@
 import type {
   CatData,
   CatListData,
+  CommunityPostData,
+  CommunityPostListData,
+  CommunityPostCategory,
   FixedPageData,
   SelectionApplicationData,
   SubmitSelectionApplicationRequest,
@@ -31,6 +34,30 @@ export async function listPublicCats(params: {
 
 export async function getPublicCat(id: string) {
   const response = await get<CatData>(`/cats/${encodeURIComponent(id)}`);
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
+export async function listCommunityPosts(params: {
+  category?: CommunityPostCategory | string;
+  litterId?: string;
+  pageSize?: number;
+  q?: string;
+} = {}) {
+  const response = await get<CommunityPostListData>(
+    `/community/posts${toSearch({
+      category: params.category,
+      litterId: params.litterId,
+      pageSize: String(params.pageSize ?? 50),
+      q: params.q,
+    })}`,
+  );
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
+export async function getCommunityPost(id: string) {
+  const response = await get<CommunityPostData>(`/community/posts/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
   return response.data;
 }
