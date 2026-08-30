@@ -2,6 +2,7 @@
   "pages": [
     "pages/home/index",
     "pages/fixed-page/index",
+    "pages/questionnaire/index",
     "pages/community/index",
     "pages/cats/index",
     "pages/cat-detail/index",

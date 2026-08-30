@@ -421,6 +421,91 @@ export interface ParentClaimCatCandidateData {
 
 export type ParentClaimCatCandidateListData = PaginatedResponse<ParentClaimCatCandidateData>;
 
+export type SelectionApplicationStatus = "submitted" | "reviewed";
+
+export interface SelectionApplicationAnswers {
+  name: string;
+  gender: string;
+  phone: string;
+  age: string;
+  job: string;
+  city: string;
+  experience: string;
+  residents: string;
+  residentsNeutered?: string;
+  hasKids: string;
+  housing: string;
+  windowSealed: string;
+  familyAgree: string;
+  maineCoonKnowledge?: string;
+  wantGender: string;
+  wantColor: string;
+  budget: string;
+  acceptNeuter: string;
+  monthlySpend: string;
+  scientificFeeding: string;
+  acceptActive: string;
+  commitment: string;
+  additionalNote?: string;
+}
+
+export interface SubmitSelectionApplicationRequest extends SelectionApplicationAnswers {
+  clientDedupKey?: string;
+}
+
+export interface SelectionApplicationData {
+  id: string;
+  userId: string | null;
+  contactName: string;
+  contactGender: string;
+  contactPhone: string;
+  contactAge: string;
+  contactJob: string;
+  contactCity: string;
+  catExperience: {
+    experience: string;
+  };
+  existingPets: {
+    residents: string;
+    residentsNeutered: string | null;
+  };
+  livingEnvironment: {
+    hasKids: string;
+    housing: string;
+    windowSealed: string;
+    familyAgree: string;
+  };
+  maineCoonKnowledge: string | null;
+  preferences: {
+    wantGender: string;
+    wantColor: string;
+    budget: string;
+    monthlySpend: string;
+  };
+  commitments: {
+    acceptNeuter: string;
+    scientificFeeding: string;
+    acceptActive: string;
+    commitment: string;
+  };
+  additionalNote: string | null;
+  status: SelectionApplicationStatus | string;
+  submittedAt: string;
+  adminNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: UserSummaryData | null;
+  reviewedBy: UserSummaryData | null;
+}
+
+export type SelectionApplicationListData = PaginatedResponse<SelectionApplicationData>;
+
+export interface UpdateSelectionApplicationReviewRequest {
+  status?: SelectionApplicationStatus;
+  adminNote?: string | null;
+}
+
 export interface MediaBindingData {
   id: string;
   mediaId: string;

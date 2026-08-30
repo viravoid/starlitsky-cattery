@@ -1,0 +1,71 @@
+<view class="page">
+  <view wx:if="{{submitted}}" class="success">
+    <view class="success-mark">✓</view>
+    <text class="success-title">问卷已提交，感谢你的填写</text>
+    <text class="success-body">我们会尽快查看你的问卷，请耐心等待回复。</text>
+    <button class="secondary-action" bindtap="resetForm">再填一份</button>
+  </view>
+
+  <view wx:else>
+    <view class="header">
+      <text class="eyebrow">Selection</text>
+      <text class="title">选猫问卷</text>
+      <text class="intro">正规猫舍双向选择。以下信息仅用于猫舍沟通，不会公开展示。</text>
+    </view>
+
+    <view wx:if="{{error}}" class="error-banner">
+      <text>{{error}}</text>
+      <button wx:if="{{!isSubmitting}}" class="retry-button" bindtap="retrySubmit">重试提交</button>
+    </view>
+
+    <view wx:for="{{groups}}" wx:key="title" class="group">
+      <text class="group-title">{{item.title}}</text>
+      <view wx:for="{{item.questions}}" wx:for-item="question" wx:key="key" class="field" wx:if="{{question.key !== 'residentsNeutered' || values.residents === 'yes'}}">
+        <text class="label">
+          {{question.label}}
+          <text wx:if="{{question.required}}" class="required">*</text>
+        </text>
+
+        <input
+          wx:if="{{question.type === 'text'}}"
+          class="control"
+          value="{{values[question.key]}}"
+          placeholder="{{question.placeholder}}"
+          data-key="{{question.key}}"
+          bindinput="onInput"
+        />
+
+        <textarea
+          wx:elif="{{question.type === 'textarea'}}"
+          class="textarea"
+          value="{{values[question.key]}}"
+          placeholder="{{question.placeholder}}"
+          data-key="{{question.key}}"
+          bindinput="onInput"
+        />
+
+        <radio-group
+          wx:else
+          class="choice-list"
+          data-key="{{question.key}}"
+          bindchange="onChoice"
+        >
+          <label wx:for="{{question.options}}" wx:for-item="option" wx:key="value" class="choice">
+            <radio value="{{option.value}}" checked="{{values[question.key] === option.value}}" color="#7a9ac0" />
+            <text>{{option.label}}</text>
+          </label>
+        </radio-group>
+
+        <text wx:if="{{errors[question.key]}}" class="field-error">{{errors[question.key]}}</text>
+      </view>
+    </view>
+
+    <view class="ps">
+      <text>PS：性别和颜色仅做了解，排队不分颜色窝次，不限选猫时间。</text>
+    </view>
+
+    <button class="submit" disabled="{{isSubmitting}}" bindtap="onSubmit">
+      {{isSubmitting ? "提交中..." : "提交选猫问卷"}}
+    </button>
+  </view>
+</view>

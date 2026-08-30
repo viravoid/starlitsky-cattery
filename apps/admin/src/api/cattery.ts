@@ -33,6 +33,8 @@ import type {
   ParentInviteData,
   ParentInviteListData,
   ReviewParentApplicationRequest,
+  SelectionApplicationData,
+  SelectionApplicationListData,
   UpdateBreedingCatProfileRequest,
   UpdateCatRequest,
   UpdateKittenProfileRequest,
@@ -215,6 +217,27 @@ export function rejectParentApplication(id: string, data: ReviewParentApplicatio
   );
 }
 
+export function listSelectionApplications(params: ListSelectionApplicationsParams = {}) {
+  return unwrap<SelectionApplicationListData>(
+    adminGet(`/selection-applications${toSearch(params)}`),
+  );
+}
+
+export function getSelectionApplication(id: string) {
+  return unwrap<SelectionApplicationData>(
+    adminGet(`/selection-applications/${encodeURIComponent(id)}`),
+  );
+}
+
+export function updateSelectionApplicationReview(
+  id: string,
+  data: UpdateSelectionApplicationReviewRequest,
+) {
+  return unwrap<SelectionApplicationData, UpdateSelectionApplicationReviewRequest>(
+    adminPatch(`/selection-applications/${encodeURIComponent(id)}`, data),
+  );
+}
+
 export function listMedia(params: ListMediaParams = {}) {
   return unwrap<MediaAssetListData>(adminGet(`/media${toSearch(params)}`));
 }
@@ -379,6 +402,18 @@ export interface ListParentApplicationsParams {
   pageSize?: number;
   q?: string;
   status?: string;
+}
+
+export interface ListSelectionApplicationsParams {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: string;
+}
+
+export interface UpdateSelectionApplicationReviewRequest {
+  status?: "submitted" | "reviewed";
+  adminNote?: string | null;
 }
 
 async function unwrap<TData, TBody = unknown>(

@@ -1,5 +1,11 @@
-import type { CatData, CatListData, FixedPageData } from "@starlitsky/shared";
-import { get } from "../request";
+import type {
+  CatData,
+  CatListData,
+  FixedPageData,
+  SelectionApplicationData,
+  SubmitSelectionApplicationRequest,
+} from "@starlitsky/shared";
+import { get, post } from "../request";
 
 export async function getFixedPage(slug: string) {
   const response = await get<FixedPageData>(`/fixed-pages/${encodeURIComponent(slug)}`);
@@ -25,6 +31,15 @@ export async function listPublicCats(params: {
 
 export async function getPublicCat(id: string) {
   const response = await get<CatData>(`/cats/${encodeURIComponent(id)}`);
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
+export async function submitSelectionApplication(data: SubmitSelectionApplicationRequest) {
+  const response = await post<SelectionApplicationData, SubmitSelectionApplicationRequest>(
+    "/selection-applications",
+    data,
+  );
   if (!response.success) throw new Error(response.message);
   return response.data;
 }
