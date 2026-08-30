@@ -1,3 +1,4 @@
+import type { FixedPageMediaAssetData } from "@starlitsky/shared";
 import { getFixedPage } from "../../utils/public-content";
 
 interface HomeEntry {
@@ -21,9 +22,11 @@ interface HomeData {
   };
   error: string;
   groups: HomeGroup[];
+  heroImageUrl: string;
   introBody: string;
   introMeta: string;
   isLoading: boolean;
+  previewUrls: string[];
   subtitle: string;
   title: string;
 }
@@ -31,6 +34,8 @@ interface HomeData {
 interface HomePage {
   data: HomeData;
   loadHome(): Promise<void>;
+  previewHeroImage(): void;
+  retryLoad(): Promise<void>;
   setData(data: Partial<HomeData>): void;
 }
 
@@ -73,6 +78,8 @@ const DEFAULT_HOME = {
     title: "我们的猫",
     description: "查看在售与观察中的小猫，以及陪伴我们的种猫。",
   },
+  heroImageUrl: "",
+  previewUrls: [],
 };
 
 Page({
@@ -96,7 +103,8 @@ Page({
     try {
       const page = await getFixedPage("home");
       this.setData({
-        ...normalizeHomeContent(page.contentJson),
+        ...normalizeHomeContent(page.contentJson, page.mediaAssets),
+        error: "",
         isLoading: false,
       });
     } catch (error) {
@@ -106,6 +114,15 @@ Page({
         isLoading: false,
       });
     }
+  },
+
+  async retryLoad(this: HomePage) {
+    await this.loadHome();
+  },
+
+  previewHeroImage(this: HomePage) {
+    if (!this.data.heroImageUrl || this.data.previewUrls.length === 0) return;
+    wx.previewImage({ current: this.data.heroImageUrl, urls: this.data.previewUrls });
   },
 
   openEntry(event: TapEvent) {
@@ -127,8 +144,9 @@ function entry(no: string, title: string, desc: string, slug: string): HomeEntry
   };
 }
 
-function normalizeHomeContent(value: unknown) {
-  if (!value || typeof value !== "object") return DEFAULT_HOME;
+function normalizeHomeContent(value: unknown, mediaAssets: FixedPageMediaAssetData[] = []) {
+  const images = normalizeHomeImages(mediaAssets);
+  if (!value || typeof value !== "object") return { ...DEFAULT_HOME, ...images };
   const input = value as Record<string, any>;
   const hero = isObject(input.hero) ? input.hero : {};
   const intro = isObject(input.intro) ? input.intro : {};
@@ -145,6 +163,18 @@ function normalizeHomeContent(value: unknown) {
       title: stringOr(catsPreview.title, DEFAULT_HOME.catsPreview.title),
       description: stringOr(catsPreview.description, DEFAULT_HOME.catsPreview.description),
     },
+    ...images,
+  };
+}
+
+function normalizeHomeImages(mediaAssets: FixedPageMediaAssetData[]) {
+  const urls = mediaAssets
+    .filter((item) => item.kind === "image")
+    .map((item) => item.sourceUrl || item.thumbnailUrl || "")
+    .filter(Boolean);
+  return {
+    heroImageUrl: urls[0] ?? "",
+    previewUrls: urls,
   };
 }
 

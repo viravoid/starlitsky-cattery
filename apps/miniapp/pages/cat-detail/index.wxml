@@ -1,6 +1,9 @@
 <view class="page">
   <view wx:if="{{isLoading}}" class="state">正在加载猫咪详情...</view>
-  <view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
 
   <view wx:elif="{{cat}}">
     <view class="gallery">

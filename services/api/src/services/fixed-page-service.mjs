@@ -24,27 +24,35 @@ const UPDATE_FIELDS = [
   "contentJson",
 ];
 
-export async function listFixedPages() {
+export async function listFixedPages(options = {}) {
   const pages = await prisma.fixedPage.findMany({
-    where: { deleted_at: null },
+    where: {
+      deleted_at: null,
+      ...(options.includeHidden ? {} : { status: "published" }),
+    },
     orderBy: [{ slug: "asc" }],
   });
   const bySlug = new Map(pages.map((page) => [page.slug, page]));
+  const mediaByPageId = await listVisibleFixedPageMedia(pages.map((page) => page.id));
 
   return FIXED_PAGE_DEFINITIONS.map((definition) => {
     const page = bySlug.get(definition.slug);
-    return page ? toFixedPageDto(page) : toVirtualFixedPageDto(definition);
+    return page ? toFixedPageDto(page, mediaByPageId) : toVirtualFixedPageDto(definition);
   });
 }
 
-export async function getFixedPage(slug) {
+export async function getFixedPage(slug, options = {}) {
   const definition = assertFixedPageSlug(slug);
   const page = await prisma.fixedPage.findUnique({
     where: { slug },
   });
 
-  if (!page || page.deleted_at) return toVirtualFixedPageDto(definition);
-  return toFixedPageDto(page);
+  if (!page || page.deleted_at || (!options.includeHidden && page.status !== "published")) {
+    return toVirtualFixedPageDto(definition);
+  }
+
+  const mediaByPageId = await listVisibleFixedPageMedia([page.id]);
+  return toFixedPageDto(page, mediaByPageId);
 }
 
 export async function updateFixedPage(slug, input) {
@@ -117,7 +125,46 @@ function assertFixedPageSlug(slug) {
   return FIXED_PAGE_DEFINITIONS.find((page) => page.slug === slug);
 }
 
-function toFixedPageDto(page) {
+async function listVisibleFixedPageMedia(pageIds) {
+  if (pageIds.length === 0) return new Map();
+
+  const media = await prisma.mediaAsset.findMany({
+    where: {
+      deleted_at: null,
+      status: "active",
+      bindings: {
+        some: {
+          owner_type: "fixed_page",
+          owner_id: { in: pageIds },
+          visibility: "visible",
+          deleted_at: null,
+        },
+      },
+    },
+    include: {
+      bindings: {
+        where: {
+          owner_type: "fixed_page",
+          owner_id: { in: pageIds },
+          visibility: "visible",
+          deleted_at: null,
+        },
+        orderBy: [{ sort_order: "asc" }, { created_at: "desc" }, { id: "asc" }],
+      },
+    },
+    orderBy: [{ created_at: "desc" }, { id: "asc" }],
+  });
+
+  const byPageId = new Map(pageIds.map((pageId) => [pageId, []]));
+  for (const item of media) {
+    for (const binding of item.bindings) {
+      byPageId.get(binding.owner_id)?.push(toFixedPageMediaDto(item, binding));
+    }
+  }
+  return byPageId;
+}
+
+function toFixedPageDto(page, mediaByPageId = new Map()) {
   return {
     id: page.id,
     slug: page.slug,
@@ -128,6 +175,7 @@ function toFixedPageDto(page) {
     contentSchemaVersion: page.content_schema_version,
     contentJson: page.content_json ?? {},
     publishedAt: toIsoString(page.published_at),
+    mediaAssets: mediaByPageId.get(page.id) ?? [],
     createdAt: toIsoString(page.created_at),
     updatedAt: toIsoString(page.updated_at),
     deletedAt: toIsoString(page.deleted_at),
@@ -146,9 +194,23 @@ function toVirtualFixedPageDto(definition) {
     contentSchemaVersion: 1,
     contentJson: {},
     publishedAt: null,
+    mediaAssets: [],
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
+  };
+}
+
+function toFixedPageMediaDto(media, binding) {
+  return {
+    id: media.id,
+    kind: media.kind,
+    sourceUrl: media.source_url,
+    thumbnailUrl: media.thumbnail_url,
+    title: media.title,
+    altText: media.alt_text,
+    usage: binding.usage,
+    sortOrder: binding.sort_order,
   };
 }
 

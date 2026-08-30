@@ -26,6 +26,7 @@ interface CatDetailData {
 interface CatDetailPage {
   data: CatDetailData;
   loadCat(id: string): Promise<void>;
+  retryLoad(): Promise<void>;
   setData(data: Partial<CatDetailData>): void;
 }
 
@@ -74,6 +75,10 @@ Page({
     } catch (error) {
       this.setData({ cat: null, error: getErrorMessage(error), isLoading: false });
     }
+  },
+
+  async retryLoad(this: CatDetailPage) {
+    await this.loadCat(this.data.id);
   },
 
   previewImage(this: CatDetailPage, event: TapEvent) {

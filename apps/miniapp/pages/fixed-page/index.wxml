@@ -5,9 +5,21 @@
   </view>
 
   <view wx:if="{{isLoading}}" class="state">正在加载内容...</view>
-  <view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
 
   <view wx:else>
+    <image
+      wx:if="{{coverImage}}"
+      class="cover-image"
+      src="{{coverImage.url}}"
+      mode="aspectFill"
+      data-url="{{coverImage.url}}"
+      bindtap="previewPageImage"
+    />
+
     <view wx:if="{{isContact}}" class="contact-intro">
       <text>{{introduction}}</text>
     </view>
@@ -29,6 +41,18 @@
       </view>
     </view>
 
+    <scroll-view wx:if="{{galleryImages.length}}" class="gallery" scroll-x enable-flex>
+      <image
+        wx:for="{{galleryImages}}"
+        wx:key="id"
+        class="gallery-image"
+        src="{{item.url}}"
+        mode="aspectFill"
+        data-url="{{item.url}}"
+        bindtap="previewPageImage"
+      />
+    </scroll-view>
+
     <view wx:if="{{accounts.length}}" class="accounts">
       <button
         wx:for="{{accounts}}"
@@ -47,6 +71,6 @@
       <text>{{footerNotice}}</text>
     </view>
 
-    <view wx:if="{{!body && !sections.length && !accounts.length}}" class="state">暂无内容</view>
+    <view wx:if="{{!body && !sections.length && !accounts.length && !coverImage && !galleryImages.length}}" class="state">暂无内容</view>
   </view>
 </view>

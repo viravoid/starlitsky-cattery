@@ -32,7 +32,7 @@ export async function listCats(searchParams, options = {}) {
   const mediaByCatId = await listVisibleCatMedia(items.map((cat) => cat.id));
 
   return {
-    items: items.map((cat) => toCatDto(cat, mediaByCatId)),
+    items: items.map((cat) => toCatDto(cat, mediaByCatId, options)),
     pagination: buildPaginationMeta({ page, pageSize, total }),
   };
 }
@@ -49,7 +49,7 @@ export async function getCat(id, options = {}) {
 
   if (!cat) throw notFound("Cat not found");
   const mediaByCatId = await listVisibleCatMedia([cat.id]);
-  return toCatDto(cat, mediaByCatId);
+  return toCatDto(cat, mediaByCatId, options);
 }
 
 export async function createCat(input) {
@@ -224,7 +224,7 @@ async function listVisibleCatMedia(catIds) {
   return byCatId;
 }
 
-function toCatDto(cat, mediaByCatId = new Map()) {
+function toCatDto(cat, mediaByCatId = new Map(), options = {}) {
   return {
     id: cat.id,
     name: cat.name,
@@ -236,7 +236,7 @@ function toCatDto(cat, mediaByCatId = new Map()) {
     storyJson: cat.story_json,
     visibility: cat.visibility,
     breedingProfile: cat.breeding_profile ? toBreedingProfileDto(cat.breeding_profile) : null,
-    kittenProfile: cat.kitten_profile ? toKittenProfileDto(cat.kitten_profile) : null,
+    kittenProfile: cat.kitten_profile ? toKittenProfileDto(cat.kitten_profile, options) : null,
     mediaAssets: mediaByCatId.get(cat.id) ?? [],
     createdAt: toIsoString(cat.created_at),
     updatedAt: toIsoString(cat.updated_at),
@@ -256,7 +256,7 @@ function toBreedingProfileDto(profile) {
   };
 }
 
-function toKittenProfileDto(profile) {
+function toKittenProfileDto(profile, options = {}) {
   return {
     catId: profile.cat_id,
     litterId: profile.litter_id,
@@ -271,11 +271,17 @@ function toKittenProfileDto(profile) {
           status: profile.litter.status,
           fatherCatId: profile.litter.father_cat_id,
           motherCatId: profile.litter.mother_cat_id,
-          fatherCat: profile.litter.father_cat ? toRelatedCatDto(profile.litter.father_cat) : null,
-          motherCat: profile.litter.mother_cat ? toRelatedCatDto(profile.litter.mother_cat) : null,
+          fatherCat: toPublicRelatedCatOrNull(profile.litter.father_cat, options),
+          motherCat: toPublicRelatedCatOrNull(profile.litter.mother_cat, options),
         }
       : null,
   };
+}
+
+function toPublicRelatedCatOrNull(cat, options = {}) {
+  if (!cat) return null;
+  if (!options.includeHidden && (cat.visibility !== "visible" || cat.deleted_at)) return null;
+  return toRelatedCatDto(cat);
 }
 
 function toRelatedCatDto(cat) {

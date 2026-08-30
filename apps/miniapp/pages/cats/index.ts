@@ -21,6 +21,7 @@ interface CatsPage {
     items: CatListItem[];
   };
   loadCats(): Promise<void>;
+  retryLoad(): Promise<void>;
   setData(data: Record<string, unknown>): void;
 }
 
@@ -71,6 +72,10 @@ Page({
         visibleItems: [],
       });
     }
+  },
+
+  async retryLoad(this: CatsPage) {
+    await this.loadCats();
   },
 
   switchTab(this: CatsPage, event: TapEvent) {

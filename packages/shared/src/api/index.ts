@@ -560,12 +560,24 @@ export interface FixedPageData {
   contentSchemaVersion: number;
   contentJson: unknown;
   publishedAt: string | null;
+  mediaAssets: FixedPageMediaAssetData[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
 }
 
 export type FixedPageListData = FixedPageData[];
+
+export interface FixedPageMediaAssetData {
+  id: string;
+  kind: string;
+  sourceUrl: string;
+  thumbnailUrl: string | null;
+  title: string | null;
+  altText: string | null;
+  usage: string;
+  sortOrder: number;
+}
 
 export interface UpdateFixedPageRequest {
   title?: string;
