@@ -1,0 +1,71 @@
+<view class="page">
+  <view wx:if="{{isLoading}}" class="state">正在加载猫咪详情...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+  <view wx:elif="{{needsParentAuth}}" class="state auth-state">
+    <text class="auth-title">尚未完成家长认证</text>
+    <text class="auth-copy">完成家长认证后，才能查看自己的猫咪详情。</text>
+    <button class="auth-button" bindtap="openParentAuth">去家长认证</button>
+  </view>
+
+  <view wx:else>
+    <view class="hero">
+      <image wx:if="{{imageUrl}}" class="hero-image" src="{{imageUrl}}" mode="aspectFill" />
+      <view wx:else class="hero-empty">星月</view>
+      <view class="hero-copy">
+        <text class="relationship">{{relationship}}</text>
+        <text class="name">{{name}}</text>
+        <text class="meta">{{gender}} · {{color}} · {{status}}</text>
+      </view>
+    </view>
+
+    <view class="info-panel">
+      <view class="info-row">
+        <text class="info-label">生日</text>
+        <text class="info-value">{{birthday || '待补充'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">到家</text>
+        <text class="info-value">{{relationshipStartedAt || '待补充'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">窝次</text>
+        <text class="info-value">{{litterName}}</text>
+      </view>
+      <view class="info-row vertical">
+        <text class="info-label">性格</text>
+        <text class="info-value">{{personality}}</text>
+      </view>
+    </view>
+
+    <view class="timeline">
+      <view class="timeline-head">
+        <text class="timeline-title">时光轴</text>
+        <text class="timeline-count">{{timelinePosts.length}} 条动态</text>
+      </view>
+      <view wx:if="{{!timelinePosts.length}}" class="empty-timeline">暂无关联动态</view>
+      <button
+        wx:for="{{timelinePosts}}"
+        wx:key="id"
+        class="post-card"
+        data-id="{{item.id}}"
+        bindtap="openPost"
+      >
+        <view class="post-main">
+          <text class="post-category">{{item.category}}</text>
+          <text class="post-date">{{item.date}}</text>
+          <text class="post-content">{{item.content}}</text>
+          <text class="post-meta">{{item.meta}}</text>
+        </view>
+        <image
+          wx:if="{{item.firstImageUrl}}"
+          class="post-image"
+          src="{{item.firstImageUrl}}"
+          mode="aspectFill"
+        />
+      </button>
+    </view>
+  </view>
+</view>

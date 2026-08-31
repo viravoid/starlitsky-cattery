@@ -5,6 +5,7 @@ import { routeCommunityRequest } from "./community.mjs";
 import { routeFixedPagesRequest } from "./fixed-pages.mjs";
 import { routeLittersRequest } from "./litters.mjs";
 import { routeMediaRequest } from "./media.mjs";
+import { routeMeRequest } from "./me.mjs";
 import { routeParentsRequest } from "./parents.mjs";
 import { routeSelectionApplicationsRequest } from "./selection-applications.mjs";
 import { notFound } from "../utils/errors.mjs";
@@ -57,6 +58,11 @@ export async function routeRequest(request, response, context) {
 
   if (url.pathname === "/media" || url.pathname.startsWith("/media/")) {
     await routeMediaRequest(request, response, url, context);
+    return;
+  }
+
+  if (url.pathname === "/me/cats" || url.pathname.startsWith("/me/cats/")) {
+    await routeMeRequest(request, response, url, context);
     return;
   }
 
