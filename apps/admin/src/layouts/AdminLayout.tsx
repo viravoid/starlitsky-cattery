@@ -14,6 +14,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <a href="#litters">窝次管理</a>
             <a href="#media">媒体管理</a>
             <a href="#fixed-pages">固定页面</a>
+            <a href="#community">社区管理</a>
             <a href="#parent-invites">家长邀请</a>
             <a href="#parent-applications">申请审核</a>
           </nav>

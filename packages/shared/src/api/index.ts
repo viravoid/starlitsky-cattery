@@ -550,6 +550,11 @@ export interface CommunityCommentData {
   deletedAt: string | null;
 }
 
+export interface AdminCommunityPostData extends CommunityPostData {
+  authorUserId: string;
+  deletedAt: string | null;
+}
+
 export interface CommunityPostData {
   id: string;
   authorName: string;
@@ -572,6 +577,7 @@ export interface CommunityPostData {
 }
 
 export type CommunityPostListData = PaginatedResponse<CommunityPostData>;
+export type AdminCommunityPostListData = PaginatedResponse<AdminCommunityPostData>;
 
 export interface MyCatData {
   id: string;
@@ -615,6 +621,12 @@ export interface CreateCommunityPostRequest {
 
 export type UpdateCommunityPostRequest = Partial<CreateCommunityPostRequest>;
 
+export interface ModerateCommunityPostRequest {
+  visibility?: string;
+  pinned?: boolean;
+  deleted?: boolean;
+}
+
 export interface ToggleCommunityPostLikeData {
   liked: boolean;
   likeCount: number;
@@ -622,6 +634,19 @@ export interface ToggleCommunityPostLikeData {
 
 export interface CreateCommunityCommentRequest {
   content: string;
+}
+
+export interface ModerateCommunityCommentRequest {
+  visibility?: string;
+  deleted?: boolean;
+}
+
+export interface DeleteCommunityPostMediaData {
+  id: string;
+  bindingId: string;
+  ownerType: string;
+  ownerId: string;
+  deletedAt: string | null;
 }
 
 export interface MediaBindingData {

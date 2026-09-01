@@ -27,6 +27,7 @@ import {
 import { PageContainer } from "../components/PageContainer";
 import { getErrorMessage } from "../utils/errors";
 import { CatArchivePanel, LitterKittensPanel } from "./CatteryProfilePanels";
+import { CommunityModerationPanel } from "./CommunityModerationPanel";
 import { FixedPagesPanel } from "./FixedPagesPanel";
 import { MediaManagementPanel } from "./MediaManagementPanel";
 import { ParentApplicationsPanel, ParentInvitesPanel } from "./ParentInvitationReviewPanel";
@@ -37,6 +38,7 @@ type SectionKey =
   | "litters"
   | "media"
   | "fixedPages"
+  | "communityModeration"
   | "parentInvites"
   | "parentApplications"
   | "selectionApplications";
@@ -515,6 +517,9 @@ export function CatteryManagementPage() {
           <button type="button" onClick={() => setActiveSection("fixedPages")}>
             固定页面
           </button>
+          <button type="button" onClick={() => setActiveSection("communityModeration")}>
+            社区管理
+          </button>
           <button type="button" onClick={() => setActiveSection("parentInvites")}>
             家长邀请
           </button>
@@ -561,6 +566,14 @@ export function CatteryManagementPage() {
           固定页面
         </button>
         <button
+          aria-selected={activeSection === "communityModeration"}
+          className={activeSection === "communityModeration" ? "active-tab" : ""}
+          type="button"
+          onClick={() => setActiveSection("communityModeration")}
+        >
+          社区管理
+        </button>
+        <button
           aria-selected={activeSection === "parentInvites"}
           className={activeSection === "parentInvites" ? "active-tab" : ""}
           type="button"
@@ -595,6 +608,8 @@ export function CatteryManagementPage() {
         <ParentApplicationsPanel />
       ) : activeSection === "selectionApplications" ? (
         <SelectionApplicationsPanel />
+      ) : activeSection === "communityModeration" ? (
+        <CommunityModerationPanel />
       ) : activeSection === "fixedPages" ? (
         <FixedPagesPanel isLoading={isLoading} pages={fixedPages} onReload={loadData} />
       ) : activeSection === "media" ? (
@@ -1601,6 +1616,7 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#litters") return "litters";
   if (window.location.hash === "#media") return "media";
   if (window.location.hash === "#fixed-pages") return "fixedPages";
+  if (window.location.hash === "#community") return "communityModeration";
   if (window.location.hash === "#parent-invites") return "parentInvites";
   if (window.location.hash === "#parent-applications") return "parentApplications";
   if (window.location.hash === "#selection-applications") return "selectionApplications";

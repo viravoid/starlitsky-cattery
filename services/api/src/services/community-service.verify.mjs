@@ -102,6 +102,42 @@ try {
       },
     ],
   });
+  const parentWithoutCats = await createUser({
+    id: `${RUN_PREFIX}-parent-empty-user`,
+    nickname: "Verify Empty Parent",
+    parentProfileId: `${RUN_PREFIX}-parent-empty`,
+    roles: ["parent"],
+  });
+  const inactiveLinkedCat = await prisma.cat.create({
+    data: {
+      id: `${RUN_PREFIX}-inactive-linked-cat`,
+      name: "Verify Inactive Linked Cat",
+      lifecycle_status: "adopted",
+      visibility: "hidden",
+    },
+  });
+  await prisma.parentCatLink.create({
+    data: {
+      id: `${RUN_PREFIX}-inactive-link`,
+      parent_profile_id: parentWithoutCats.parentProfile.id,
+      cat_id: inactiveLinkedCat.id,
+      active_dedup_key: `${RUN_PREFIX}-inactive-link`,
+      relationship: "owner",
+      status: "inactive",
+    },
+  });
+  const litterA = await createLitter({
+    id: `${RUN_PREFIX}-litter-a`,
+    fatherCatId: catA.id,
+    motherCatId: visibleCat.id,
+    visibility: "hidden",
+  });
+  const litterB = await createLitter({
+    id: `${RUN_PREFIX}-litter-b`,
+    fatherCatId: catB.id,
+    motherCatId: visibleCat.id,
+    visibility: "hidden",
+  });
 
   const visiblePost = await createPost({
     id: `${RUN_PREFIX}-visible-post`,
@@ -110,6 +146,14 @@ try {
     content: "Visible detail smoke",
     visibility: "visible",
     catIds: [visibleCat.id],
+  });
+  const visiblePostWithHiddenCat = await createPost({
+    id: `${RUN_PREFIX}-visible-hidden-cat-post`,
+    authorUserId: admin.id,
+    category: "cattery_daily",
+    content: "Visible post with hidden relation",
+    visibility: "visible",
+    catIds: [catA.id],
   });
   const ownHiddenPost = await createPost({
     id: `${RUN_PREFIX}-own-hidden-post`,
@@ -197,6 +241,227 @@ try {
   );
 
   await assertRouteRejects("parent A cannot read parent B hidden cat", `/me/cats/${catB.id}`, parentA, 404);
+  await assertRouteRejects("guest cannot list my cats", "/me/cats", null, 401);
+  await assertRouteRejects("ordinary user cannot list my cats", "/me/cats", ordinaryUser, 403);
+  const emptyParentCats = await routeGet("/me/cats", parentWithoutCats);
+  assert.equal(emptyParentCats.items.length, 0, "active parent with no active links should get an empty list");
+  await assertRouteRejects(
+    "inactive ParentCatLink cannot read hidden cat",
+    `/me/cats/${inactiveLinkedCat.id}`,
+    parentWithoutCats,
+    404,
+  );
+
+  await assertRouteRejects(
+    "guest create should be 401",
+    "/community/posts",
+    null,
+    401,
+    "POST",
+    { category: "parent_share", content: "guest blocked" },
+  );
+  await assertRouteRejects(
+    "ordinary user create should be 403",
+    "/community/posts",
+    ordinaryUser,
+    403,
+    "POST",
+    { category: "parent_share", content: "user blocked" },
+  );
+  await assertRouteRejects(
+    "parent cannot create cattery category",
+    "/community/posts",
+    parentA,
+    403,
+    "POST",
+    { category: "cattery_daily", content: "wrong category" },
+  );
+  await assertRouteRejects(
+    "parent cannot link foreign cat",
+    "/community/posts",
+    parentA,
+    403,
+    "POST",
+    { category: "parent_share", content: "foreign cat", catIds: [catB.id] },
+  );
+  await assertRouteRejects(
+    "parent cannot link foreign litter",
+    "/community/posts",
+    parentA,
+    403,
+    "POST",
+    { category: "parent_share", content: "foreign litter", litterIds: [litterB.id] },
+  );
+
+  const createdPost = await routeJson("/community/posts", parentA, "POST", {
+    category: "parent_share",
+    content: "parent own post",
+    catIds: [catA.id],
+    litterIds: [litterA.id],
+  });
+  assert.equal(createdPost.category, "parent_share", "parent should create an allowed category");
+
+  const updatedOwnPost = await routeJson(`/community/posts/${createdPost.id}`, parentA, "PATCH", {
+    content: "parent own post updated",
+  });
+  assert.equal(updatedOwnPost.content, "parent own post updated", "author should edit own post");
+  await assertRouteRejects(
+    "foreign parent cannot edit post",
+    `/community/posts/${createdPost.id}`,
+    parentB,
+    403,
+    "PATCH",
+    { content: "foreign edit" },
+  );
+  await assertRouteRejects(
+    "foreign parent cannot delete post",
+    `/community/posts/${createdPost.id}`,
+    parentB,
+    403,
+    "DELETE",
+  );
+
+  const media = await prisma.mediaAsset.create({
+    data: {
+      id: `${RUN_PREFIX}-media`,
+      kind: "image",
+      source_url: "https://example.test/post.jpg",
+      status: "active",
+      bindings: {
+        create: [
+          {
+            id: `${RUN_PREFIX}-media-post-binding`,
+            owner_type: "post",
+            owner_id: createdPost.id,
+            usage: "gallery",
+            sort_order: 0,
+            visibility: "visible",
+          },
+          {
+            id: `${RUN_PREFIX}-media-cat-binding`,
+            owner_type: "cat",
+            owner_id: catA.id,
+            usage: "gallery",
+            sort_order: 0,
+            visibility: "visible",
+          },
+        ],
+      },
+    },
+  });
+  await assertRouteRejects(
+    "foreign parent cannot delete post media",
+    `/community/posts/${createdPost.id}/media/${media.id}`,
+    parentB,
+    403,
+    "DELETE",
+  );
+  await routeJson(`/community/posts/${createdPost.id}/media/${media.id}`, parentA, "DELETE");
+  const mediaAfterDelete = await prisma.mediaAsset.findUnique({
+    where: { id: media.id },
+    include: { bindings: true },
+  });
+  assert.equal(mediaAfterDelete?.deleted_at, null, "post media removal must not delete MediaAsset");
+  assert.ok(
+    mediaAfterDelete?.bindings.some(
+      (binding) =>
+        binding.id === `${RUN_PREFIX}-media-cat-binding` &&
+        binding.deleted_at === null &&
+        binding.visibility === "visible",
+    ),
+    "post media removal must not delete reused non-post bindings",
+  );
+  assert.ok(
+    mediaAfterDelete?.bindings.some(
+      (binding) =>
+        binding.id === `${RUN_PREFIX}-media-post-binding` &&
+        binding.deleted_at &&
+        binding.visibility === "archived",
+    ),
+    "post media removal should soft-delete only the matching post binding",
+  );
+  await assertRouteRejects(
+    "post media endpoint cannot delete a cat-only binding",
+    `/community/posts/${createdPost.id}/media/${RUN_PREFIX}-missing-post-binding`,
+    parentA,
+    404,
+    "DELETE",
+  );
+
+  const firstLike = await routeJson(`/community/posts/${visiblePost.id}/like`, parentA, "POST");
+  const secondLike = await routeJson(`/community/posts/${visiblePost.id}/like`, parentA, "POST");
+  assert.equal(firstLike.liked, true, "first like should create one like");
+  assert.equal(secondLike.liked, false, "second like should toggle the same like off");
+  assert.equal(
+    await prisma.postLike.count({ where: { post_id: visiblePost.id, user_id: parentA.id } }),
+    0,
+    "like toggle should not leave duplicates",
+  );
+
+  const comment = await routeJson(`/community/posts/${visiblePost.id}/comments`, parentA, "POST", {
+    content: "parent comment",
+  });
+  await assertRouteRejects(
+    "foreign parent cannot delete comment",
+    `/community/posts/${visiblePost.id}/comments/${comment.id}`,
+    parentB,
+    403,
+    "DELETE",
+  );
+  await routeJson(`/community/posts/${visiblePost.id}/comments/${comment.id}`, parentA, "DELETE");
+  const moderationComment = await routeJson(`/community/posts/${visiblePost.id}/comments`, parentA, "POST", {
+    content: "moderation comment",
+  });
+  const hiddenComment = await routeJson(
+    `/community/admin/posts/${visiblePost.id}/comments/${moderationComment.id}`,
+    admin,
+    "PATCH",
+    { visibility: "hidden" },
+  );
+  assert.equal(hiddenComment.visibility, "hidden", "keeper should hide comments");
+  const deletedComment = await routeJson(
+    `/community/admin/posts/${visiblePost.id}/comments/${moderationComment.id}`,
+    admin,
+    "PATCH",
+    { deleted: true },
+  );
+  assert.equal(deletedComment.deletedAt !== null, true, "keeper should soft-delete comments");
+
+  const adminList = await routeGet("/community/admin/posts?includeDeleted=true&pageSize=100", admin);
+  assert.equal(
+    adminList.items.some((post) => post.id === deletedPost.id),
+    true,
+    "admin list should support deleted post review when requested",
+  );
+  await assertRouteRejects(
+    "parent cannot use admin moderation list",
+    "/community/admin/posts",
+    parentA,
+    403,
+  );
+  const hiddenByAdmin = await routeJson(`/community/admin/posts/${visiblePost.id}`, admin, "PATCH", {
+    visibility: "hidden",
+  });
+  assert.equal(hiddenByAdmin.visibility, "hidden", "keeper should hide posts");
+  const restoredByAdmin = await routeJson(`/community/admin/posts/${visiblePost.id}`, admin, "PATCH", {
+    visibility: "visible",
+    pinned: true,
+  });
+  assert.equal(restoredByAdmin.visibility, "visible", "keeper should restore posts");
+  assert.equal(restoredByAdmin.pinned, true, "keeper should manage pinned posts");
+  const softDeletedByAdmin = await routeJson(`/community/admin/posts/${visiblePost.id}`, admin, "PATCH", {
+    deleted: true,
+  });
+  assert.equal(softDeletedByAdmin.deletedAt !== null, true, "keeper should soft-delete posts");
+
+  const publicHiddenRelationPost = await routeGet(`/community/posts/${visiblePostWithHiddenCat.id}`, null);
+  assert.equal(
+    publicHiddenRelationPost.cats.some((cat) => cat.id === catA.id),
+    false,
+    "public post detail should redact hidden related cats",
+  );
+  const deletedOwnPost = await routeJson(`/community/posts/${createdPost.id}`, parentA, "DELETE");
+  assert.equal(deletedOwnPost.canDelete, true, "author should delete own post");
 
   console.info("community security verification passed");
 } finally {
@@ -264,24 +529,41 @@ async function createPost({ id, authorUserId, category, content, visibility, del
   });
 }
 
+async function createLitter({ id, fatherCatId, motherCatId, visibility }) {
+  return prisma.litter.create({
+    data: {
+      id,
+      name: id,
+      father_cat_id: fatherCatId,
+      mother_cat_id: motherCatId,
+      status: "born",
+      visibility,
+    },
+  });
+}
+
 async function routeGet(url, actingUser) {
+  return routeJson(url, actingUser, "GET");
+}
+
+async function routeJson(url, actingUser, method, body = undefined) {
   const response = createJsonResponse();
   const token = actingUser ? await createSessionToken(actingUser) : "";
-  await routeRequest(createRequest({ method: "GET", url, token }), response, { config });
+  await routeRequest(createRequest({ body, method, url, token }), response, { config });
   return response.data.data;
 }
 
-async function assertRouteRejects(label, url, actingUser, statusCode) {
+async function assertRouteRejects(label, url, actingUser, statusCode, method = "GET", body = undefined) {
   const token = actingUser ? await createSessionToken(actingUser) : "";
   await assert.rejects(
-    () => routeRequest(createRequest({ method: "GET", url, token }), createResponse(), { config }),
+    () => routeRequest(createRequest({ body, method, url, token }), createResponse(), { config }),
     (error) => error?.statusCode === statusCode,
     label,
   );
 }
 
-function createRequest({ method, url, token = "" }) {
-  const request = Readable.from([]);
+function createRequest({ body = undefined, method, url, token = "" }) {
+  const request = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
   request.method = method;
   request.url = url;
   request.headers = {
@@ -325,9 +607,39 @@ function createJsonResponse() {
 }
 
 async function cleanup() {
-  await prisma.postLike.deleteMany({ where: { user_id: { startsWith: RUN_PREFIX } } });
-  await prisma.comment.deleteMany({ where: { author_user_id: { startsWith: RUN_PREFIX } } });
-  await prisma.post.deleteMany({ where: { id: { startsWith: RUN_PREFIX } } });
+  const runPosts = await prisma.post.findMany({
+    where: {
+      OR: [{ id: { startsWith: RUN_PREFIX } }, { author_user_id: { startsWith: RUN_PREFIX } }],
+    },
+    select: { id: true },
+  });
+  const runPostIds = runPosts.map((post) => post.id);
+
+  await prisma.mediaBinding.deleteMany({
+    where: {
+      OR: [
+        { id: { startsWith: RUN_PREFIX } },
+        { owner_id: { startsWith: RUN_PREFIX } },
+        { owner_id: { in: runPostIds } },
+      ],
+    },
+  });
+  await prisma.mediaAsset.deleteMany({ where: { id: { startsWith: RUN_PREFIX } } });
+  await prisma.postLike.deleteMany({
+    where: {
+      OR: [{ user_id: { startsWith: RUN_PREFIX } }, { post_id: { in: runPostIds } }],
+    },
+  });
+  await prisma.comment.deleteMany({
+    where: {
+      OR: [{ author_user_id: { startsWith: RUN_PREFIX } }, { post_id: { in: runPostIds } }],
+    },
+  });
+  await prisma.post.deleteMany({
+    where: {
+      OR: [{ id: { startsWith: RUN_PREFIX } }, { author_user_id: { startsWith: RUN_PREFIX } }],
+    },
+  });
   await prisma.parentCatLink.deleteMany({ where: { id: { startsWith: RUN_PREFIX } } });
   await prisma.litter.deleteMany({ where: { id: { startsWith: RUN_PREFIX } } });
   await prisma.cat.deleteMany({ where: { id: { startsWith: RUN_PREFIX } } });
