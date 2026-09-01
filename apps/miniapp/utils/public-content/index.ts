@@ -12,6 +12,8 @@ import type {
   CompleteMediaUploadRequest,
   ImageUploadData,
   MediaAssetData,
+  MyCatData,
+  MyCatListData,
   SelectionApplicationData,
   SubmitSelectionApplicationRequest,
   ToggleCommunityPostLikeData,
@@ -43,6 +45,22 @@ export async function listPublicCats(params: {
 
 export async function getPublicCat(id: string) {
   const response = await get<CatData>(`/cats/${encodeURIComponent(id)}`);
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
+export async function listMyCats(params: { pageSize?: number } = {}) {
+  const response = await get<MyCatListData>(
+    `/me/cats${toSearch({
+      pageSize: String(params.pageSize ?? 100),
+    })}`,
+  );
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
+export async function getMyCat(id: string) {
+  const response = await get<MyCatData>(`/me/cats/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
   return response.data;
 }

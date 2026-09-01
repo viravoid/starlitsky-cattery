@@ -573,6 +573,26 @@ export interface CommunityPostData {
 
 export type CommunityPostListData = PaginatedResponse<CommunityPostData>;
 
+export interface MyCatData {
+  id: string;
+  name: string;
+  gender: string | null;
+  color: string | null;
+  birthday: string | null;
+  lifecycleStatus: string;
+  personality: string | null;
+  visibility: string;
+  mediaAssets: CatMediaAssetData[];
+  relationship: string;
+  relationshipStartedAt: string | null;
+  litter: CommunityPostRelatedLitterData | null;
+  timelinePosts: CommunityPostData[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MyCatListData = PaginatedResponse<MyCatData>;
+
 export interface CommunityPostOptionsData {
   categories: CommunityPostCategory[];
   cats: Array<

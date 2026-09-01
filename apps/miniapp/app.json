@@ -6,6 +6,8 @@
     "pages/community/index",
     "pages/community-detail/index",
     "pages/community-publish/index",
+    "pages/my-cats/index",
+    "pages/my-cat-detail/index",
     "pages/cats/index",
     "pages/cat-detail/index",
     "pages/parent-auth/index"
@@ -29,6 +31,10 @@
       {
         "pagePath": "pages/community/index",
         "text": "猫友圈"
+      },
+      {
+        "pagePath": "pages/my-cats/index",
+        "text": "我的猫咪"
       },
       {
         "pagePath": "pages/cats/index",
