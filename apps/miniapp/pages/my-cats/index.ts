@@ -14,6 +14,7 @@ interface MyCatCard {
 
 interface MyCatsData {
   error: string;
+  isEmpty: boolean;
   isLoading: boolean;
   items: MyCatCard[];
   needsParentAuth: boolean;
@@ -34,6 +35,7 @@ interface TapEvent {
 Page({
   data: {
     error: "",
+    isEmpty: false,
     isLoading: true,
     items: [],
     needsParentAuth: false,
@@ -49,10 +51,10 @@ Page({
   },
 
   async loadCats(this: MyCatsPage) {
-    this.setData({ error: "", isLoading: true, needsParentAuth: false });
+    this.setData({ error: "", isEmpty: false, isLoading: true, needsParentAuth: false });
     const user = await refreshCurrentUser();
     if (!user || user.parentProfile?.status !== "active" || !user.roles.includes("parent")) {
-      this.setData({ isLoading: false, items: [], needsParentAuth: true });
+      this.setData({ isEmpty: false, isLoading: false, items: [], needsParentAuth: true });
       return;
     }
 
@@ -60,13 +62,15 @@ Page({
       const data = await listMyCats({ pageSize: 100 });
       this.setData({
         error: "",
+        isEmpty: data.items.length === 0,
         isLoading: false,
         items: data.items.map(toCard),
-        needsParentAuth: data.items.length === 0,
+        needsParentAuth: false,
       });
     } catch (error) {
       this.setData({
         error: getErrorMessage(error),
+        isEmpty: false,
         isLoading: false,
         items: [],
       });

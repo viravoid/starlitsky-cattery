@@ -37,14 +37,20 @@ export async function getCommunityPost(id, viewer = null) {
     where: {
       id,
       deleted_at: null,
-      visibility: "visible",
     },
     include: COMMUNITY_POST_DETAIL_INCLUDE,
   });
 
   if (!post) throw notFound("Community post not found");
-  const publicData = await getPublicPostSupplements([post.id], { includeComments: true, viewer });
-  return toCommunityPostDto(post, publicData, { viewer });
+  if (!canReadPostDetail(viewer, post)) throw notFound("Community post not found");
+
+  const relationAccess = await getRelationAccessForPostDetail(viewer, post);
+  const publicData = await getPublicPostSupplements([post.id], {
+    includeComments: true,
+    relationAccess,
+    viewer,
+  });
+  return toCommunityPostDto(post, publicData);
 }
 
 export async function listMyCommunityPosts(searchParams, user) {
@@ -399,7 +405,7 @@ function buildPostWhere(searchParams) {
 
 async function getPublicPostSupplements(
   postIds,
-  { includeComments = false, revealHiddenRelations = false, viewer = null } = {},
+  { includeComments = false, relationAccess = null, revealHiddenRelations = false, viewer = null } = {},
 ) {
   const mediaByPostId = await listVisiblePostMedia(postIds);
   const [commentGroups, likeGroups, viewerLikes, comments] =
@@ -457,7 +463,7 @@ async function getPublicPostSupplements(
     mediaByPostId,
     commentsByPostId,
     likedPostIds: new Set(viewerLikes.map((like) => like.post_id)),
-    revealHiddenRelations,
+    relationAccess: relationAccess ?? (revealHiddenRelations ? { revealAll: true } : null),
     viewer,
   };
 }
@@ -514,16 +520,10 @@ function toCommunityPostDto(post, publicData) {
     pinned: post.pinned,
     visibility: post.visibility,
     cats: post.post_cats
-      .map((item) =>
-        publicData.revealHiddenRelations ? toRelatedCatDto(item.cat) : toPublicCatDto(item.cat),
-      )
+      .map((item) => toAccessibleCatDto(item.cat, publicData.relationAccess))
       .filter(Boolean),
     litters: post.post_litters
-      .map((item) =>
-        publicData.revealHiddenRelations
-          ? toRelatedLitterDto(item.litter)
-          : toPublicLitterDto(item.litter),
-      )
+      .map((item) => toAccessibleLitterDto(item.litter, publicData.relationAccess))
       .filter(Boolean),
     mediaAssets: publicData.mediaByPostId.get(post.id) ?? [],
     comments: publicData.commentsByPostId.get(post.id) ?? [],
@@ -535,6 +535,26 @@ function toCommunityPostDto(post, publicData) {
     createdAt: toIsoString(post.created_at),
     updatedAt: toIsoString(post.updated_at),
   };
+}
+
+function toAccessibleCatDto(cat, relationAccess) {
+  if (!cat || cat.deleted_at) return null;
+  if (cat.visibility === "visible" || relationAccess?.revealAll || relationAccess?.catIds?.has(cat.id)) {
+    return toRelatedCatDto(cat);
+  }
+  return null;
+}
+
+function toAccessibleLitterDto(litter, relationAccess) {
+  if (!litter || litter.deleted_at) return null;
+  if (
+    litter.visibility === "visible" ||
+    relationAccess?.revealAll ||
+    relationAccess?.litterIds?.has(litter.id)
+  ) {
+    return toRelatedLitterDto(litter);
+  }
+  return null;
 }
 
 function toRelatedCatDto(cat) {
@@ -807,6 +827,91 @@ function ensureCanManagePost(user, post) {
 function canManagePost(user, post) {
   if (!user || !post) return false;
   return isPrivilegedUser(user) || (hasRole(user, "parent") && post.author_user_id === user.id);
+}
+
+function canReadPostDetail(user, post) {
+  if (!post || post.deleted_at) return false;
+  if (post.visibility === "visible") return true;
+  if (!user) return false;
+  return isPrivilegedUser(user) || post.author_user_id === user.id;
+}
+
+async function getRelationAccessForPostDetail(user, post) {
+  if (!user) return null;
+  if (isPrivilegedUser(user)) return { revealAll: true };
+  if (post.author_user_id !== user.id || !hasRole(user, "parent") || user.parentProfile?.status !== "active") {
+    return null;
+  }
+
+  const linkedCatIds = post.post_cats.map((item) => item.cat_id);
+  const linkedLitterIds = post.post_litters.map((item) => item.litter_id);
+  const [catLinks, allowedLitters] = await Promise.all([
+    linkedCatIds.length === 0
+      ? []
+      : prisma.parentCatLink.findMany({
+          where: {
+            parent_profile_id: user.parentProfile.id,
+            cat_id: { in: linkedCatIds },
+            status: "active",
+            deleted_at: null,
+            cat: { deleted_at: null },
+          },
+          select: { cat_id: true },
+        }),
+    linkedLitterIds.length === 0
+      ? []
+      : prisma.litter.findMany({
+          where: {
+            id: { in: linkedLitterIds },
+            deleted_at: null,
+            OR: [
+              {
+                father_cat: {
+                  parent_cat_links: {
+                    some: {
+                      parent_profile_id: user.parentProfile.id,
+                      status: "active",
+                      deleted_at: null,
+                    },
+                  },
+                },
+              },
+              {
+                mother_cat: {
+                  parent_cat_links: {
+                    some: {
+                      parent_profile_id: user.parentProfile.id,
+                      status: "active",
+                      deleted_at: null,
+                    },
+                  },
+                },
+              },
+              {
+                kitten_profiles: {
+                  some: {
+                    cat: {
+                      parent_cat_links: {
+                        some: {
+                          parent_profile_id: user.parentProfile.id,
+                          status: "active",
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+          select: { id: true },
+        }),
+  ]);
+
+  return {
+    catIds: new Set(catLinks.map((link) => link.cat_id)),
+    litterIds: new Set(allowedLitters.map((litter) => litter.id)),
+  };
 }
 
 function ensureCanUseCategory(user, category) {

@@ -10,9 +10,13 @@
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
   <view wx:elif="{{needsParentAuth}}" class="state auth-state">
-    <text class="auth-title">尚未完成家长认证或没有已关联猫咪</text>
+    <text class="auth-title">尚未完成家长认证</text>
     <text class="auth-copy">完成家长认证后，可以在这里查看自己的猫咪资料和时光轴。</text>
     <button class="auth-button" bindtap="openParentAuth">去家长认证</button>
+  </view>
+  <view wx:elif="{{isEmpty}}" class="state auth-state">
+    <text class="auth-title">暂时没有已关联猫咪</text>
+    <text class="auth-copy">请联系主理人确认猫咪归属。</text>
   </view>
 
   <view wx:else class="list">
