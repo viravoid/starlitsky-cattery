@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
+import { fetchWithTimeout, isFetchTimeoutError } from "../utils/fetch.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
 
 const INVITE_STATUS_ACTIVE = "active";
@@ -616,7 +617,10 @@ async function createWechatMiniProgramCode(scene, config) {
   tokenUrl.searchParams.set("appid", config.wechat.appId);
   tokenUrl.searchParams.set("secret", config.wechat.appSecret);
 
-  const tokenResponse = await fetch(tokenUrl);
+  const tokenResponse = await fetchWechat(tokenUrl, undefined, config, {
+    timeout: "WeChat access token request timed out",
+    failure: "WeChat access token request failed",
+  });
   if (!tokenResponse.ok) throw new Error("WeChat access token request failed");
   const tokenPayload = await tokenResponse.json();
   if (tokenPayload.errcode || typeof tokenPayload.access_token !== "string") {
@@ -625,16 +629,24 @@ async function createWechatMiniProgramCode(scene, config) {
 
   const codeUrl = new URL(WECHAT_UNLIMITED_CODE_URL);
   codeUrl.searchParams.set("access_token", tokenPayload.access_token);
-  const codeResponse = await fetch(codeUrl, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      scene,
-      page: MINI_PROGRAM_INVITE_PAGE,
-      check_path: config.wechat.qrCheckPath,
-      env_version: config.wechat.qrEnvVersion,
-    }),
-  });
+  const codeResponse = await fetchWechat(
+    codeUrl,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        scene,
+        page: MINI_PROGRAM_INVITE_PAGE,
+        check_path: config.wechat.qrCheckPath,
+        env_version: config.wechat.qrEnvVersion,
+      }),
+    },
+    config,
+    {
+      timeout: "WeChat mini program code request timed out",
+      failure: "WeChat mini program code request failed",
+    },
+  );
   if (!codeResponse.ok) throw new Error("WeChat mini program code request failed");
 
   const contentType = codeResponse.headers.get("content-type") || "";
@@ -653,6 +665,14 @@ async function createWechatMiniProgramCode(scene, config) {
     imageDataUrl: `data:${contentType || "image/png"};base64,${buffer.toString("base64")}`,
     message: "WeChat mini program code generated",
   };
+}
+
+async function fetchWechat(url, init, config, messages) {
+  try {
+    return await fetchWithTimeout(url, init, config?.wechat?.upstreamTimeoutMs);
+  } catch (error) {
+    throw new Error(isFetchTimeoutError(error) ? messages.timeout : messages.failure);
+  }
 }
 
 function createDevMockQrDataUrl(scene) {

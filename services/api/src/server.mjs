@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { config } from "./config/env.mjs";
+import { applyCorsHeaders } from "./middleware/cors.mjs";
 import { handleError } from "./middleware/error-handler.mjs";
 import { attachRequestLogger } from "./middleware/request-logger.mjs";
 import { routeRequest } from "./routes/index.mjs";
@@ -7,6 +8,7 @@ import { logger } from "./utils/logger.mjs";
 
 const server = createServer(async (request, response) => {
   attachRequestLogger(request, response);
+  applyCorsHeaders(request, response, config);
 
   try {
     await routeRequest(request, response, { config });

@@ -12,10 +12,28 @@ export const config = {
     host: process.env.API_HOST || (isProduction ? "0.0.0.0" : "127.0.0.1"),
     port: parsePort(process.env.API_PORT || process.env.PORT, isProduction ? 8080 : 4310),
   },
+  cors: {
+    allowedOrigins: parseOriginList(
+      process.env.CORS_ALLOWED_ORIGINS,
+      isProduction ? [] : ["http://127.0.0.1:5174", "http://localhost:5174"],
+    ),
+  },
   auth: {
     tokenSecret:
       process.env.AUTH_TOKEN_SECRET || process.env.JWT_SECRET || "development-auth-token-secret",
     sessionTtlDays: parsePositiveInteger(process.env.AUTH_SESSION_TTL_DAYS, 30),
+    revokedSessionCleanupDays: parsePositiveInteger(
+      process.env.AUTH_REVOKED_SESSION_CLEANUP_DAYS,
+      30,
+    ),
+    sessionCleanupIntervalMs: parsePositiveInteger(
+      process.env.AUTH_SESSION_CLEANUP_INTERVAL_MS,
+      60 * 60 * 1000,
+    ),
+    wechatLoginRateLimit: {
+      windowMs: parsePositiveInteger(process.env.WECHAT_LOGIN_RATE_LIMIT_WINDOW_MS, 60 * 1000),
+      max: parsePositiveInteger(process.env.WECHAT_LOGIN_RATE_LIMIT_MAX, 20),
+    },
   },
   wechat: {
     appId: process.env.WECHAT_APP_ID || "",
@@ -25,6 +43,7 @@ export const config = {
     mockQrEnabled: !isProduction && parseBoolean(process.env.WECHAT_MOCK_QR_ENABLED || "true"),
     qrEnvVersion: process.env.WECHAT_MINIAPP_QR_ENV_VERSION || (isProduction ? "release" : "trial"),
     qrCheckPath: parseBoolean(process.env.WECHAT_MINIAPP_QR_CHECK_PATH || "true"),
+    upstreamTimeoutMs: parsePositiveInteger(process.env.WECHAT_UPSTREAM_TIMEOUT_MS, 5000),
   },
   storage: {
     provider: process.env.STORAGE_PROVIDER || "s3",
@@ -55,4 +74,13 @@ function parsePositiveInteger(value, fallback) {
 
 function parseBoolean(value) {
   return value === "true" || value === "1";
+}
+
+function parseOriginList(value, fallback = []) {
+  const raw = typeof value === "string" ? value : "";
+  const origins = raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin && origin !== "*");
+  return origins.length > 0 ? origins : fallback;
 }
