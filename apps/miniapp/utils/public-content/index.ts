@@ -8,6 +8,7 @@ import type {
   CommunityPostOptionsData,
   CreateCommunityCommentRequest,
   CreateCommunityPostRequest,
+  DeleteCommunityPostMediaData,
   FixedPageData,
   CompleteMediaUploadRequest,
   ImageUploadData,
@@ -184,6 +185,14 @@ export async function completeCommunityPostImageUpload(
   const response = await post<MediaAssetData, CompleteMediaUploadRequest>(
     `/community/posts/${encodeURIComponent(postId)}/media/${encodeURIComponent(mediaId)}/upload/complete`,
     data,
+  );
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
+export async function deleteCommunityPostImage(postId: string, mediaId: string) {
+  const response = await del<DeleteCommunityPostMediaData>(
+    `/community/posts/${encodeURIComponent(postId)}/media/${encodeURIComponent(mediaId)}`,
   );
   if (!response.success) throw new Error(response.message);
   return response.data;

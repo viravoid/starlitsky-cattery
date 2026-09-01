@@ -67,13 +67,29 @@
     <view class="section">
       <text class="label">图片</text>
       <view class="image-grid">
-        <image
+        <view
           wx:for="{{existingImages}}"
-          wx:key="*this"
-          class="image-tile"
-          src="{{item}}"
-          mode="aspectFill"
-        />
+          wx:key="id"
+          class="{{item.removed ? 'image-wrap image-removed' : 'image-wrap'}}"
+        >
+          <image class="image-tile" src="{{item.url}}" mode="aspectFill" />
+          <button
+            wx:if="{{item.removed}}"
+            class="restore-image"
+            data-id="{{item.id}}"
+            bindtap="restoreExistingImage"
+          >
+            恢复
+          </button>
+          <button
+            wx:else
+            class="remove-image"
+            data-id="{{item.id}}"
+            bindtap="removeExistingImage"
+          >
+            ×
+          </button>
+        </view>
         <view wx:for="{{selectedImages}}" wx:key="tempFilePath" wx:for-index="index" class="image-wrap">
           <image class="image-tile" src="{{item.tempFilePath}}" mode="aspectFill" />
           <button class="remove-image" data-index="{{index}}" bindtap="removeSelectedImage">×</button>

@@ -2,6 +2,8 @@ import type {
   CatData,
   CatListData,
   AttachCatToLitterRequest,
+  AdminCommunityPostData,
+  AdminCommunityPostListData,
   BreedingCatProfileData,
   CreateBreedingCatProfileRequest,
   CreateCatRequest,
@@ -25,6 +27,8 @@ import type {
   MediaAssetData,
   MediaAssetListData,
   MediaBindingData,
+  ModerateCommunityCommentRequest,
+  ModerateCommunityPostRequest,
   ParentApplicationData,
   ParentApplicationListData,
   ParentCatLinkData,
@@ -73,6 +77,16 @@ export interface ListMediaParams {
   pageSize?: number;
   q?: string;
   status?: string;
+}
+
+export interface ListCommunityModerationParams {
+  authorUserId?: string;
+  category?: string;
+  includeDeleted?: boolean;
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  visibility?: string;
 }
 
 export function listCats(params: ListCatsParams = {}) {
@@ -240,6 +254,35 @@ export function updateSelectionApplicationReview(
 
 export function listMedia(params: ListMediaParams = {}) {
   return unwrap<MediaAssetListData>(adminGet(`/media${toSearch(params)}`));
+}
+
+export function listCommunityModerationPosts(params: ListCommunityModerationParams = {}) {
+  return unwrap<AdminCommunityPostListData>(adminGet(`/community/admin/posts${toSearch(params)}`));
+}
+
+export function getCommunityModerationPost(id: string) {
+  return unwrap<AdminCommunityPostData>(
+    adminGet(`/community/admin/posts/${encodeURIComponent(id)}`),
+  );
+}
+
+export function moderateCommunityPost(id: string, data: ModerateCommunityPostRequest) {
+  return unwrap<AdminCommunityPostData, ModerateCommunityPostRequest>(
+    adminPatch(`/community/admin/posts/${encodeURIComponent(id)}`, data),
+  );
+}
+
+export function moderateCommunityComment(
+  postId: string,
+  commentId: string,
+  data: ModerateCommunityCommentRequest,
+) {
+  return unwrap<AdminCommunityPostData["comments"][number], ModerateCommunityCommentRequest>(
+    adminPatch(
+      `/community/admin/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+      data,
+    ),
+  );
 }
 
 export function listFixedPages() {

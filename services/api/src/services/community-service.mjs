@@ -8,6 +8,8 @@ const PARENT_CATEGORY_VALUES = new Set(["parent_share", "personal_thoughts"]);
 const VISIBILITY_VALUES = new Set(["visible", "hidden", "archived"]);
 const POST_CREATE_FIELDS = ["category", "content", "catIds", "litterIds", "visibility", "pinned"];
 const POST_UPDATE_FIELDS = ["category", "content", "catIds", "litterIds", "visibility", "pinned"];
+const POST_MODERATION_FIELDS = ["visibility", "pinned", "deleted"];
+const COMMENT_MODERATION_FIELDS = ["visibility", "deleted"];
 const COMMENT_CREATE_FIELDS = ["content"];
 
 export async function listCommunityPosts(searchParams, viewer = null) {
@@ -32,6 +34,33 @@ export async function listCommunityPosts(searchParams, viewer = null) {
   };
 }
 
+export async function listAdminCommunityPosts(searchParams, user) {
+  ensurePrivilegedUser(user);
+  const { page, pageSize, skip, take } = parsePagination(searchParams);
+  const where = buildAdminPostWhere(searchParams);
+
+  const [items, total] = await prisma.$transaction([
+    prisma.post.findMany({
+      where,
+      include: COMMUNITY_POST_DETAIL_INCLUDE,
+      orderBy: [{ pinned: "desc" }, { created_at: "desc" }, { id: "asc" }],
+      skip,
+      take,
+    }),
+    prisma.post.count({ where }),
+  ]);
+  const publicData = await getPublicPostSupplements(items.map((post) => post.id), {
+    includeComments: true,
+    relationAccess: { revealAll: true },
+    viewer: user,
+  });
+
+  return {
+    items: items.map((post) => toAdminCommunityPostDto(post, publicData)),
+    pagination: buildPaginationMeta({ page, pageSize, total }),
+  };
+}
+
 export async function getCommunityPost(id, viewer = null) {
   const post = await prisma.post.findFirst({
     where: {
@@ -51,6 +80,26 @@ export async function getCommunityPost(id, viewer = null) {
     viewer,
   });
   return toCommunityPostDto(post, publicData);
+}
+
+export async function getAdminCommunityPost(id, user) {
+  ensurePrivilegedUser(user);
+  const post = await prisma.post.findFirst({
+    where: { id },
+    include: COMMUNITY_POST_ADMIN_DETAIL_INCLUDE,
+  });
+  if (!post) throw notFound("Community post not found");
+
+  const publicData = await getPublicPostSupplements([post.id], {
+    includeComments: false,
+    relationAccess: { revealAll: true },
+    viewer: user,
+  });
+  return toAdminCommunityPostDto(post, {
+    ...publicData,
+    commentsByPostId: new Map([[post.id, post.comments.map((comment) => toCommunityCommentDto(comment, { viewer: user }))]]),
+    commentCountByPostId: new Map([[post.id, post.comments.filter((comment) => !comment.deleted_at).length]]),
+  });
 }
 
 export async function listMyCommunityPosts(searchParams, user) {
@@ -270,6 +319,48 @@ export async function deleteCommunityPost(id, user) {
   });
 }
 
+export async function moderateCommunityPost(id, input, user) {
+  ensurePrivilegedUser(user);
+  assertPlainObject(input);
+  assertNoUnknownFields(input, POST_MODERATION_FIELDS);
+
+  const existing = await prisma.post.findFirst({
+    where: { id },
+    include: COMMUNITY_POST_DETAIL_INCLUDE,
+  });
+  if (!existing) throw notFound("Community post not found");
+
+  const data = {};
+  if (Object.hasOwn(input, "visibility")) {
+    data.visibility = normalizeVisibility(input.visibility);
+  }
+  if (Object.hasOwn(input, "pinned")) {
+    data.pinned = Boolean(input.pinned);
+  }
+  if (Object.hasOwn(input, "deleted")) {
+    const shouldDelete = Boolean(input.deleted);
+    data.deleted_at = shouldDelete ? new Date() : null;
+    if (shouldDelete) data.visibility = "archived";
+  }
+  if (Object.keys(data).length === 0) throw badRequest("At least one moderation field must be provided");
+
+  const post = await prisma.post.update({
+    where: { id },
+    data,
+    include: COMMUNITY_POST_ADMIN_DETAIL_INCLUDE,
+  });
+  const publicData = await getPublicPostSupplements([post.id], {
+    includeComments: false,
+    relationAccess: { revealAll: true },
+    viewer: user,
+  });
+  return toAdminCommunityPostDto(post, {
+    ...publicData,
+    commentsByPostId: new Map([[post.id, post.comments.map((comment) => toCommunityCommentDto(comment, { viewer: user }))]]),
+    commentCountByPostId: new Map([[post.id, post.comments.filter((comment) => !comment.deleted_at).length]]),
+  });
+}
+
 export async function toggleCommunityPostLike(id, user) {
   await ensureVisiblePostExists(id);
   const existing = await prisma.postLike.findUnique({
@@ -342,6 +433,38 @@ export async function deleteCommunityComment(postId, commentId, user) {
   return toCommunityCommentDto(updated, { viewer: user });
 }
 
+export async function moderateCommunityComment(postId, commentId, input, user) {
+  ensurePrivilegedUser(user);
+  assertPlainObject(input);
+  assertNoUnknownFields(input, COMMENT_MODERATION_FIELDS);
+  const comment = await prisma.comment.findFirst({
+    where: {
+      id: commentId,
+      post_id: postId,
+    },
+    include: COMMENT_INCLUDE,
+  });
+  if (!comment) throw notFound("Community comment not found");
+
+  const data = {};
+  if (Object.hasOwn(input, "visibility")) {
+    data.visibility = normalizeVisibility(input.visibility);
+  }
+  if (Object.hasOwn(input, "deleted")) {
+    const shouldDelete = Boolean(input.deleted);
+    data.deleted_at = shouldDelete ? new Date() : null;
+    if (shouldDelete) data.visibility = "archived";
+  }
+  if (Object.keys(data).length === 0) throw badRequest("At least one moderation field must be provided");
+
+  const updated = await prisma.comment.update({
+    where: { id: comment.id },
+    data,
+    include: COMMENT_INCLUDE,
+  });
+  return toCommunityCommentDto(updated, { viewer: user });
+}
+
 export async function requestCommunityPostImageUpload(postId, input, user) {
   await ensureCanUploadToPost(postId, user);
   return requestImageUpload({
@@ -372,6 +495,35 @@ export async function completeCommunityPostImageUpload(postId, mediaId, input, u
   return completeMediaUpload(mediaId, input);
 }
 
+export async function deleteCommunityPostMedia(postId, mediaId, user) {
+  await ensureCanUploadToPost(postId, user);
+  const binding = await prisma.mediaBinding.findFirst({
+    where: {
+      media_id: mediaId,
+      owner_type: "post",
+      owner_id: postId,
+      deleted_at: null,
+    },
+  });
+  if (!binding) throw notFound("Community post media not found");
+
+  const updated = await prisma.mediaBinding.update({
+    where: { id: binding.id },
+    data: {
+      deleted_at: new Date(),
+      visibility: "archived",
+    },
+  });
+
+  return {
+    id: updated.media_id,
+    bindingId: updated.id,
+    ownerType: updated.owner_type,
+    ownerId: updated.owner_id,
+    deletedAt: toIsoString(updated.deleted_at),
+  };
+}
+
 function buildPostWhere(searchParams) {
   const category = searchParams.get("category");
   const litterId = searchParams.get("litterId");
@@ -398,6 +550,35 @@ function buildPostWhere(searchParams) {
   }
   if (query) {
     where.content = { contains: query };
+  }
+
+  return where;
+}
+
+function buildAdminPostWhere(searchParams) {
+  const category = searchParams.get("category");
+  const visibility = searchParams.get("visibility");
+  const authorUserId = searchParams.get("authorUserId");
+  const query = searchParams.get("q");
+  const includeDeleted = searchParams.get("includeDeleted") === "true";
+  const where = {};
+
+  if (!includeDeleted) where.deleted_at = null;
+  if (category) {
+    if (!CATEGORY_VALUES.has(category)) throw badRequest("category contains an unsupported value");
+    where.category = category;
+  }
+  if (visibility) {
+    if (!VISIBILITY_VALUES.has(visibility)) throw badRequest("visibility contains an unsupported value");
+    where.visibility = visibility;
+  }
+  if (authorUserId) where.author_user_id = authorUserId;
+  if (query) {
+    where.OR = [
+      { content: { contains: query } },
+      { author_name_snapshot: { contains: query } },
+      { author: { nickname: { contains: query } } },
+    ];
   }
 
   return where;
@@ -534,6 +715,14 @@ function toCommunityPostDto(post, publicData) {
     canDelete: canManagePost(publicData.viewer, post),
     createdAt: toIsoString(post.created_at),
     updatedAt: toIsoString(post.updated_at),
+  };
+}
+
+function toAdminCommunityPostDto(post, publicData) {
+  return {
+    ...toCommunityPostDto(post, publicData),
+    authorUserId: post.author_user_id,
+    deletedAt: toIsoString(post.deleted_at),
   };
 }
 
@@ -824,6 +1013,10 @@ function ensureCanManagePost(user, post) {
   if (!canManagePost(user, post)) throw forbidden("Current user cannot manage this post");
 }
 
+function ensurePrivilegedUser(user) {
+  if (!isPrivilegedUser(user)) throw forbidden("Only keepers can moderate community content");
+}
+
 function canManagePost(user, post) {
   if (!user || !post) return false;
   return isPrivilegedUser(user) || (hasRole(user, "parent") && post.author_user_id === user.id);
@@ -1033,4 +1226,12 @@ const COMMUNITY_POST_INCLUDE = {
 const COMMUNITY_POST_DETAIL_INCLUDE = {
   ...COMMUNITY_POST_INCLUDE,
   author: true,
+};
+
+const COMMUNITY_POST_ADMIN_DETAIL_INCLUDE = {
+  ...COMMUNITY_POST_DETAIL_INCLUDE,
+  comments: {
+    include: COMMENT_INCLUDE,
+    orderBy: [{ created_at: "asc" }, { id: "asc" }],
+  },
 };

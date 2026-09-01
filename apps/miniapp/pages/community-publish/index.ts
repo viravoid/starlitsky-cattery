@@ -1,11 +1,13 @@
 import type {
   CommunityPostCategory,
+  CommunityPostMediaAssetData,
   CommunityPostOptionsData,
   CreateCommunityPostRequest,
 } from "@starlitsky/shared";
 import {
   completeCommunityPostImageUpload,
   createCommunityPost,
+  deleteCommunityPostImage,
   getCommunityPost,
   getCommunityPostOptions,
   requestCommunityPostImageUpload,
@@ -44,6 +46,12 @@ interface SelectedImage {
   tempFilePath: string;
 }
 
+interface ExistingImage {
+  id: string;
+  removed: boolean;
+  url: string;
+}
+
 interface PublishData {
   canSubmit: boolean;
   categories: Array<{ label: string; value: CommunityPostCategory }>;
@@ -51,7 +59,7 @@ interface PublishData {
   cats: OptionItem[];
   content: string;
   error: string;
-  existingImages: string[];
+  existingImages: ExistingImage[];
   id: string;
   isEditing: boolean;
   isLoading: boolean;
@@ -111,8 +119,8 @@ Page({
         existingImages:
           post?.mediaAssets
             .filter((item) => item.kind === "image")
-            .map((item) => item.sourceUrl || item.thumbnailUrl || "")
-            .filter(Boolean) ?? [],
+            .map(toExistingImage)
+            .filter((item): item is ExistingImage => Boolean(item)) ?? [],
         isLoading: false,
         litters: toOptionItems(options, "litters", post?.litters.map((litter) => litter.id) ?? []),
       });
@@ -147,7 +155,8 @@ Page({
   },
 
   chooseImages(this: PublishPage) {
-    const remaining = Math.max(0, 9 - this.data.existingImages.length - this.data.selectedImages.length);
+    const keptExistingCount = this.data.existingImages.filter((image) => !image.removed).length;
+    const remaining = Math.max(0, 9 - keptExistingCount - this.data.selectedImages.length);
     if (remaining === 0) {
       showToast("最多 9 张图片");
       return;
@@ -180,6 +189,31 @@ Page({
     });
   },
 
+  removeExistingImage(this: PublishPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    this.setData({
+      existingImages: this.data.existingImages.map((image) =>
+        image.id === id ? { ...image, removed: true } : image,
+      ),
+    });
+  },
+
+  restoreExistingImage(this: PublishPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    const keptExistingCount = this.data.existingImages.filter((image) => !image.removed).length;
+    if (keptExistingCount + this.data.selectedImages.length >= 9) {
+      showToast("最多 9 张图片");
+      return;
+    }
+    this.setData({
+      existingImages: this.data.existingImages.map((image) =>
+        image.id === id ? { ...image, removed: false } : image,
+      ),
+    });
+  },
+
   async submit(this: PublishPage) {
     if (!this.data.category) {
       showToast("请选择分类");
@@ -203,8 +237,20 @@ Page({
         ? await updateCommunityPost(this.data.id, payload)
         : await createCommunityPost(payload);
 
-      for (let index = 0; index < this.data.selectedImages.length; index += 1) {
-        await uploadPostImage(post.id, this.data.selectedImages[index], this.data.existingImages.length + index);
+      try {
+        const removedImages = this.data.existingImages.filter((image) => image.removed);
+        for (const image of removedImages) {
+          await deleteCommunityPostImage(post.id, image.id);
+        }
+
+        const keptExistingCount = this.data.existingImages.filter((image) => !image.removed).length;
+        for (let index = 0; index < this.data.selectedImages.length; index += 1) {
+          await uploadPostImage(post.id, this.data.selectedImages[index], keptExistingCount + index);
+        }
+      } catch (imageError) {
+        showToast(`动态已保存，图片更新失败：${getErrorMessage(imageError)}`);
+        this.setData({ isSubmitting: false });
+        return;
       }
 
       showToast(this.data.isEditing ? "已保存" : "已发布");
@@ -215,6 +261,11 @@ Page({
     }
   },
 });
+
+function toExistingImage(media: CommunityPostMediaAssetData): ExistingImage | null {
+  const url = media.sourceUrl || media.thumbnailUrl || "";
+  return url ? { id: media.id, removed: false, url } : null;
+}
 
 function toOptionItems(
   options: CommunityPostOptionsData,

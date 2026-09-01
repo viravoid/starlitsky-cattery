@@ -311,6 +311,23 @@ td {
   min-width: 0;
 }
 
+.comment-moderation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.comment-moderation-row strong,
+.comment-moderation-row span {
+  color: #334155;
+  font-size: 13px;
+}
+
 .media-preview {
   width: 100%;
   max-height: 260px;

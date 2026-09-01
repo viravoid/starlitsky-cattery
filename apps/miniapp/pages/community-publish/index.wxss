@@ -41,6 +41,7 @@
 .option::after,
 .add-image::after,
 .remove-image::after,
+.restore-image::after,
 .submit-button::after {
   border: 0;
 }
@@ -122,6 +123,10 @@
   position: relative;
 }
 
+.image-removed .image-tile {
+  opacity: 0.34;
+}
+
 .image-tile,
 .add-image {
   width: 100%;
@@ -155,6 +160,20 @@
   color: #ffffff;
   font-size: 28rpx;
   line-height: 42rpx;
+}
+
+.restore-image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  min-width: 86rpx;
+  height: 46rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  color: #41546c;
+  font-size: 24rpx;
+  line-height: 46rpx;
+  transform: translate(-50%, -50%);
 }
 
 .submit-button {
