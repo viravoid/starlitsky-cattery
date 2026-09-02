@@ -1,10 +1,13 @@
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, serviceUnavailable, unauthorized } from "../utils/errors.mjs";
+import { fetchWithTimeout, isFetchTimeoutError } from "../utils/fetch.mjs";
 
 const WECHAT_CODE2SESSION_URL = "https://api.weixin.qq.com/sns/jscode2session";
 const BASE_ROLE = "user";
 const ROLE_ORDER = ["admin", "keeper", "parent", "user"];
+const DAY_MS = 24 * 60 * 60 * 1000;
+let lastSessionCleanupAtMs = 0;
 
 export async function loginWithWechatCode({ code, config, userAgent }) {
   const trimmedCode = typeof code === "string" ? code.trim() : "";
@@ -95,7 +98,16 @@ async function exchangeWechatCodeWithApi(code, config) {
   url.searchParams.set("js_code", code);
   url.searchParams.set("grant_type", "authorization_code");
 
-  const response = await fetch(url);
+  let response;
+  try {
+    response = await fetchWithTimeout(url, undefined, config.wechat.upstreamTimeoutMs);
+  } catch (error) {
+    throw serviceUnavailable(
+      isFetchTimeoutError(error)
+        ? "WeChat identity verification timed out"
+        : "WeChat identity verification failed",
+    );
+  }
   if (!response.ok) {
     throw serviceUnavailable("WeChat identity verification failed");
   }
@@ -170,6 +182,8 @@ async function upsertWechatUser(identity) {
 }
 
 async function createSession({ userId, config, userAgent }) {
+  await cleanupExpiredSessionsQuietly(config);
+
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + config.auth.sessionTtlDays * 24 * 60 * 60 * 1000);
 
@@ -186,6 +200,37 @@ async function createSession({ userId, config, userAgent }) {
     token,
     expiresAt,
   };
+}
+
+export async function cleanupExpiredSessions(config, now = new Date()) {
+  const intervalMs = Number(config?.auth?.sessionCleanupIntervalMs ?? 60 * 60 * 1000);
+  const nowMs = now.getTime();
+  if (Number.isInteger(intervalMs) && intervalMs > 0 && nowMs - lastSessionCleanupAtMs < intervalMs) {
+    return { skipped: true, count: 0 };
+  }
+
+  const revokedSessionCleanupDays = Number(config?.auth?.revokedSessionCleanupDays ?? 30);
+  const revokedBefore = new Date(nowMs - Math.max(1, revokedSessionCleanupDays) * DAY_MS);
+  const result = await prisma.userSession.deleteMany({
+    where: {
+      OR: [{ expires_at: { lt: now } }, { revoked_at: { lt: revokedBefore } }],
+    },
+  });
+  lastSessionCleanupAtMs = nowMs;
+
+  return { skipped: false, count: result.count };
+}
+
+export function resetSessionCleanupClock() {
+  lastSessionCleanupAtMs = 0;
+}
+
+async function cleanupExpiredSessionsQuietly(config) {
+  try {
+    await cleanupExpiredSessions(config);
+  } catch {
+    // Login should not fail because best-effort session garbage collection failed.
+  }
 }
 
 function hashToken(token, config) {

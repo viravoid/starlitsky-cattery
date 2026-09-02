@@ -49,6 +49,15 @@ export function methodNotAllowed(message = "Method not allowed") {
   });
 }
 
+export function tooManyRequests(message = "Too many requests", details) {
+  return new ApiError({
+    statusCode: 429,
+    code: "TOO_MANY_REQUESTS",
+    message,
+    details,
+  });
+}
+
 export function serviceUnavailable(message = "Service unavailable", details) {
   return new ApiError({
     statusCode: 503,

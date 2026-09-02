@@ -62,6 +62,15 @@ Health check:
 curl http://127.0.0.1:4310/health
 ```
 
+Production API hardening:
+
+- Set `CORS_ALLOWED_ORIGINS` to the exact deployed admin web origin list. The API no longer emits wildcard browser CORS headers; WeChat mini program requests do not rely on browser CORS.
+- Keep `WECHAT_MOCK_LOGIN_ENABLED=false` and `WECHAT_MOCK_QR_ENABLED=false` in production. Production already disables these mocks unless explicitly changed in code.
+- Tune `WECHAT_LOGIN_RATE_LIMIT_WINDOW_MS`, `WECHAT_LOGIN_RATE_LIMIT_MAX`, and `WECHAT_LOGIN_RATE_LIMIT_MAX_BUCKETS` for the deployment edge. The built-in limiter protects `/auth/wechat/login` per client IP in-process and opportunistically removes expired buckets.
+- Leave `TRUST_PROXY=false` unless the API can only be reached through a trusted reverse proxy that overwrites or appends client IP headers. Production does not automatically trust `x-forwarded-for` or `x-real-ip`; with `TRUST_PROXY=true`, set `TRUST_PROXY_HOPS` to the number of trusted proxy hops before the API.
+- `WECHAT_UPSTREAM_TIMEOUT_MS` controls WeChat API request timeouts for login and invite QR generation.
+- Expired sessions are cleaned opportunistically during login. `AUTH_SESSION_CLEANUP_INTERVAL_MS` controls how often this runs; revoked sessions older than `AUTH_REVOKED_SESSION_CLEANUP_DAYS` are also deleted.
+
 Shared type check:
 
 ```bash
