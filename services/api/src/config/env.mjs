@@ -11,6 +11,8 @@ export const config = {
   server: {
     host: process.env.API_HOST || (isProduction ? "0.0.0.0" : "127.0.0.1"),
     port: parsePort(process.env.API_PORT || process.env.PORT, isProduction ? 8080 : 4310),
+    trustProxy: parseBoolean(process.env.TRUST_PROXY),
+    trustedProxyHops: parsePositiveInteger(process.env.TRUST_PROXY_HOPS, 1),
   },
   cors: {
     allowedOrigins: parseOriginList(
@@ -33,6 +35,7 @@ export const config = {
     wechatLoginRateLimit: {
       windowMs: parsePositiveInteger(process.env.WECHAT_LOGIN_RATE_LIMIT_WINDOW_MS, 60 * 1000),
       max: parsePositiveInteger(process.env.WECHAT_LOGIN_RATE_LIMIT_MAX, 20),
+      maxBuckets: parsePositiveInteger(process.env.WECHAT_LOGIN_RATE_LIMIT_MAX_BUCKETS, 10_000),
     },
   },
   wechat: {

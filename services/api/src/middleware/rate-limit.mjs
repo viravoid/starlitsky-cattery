@@ -1,10 +1,16 @@
 import { tooManyRequests } from "../utils/errors.mjs";
 
 const buckets = new Map();
+const DEFAULT_MAX_BUCKETS = 10_000;
 
 export function assertRateLimit(key, options = {}, nowMs = Date.now()) {
   const limit = normalizeLimit(options);
   if (!key || !limit) return;
+
+  pruneExpiredBuckets(nowMs);
+  if (!buckets.has(key) && buckets.size >= limit.maxBuckets) {
+    evictOldestBucket();
+  }
 
   const existing = buckets.get(key);
   const bucket =
@@ -19,18 +25,15 @@ export function assertRateLimit(key, options = {}, nowMs = Date.now()) {
   }
 }
 
-export function buildIpRateLimitKey(request, prefix) {
-  return `${prefix}:${getClientIp(request)}`;
+export function buildIpRateLimitKey(request, prefix, proxyConfig = {}) {
+  return `${prefix}:${getClientIp(request, proxyConfig)}`;
 }
 
-export function getClientIp(request) {
-  const forwardedFor = request.headers["x-forwarded-for"];
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
+export function getClientIp(request, proxyConfig = {}) {
+  if (proxyConfig.trustProxy) {
+    const forwardedIp = getForwardedClientIp(request.headers, proxyConfig.trustedProxyHops);
+    if (forwardedIp) return forwardedIp;
   }
-
-  const realIp = request.headers["x-real-ip"];
-  if (typeof realIp === "string" && realIp.trim()) return realIp.trim();
 
   return request.socket?.remoteAddress || "unknown";
 }
@@ -39,10 +42,56 @@ export function resetRateLimitBuckets() {
   buckets.clear();
 }
 
+export function getRateLimitBucketCount() {
+  return buckets.size;
+}
+
 function normalizeLimit(options) {
   const windowMs = Number(options.windowMs);
   const max = Number(options.max);
+  const maxBuckets = Number(options.maxBuckets || DEFAULT_MAX_BUCKETS);
   if (!Number.isInteger(windowMs) || windowMs <= 0) return null;
   if (!Number.isInteger(max) || max <= 0) return null;
-  return { windowMs, max };
+  if (!Number.isInteger(maxBuckets) || maxBuckets <= 0) return null;
+  return { windowMs, max, maxBuckets };
+}
+
+function getForwardedClientIp(headers = {}, trustedProxyHops = 1) {
+  const forwardedFor = headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+    const forwardedChain = forwardedFor
+      .split(",")
+      .map((address) => address.trim())
+      .filter(Boolean);
+    if (forwardedChain.length > 0) {
+      const hopCount = Number.isInteger(Number(trustedProxyHops)) && Number(trustedProxyHops) > 0
+        ? Number(trustedProxyHops)
+        : 1;
+      return forwardedChain[Math.max(0, forwardedChain.length - hopCount)];
+    }
+  }
+
+  const realIp = headers["x-real-ip"];
+  if (typeof realIp === "string" && realIp.trim()) return realIp.trim();
+  return null;
+}
+
+function pruneExpiredBuckets(nowMs) {
+  for (const [key, bucket] of buckets) {
+    if (!bucket || bucket.resetAtMs <= nowMs) {
+      buckets.delete(key);
+    }
+  }
+}
+
+function evictOldestBucket() {
+  let oldestKey = null;
+  let oldestResetAtMs = Infinity;
+  for (const [key, bucket] of buckets) {
+    if (bucket.resetAtMs < oldestResetAtMs) {
+      oldestKey = key;
+      oldestResetAtMs = bucket.resetAtMs;
+    }
+  }
+  if (oldestKey) buckets.delete(oldestKey);
 }

@@ -13,7 +13,7 @@ export async function routeAuthRequest(request, response, url, context) {
     if (request.method !== "POST") throw methodNotAllowed();
 
     assertRateLimit(
-      buildIpRateLimitKey(request, "wechat-login"),
+      buildIpRateLimitKey(request, "wechat-login", context.config.server),
       context.config.auth.wechatLoginRateLimit,
     );
 

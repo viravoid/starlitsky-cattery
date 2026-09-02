@@ -7,6 +7,9 @@ export function sendSuccess(response, { statusCode = 200, data = null, message =
 }
 
 export function sendError(response, error) {
+  const retryAfterSeconds = getRetryAfterSeconds(error);
+  if (retryAfterSeconds) response.setHeader("retry-after", String(retryAfterSeconds));
+
   sendJson(response, error.statusCode || 500, {
     success: false,
     error: {
@@ -32,4 +35,11 @@ function buildJsonHeaders() {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
   };
+}
+
+function getRetryAfterSeconds(error) {
+  if (error?.statusCode !== 429) return null;
+  const retryAfterSeconds = Number(error.details?.retryAfterSeconds);
+  if (!Number.isInteger(retryAfterSeconds) || retryAfterSeconds <= 0) return null;
+  return retryAfterSeconds;
 }
