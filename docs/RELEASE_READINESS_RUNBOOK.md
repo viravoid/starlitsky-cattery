@@ -37,11 +37,26 @@ This runbook records the engineering steps required before staging and productio
 3. Build with `npm run build:admin`.
 4. Deploy the generated Admin assets to the selected static hosting platform.
 5. Confirm browser requests from the production Admin origin receive expected CORS headers.
-6. Product decision needed before production operator handoff: Admin credential/login product must be decided before production operator handoff.
+6. Confirm Admin QR login:
+   - Open the Admin web origin and create a login QR challenge.
+   - Scan the code with the Xingyue Miniapp as a `keeper` or `admin`.
+   - Confirm the login in the Miniapp.
+   - Confirm the browser receives a normal `UserSession` and `/auth/me` returns `keeper` or `admin`.
+   - Log out and confirm `/auth/logout` revokes the session and the browser returns to the login page.
+7. Required WeChat config:
+   - `WECHAT_APP_ID`
+   - `WECHAT_APP_SECRET`
+   - `WECHAT_MOCK_LOGIN_ENABLED=false`
+   - `WECHAT_MOCK_QR_ENABLED=false`
+   - `WECHAT_MINIAPP_QR_ENV_VERSION` matching the target Miniapp channel
+8. Product decision needed before production operator handoff: final Admin domain/origin, deployment provider, and runtime providers must be decided before production operator handoff.
 
 ## Miniapp release
 
-1. Set the Miniapp API domain to the deployed API base URL in the Miniapp environment config used for release.
+1. Set the Miniapp API domain to the deployed API base URL in `apps/miniapp/config/env.ts` for the matching WeChat channel:
+   - `develop` may use local API during development.
+   - `trial` must point at the staging API base URL before trial upload.
+   - `release` must point at the production API base URL before release upload.
 2. Configure WeChat Mini Program server domain prerequisites in the WeChat console:
    - request domain for the API
    - upload/download domains if storage or CDN domains are used directly by the Miniapp
@@ -67,7 +82,7 @@ This runbook records the engineering steps required before staging and productio
 3. Start the API and verify `/health`.
 4. Open Admin against the staging API.
 5. Import/open Miniapp against the staging API.
-6. Run WeChat login, parent invite, parent approval, media upload, questionnaire, public content, and community flows from `docs/EXTERNAL_E2E_CHECKLIST.md`.
+6. Run WeChat login, Admin QR login, parent invite, parent approval, media upload, questionnaire, public content, and community flows from `docs/EXTERNAL_E2E_CHECKLIST.md`.
 
 ## Migration order
 
