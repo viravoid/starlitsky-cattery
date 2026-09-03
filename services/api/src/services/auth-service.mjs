@@ -181,13 +181,13 @@ async function upsertWechatUser(identity) {
   return user;
 }
 
-async function createSession({ userId, config, userAgent }) {
-  await cleanupExpiredSessionsQuietly(config);
+export async function createSession({ userId, config, userAgent, client = prisma, cleanup = true }) {
+  if (cleanup) await cleanupExpiredSessionsQuietly(config);
 
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + config.auth.sessionTtlDays * 24 * 60 * 60 * 1000);
 
-  await prisma.userSession.create({
+  await client.userSession.create({
     data: {
       user_id: userId,
       token_hash: hashToken(token, config),

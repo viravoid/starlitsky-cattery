@@ -1,6 +1,15 @@
 import type { ReactNode } from "react";
+import type { CurrentUserData } from "@starlitsky/shared";
 
-export function AdminLayout({ children }: { children: ReactNode }) {
+export function AdminLayout({
+  children,
+  onLogout,
+  user,
+}: {
+  children: ReactNode;
+  onLogout?: () => void;
+  user?: CurrentUserData | null;
+}) {
   return (
     <main className="page">
       <div className="layout">
@@ -18,6 +27,14 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <a href="#parent-invites">家长邀请</a>
             <a href="#parent-applications">申请审核</a>
           </nav>
+          {onLogout ? (
+            <div className="session-summary">
+              <span>{user?.nickname || user?.currentRole || "已登录"}</span>
+              <button className="secondary-button small-button" type="button" onClick={onLogout}>
+                退出
+              </button>
+            </div>
+          ) : null}
         </header>
         {children}
       </div>

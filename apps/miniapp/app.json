@@ -10,6 +10,7 @@
     "pages/my-cat-detail/index",
     "pages/cats/index",
     "pages/cat-detail/index",
+    "pages/admin-auth/index",
     "pages/parent-auth/index"
   ],
   "window": {

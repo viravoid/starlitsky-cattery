@@ -58,6 +58,54 @@ export interface CurrentUserResponseData {
   user: CurrentUserData;
 }
 
+export type AdminLoginChallengeStatus =
+  | "pending"
+  | "approved"
+  | "consumed"
+  | "expired"
+  | "cancelled";
+
+export interface AdminLoginQrData {
+  provider: "wechat" | "dev-mock" | "unavailable";
+  status: "ready" | "mock" | "unavailable";
+  page: string;
+  imageDataUrl: string | null;
+  message: string;
+}
+
+export interface CreatedAdminLoginChallengeData {
+  id: string;
+  pollCredential: string;
+  expiresAt: string;
+  qr: AdminLoginQrData;
+}
+
+export interface ResolvedAdminLoginChallengeData {
+  id: string;
+  requestedAt: string;
+  expiresAt: string;
+  status: AdminLoginChallengeStatus;
+}
+
+export interface PollAdminLoginChallengeRequest {
+  pollCredential: string;
+}
+
+export interface PollAdminLoginChallengeData {
+  status: AdminLoginChallengeStatus;
+  expiresAt: string;
+  token?: string;
+  sessionExpiresAt?: string;
+  user?: CurrentUserData;
+}
+
+export interface ResolveAdminLoginChallengeRequest {
+  scene?: string;
+  sceneCredential?: string;
+}
+
+export type ApproveAdminLoginChallengeRequest = ResolveAdminLoginChallengeRequest;
+
 export interface CatData {
   id: string;
   name: string;

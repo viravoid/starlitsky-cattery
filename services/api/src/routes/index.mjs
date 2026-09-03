@@ -1,4 +1,5 @@
 import { routeAuthRequest } from "./auth.mjs";
+import { routeAdminAuthRequest } from "./admin-auth.mjs";
 import { handleHealth } from "./health.mjs";
 import { routeCatsRequest } from "./cats.mjs";
 import { routeCommunityRequest } from "./community.mjs";
@@ -29,6 +30,11 @@ export async function routeRequest(request, response, context) {
 
   if (url.pathname === "/auth" || url.pathname.startsWith("/auth/")) {
     await routeAuthRequest(request, response, url, context);
+    return;
+  }
+
+  if (url.pathname === "/admin-auth" || url.pathname.startsWith("/admin-auth/")) {
+    await routeAdminAuthRequest(request, response, url, context);
     return;
   }
 
