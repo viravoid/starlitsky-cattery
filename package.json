@@ -21,6 +21,7 @@
     "typecheck:miniapp": "tsc -p apps/miniapp/tsconfig.json --noEmit",
     "typecheck:shared": "tsc -p packages/shared/tsconfig.json --noEmit",
     "typecheck": "tsc --noEmit",
+    "verify:admin-auth": "npm --workspace @starlitsky/api run verify:admin-auth",
     "verify:production-env": "node services/api/src/config/production-env.verify.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."

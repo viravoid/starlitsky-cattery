@@ -80,6 +80,9 @@ jobs:
       - name: Verify security
         run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:security
 
+      - name: Verify admin auth
+        run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:admin-auth
+
       - name: Verify production env
         env:
           NODE_ENV: production

@@ -16,7 +16,8 @@
     "verify:community": "node src/services/community-service.verify.mjs",
     "verify:migration-smoke": "node src/services/prisma-migration-smoke.verify.mjs",
     "verify:production-env": "node src/config/production-env.verify.mjs",
-    "verify:security": "node src/services/security-hardening.verify.mjs"
+    "verify:security": "node src/services/security-hardening.verify.mjs",
+    "verify:admin-auth": "node src/services/admin-auth-service.verify.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.12.0"

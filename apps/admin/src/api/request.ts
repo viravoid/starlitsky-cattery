@@ -43,7 +43,12 @@ async function adminRequest<TData, TBody = unknown>(
 
   const payload = (await response.json().catch(() => createParseError())) as ApiResponse<TData>;
   if (response.ok) return payload;
-  if (response.status === 401) clearAdminAuthToken();
+  if (response.status === 401) {
+    clearAdminAuthToken();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("starlitsky-admin-unauthorized"));
+    }
+  }
 
   return normalizeErrorResponse(payload, response.status);
 }

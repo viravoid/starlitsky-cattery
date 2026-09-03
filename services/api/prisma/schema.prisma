@@ -31,6 +31,7 @@ model User {
   selection_applications          SelectionApplication[] @relation("SelectionApplicationUser")
   reviewed_selection_applications SelectionApplication[] @relation("SelectionApplicationReviewer")
   created_parent_cat_links        ParentCatLink[]        @relation("ParentCatLinkCreator")
+  approved_admin_login_challenges AdminLoginChallenge[]  @relation("AdminLoginChallengeApprover")
   posts                           Post[]
   comments                        Comment[]
   post_likes                      PostLike[]
@@ -70,6 +71,31 @@ model UserSession {
   @@index([expires_at])
   @@index([revoked_at])
   @@map("user_sessions")
+}
+
+/// Short-lived browser login challenge approved from the WeChat miniapp.
+/// The challenge does not grant roles; it only mints a normal UserSession
+/// after explicit keeper/admin approval and a second live role check.
+model AdminLoginChallenge {
+  id                       String    @id @default(uuid())
+  scene_credential_hash    String    @unique
+  poll_credential_hash     String    @unique
+  status                   String    @default("pending")
+  approved_by_user_id      String?
+  expires_at               DateTime
+  scanned_at               DateTime?
+  approved_at              DateTime?
+  consumed_at              DateTime?
+  cancelled_at             DateTime?
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+
+  approved_by User? @relation("AdminLoginChallengeApprover", fields: [approved_by_user_id], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([expires_at])
+  @@index([approved_by_user_id])
+  @@map("admin_login_challenges")
 }
 
 model ParentProfile {

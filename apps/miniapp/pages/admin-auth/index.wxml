@@ -1,0 +1,43 @@
+<view class="page">
+  <view class="hero">
+    <text class="eyebrow">Admin Verification</text>
+    <text class="title">登录星月猫舍管理后台</text>
+    <text class="subtitle">确认后，电脑浏览器将获得你的后台登录状态。请只为自己正在操作的浏览器确认。</text>
+  </view>
+
+  <view wx:if="{{isLoading}}" class="panel">
+    <text class="section-title">正在读取二维码</text>
+    <text class="muted">请稍候。</text>
+  </view>
+
+  <view wx:elif="{{state === 'ready'}}" class="panel">
+    <text class="section-title">确认登录</text>
+    <text class="muted">请求时间：{{challenge.requestedAt}}</text>
+    <text class="muted">过期时间：{{challenge.expiresAt}}</text>
+    <button class="submit" loading="{{isApproving}}" bindtap="onApprove">确认登录</button>
+  </view>
+
+  <view wx:elif="{{state === 'confirmed'}}" class="panel success-panel">
+    <text class="section-title">已确认</text>
+    <text class="muted">已确认，请回到电脑浏览器。</text>
+  </view>
+
+  <view wx:elif="{{state === 'forbidden'}}" class="panel danger-panel">
+    <text class="section-title">无后台权限</text>
+    <text class="muted">当前账号无后台权限。</text>
+  </view>
+
+  <view wx:elif="{{state === 'expired'}}" class="panel danger-panel">
+    <text class="section-title">二维码已失效</text>
+    <text class="muted">二维码已失效，请回电脑刷新。</text>
+  </view>
+
+  <view wx:else class="panel danger-panel">
+    <text class="section-title">无法确认登录</text>
+    <text class="muted">{{message}}</text>
+  </view>
+
+  <text wx:if="{{message && state !== 'confirmed' && state !== 'forbidden' && state !== 'expired'}}" class="hint">
+    {{message}}
+  </text>
+</view>
