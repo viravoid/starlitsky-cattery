@@ -43,6 +43,11 @@ declare const wx: {
     success(response: { code: string; errMsg?: string }): void;
     fail(error: { errMsg?: string }): void;
   }): void;
+  getAccountInfoSync?(): {
+    miniProgram: {
+      envVersion: "develop" | "trial" | "release";
+    };
+  };
   showToast(options: { title: string; icon?: "none" | "success" | "error" | "loading" }): void;
   navigateTo(options: { url: string }): void;
   previewImage(options: { current: string; urls: string[] }): void;

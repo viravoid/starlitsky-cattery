@@ -11,6 +11,14 @@ Use this checklist only with real staging or production-equivalent external serv
 - [ ] Scanning the invite code opens `parent-auth`.
 - [ ] Parent application submission works from the scanned invite.
 - [ ] Admin approval creates the expected parent access.
+- [ ] Real Admin QR mini-program code is generated from the WeChat API.
+- [ ] Scanning the Admin QR opens `admin-auth`.
+- [ ] Keeper/admin account can explicitly confirm Admin browser login.
+- [ ] Ordinary user account is blocked from Admin QR approval.
+- [ ] Expired Admin QR is blocked.
+- [ ] Reusing an already consumed Admin QR is blocked.
+- [ ] Browser receives a normal Admin `UserSession` after approval.
+- [ ] Admin logout revokes the browser session.
 
 ## Storage
 
@@ -24,6 +32,8 @@ Use this checklist only with real staging or production-equivalent external serv
 ## Admin
 
 - [ ] Production Admin origin passes API CORS checks.
+- [ ] Admin QR login browser flow completes through `/auth/me`.
+- [ ] Admin logout returns the browser to the QR login page.
 - [ ] Cat media management works.
 - [ ] Litter media management works.
 - [ ] FixedPage media management works.
