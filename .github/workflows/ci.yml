@@ -80,6 +80,24 @@ jobs:
       - name: Verify security
         run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:security
 
+      - name: Verify production env
+        env:
+          NODE_ENV: production
+          DATABASE_URL: file:./ci-production-env.db
+          AUTH_TOKEN_SECRET: ci-release-readiness-production-secret-32-chars
+          WECHAT_APP_ID: wxcirelease1234567890
+          WECHAT_APP_SECRET: ci-wechat-secret-release-readiness-32-chars
+          WECHAT_MOCK_LOGIN_ENABLED: "false"
+          WECHAT_MOCK_QR_ENABLED: "false"
+          CORS_ALLOWED_ORIGINS: https://admin.staging.starlitsky.example.org
+          STORAGE_PROVIDER: cos
+          STORAGE_BUCKET: starlitsky-ci-media
+          STORAGE_REGION: ap-shanghai
+          STORAGE_ACCESS_KEY_ID: ci-storage-access-key
+          STORAGE_ACCESS_KEY_SECRET: ci-storage-secret-release-readiness-32-chars
+          STORAGE_PUBLIC_BASE_URL: https://media.staging.starlitsky.example.org
+        run: npm run verify:production-env
+
       - name: API npm audit
         run: npm --prefix services/api audit --audit-level=high
 
