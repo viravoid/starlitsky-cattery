@@ -73,7 +73,7 @@ This runbook records the engineering steps required before staging and productio
 4. Confirm public media URL behavior:
    - direct bucket public URL, or
    - CDN/custom domain in `STORAGE_PUBLIC_BASE_URL`
-5. Pending media uploads older than the service stale threshold are marked rejected in the database so they stop accumulating as usable media. The current cleanup intentionally does not delete remote objects; object deletion remains a manual/quarantined COS audit task until least-privilege delete permissions and ownership evidence are configured.
+5. The API process runs a best-effort bounded maintenance task that marks pending media uploads older than the service stale threshold as rejected in the database, so they stop accumulating as usable media. The cleanup intentionally does not delete remote objects; object deletion remains a manual/quarantined COS audit task until least-privilege delete permissions and ownership evidence are configured.
 6. Do not store production object-storage credentials in the repo.
 
 ## Staging smoke order

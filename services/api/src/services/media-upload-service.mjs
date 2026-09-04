@@ -19,6 +19,7 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/webp",
 ]);
 const DEFAULT_PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_PENDING_UPLOAD_EXPIRY_BATCH_SIZE = 100;
 const IMAGE_UPLOAD_FIELDS = [
   "fileName",
   "mimeType",
@@ -127,10 +128,11 @@ export async function completeMediaUpload(mediaId, input) {
 export async function expireStalePendingImageUploads({
   now = new Date(),
   staleAfterMs = DEFAULT_PENDING_UPLOAD_STALE_AFTER_MS,
+  batchSize = DEFAULT_PENDING_UPLOAD_EXPIRY_BATCH_SIZE,
   reason = "stale_pending_upload",
 } = {}) {
   const staleBefore = new Date(now.getTime() - staleAfterMs);
-  return expirePendingMediaUploads({ reason, staleBefore });
+  return expirePendingMediaUploads({ limit: batchSize, reason, staleBefore });
 }
 
 async function verifyUploadedObject(media, input) {
@@ -166,13 +168,17 @@ async function verifyUploadedObject(media, input) {
 
   const requestedMimeType = normalizeStoredMimeType(upload.requestedMimeType ?? media.mime_type);
   const actualMimeType = normalizeReturnedContentType(metadata.contentType);
-  if (actualMimeType) {
-    if (!ALLOWED_IMAGE_MIME_TYPES.has(actualMimeType)) {
-      throw badRequest("Uploaded object content type is not an allowed image MIME type");
-    }
-    if (requestedMimeType && requestedMimeType !== actualMimeType) {
-      throw badRequest("Uploaded object content type does not match the requested MIME type");
-    }
+  if (!requestedMimeType) {
+    throw badRequest("Media upload metadata is missing the requested MIME type");
+  }
+  if (!actualMimeType) {
+    throw badRequest("Uploaded object content type could not be verified");
+  }
+  if (!ALLOWED_IMAGE_MIME_TYPES.has(actualMimeType)) {
+    throw badRequest("Uploaded object content type is not an allowed image MIME type");
+  }
+  if (requestedMimeType !== actualMimeType) {
+    throw badRequest("Uploaded object content type does not match the requested MIME type");
   }
 
   return {

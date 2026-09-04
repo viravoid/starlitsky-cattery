@@ -108,6 +108,16 @@ try {
     parentProfileId: `${RUN_PREFIX}-parent-empty`,
     roles: ["parent"],
   });
+  const disabledParent = await createUser({
+    id: `${RUN_PREFIX}-disabled-parent-user`,
+    nickname: "Verify Disabled Parent",
+    parentProfileId: `${RUN_PREFIX}-disabled-parent`,
+    roles: ["parent"],
+  });
+  await prisma.parentProfile.update({
+    where: { id: disabledParent.parentProfile.id },
+    data: { status: "disabled" },
+  });
   const inactiveLinkedCat = await prisma.cat.create({
     data: {
       id: `${RUN_PREFIX}-inactive-linked-cat`,
@@ -180,6 +190,14 @@ try {
     deletedAt: new Date(),
     catIds: [catA.id],
   });
+  const disabledParentPost = await createPost({
+    id: `${RUN_PREFIX}-disabled-parent-post`,
+    authorUserId: disabledParent.id,
+    category: "parent_share",
+    content: "Disabled parent legacy post",
+    visibility: "visible",
+    catIds: [catA.id],
+  });
 
   const guestVisible = await routeGet(`/community/posts/${visiblePost.id}`, null);
   assert.equal(guestVisible.id, visiblePost.id, "guest should read visible detail");
@@ -250,6 +268,38 @@ try {
     `/me/cats/${inactiveLinkedCat.id}`,
     parentWithoutCats,
     404,
+  );
+  await assertRouteRejects("disabled parent cannot list my cats", "/me/cats", disabledParent, 403);
+  await assertRouteRejects(
+    "disabled parent cannot create parent-share post",
+    "/community/posts",
+    disabledParent,
+    403,
+    "POST",
+    { category: "parent_share", content: "disabled parent blocked", catIds: [catA.id] },
+  );
+  await assertRouteRejects(
+    "disabled parent cannot edit legacy own post",
+    `/community/posts/${disabledParentPost.id}`,
+    disabledParent,
+    403,
+    "PATCH",
+    { content: "disabled parent edit blocked" },
+  );
+  await assertRouteRejects(
+    "disabled parent cannot delete legacy own post",
+    `/community/posts/${disabledParentPost.id}`,
+    disabledParent,
+    403,
+    "DELETE",
+  );
+  await assertRouteRejects(
+    "disabled parent cannot upload media to legacy own post",
+    `/community/posts/${disabledParentPost.id}/media/uploads`,
+    disabledParent,
+    403,
+    "POST",
+    { fileName: "blocked.jpg", mimeType: "image/jpeg", sizeBytes: 64 },
   );
 
   await assertRouteRejects(

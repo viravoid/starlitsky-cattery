@@ -1004,7 +1004,7 @@ async function ensureVisiblePostExists(id) {
 async function ensureCanUploadToPost(postId, user) {
   const post = await getMutablePost(postId);
   ensureCanManagePost(user, post);
-  if (!isPrivilegedUser(user) && !hasRole(user, "parent")) {
+  if (!isPrivilegedUser(user) && !isActiveParentUser(user)) {
     throw forbidden("Only parents and keepers can upload post images");
   }
 }
@@ -1019,7 +1019,7 @@ function ensurePrivilegedUser(user) {
 
 function canManagePost(user, post) {
   if (!user || !post) return false;
-  return isPrivilegedUser(user) || (hasRole(user, "parent") && post.author_user_id === user.id);
+  return isPrivilegedUser(user) || (isActiveParentUser(user) && post.author_user_id === user.id);
 }
 
 function canReadPostDetail(user, post) {
@@ -1109,7 +1109,7 @@ async function getRelationAccessForPostDetail(user, post) {
 
 function ensureCanUseCategory(user, category) {
   if (isPrivilegedUser(user)) return;
-  if (hasRole(user, "parent") && PARENT_CATEGORY_VALUES.has(category)) return;
+  if (isActiveParentUser(user) && PARENT_CATEGORY_VALUES.has(category)) return;
   throw forbidden("Current user cannot publish this category");
 }
 
@@ -1120,7 +1120,7 @@ function canCreateAnyCategory(user) {
 function getAllowedCreateCategories(user) {
   if (!user) return [];
   if (isPrivilegedUser(user)) return Array.from(CATEGORY_VALUES);
-  if (hasRole(user, "parent") && getActiveParentProfileId(user)) {
+  if (isActiveParentUser(user) && getActiveParentProfileId(user)) {
     return Array.from(PARENT_CATEGORY_VALUES);
   }
   return [];
@@ -1139,6 +1139,10 @@ function isPrivilegedUser(user) {
   return hasRole(user, "admin") || hasRole(user, "keeper");
 }
 
+function isActiveParentUser(user) {
+  return hasRole(user, "parent") && user.parentProfile?.status === "active";
+}
+
 function hasRole(user, role) {
   return Boolean(user?.roles?.includes(role));
 }
@@ -1146,7 +1150,7 @@ function hasRole(user, role) {
 function getAuthorSnapshot(user) {
   if (hasRole(user, "keeper")) return { name: user.nickname || "星月猫舍", role: "keeper" };
   if (hasRole(user, "admin")) return { name: user.nickname || "星月猫舍", role: "admin" };
-  if (hasRole(user, "parent") && user.parentProfile?.displayName) {
+  if (isActiveParentUser(user) && user.parentProfile?.displayName) {
     return { name: user.parentProfile.displayName, role: "parent" };
   }
   return { name: user.nickname || "星月猫友", role: "user" };

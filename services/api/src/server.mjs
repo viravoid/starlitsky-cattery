@@ -4,7 +4,10 @@ import { applyCorsHeaders } from "./middleware/cors.mjs";
 import { handleError } from "./middleware/error-handler.mjs";
 import { attachRequestLogger } from "./middleware/request-logger.mjs";
 import { routeRequest } from "./routes/index.mjs";
+import { createPendingMediaUploadMaintenance } from "./services/media-upload-maintenance-service.mjs";
 import { logger } from "./utils/logger.mjs";
+
+const mediaUploadMaintenance = createPendingMediaUploadMaintenance();
 
 const server = createServer(async (request, response) => {
   attachRequestLogger(request, response);
@@ -19,6 +22,11 @@ const server = createServer(async (request, response) => {
 
 server.listen(config.server.port, config.server.host, () => {
   logger.info(`starlitsky-api listening at http://${config.server.host}:${config.server.port}`);
+  mediaUploadMaintenance.start();
+});
+
+server.on("close", () => {
+  mediaUploadMaintenance.stop();
 });
 
 process.on("unhandledRejection", (reason) => {
