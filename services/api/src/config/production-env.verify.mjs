@@ -25,6 +25,7 @@ if (nodeEnv !== "production") {
 }
 
 requireNonPlaceholder("DATABASE_URL");
+validateApiBinding();
 
 const authSecretField = readEnv("AUTH_TOKEN_SECRET") ? "AUTH_TOKEN_SECRET" : "JWT_SECRET";
 const authSecret = readEnv(authSecretField);
@@ -106,6 +107,23 @@ function validateCorsOrigins() {
     } catch {
       fail(`CORS_ALLOWED_ORIGINS contains an invalid origin: ${origin}`);
     }
+  }
+}
+
+function validateApiBinding() {
+  const apiHost = readEnv("API_HOST");
+  if (!apiHost) {
+    fail("API_HOST must be set explicitly in production.");
+    return;
+  }
+
+  if (!isLocalhost(apiHost)) {
+    fail("API_HOST must bind to localhost in production; expose the API through Nginx only.");
+  }
+
+  const apiPortName = readEnv("API_PORT") ? "API_PORT" : readEnv("PORT") ? "PORT" : "";
+  if (apiPortName) {
+    readPositiveInteger(apiPortName);
   }
 }
 

@@ -86,6 +86,8 @@ jobs:
       - name: Verify production env
         env:
           NODE_ENV: production
+          API_HOST: 127.0.0.1
+          API_PORT: 8080
           DATABASE_URL: file:./ci-production-env.db
           AUTH_TOKEN_SECRET: ci-release-readiness-production-secret-32-chars
           WECHAT_APP_ID: wxcirelease1234567890
@@ -100,6 +102,11 @@ jobs:
           STORAGE_ACCESS_KEY_SECRET: ci-storage-secret-release-readiness-32-chars
           STORAGE_PUBLIC_BASE_URL: https://media.staging.starlitsky.example.org
         run: npm run verify:production-env
+
+      - name: Verify deployment assets
+        run: |
+          npm run verify:deployment-assets
+          bash -n deploy/production/scripts/*.sh
 
       - name: API npm audit
         run: npm --prefix services/api audit --audit-level=high
