@@ -4,6 +4,11 @@ import { serviceUnavailable } from "../utils/errors.mjs";
 
 const SIGNING_ALGORITHM = "AWS4-HMAC-SHA256";
 const SIGNING_SERVICE = "s3";
+let testObjectStorageClient = null;
+
+export function setObjectStorageTestClient(client) {
+  testObjectStorageClient = client;
+}
 
 export function createPresignedPutUpload({ objectKey, mimeType }) {
   const storage = getStorageConfig();
@@ -61,6 +66,45 @@ export function createPresignedPutUpload({ objectKey, mimeType }) {
   };
 }
 
+export async function headObject({ objectKey }) {
+  const storage = getStorageConfig();
+  if (testObjectStorageClient?.headObject) {
+    return testObjectStorageClient.headObject({ objectKey, storage });
+  }
+
+  const response = await fetchSignedStorageRequest({ method: "HEAD", objectKey, storage });
+  if (response.status === 404) return { exists: false };
+  if (!response.ok) {
+    throw serviceUnavailable("Object storage metadata check failed", {
+      statusCode: response.status,
+    });
+  }
+
+  return {
+    exists: true,
+    contentLength: parseNullableInteger(response.headers.get("content-length")),
+    contentType: response.headers.get("content-type") || null,
+    etag: response.headers.get("etag") || null,
+    lastModified: response.headers.get("last-modified") || null,
+  };
+}
+
+export async function deleteObject({ objectKey }) {
+  const storage = getStorageConfig();
+  if (testObjectStorageClient?.deleteObject) {
+    return testObjectStorageClient.deleteObject({ objectKey, storage });
+  }
+
+  const response = await fetchSignedStorageRequest({ method: "DELETE", objectKey, storage });
+  if (response.status === 404) return { deleted: false, missing: true };
+  if (!response.ok) {
+    throw serviceUnavailable("Object storage delete failed", {
+      statusCode: response.status,
+    });
+  }
+  return { deleted: true, missing: false };
+}
+
 export function buildObjectKey({ fileName, mimeType }) {
   const prefix = trimSlashes(config.storage.keyPrefix || "media");
   const date = new Date();
@@ -71,6 +115,45 @@ export function buildObjectKey({ fileName, mimeType }) {
   const randomName = crypto.randomBytes(16).toString("hex");
 
   return [prefix, "images", yyyy, mm, dd, `${randomName}.${extension}`].filter(Boolean).join("/");
+}
+
+async function fetchSignedStorageRequest({ method, objectKey, storage }) {
+  const now = new Date();
+  const amzDate = formatAmzDate(now);
+  const dateStamp = amzDate.slice(0, 8);
+  const requestUrl = buildUploadUrl(storage, objectKey);
+  const credentialScope = `${dateStamp}/${storage.region}/${SIGNING_SERVICE}/aws4_request`;
+  const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+  const canonicalHeaders = [
+    `host:${requestUrl.host}`,
+    "x-amz-content-sha256:UNSIGNED-PAYLOAD",
+    `x-amz-date:${amzDate}`,
+  ].join("\n");
+  const canonicalRequest = [
+    method,
+    requestUrl.pathname,
+    "",
+    `${canonicalHeaders}\n`,
+    signedHeaders,
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+  const stringToSign = [
+    SIGNING_ALGORITHM,
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+  const signingKey = createSigningKey(storage.accessKeySecret, dateStamp, storage.region);
+  const signature = hmacHex(signingKey, stringToSign);
+
+  return fetch(requestUrl, {
+    method,
+    headers: {
+      Authorization: `${SIGNING_ALGORITHM} Credential=${storage.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+      "x-amz-content-sha256": "UNSIGNED-PAYLOAD",
+      "x-amz-date": amzDate,
+    },
+  });
 }
 
 function getStorageConfig() {
@@ -177,6 +260,12 @@ function inferExtension(fileName, mimeType) {
 
   const match = String(fileName).toLowerCase().match(/\.([a-z0-9]{1,8})$/);
   return match ? match[1] : "bin";
+}
+
+function parseNullableInteger(value) {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 function encodePath(path) {

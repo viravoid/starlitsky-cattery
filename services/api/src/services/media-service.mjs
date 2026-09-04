@@ -89,7 +89,10 @@ export async function createMedia(input) {
     const created = await transaction.mediaAsset.create({ data: mediaData });
 
     if (bindingData) {
-      await ensureOwnerExists(bindingData.owner_type, bindingData.owner_id, transaction);
+      await ensureMediaOwnerExists(bindingData.owner_type, bindingData.owner_id, transaction);
+      if (mediaData.status === "active") {
+        await demoteOtherVisibleCatCovers(transaction, bindingData);
+      }
       await transaction.mediaBinding.create({
         data: {
           media_id: created.id,
@@ -114,7 +117,7 @@ export async function updateMedia(id, input) {
       id,
       deleted_at: null,
     },
-    select: { id: true },
+    include: MEDIA_INCLUDE,
   });
 
   if (!existing) throw notFound("Media asset not found");
@@ -128,10 +131,18 @@ export async function updateMedia(id, input) {
     throw badRequest("At least one media field must be provided");
   }
 
-  const media = await prisma.mediaAsset.update({
-    where: { id },
-    data,
-    include: MEDIA_INCLUDE,
+  const media = await prisma.$transaction(async (transaction) => {
+    if ((data.status ?? existing.status) === "active") {
+      for (const binding of existing.bindings) {
+        await demoteOtherVisibleCatCovers(transaction, binding, binding.id);
+      }
+    }
+
+    return transaction.mediaAsset.update({
+      where: { id },
+      data,
+      include: MEDIA_INCLUDE,
+    });
   });
 
   return toMediaDto(media);
@@ -190,19 +201,24 @@ export async function listMediaBindings(mediaId) {
 export async function createMediaBinding(mediaId, input) {
   assertPlainObject(input);
   assertNoUnknownFields(input, BINDING_CREATE_FIELDS);
-  await ensureActiveMediaExists(mediaId);
 
   const data = normalizeBindingInput(input, {
     mode: "create",
     allowedFields: BINDING_CREATE_FIELDS,
   });
-  await ensureOwnerExists(data.owner_type, data.owner_id);
+  const binding = await prisma.$transaction(async (transaction) => {
+    const media = await ensureActiveMediaExists(mediaId, transaction);
+    await ensureMediaOwnerExists(data.owner_type, data.owner_id, transaction);
+    if (media.status === "active") {
+      await demoteOtherVisibleCatCovers(transaction, data);
+    }
 
-  const binding = await prisma.mediaBinding.create({
-    data: {
-      media_id: mediaId,
-      ...data,
-    },
+    return transaction.mediaBinding.create({
+      data: {
+        media_id: mediaId,
+        ...data,
+      },
+    });
   });
 
   return toMediaBindingDto(binding);
@@ -212,31 +228,136 @@ export async function updateMediaBinding(mediaId, bindingId, input) {
   assertPlainObject(input);
   assertNoUnknownFields(input, BINDING_UPDATE_FIELDS);
 
-  const existing = await prisma.mediaBinding.findFirst({
-    where: {
-      id: bindingId,
-      media_id: mediaId,
-      deleted_at: null,
-    },
-  });
+  const binding = await prisma.$transaction(async (transaction) => {
+    const existing = await transaction.mediaBinding.findFirst({
+      where: {
+        id: bindingId,
+        media_id: mediaId,
+        deleted_at: null,
+      },
+      include: {
+        media: {
+          select: { status: true },
+        },
+      },
+    });
 
-  if (!existing) throw notFound("Media binding not found");
+    if (!existing) throw notFound("Media binding not found");
 
-  const data = normalizeBindingInput(input, {
-    mode: "update",
-    allowedFields: BINDING_UPDATE_FIELDS,
-  });
+    const data = normalizeBindingInput(input, {
+      mode: "update",
+      allowedFields: BINDING_UPDATE_FIELDS,
+    });
 
-  if (Object.keys(data).length === 0) {
-    throw badRequest("At least one media binding field must be provided");
-  }
+    if (Object.keys(data).length === 0) {
+      throw badRequest("At least one media binding field must be provided");
+    }
 
-  const binding = await prisma.mediaBinding.update({
-    where: { id: bindingId },
-    data,
+    const nextBinding = {
+      owner_type: existing.owner_type,
+      owner_id: existing.owner_id,
+      usage: data.usage ?? existing.usage,
+      visibility: data.visibility ?? existing.visibility,
+    };
+    if (existing.media.status === "active") {
+      await demoteOtherVisibleCatCovers(transaction, nextBinding, existing.id);
+    }
+
+    return transaction.mediaBinding.update({
+      where: { id: bindingId },
+      data,
+    });
   });
 
   return toMediaBindingDto(binding);
+}
+
+export async function activatePendingMediaUpload(mediaId, data) {
+  const media = await prisma.$transaction(async (transaction) => {
+    const existing = await transaction.mediaAsset.findFirst({
+      where: {
+        id: mediaId,
+        deleted_at: null,
+      },
+      include: MEDIA_INCLUDE,
+    });
+
+    if (!existing) throw notFound("Media asset not found");
+    if (existing.status !== "pending") return existing;
+
+    for (const binding of existing.bindings) {
+      await demoteOtherVisibleCatCovers(transaction, binding, binding.id);
+    }
+
+    const updateResult = await transaction.mediaAsset.updateMany({
+      where: {
+        id: mediaId,
+        status: "pending",
+        deleted_at: null,
+      },
+      data,
+    });
+
+    if (updateResult.count === 0) {
+      return transaction.mediaAsset.findFirst({
+        where: {
+          id: mediaId,
+          deleted_at: null,
+        },
+        include: MEDIA_INCLUDE,
+      });
+    }
+
+    return transaction.mediaAsset.findUnique({
+      where: { id: mediaId },
+      include: MEDIA_INCLUDE,
+    });
+  });
+
+  return toMediaDto(media);
+}
+
+export async function expirePendingMediaUploads({ staleBefore, reason }) {
+  const pending = await prisma.mediaAsset.findMany({
+    where: {
+      status: "pending",
+      deleted_at: null,
+      created_at: { lt: staleBefore },
+    },
+    select: {
+      id: true,
+      metadata_json: true,
+    },
+  });
+
+  if (pending.length === 0) return { expiredCount: 0 };
+
+  await prisma.$transaction(
+    pending.map((media) =>
+      prisma.mediaAsset.update({
+        where: { id: media.id },
+        data: {
+          status: "rejected",
+          metadata_json: markPendingUploadExpired(media.metadata_json, { reason }),
+        },
+      }),
+    ),
+  );
+
+  return { expiredCount: pending.length };
+}
+
+export async function getMediaUploadRecord(mediaId) {
+  const media = await prisma.mediaAsset.findFirst({
+    where: {
+      id: mediaId,
+      deleted_at: null,
+    },
+    include: MEDIA_INCLUDE,
+  });
+
+  if (!media) throw notFound("Media asset not found");
+  return media;
 }
 
 export async function deleteMediaBinding(mediaId, bindingId) {
@@ -386,21 +507,63 @@ function normalizeBindingInput(input, { mode, allowedFields }) {
   return data;
 }
 
-async function ensureActiveMediaExists(mediaId) {
-  const media = await prisma.mediaAsset.findFirst({
+async function ensureActiveMediaExists(mediaId, client = prisma) {
+  const media = await client.mediaAsset.findFirst({
     where: {
       id: mediaId,
       deleted_at: null,
     },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   if (!media) throw notFound("Media asset not found");
+  return media;
 }
 
-async function ensureOwnerExists(ownerType, ownerId, client = prisma) {
+export async function ensureMediaOwnerExists(ownerType, ownerId, client = prisma) {
   const owner = await findOwner(ownerType, ownerId, client);
   if (!owner) throw notFound("Media owner not found");
+}
+
+async function demoteOtherVisibleCatCovers(client, binding, exceptBindingId = null) {
+  if (!isVisibleCatCover(binding)) return;
+
+  await client.mediaBinding.updateMany({
+    where: {
+      owner_type: "cat",
+      owner_id: binding.owner_id,
+      usage: "cover",
+      visibility: "visible",
+      deleted_at: null,
+      ...(exceptBindingId ? { id: { not: exceptBindingId } } : {}),
+    },
+    data: {
+      visibility: "hidden",
+    },
+  });
+}
+
+function isVisibleCatCover(binding) {
+  return (
+    binding.owner_type === "cat" &&
+    binding.usage === "cover" &&
+    binding.visibility === "visible" &&
+    binding.deleted_at == null
+  );
+}
+
+function markPendingUploadExpired(value, { reason }) {
+  const metadata = value && typeof value === "object" && !Array.isArray(value) ? { ...value } : {};
+  const upload =
+    metadata.upload && typeof metadata.upload === "object" && !Array.isArray(metadata.upload)
+      ? { ...metadata.upload }
+      : {};
+  metadata.upload = {
+    ...upload,
+    expiredAt: new Date().toISOString(),
+    failureReason: reason,
+  };
+  return metadata;
 }
 
 async function findOwner(ownerType, ownerId, client) {
