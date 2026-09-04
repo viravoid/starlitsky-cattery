@@ -777,13 +777,13 @@ export interface CreateImageUploadRequest {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
+  ownerType: string;
+  ownerId: string;
   title?: string | null;
   altText?: string | null;
   checksum?: string | null;
   width?: number | null;
   height?: number | null;
-  ownerType?: string;
-  ownerId?: string;
   usage?: string;
   sortOrder?: number;
   bindingVisibility?: string;

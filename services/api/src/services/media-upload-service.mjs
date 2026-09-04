@@ -1,7 +1,14 @@
 import { config } from "../config/env.mjs";
 import { badRequest } from "../utils/errors.mjs";
-import { createMedia, getMedia, updateMedia } from "./media-service.mjs";
-import { buildObjectKey, createPresignedPutUpload } from "./object-storage-service.mjs";
+import {
+  activatePendingMediaUpload,
+  createMedia,
+  ensureMediaOwnerExists,
+  expirePendingMediaUploads,
+  getMedia,
+  getMediaUploadRecord,
+} from "./media-service.mjs";
+import { buildObjectKey, createPresignedPutUpload, headObject } from "./object-storage-service.mjs";
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/gif",
@@ -11,6 +18,7 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/png",
   "image/webp",
 ]);
+const DEFAULT_PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 const IMAGE_UPLOAD_FIELDS = [
   "fileName",
   "mimeType",
@@ -33,19 +41,23 @@ export async function requestImageUpload(input) {
   assertNoUnknownFields(input, IMAGE_UPLOAD_FIELDS);
 
   const fileName = requiredString(input.fileName, "fileName");
+  assertSafeFileName(fileName);
   const mimeType = normalizeImageMimeType(input.mimeType);
   const sizeBytes = requiredPositiveInteger(input.sizeBytes, "sizeBytes");
-  const width = optionalPositiveInteger(input.width, "width");
-  const height = optionalPositiveInteger(input.height, "height");
-  const checksum = optionalString(input.checksum, "checksum");
-  const objectKey = buildObjectKey({ fileName, mimeType });
-  const storageUpload = createPresignedPutUpload({ objectKey, mimeType });
-
   if (sizeBytes > config.storage.maxImageBytes) {
     throw badRequest("Image is larger than the configured upload limit", {
       maxImageBytes: config.storage.maxImageBytes,
     });
   }
+  const width = optionalPositiveInteger(input.width, "width");
+  const height = optionalPositiveInteger(input.height, "height");
+  const checksum = optionalString(input.checksum, "checksum");
+  const ownerType = requiredString(input.ownerType, "ownerType");
+  const ownerId = requiredString(input.ownerId, "ownerId");
+  await ensureMediaOwnerExists(ownerType, ownerId);
+
+  const objectKey = buildObjectKey({ fileName, mimeType });
+  const storageUpload = createPresignedPutUpload({ objectKey, mimeType });
 
   const mediaInput = {
     kind: "image",
@@ -69,13 +81,12 @@ export async function requestImageUpload(input) {
         expiresAt: storageUpload.upload.expiresAt,
       },
     },
+    ownerType,
+    ownerId,
+    usage: optionalString(input.usage, "usage") ?? "gallery",
+    sortOrder: optionalNonNegativeInteger(input.sortOrder, "sortOrder") ?? 0,
+    bindingVisibility: optionalString(input.bindingVisibility, "bindingVisibility") ?? "visible",
   };
-
-  copyOptionalField(mediaInput, input, "ownerType");
-  copyOptionalField(mediaInput, input, "ownerId");
-  copyOptionalField(mediaInput, input, "usage");
-  copyOptionalField(mediaInput, input, "sortOrder");
-  copyOptionalField(mediaInput, input, "bindingVisibility");
 
   const media = await createMedia(mediaInput);
 
@@ -91,31 +102,114 @@ export async function completeMediaUpload(mediaId, input) {
   assertPlainObject(input);
   assertNoUnknownFields(input, COMPLETE_UPLOAD_FIELDS);
 
-  const media = await getMedia(mediaId);
+  const media = await getMediaUploadRecord(mediaId);
+  if (media.status === "active" && getUploadMetadata(media)?.verifiedAt) {
+    assertIdempotentCompletion(media, input);
+    return getMedia(mediaId);
+  }
   if (media.status !== "pending") {
     throw badRequest("Only pending media uploads can be completed");
   }
 
-  const metadataJson = mergeCompletedUploadMetadata(media.metadataJson);
-  return updateMedia(mediaId, {
+  const verification = await verifyUploadedObject(media, input);
+  const metadataJson = mergeCompletedUploadMetadata(media.metadata_json, verification);
+  return activatePendingMediaUpload(mediaId, {
     status: "active",
     checksum: optionalString(input.checksum, "checksum") ?? media.checksum,
-    sizeBytes: optionalPositiveInteger(input.sizeBytes, "sizeBytes") ?? media.sizeBytes,
+    size_bytes: verification.contentLength,
     width: optionalPositiveInteger(input.width, "width") ?? media.width,
     height: optionalPositiveInteger(input.height, "height") ?? media.height,
-    thumbnailUrl: optionalString(input.thumbnailUrl, "thumbnailUrl") ?? media.thumbnailUrl,
-    metadataJson,
+    thumbnail_url: optionalString(input.thumbnailUrl, "thumbnailUrl") ?? media.thumbnail_url,
+    metadata_json: metadataJson,
   });
 }
 
-function mergeCompletedUploadMetadata(value) {
+export async function expireStalePendingImageUploads({
+  now = new Date(),
+  staleAfterMs = DEFAULT_PENDING_UPLOAD_STALE_AFTER_MS,
+  reason = "stale_pending_upload",
+} = {}) {
+  const staleBefore = new Date(now.getTime() - staleAfterMs);
+  return expirePendingMediaUploads({ reason, staleBefore });
+}
+
+async function verifyUploadedObject(media, input) {
+  const upload = getUploadMetadata(media);
+  if (!upload?.objectKey) {
+    throw badRequest("Media upload metadata is missing its storage object key");
+  }
+
+  const metadata = await headObject({ objectKey: upload.objectKey });
+  if (!metadata.exists) {
+    throw badRequest("Uploaded object was not found in object storage");
+  }
+
+  const contentLength = metadata.contentLength;
+  if (!Number.isSafeInteger(contentLength) || contentLength <= 0) {
+    throw badRequest("Uploaded object has an invalid or empty content length");
+  }
+  if (contentLength > config.storage.maxImageBytes) {
+    throw badRequest("Uploaded object is larger than the configured upload limit", {
+      maxImageBytes: config.storage.maxImageBytes,
+    });
+  }
+
+  const requestedSizeBytes = normalizeOptionalStoredInteger(upload.requestedSizeBytes);
+  if (requestedSizeBytes != null && requestedSizeBytes !== contentLength) {
+    throw badRequest("Uploaded object size does not match the declared upload size");
+  }
+
+  const completionSizeBytes = optionalPositiveInteger(input.sizeBytes, "sizeBytes");
+  if (completionSizeBytes != null && completionSizeBytes !== contentLength) {
+    throw badRequest("Completed upload size does not match object storage metadata");
+  }
+
+  const requestedMimeType = normalizeStoredMimeType(upload.requestedMimeType ?? media.mime_type);
+  const actualMimeType = normalizeReturnedContentType(metadata.contentType);
+  if (actualMimeType) {
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(actualMimeType)) {
+      throw badRequest("Uploaded object content type is not an allowed image MIME type");
+    }
+    if (requestedMimeType && requestedMimeType !== actualMimeType) {
+      throw badRequest("Uploaded object content type does not match the requested MIME type");
+    }
+  }
+
+  return {
+    contentLength,
+    contentType: actualMimeType,
+    etag: metadata.etag ?? null,
+    lastModified: metadata.lastModified ?? null,
+    objectKey: upload.objectKey,
+  };
+}
+
+function assertIdempotentCompletion(media, input) {
+  const requestedSizeBytes = optionalPositiveInteger(input.sizeBytes, "sizeBytes");
+  if (requestedSizeBytes != null && media.size_bytes != null && requestedSizeBytes !== media.size_bytes) {
+    throw badRequest("Completed upload size does not match the existing media asset");
+  }
+}
+
+function mergeCompletedUploadMetadata(value, verification) {
   const metadata = isPlainObject(value) ? { ...value } : {};
   const upload = isPlainObject(metadata.upload) ? { ...metadata.upload } : {};
   metadata.upload = {
     ...upload,
+    verifiedAt: new Date().toISOString(),
+    verifiedSizeBytes: verification.contentLength,
+    verifiedMimeType: verification.contentType,
+    verifiedEtag: verification.etag,
+    verifiedLastModified: verification.lastModified,
     completedAt: new Date().toISOString(),
   };
   return metadata;
+}
+
+function getUploadMetadata(media) {
+  const metadata = media?.metadata_json;
+  if (!isPlainObject(metadata) || !isPlainObject(metadata.upload)) return null;
+  return metadata.upload;
 }
 
 function normalizeImageMimeType(value) {
@@ -124,6 +218,16 @@ function normalizeImageMimeType(value) {
     throw badRequest("mimeType must be a supported raster image type");
   }
   return mimeType;
+}
+
+function normalizeStoredMimeType(value) {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  return value.trim().toLowerCase();
+}
+
+function normalizeReturnedContentType(value) {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  return value.split(";")[0].trim().toLowerCase() || null;
 }
 
 function assertPlainObject(value) {
@@ -143,12 +247,6 @@ function assertNoUnknownFields(input, allowedFields) {
     throw badRequest("Request body contains unsupported fields", {
       fields: unknownFields,
     });
-  }
-}
-
-function copyOptionalField(target, source, fieldName) {
-  if (Object.hasOwn(source, fieldName)) {
-    target[fieldName] = source[fieldName];
   }
 }
 
@@ -176,4 +274,24 @@ function requiredPositiveInteger(value, fieldName) {
 function optionalPositiveInteger(value, fieldName) {
   if (value == null || value === "") return null;
   return requiredPositiveInteger(value, fieldName);
+}
+
+function optionalNonNegativeInteger(value, fieldName) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw badRequest(`${fieldName} must be a non-negative integer`);
+  }
+  return parsed;
+}
+
+function normalizeOptionalStoredInteger(value) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function assertSafeFileName(fileName) {
+  if (fileName.includes("/") || fileName.includes("\\") || fileName.includes("\0")) {
+    throw badRequest("fileName must not contain path separators");
+  }
 }
