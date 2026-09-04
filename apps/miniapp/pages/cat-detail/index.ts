@@ -168,14 +168,16 @@ function saleStatusLabel(value: string) {
 }
 
 function breedingCategoryLabel(value: string) {
-  if (value === "male") return "现役公猫";
-  if (value === "female") return "现役母猫";
+  if (value === "king") return "现役公猫";
+  if (value === "queen") return "现役母猫";
   if (value === "candidate") return "预备役种猫";
   return value || "种猫";
 }
 
 function reproductiveStateLabel(value: string) {
-  if (value === "preparing") return "准备中";
+  if (value === "observing") return "观察中";
+  if (value === "active") return "在役";
+  if (value === "paused") return "暂停";
   if (value === "retired") return "已退休";
   if (value === "semiRetired") return "半退役";
   return value || "在役";
