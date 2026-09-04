@@ -12,6 +12,7 @@ This document prepares a repeatable Tencent Cloud Lightweight Application Server
 - Prisma generate: `npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api db:generate` runs `prisma generate --schema prisma/schema.prisma`.
 - Prisma migrate deploy: `db:migrate:deploy` runs `node prisma/ensure-local-sqlite.mjs && prisma migrate deploy --schema prisma/schema.prisma`.
 - SQLite location: Prisma uses `DATABASE_URL`. Relative SQLite paths such as `file:dev.db` resolve under `services/api/prisma`; production must use an absolute path outside the release directory, for example `file:/opt/starlitsky/data/starlitsky.sqlite`.
+- SQLite ownership: the API service runs as the `starlitsky` user/group. The repeatable deploy script provisions that account if absent, creates `/opt/starlitsky/data`, `/opt/starlitsky/backups/sqlite`, and `/opt/starlitsky/logs` as `starlitsky:starlitsky` with `0750`, and re-applies `0640` ownership to the database plus SQLite journal/WAL sidecar files after migrations.
 - Env verifier: `npm run verify:production-env` requires `NODE_ENV=production`, `DATABASE_URL`, production-grade auth secret, WeChat credentials, explicit non-wildcard CORS origins, disabled mocks, and COS/S3 storage placeholders replaced with real server-side values.
 - Production runtime dependencies: Node.js matching CI (`24.16.0`), npm, Bun `1.3.14` for lockfile installs/build commands, systemd, Nginx, sqlite3 CLI for backups, curl for health checks, and the installed workspace `node_modules`.
 
@@ -45,11 +46,15 @@ deploy/production/scripts/install-build-migrate-restart.sh
 The script performs:
 
 - dependency installation from `bun.lock`
+- runtime user/group and writable data/backup/log directory provisioning
 - deployment asset verification
 - production env verification
 - Prisma schema validation
 - Prisma generate
+- SQLite online backup before migration when an existing database is present
 - Prisma migrate deploy
+- Prisma migrate status verification
+- SQLite database and journal/WAL ownership normalization for the runtime user
 - root build
 - Admin build
 - systemd API restart
@@ -68,6 +73,7 @@ Use `deploy/production/systemd/starlitsky-api.service` as the systemd template:
 - `API_PORT=8080`
 - `ExecStart=/usr/bin/node /opt/starlitsky/app/services/api/src/server.mjs`
 - `Restart=on-failure`
+- writable paths are limited to `/opt/starlitsky/data` and `/opt/starlitsky/logs`
 
 Install only after replacing placeholders on the server:
 
@@ -84,8 +90,8 @@ Use `deploy/production/nginx/starlitsky.conf.template` as the starting point aft
 
 - `admin.__DOMAIN__` serves `dist/admin`
 - `api.__DOMAIN__` proxies to `127.0.0.1:8080`
-- port 80 blocks are structured as future HTTPS redirects
-- port 443 blocks are present but commented until certificates exist
+- Stage 1 active port 80 blocks are HTTP bootstrap only and do not redirect to HTTPS
+- Stage 2 commented blocks add final HTTPS listeners and port 80 redirects after certificates exist
 - Admin uses SPA fallback with `try_files $uri $uri/ /index.html`
 - proxy headers pass `Host`, `X-Real-IP`, and `X-Forwarded-*`
 - `client_max_body_size 10m` matches the default `STORAGE_MAX_IMAGE_BYTES=10485760`
@@ -110,13 +116,16 @@ Behavior:
 - compresses backups with gzip and chmods them to `600`
 - deletes backups older than `RETENTION_DAYS` only when at least one backup remains
 
+`deploy/production/scripts/install-build-migrate-restart.sh` calls this backup script before `db:migrate:deploy` whenever the configured database already exists. If the backup fails, deployment stops before migration. On first deploy, when no database exists yet, the migration proceeds and then database ownership is normalized for the service user.
+
 Restore outline:
 
 ```bash
 sudo systemctl stop starlitsky-api
-sudo cp /opt/starlitsky/data/starlitsky.sqlite /opt/starlitsky/backups/sqlite/pre-restore-manual.sqlite
+sudo deploy/production/scripts/backup-sqlite.sh
 sudo gunzip -c /opt/starlitsky/backups/sqlite/starlitsky-YYYYMMDDTHHMMSSZ.sqlite.gz > /opt/starlitsky/data/starlitsky.sqlite
 sudo chown starlitsky:starlitsky /opt/starlitsky/data/starlitsky.sqlite
+sudo chmod 0640 /opt/starlitsky/data/starlitsky.sqlite
 sudo systemctl start starlitsky-api
 curl --fail http://127.0.0.1:8080/health
 ```

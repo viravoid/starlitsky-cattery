@@ -1,5 +1,12 @@
 import { readFileSync } from "node:fs";
 
+function uncommentedText(text) {
+  return text
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("#"))
+    .join("\n");
+}
+
 const checks = [
   {
     path: "deploy/production/env/starlitsky-api.env.example",
@@ -22,20 +29,24 @@ const checks = [
   {
     path: "deploy/production/systemd/starlitsky-api.service",
     includes: [
+      "User=starlitsky",
+      "Group=starlitsky",
       "EnvironmentFile=/etc/starlitsky/starlitsky-api.env",
       "Environment=NODE_ENV=production",
       "Environment=API_HOST=127.0.0.1",
       "Restart=on-failure",
       "ExecStart=/usr/bin/node /opt/starlitsky/app/services/api/src/server.mjs",
+      "ReadWritePaths=/opt/starlitsky/data /opt/starlitsky/logs",
     ],
   },
   {
     path: "deploy/production/nginx/starlitsky.conf.template",
     includes: [
+      "Stage 1 is the active HTTP bootstrap config",
+      "Stage 2 final HTTPS config",
       "server_name admin.__DOMAIN__;",
       "server_name api.__DOMAIN__;",
       "server 127.0.0.1:8080;",
-      "return 308 https://$host$request_uri;",
       "root /opt/starlitsky/app/dist/admin;",
       "try_files $uri $uri/ /index.html;",
       "proxy_pass http://starlitsky_api;",
@@ -53,10 +64,19 @@ const checks = [
   {
     path: "deploy/production/scripts/install-build-migrate-restart.sh",
     includes: [
+      "RUNTIME_USER=\"${RUNTIME_USER:-starlitsky}\"",
+      "RUNTIME_GROUP=\"${RUNTIME_GROUP:-starlitsky}\"",
+      "groupadd --system \"$RUNTIME_GROUP\"",
+      "useradd --system --gid \"$RUNTIME_GROUP\"",
+      "install -d -o \"$RUNTIME_USER\" -g \"$RUNTIME_GROUP\" -m 0750",
+      "chown \"$RUNTIME_USER:$RUNTIME_GROUP\"",
+      "chmod 0640",
       "run_bun install --frozen-lockfile",
       "npm run verify:production-env",
       "run_bun run --cwd services/api db:generate",
+      "backup-sqlite.sh",
       "run_bun run --cwd services/api db:migrate:deploy",
+      "run_bun run --cwd services/api db:status",
       "npm run build:admin",
       "systemctl restart",
       "health-check.sh",
@@ -91,6 +111,26 @@ for (const check of checks) {
       failures.push(`${check.path} appears to contain a real secret pattern: ${pattern}`);
     }
   }
+}
+
+const nginxText = readFileSync("deploy/production/nginx/starlitsky.conf.template", "utf8");
+const activeNginxText = uncommentedText(nginxText);
+if (activeNginxText.includes("return 308 https://$host$request_uri;")) {
+  failures.push(
+    "deploy/production/nginx/starlitsky.conf.template must not enable HTTP-to-HTTPS redirects in the active bootstrap config.",
+  );
+}
+
+const deployScriptText = readFileSync(
+  "deploy/production/scripts/install-build-migrate-restart.sh",
+  "utf8",
+);
+const backupIndex = deployScriptText.indexOf("backup-sqlite.sh");
+const migrateIndex = deployScriptText.indexOf("db:migrate:deploy");
+if (backupIndex === -1 || migrateIndex === -1 || backupIndex > migrateIndex) {
+  failures.push(
+    "deploy/production/scripts/install-build-migrate-restart.sh must run the SQLite backup before db:migrate:deploy.",
+  );
 }
 
 if (failures.length > 0) {

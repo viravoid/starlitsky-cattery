@@ -30,6 +30,11 @@ if [[ "$DATABASE_PATH" == *"'"* ]]; then
   exit 1
 fi
 
+if [[ "$BACKUP_DIR" == *"'"* ]]; then
+  echo "BACKUP_DIR must not contain a single quote for this simple backup script." >&2
+  exit 1
+fi
+
 if [[ ! -f "$DATABASE_PATH" ]]; then
   echo "SQLite database does not exist: $DATABASE_PATH" >&2
   exit 1
@@ -46,6 +51,11 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 database_name="$(basename "$DATABASE_PATH" .sqlite)"
 backup_file="$BACKUP_DIR/${database_name}-${timestamp}.sqlite"
 compressed_file="${backup_file}.gz"
+
+if [[ "$backup_file" == *"'"* ]]; then
+  echo "backup_file must not contain a single quote for this simple backup script." >&2
+  exit 1
+fi
 
 sqlite3 "$DATABASE_PATH" <<SQL
 .timeout 5000
