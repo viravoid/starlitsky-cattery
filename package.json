@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit",
     "verify:admin-auth": "npm --workspace @starlitsky/api run verify:admin-auth",
     "verify:production-env": "node services/api/src/config/production-env.verify.mjs",
+    "verify:deployment-assets": "node deploy/production/validate-deployment-assets.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
