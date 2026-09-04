@@ -1,16 +1,25 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { Readable } from "node:stream";
-import { prisma } from "../db/prisma.mjs";
-import { routeRequest } from "../routes/index.mjs";
-import {
+import { fileURLToPath } from "node:url";
+
+process.env.DATABASE_URL = "file:parent-application-verify.db";
+
+rmLocalSqlite(process.env.DATABASE_URL);
+await ensureLocalSqliteSchema(process.env.DATABASE_URL);
+
+const { prisma } = await import("../db/prisma.mjs");
+const { routeRequest } = await import("../routes/index.mjs");
+const {
   approveParentApplication,
   createParentInvite,
   rejectParentApplication,
   revokeParentInvite,
   submitParentApplication,
   verifyParentInvite,
-} from "./parent-application-service.mjs";
+} = await import("./parent-application-service.mjs");
 
 const config = {
   auth: {
@@ -313,6 +322,7 @@ assert.equal(
 );
 
 console.info("parent application flow verification passed");
+await prisma.$disconnect();
 
 async function createUserWithRole(nickname, role) {
   return prisma.user.create({
@@ -421,4 +431,46 @@ function randomString() {
 
 async function assertRejects(label, action) {
   await assert.rejects(action, undefined, label);
+}
+
+async function ensureLocalSqliteSchema(databaseUrl) {
+  if (!databaseUrl.startsWith("file:")) return;
+
+  const { DatabaseSync } = await import("node:sqlite");
+  const sqlitePath = resolveSqlitePath(databaseUrl.slice("file:".length));
+  mkdirSync(dirname(sqlitePath), { recursive: true });
+  const database = new DatabaseSync(sqlitePath);
+  try {
+    const hasUsersTable = database
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'")
+      .get();
+    if (hasUsersTable) return;
+
+    const migrationsDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../prisma/migrations");
+    for (const folder of readdirSync(migrationsDir).sort()) {
+      const migrationPath = resolve(migrationsDir, folder, "migration.sql");
+      if (existsSync(migrationPath)) {
+        database.exec(readFileSync(migrationPath, "utf8"));
+      }
+    }
+  } finally {
+    database.close();
+  }
+}
+
+function rmLocalSqlite(databaseUrl) {
+  if (!databaseUrl.startsWith("file:")) return;
+  const sqlitePath = resolveSqlitePath(databaseUrl.slice("file:".length));
+  rmSync(sqlitePath, { force: true });
+  rmSync(`${sqlitePath}-journal`, { force: true });
+  rmSync(`${sqlitePath}-wal`, { force: true });
+  rmSync(`${sqlitePath}-shm`, { force: true });
+}
+
+function resolveSqlitePath(rawPath) {
+  const normalized = rawPath.trim().replace(/^"|"$/g, "");
+  if (isAbsolute(normalized) || /^[A-Za-z]:[\\/]/.test(normalized)) return normalized;
+
+  const prismaDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../prisma");
+  return resolve(prismaDir, normalized);
 }

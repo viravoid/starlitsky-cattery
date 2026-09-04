@@ -317,7 +317,8 @@ export async function activatePendingMediaUpload(mediaId, data) {
   return toMediaDto(media);
 }
 
-export async function expirePendingMediaUploads({ staleBefore, reason }) {
+export async function expirePendingMediaUploads({ staleBefore, reason, limit = 100 }) {
+  const batchLimit = normalizeBatchLimit(limit);
   const pending = await prisma.mediaAsset.findMany({
     where: {
       status: "pending",
@@ -328,12 +329,16 @@ export async function expirePendingMediaUploads({ staleBefore, reason }) {
       id: true,
       metadata_json: true,
     },
+    orderBy: [{ created_at: "asc" }, { id: "asc" }],
+    take: batchLimit + 1,
   });
 
-  if (pending.length === 0) return { expiredCount: 0 };
+  if (pending.length === 0) return { expiredCount: 0, hasMore: false };
+
+  const batch = pending.slice(0, batchLimit);
 
   await prisma.$transaction(
-    pending.map((media) =>
+    batch.map((media) =>
       prisma.mediaAsset.update({
         where: { id: media.id },
         data: {
@@ -344,7 +349,7 @@ export async function expirePendingMediaUploads({ staleBefore, reason }) {
     ),
   );
 
-  return { expiredCount: pending.length };
+  return { expiredCount: batch.length, hasMore: pending.length > batchLimit };
 }
 
 export async function getMediaUploadRecord(mediaId) {
@@ -564,6 +569,12 @@ function markPendingUploadExpired(value, { reason }) {
     failureReason: reason,
   };
   return metadata;
+}
+
+function normalizeBatchLimit(value) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return 100;
+  return Math.min(parsed, 500);
 }
 
 async function findOwner(ownerType, ownerId, client) {

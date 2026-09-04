@@ -22,11 +22,16 @@ const {
   expireStalePendingImageUploads,
   requestImageUpload,
 } = await import("./media-upload-service.mjs");
+const { createPendingMediaUploadMaintenance } = await import("./media-upload-maintenance-service.mjs");
 const { setObjectStorageTestClient } = await import("./object-storage-service.mjs");
 
 const RUN_PREFIX = "verify-media-upload";
 const objectMetadata = new Map();
 const deletedObjectKeys = [];
+const silentLogger = {
+  info() {},
+  error() {},
+};
 
 setObjectStorageTestClient({
   headObject({ objectKey }) {
@@ -137,6 +142,63 @@ try {
     "actual oversized object cannot complete",
   );
 
+  const missingContentTypeUpload = await requestImageUpload({
+    fileName: "missing-content-type.jpg",
+    mimeType: "image/jpeg",
+    ownerId: cat.id,
+    ownerType: "cat",
+    sizeBytes: 128,
+    usage: "gallery",
+  });
+  objectMetadata.set(missingContentTypeUpload.objectKey, {
+    exists: true,
+    contentLength: 128,
+    contentType: null,
+  });
+  await assert.rejects(
+    () => completeMediaUpload(missingContentTypeUpload.media.id, { sizeBytes: 128 }),
+    (error) => error?.statusCode === 400,
+    "object without HEAD Content-Type cannot complete",
+  );
+
+  const unsupportedContentTypeUpload = await requestImageUpload({
+    fileName: "unsupported-content-type.jpg",
+    mimeType: "image/jpeg",
+    ownerId: cat.id,
+    ownerType: "cat",
+    sizeBytes: 128,
+    usage: "gallery",
+  });
+  objectMetadata.set(unsupportedContentTypeUpload.objectKey, {
+    exists: true,
+    contentLength: 128,
+    contentType: "text/plain",
+  });
+  await assert.rejects(
+    () => completeMediaUpload(unsupportedContentTypeUpload.media.id, { sizeBytes: 128 }),
+    (error) => error?.statusCode === 400,
+    "unsupported HEAD Content-Type cannot complete",
+  );
+
+  const mismatchedContentTypeUpload = await requestImageUpload({
+    fileName: "mismatched-content-type.jpg",
+    mimeType: "image/jpeg",
+    ownerId: cat.id,
+    ownerType: "cat",
+    sizeBytes: 128,
+    usage: "gallery",
+  });
+  objectMetadata.set(mismatchedContentTypeUpload.objectKey, {
+    exists: true,
+    contentLength: 128,
+    contentType: "image/png",
+  });
+  await assert.rejects(
+    () => completeMediaUpload(mismatchedContentTypeUpload.media.id, { sizeBytes: 128 }),
+    (error) => error?.statusCode === 400,
+    "mismatched HEAD Content-Type cannot complete",
+  );
+
   const goodUpload = await requestImageUpload({
     fileName: "good.jpg",
     mimeType: "image/jpeg",
@@ -232,6 +294,102 @@ try {
   const staleAfterExpire = await prisma.mediaAsset.findUnique({ where: { id: staleUpload.media.id } });
   assert.equal(staleAfterExpire?.status, "rejected", "stale pending media should not remain pending");
   assert.equal(deletedObjectKeys.length, 0, "stale pending cleanup must not broadly delete objects");
+
+  const staleBatchA = await requestImageUpload({
+    fileName: "stale-batch-a.jpg",
+    mimeType: "image/jpeg",
+    ownerId: cat.id,
+    ownerType: "cat",
+    sizeBytes: 101,
+    usage: "gallery",
+  });
+  const staleBatchB = await requestImageUpload({
+    fileName: "stale-batch-b.jpg",
+    mimeType: "image/jpeg",
+    ownerId: cat.id,
+    ownerType: "cat",
+    sizeBytes: 102,
+    usage: "gallery",
+  });
+  const freshUpload = await requestImageUpload({
+    fileName: "fresh.jpg",
+    mimeType: "image/jpeg",
+    ownerId: cat.id,
+    ownerType: "cat",
+    sizeBytes: 103,
+    usage: "gallery",
+  });
+  await prisma.mediaAsset.updateMany({
+    where: { id: { in: [staleBatchA.media.id, staleBatchB.media.id] } },
+    data: { created_at: new Date("2026-01-01T00:00:00.000Z") },
+  });
+  const boundedExpired = await expireStalePendingImageUploads({
+    now: new Date("2026-01-03T00:00:00.000Z"),
+    staleAfterMs: 24 * 60 * 60 * 1000,
+    batchSize: 1,
+  });
+  assert.equal(boundedExpired.expiredCount, 1, "stale cleanup should expire only one bounded batch");
+  assert.equal(boundedExpired.hasMore, true, "bounded stale cleanup should report remaining stale rows");
+  assert.equal(
+    await prisma.mediaAsset.count({
+      where: { id: { in: [staleBatchA.media.id, staleBatchB.media.id] }, status: "rejected" },
+    }),
+    1,
+    "bounded cleanup must not process beyond the configured batch",
+  );
+  const freshAfterExpire = await prisma.mediaAsset.findUnique({ where: { id: freshUpload.media.id } });
+  assert.equal(freshAfterExpire?.status, "pending", "fresh pending media should not be expired");
+  assert.equal(deletedObjectKeys.length, 0, "bounded stale cleanup must not delete remote objects");
+
+  const lifecycleUpload = await requestImageUpload({
+    fileName: "lifecycle-stale.jpg",
+    mimeType: "image/jpeg",
+    ownerId: cat.id,
+    ownerType: "cat",
+    sizeBytes: 104,
+    usage: "gallery",
+  });
+  await prisma.mediaAsset.update({
+    where: { id: lifecycleUpload.media.id },
+    data: { created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
+  });
+  const maintenance = createPendingMediaUploadMaintenance({
+    intervalMs: 60 * 60 * 1000,
+    logger: silentLogger,
+  });
+  maintenance.start();
+  await waitFor(async () => {
+    const current = await prisma.mediaAsset.findUnique({ where: { id: lifecycleUpload.media.id } });
+    return current?.status === "rejected";
+  });
+  maintenance.stop();
+
+  let releaseOverlapCleanup;
+  const overlapMaintenance = createPendingMediaUploadMaintenance({
+    cleanup: () =>
+      new Promise((resolveCleanup) => {
+        releaseOverlapCleanup = () => resolveCleanup({ expiredCount: 0, hasMore: false });
+      }),
+    logger: silentLogger,
+  });
+  const firstOverlap = overlapMaintenance.runOnce("overlap-a");
+  const secondOverlap = await overlapMaintenance.runOnce("overlap-b");
+  assert.deepEqual(
+    secondOverlap,
+    { skipped: true, reason: "already_running" },
+    "maintenance cleanup should skip overlapping runs",
+  );
+  releaseOverlapCleanup();
+  await firstOverlap;
+
+  const failureMaintenance = createPendingMediaUploadMaintenance({
+    cleanup: async () => {
+      throw new Error("verify cleanup failure");
+    },
+    logger: silentLogger,
+  });
+  const failedCleanup = await failureMaintenance.runOnce("failure");
+  assert.equal(failedCleanup.failed, true, "maintenance cleanup failure should be reported");
 
   const newCoverUpload = await requestImageUpload({
     fileName: "new-cover.jpg",
@@ -354,4 +512,13 @@ function resolveSqlitePath(rawPath) {
 
   const prismaDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../prisma");
   return resolve(prismaDir, normalized);
+}
+
+async function waitFor(predicate, { timeoutMs = 1000, intervalMs = 10 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return;
+    await new Promise((resolveWait) => setTimeout(resolveWait, intervalMs));
+  }
+  assert.fail("condition was not met before timeout");
 }
