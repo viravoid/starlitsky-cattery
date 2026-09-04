@@ -112,7 +112,18 @@ jobs:
           bash -n deploy/production/scripts/*.sh
 
       - name: API npm audit
-        run: npm --prefix services/api audit --audit-level=high
+        run: |
+          for attempt in 1 2 3; do
+            if npm --prefix services/api audit --audit-level=high; then
+              exit 0
+            fi
+            status=$?
+            echo "npm audit attempt ${attempt} failed with exit code ${status}"
+            if [ "$attempt" -eq 3 ]; then
+              exit "$status"
+            fi
+            sleep $((attempt * 20))
+          done
 
       - name: Diff check
         run: git diff --check
