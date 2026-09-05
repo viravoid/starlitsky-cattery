@@ -1,6 +1,19 @@
-import type { FixedPageData, MediaAssetData, UpdateFixedPageRequest } from "@starlitsky/shared";
+import { ENVIRONMENT_MEDIA_USAGES } from "@starlitsky/shared";
+import type {
+  FixedPageData,
+  MediaAssetData,
+  MediaBindingData,
+  UpdateFixedPageRequest,
+} from "@starlitsky/shared";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { getFixedPage, listMedia, updateFixedPage, uploadFixedPageImage } from "../api/cattery";
+import {
+  archiveMediaBinding,
+  getFixedPage,
+  listMedia,
+  updateFixedPage,
+  updateMediaBinding,
+  uploadFixedPageImage,
+} from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
 
 interface FixedPageFormState {
@@ -13,11 +26,29 @@ interface FixedPageFormState {
 }
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
+type EnvironmentSlotKey = keyof typeof ENVIRONMENT_MEDIA_USAGES;
+
+interface EnvironmentSlotConfig {
+  key: EnvironmentSlotKey;
+  label: string;
+  usage: string;
+}
+
+interface EnvironmentSlotItem {
+  binding: MediaBindingData;
+  media: MediaAssetData;
+}
 
 const STATUS_OPTIONS = [
   { label: "草稿", value: "draft" },
   { label: "已发布", value: "published" },
   { label: "隐藏", value: "hidden" },
+];
+
+const ENVIRONMENT_MEDIA_SLOTS: EnvironmentSlotConfig[] = [
+  { key: "maternity", label: "母婴房", usage: ENVIRONMENT_MEDIA_USAGES.maternity },
+  { key: "publicArea", label: "公共活动区", usage: ENVIRONMENT_MEDIA_USAGES.publicArea },
+  { key: "medical", label: "医疗间", usage: ENVIRONMENT_MEDIA_USAGES.medical },
 ];
 
 export function FixedPagesPanel({
@@ -36,6 +67,8 @@ export function FixedPagesPanel({
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [imageUploadState, setImageUploadState] = useState<ImageUploadState>("idle");
+  const [slotUploadStates, setSlotUploadStates] = useState<Record<string, ImageUploadState>>({});
+  const [slotSortDrafts, setSlotSortDrafts] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -63,13 +96,14 @@ export function FixedPagesPanel({
       kind: "image",
       ownerId: pageId,
       ownerType: "fixed_page",
-      pageSize: 20,
+      pageSize: 100,
       status: "active",
     });
     setImagesByPageId((current) => ({
       ...current,
       [pageId]: mediaList.items,
     }));
+    setSlotSortDrafts((current) => mergeSortDrafts(current, mediaList.items, pageId));
     return mediaList.items;
   }, []);
 
@@ -168,6 +202,82 @@ export function FixedPagesPanel({
     setImagePreviewUrl(media.thumbnailUrl || media.sourceUrl);
     setImageUploadState("uploaded");
     return media;
+  }
+
+  async function handleEnvironmentSlotImageSelected(
+    slot: EnvironmentSlotConfig,
+    file: File | null,
+  ) {
+    if (!selectedPage || !file) return;
+
+    setSlotUploadStates((current) => ({ ...current, [slot.usage]: "uploading" }));
+    setNotice("");
+    setError("");
+
+    try {
+      const currentItems = getEnvironmentSlotItems(selectedPageImages, selectedPage.id, slot.usage);
+      const media = await uploadFixedPageImage(selectedPage.id, file, {
+        altText: `${slot.label}环境照片`,
+        sortOrder: getNextSortOrder(currentItems),
+        title: `${slot.label} - ${file.name}`,
+        usage: slot.usage,
+      });
+      setImagesByPageId((current) => ({
+        ...current,
+        [selectedPage.id]: [
+          media,
+          ...(current[selectedPage.id] ?? []).filter((item) => item.id !== media.id),
+        ],
+      }));
+      await loadPageImages(selectedPage.id);
+      setSlotUploadStates((current) => ({ ...current, [slot.usage]: "uploaded" }));
+      setNotice(`${slot.label}图片已上传并绑定到该位置`);
+    } catch (uploadError) {
+      setSlotUploadStates((current) => ({ ...current, [slot.usage]: "idle" }));
+      setError(`${slot.label}图片上传失败：${getErrorMessage(uploadError)}`);
+    }
+  }
+
+  async function handleEnvironmentSortSave(media: MediaAssetData, binding: MediaBindingData) {
+    if (!selectedPage) return;
+
+    const sortOrder = Number(slotSortDrafts[binding.id] ?? binding.sortOrder);
+    if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+      setError("排序必须是非负整数");
+      return;
+    }
+
+    setIsSaving(true);
+    setNotice("");
+    setError("");
+
+    try {
+      await updateMediaBinding(media.id, binding.id, { sortOrder });
+      await loadPageImages(selectedPage.id);
+      setNotice("图片排序已更新");
+    } catch (saveError) {
+      setError(getErrorMessage(saveError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleEnvironmentBindingArchive(media: MediaAssetData, binding: MediaBindingData) {
+    if (!selectedPage) return;
+
+    setIsSaving(true);
+    setNotice("");
+    setError("");
+
+    try {
+      await archiveMediaBinding(media.id, binding.id);
+      await loadPageImages(selectedPage.id);
+      setNotice("图片已移出该位置，底层媒体文件未删除");
+    } catch (archiveError) {
+      setError(getErrorMessage(archiveError));
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -308,13 +418,29 @@ export function FixedPagesPanel({
                   onChange={(event) => setForm({ ...form, contentJson: event.target.value })}
                 />
               </label>
-              <FixedPageImageUploadField
-                disabled={isSaving}
-                images={selectedPageImages}
-                previewUrl={imagePreviewUrl}
-                state={imageUploadState}
-                onChange={handleImageSelected}
-              />
+              {selectedPage.slug === "environment" ? (
+                <EnvironmentFixedPageMediaSlots
+                  disabled={isSaving}
+                  images={selectedPageImages}
+                  pageId={selectedPage.id}
+                  slotSortDrafts={slotSortDrafts}
+                  slotUploadStates={slotUploadStates}
+                  onArchive={handleEnvironmentBindingArchive}
+                  onSortDraftChange={(bindingId, sortOrder) =>
+                    setSlotSortDrafts((current) => ({ ...current, [bindingId]: sortOrder }))
+                  }
+                  onSortSave={handleEnvironmentSortSave}
+                  onUpload={handleEnvironmentSlotImageSelected}
+                />
+              ) : (
+                <FixedPageImageUploadField
+                  disabled={isSaving}
+                  images={selectedPageImages}
+                  previewUrl={imagePreviewUrl}
+                  state={imageUploadState}
+                  onChange={handleImageSelected}
+                />
+              )}
               <div className="form-actions">
                 <button disabled={isSaving} type="submit">
                   {isSaving ? "保存中..." : "保存固定页面"}
@@ -383,6 +509,155 @@ function FixedPageImageUploadField({
   );
 }
 
+function EnvironmentFixedPageMediaSlots({
+  disabled,
+  images,
+  pageId,
+  slotSortDrafts,
+  slotUploadStates,
+  onArchive,
+  onSortDraftChange,
+  onSortSave,
+  onUpload,
+}: {
+  disabled: boolean;
+  images: MediaAssetData[];
+  pageId: string;
+  slotSortDrafts: Record<string, string>;
+  slotUploadStates: Record<string, ImageUploadState>;
+  onArchive: (media: MediaAssetData, binding: MediaBindingData) => void;
+  onSortDraftChange: (bindingId: string, sortOrder: string) => void;
+  onSortSave: (media: MediaAssetData, binding: MediaBindingData) => void;
+  onUpload: (slot: EnvironmentSlotConfig, file: File | null) => void;
+}) {
+  return (
+    <div className="environment-slot-stack">
+      <div className="subsection-heading">
+        <h4>环境页图片位置</h4>
+        <span className="upload-state">fixed_page slots</span>
+      </div>
+      {ENVIRONMENT_MEDIA_SLOTS.map((slot) => (
+        <EnvironmentFixedPageMediaSlot
+          disabled={disabled}
+          items={getEnvironmentSlotItems(images, pageId, slot.usage)}
+          key={slot.usage}
+          slot={slot}
+          sortDrafts={slotSortDrafts}
+          uploadState={slotUploadStates[slot.usage] ?? "idle"}
+          onArchive={onArchive}
+          onSortDraftChange={onSortDraftChange}
+          onSortSave={onSortSave}
+          onUpload={onUpload}
+        />
+      ))}
+    </div>
+  );
+}
+
+function EnvironmentFixedPageMediaSlot({
+  disabled,
+  items,
+  slot,
+  sortDrafts,
+  uploadState,
+  onArchive,
+  onSortDraftChange,
+  onSortSave,
+  onUpload,
+}: {
+  disabled: boolean;
+  items: EnvironmentSlotItem[];
+  slot: EnvironmentSlotConfig;
+  sortDrafts: Record<string, string>;
+  uploadState: ImageUploadState;
+  onArchive: (media: MediaAssetData, binding: MediaBindingData) => void;
+  onSortDraftChange: (bindingId: string, sortOrder: string) => void;
+  onSortSave: (media: MediaAssetData, binding: MediaBindingData) => void;
+  onUpload: (slot: EnvironmentSlotConfig, file: File | null) => void;
+}) {
+  return (
+    <section className="environment-slot" aria-label={`${slot.label}图片`}>
+      <div className="section-heading">
+        <div>
+          <h4>{slot.label}</h4>
+          <p className="muted compact">{slot.usage}</p>
+        </div>
+        <span className={`upload-state upload-state-${uploadState}`}>
+          {formatImageState(uploadState)}
+        </span>
+      </div>
+
+      <div className="environment-slot-images">
+        {items.length === 0 ? (
+          <div className="image-placeholder">暂无图片</div>
+        ) : (
+          items.map(({ binding, media }) => {
+            const imageUrl = media.thumbnailUrl || media.sourceUrl;
+            return (
+              <div className="environment-slot-image-row" key={binding.id}>
+                <img
+                  alt={media.altText || media.title || `${slot.label}图片`}
+                  className="environment-slot-preview"
+                  src={imageUrl}
+                />
+                <div className="environment-slot-controls">
+                  <div>
+                    <strong>{media.title || media.sourceUrl}</strong>
+                    <p className="muted compact">当前排序：{binding.sortOrder}</p>
+                  </div>
+                  <label>
+                    排序
+                    <input
+                      aria-label={`${slot.label}图片排序`}
+                      disabled={disabled}
+                      inputMode="numeric"
+                      value={sortDrafts[binding.id] ?? String(binding.sortOrder)}
+                      onChange={(event) => onSortDraftChange(binding.id, event.target.value)}
+                    />
+                  </label>
+                  <div className="table-actions">
+                    <button
+                      className="secondary-button small-button"
+                      disabled={disabled}
+                      type="button"
+                      onClick={() => onSortSave(media, binding)}
+                    >
+                      保存排序
+                    </button>
+                    <button
+                      className="danger-button small-button"
+                      disabled={disabled}
+                      type="button"
+                      onClick={() => onArchive(media, binding)}
+                    >
+                      移出该位置
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <label>
+        上传到{slot.label}
+        <input
+          accept="image/*"
+          aria-label={`上传到${slot.label}`}
+          disabled={disabled || uploadState === "uploading"}
+          type="file"
+          onChange={(event) => {
+            onUpload(slot, event.target.files?.[0] ?? null);
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
+      <p className="muted compact">移出只会归档该页面位置绑定，不删除媒体记录或对象存储文件。</p>
+    </section>
+  );
+}
+
 function getPrimaryPageImage(images: MediaAssetData[]) {
   return (
     images.find((media) =>
@@ -393,6 +668,47 @@ function getPrimaryPageImage(images: MediaAssetData[]) {
     images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
     images[0]
   );
+}
+
+function getEnvironmentSlotItems(images: MediaAssetData[], pageId: string, usage: string) {
+  return images
+    .flatMap((media) =>
+      media.bindings
+        .filter(
+          (binding) =>
+            binding.ownerType === "fixed_page" &&
+            binding.ownerId === pageId &&
+            binding.usage === usage &&
+            binding.visibility === "visible" &&
+            !binding.deletedAt,
+        )
+        .map((binding) => ({ binding, media })),
+    )
+    .sort(
+      (left, right) =>
+        left.binding.sortOrder - right.binding.sortOrder ||
+        left.media.createdAt.localeCompare(right.media.createdAt) ||
+        left.media.id.localeCompare(right.media.id),
+    );
+}
+
+function getNextSortOrder(items: EnvironmentSlotItem[]) {
+  if (items.length === 0) return 10;
+  return Math.max(...items.map((item) => item.binding.sortOrder)) + 10;
+}
+
+function mergeSortDrafts(
+  current: Record<string, string>,
+  images: MediaAssetData[],
+  pageId: string,
+) {
+  const next = { ...current };
+  for (const slot of ENVIRONMENT_MEDIA_SLOTS) {
+    for (const item of getEnvironmentSlotItems(images, pageId, slot.usage)) {
+      next[item.binding.id] = String(item.binding.sortOrder);
+    }
+  }
+  return next;
 }
 
 function formatImageState(state: ImageUploadState) {

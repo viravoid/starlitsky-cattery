@@ -411,6 +411,64 @@ td {
   padding: 14px;
 }
 
+.environment-slot-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.environment-slot {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 14px;
+}
+
+.environment-slot h4 {
+  color: #0f172a;
+  font-size: 15px;
+  margin: 0;
+}
+
+.environment-slot-images {
+  display: grid;
+  gap: 10px;
+}
+
+.environment-slot-image-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.environment-slot-preview {
+  width: 112px;
+  height: 84px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  object-fit: cover;
+}
+
+.environment-slot-controls {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.environment-slot-controls strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #334155;
+  font-size: 13px;
+}
+
 .cat-image-preview,
 .cat-image-placeholder,
 .image-preview,

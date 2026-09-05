@@ -8,6 +8,7 @@ import type {
   MediaBindingData,
   UpdateMediaAssetRequest,
 } from "@starlitsky/shared";
+import { ENVIRONMENT_MEDIA_USAGES } from "@starlitsky/shared";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   archiveMedia,
@@ -98,6 +99,9 @@ const USAGE_OPTIONS = [
   { label: "相册", value: "gallery" },
   { label: "正文", value: "content" },
   { label: "头像", value: "avatar" },
+  { label: "环境页 / 母婴房", value: ENVIRONMENT_MEDIA_USAGES.maternity },
+  { label: "环境页 / 公共活动区", value: ENVIRONMENT_MEDIA_USAGES.publicArea },
+  { label: "环境页 / 医疗间", value: ENVIRONMENT_MEDIA_USAGES.medical },
 ];
 
 const VISIBILITY_OPTIONS = [
