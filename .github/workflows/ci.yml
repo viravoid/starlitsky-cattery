@@ -95,6 +95,9 @@ jobs:
       - name: Verify public content import
         run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:public-content-import
 
+      - name: Verify fixed-page media
+        run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:fixed-page-media
+
       - name: Verify production env
         env:
           NODE_ENV: production
