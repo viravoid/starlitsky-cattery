@@ -4,10 +4,9 @@ import { FIXED_PAGE_SLUGS } from "../content/fixed-page-definitions.mjs";
 const FIXED_PAGE_OWNED_FIELDS = [
   "title",
   "status",
-  "seo_title",
-  "seo_description",
   "content_schema_version",
   "content_json",
+  "published_at",
 ];
 const CAT_OWNED_FIELDS = [
   "name",
@@ -21,10 +20,20 @@ const BREEDING_PROFILE_OWNED_FIELDS = [
   "breeding_role",
   "reproductive_state",
   "status_label",
-  "trait",
-  "source",
   "sort_order",
 ];
+const OPTIONAL_FIXED_PAGE_FIELD_MAP = {
+  seoTitle: "seo_title",
+  seoDescription: "seo_description",
+};
+const IMPORTER_SOURCE_KEYS = [
+  "fileName",
+  "publicContentImportId",
+  "sourceGroup",
+  "sourceParagraphs",
+];
+const UNSAFE_JSON_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const PUBLIC_CONTENT_IMPORT_RUNTIME_VALIDATED = Symbol("publicContentImportRuntimeValidated");
 const ALLOWED_FIXED_PAGE_STATUS = new Set(["draft", "published", "hidden"]);
 const ALLOWED_CAT_VISIBILITY = new Set(["visible", "hidden", "archived"]);
 const ALLOWED_GENDER = new Set(["male", "female", "unknown"]);
@@ -87,6 +96,7 @@ export function assertPublicContentImporterRuntime({
   }
 
   return {
+    [PUBLIC_CONTENT_IMPORT_RUNTIME_VALIDATED]: true,
     databaseUrl,
     isProductionTarget: isProductionTarget(databaseUrl, nodeEnv),
   };
@@ -134,6 +144,13 @@ export function validatePublicContentManifest(
     }
     if (!isPlainObject(page.contentJson)) {
       errors.push(`fixedPage ${page.slug} contentJson must be an object`);
+    } else {
+      collectUnsafeJsonKeyErrors(page.contentJson, `fixedPage ${page.slug}.contentJson`, errors);
+    }
+    for (const inputField of Object.keys(OPTIONAL_FIXED_PAGE_FIELD_MAP)) {
+      if (Object.hasOwn(page, inputField) && typeof page[inputField] !== "string") {
+        errors.push(`fixedPage ${page.slug} ${inputField} must be a string when provided`);
+      }
     }
   }
 
@@ -172,6 +189,8 @@ export function validatePublicContentManifest(
     }
     if (!isPlainObject(entry.cat?.storyJson) || !Array.isArray(entry.cat?.storyJson?.story)) {
       errors.push(`breedingCat ${entry.cat?.name} storyJson.story must be an array`);
+    } else {
+      collectUnsafeJsonKeyErrors(entry.cat.storyJson, `breedingCat ${entry.cat.name}.storyJson`, errors);
     }
     if (entry.cat?.storyJson?.source?.publicContentImportId !== entry.importId) {
       errors.push(`breedingCat ${entry.cat?.name} storyJson source import id must match importId`);
@@ -247,14 +266,15 @@ export async function createPublicContentImportPlan({
       });
       continue;
     }
-    const data = toFixedPageData(page);
+    const data = toFixedPageData(page, existing);
+    const ownedFields = getFixedPageOwnedFields(page);
     plan.fixedPages.push({
       importId: page.importId,
       sourceHeading: page.sourceHeading,
       slug: page.slug,
-      action: existing ? diffAction(existing, data, FIXED_PAGE_OWNED_FIELDS) : "create",
-      ownedFields: FIXED_PAGE_OWNED_FIELDS,
-      changes: existing ? diffFields(existing, data, FIXED_PAGE_OWNED_FIELDS) : data,
+      action: existing ? diffAction(existing, data, ownedFields) : "create",
+      ownedFields,
+      changes: existing ? diffFields(existing, data, ownedFields) : data,
     });
   }
 
@@ -282,22 +302,24 @@ export async function createPublicContentImportPlan({
       });
       continue;
     }
-    if (
-      existingById?.story_json?.source?.publicContentImportId &&
-      existingById.story_json.source.publicContentImportId !== entry.importId
-    ) {
+    const existingImportId = readPublicContentImportId(existingById);
+    if (existingById && existingImportId !== entry.importId) {
       plan.conflicts.push({
-        kind: "breeding-cat-import-id-conflict",
+        kind: existingImportId
+          ? "breeding-cat-import-id-conflict"
+          : "breeding-cat-missing-import-identity",
         importId: entry.importId,
         catId: entry.cat.id,
         name: entry.cat.name,
-        existingImportId: existingById.story_json.source.publicContentImportId,
-        message: "The existing cat has a different public content import identity.",
+        existingImportId,
+        message: existingImportId
+          ? "The existing cat has a different public content import identity."
+          : "The existing cat has the manifest id but no matching public content import identity.",
       });
       continue;
     }
 
-    const catData = toCatData(entry);
+    const catData = toCatData(entry, existingById);
     const profileData = toBreedingProfileData(entry);
     const profile = profilesByCatId.get(entry.cat.id);
     plan.breedingCats.push({
@@ -322,7 +344,9 @@ export async function runPublicContentImport({
   apply = false,
   client,
   manifest = PUBLIC_CONTENT_MANIFEST,
+  runtimeContext,
 } = {}) {
+  if (apply) assertPublicContentApplyRuntime(runtimeContext);
   const plan = await createPublicContentImportPlan({ client, manifest });
   plan.mode = apply ? "apply" : "dry-run";
   if (plan.conflicts.length > 0) {
@@ -334,7 +358,8 @@ export async function runPublicContentImport({
 
   await client.$transaction(async (transaction) => {
     for (const page of manifest.fixedPages) {
-      const data = toFixedPageData(page);
+      const existing = await transaction.fixedPage.findUnique({ where: { slug: page.slug } });
+      const data = toFixedPageData(page, existing);
       await transaction.fixedPage.upsert({
         where: { slug: page.slug },
         create: {
@@ -347,7 +372,8 @@ export async function runPublicContentImport({
     }
 
     for (const entry of manifest.breedingCats) {
-      const catData = toCatData(entry);
+      const existingCat = await transaction.cat.findUnique({ where: { id: entry.cat.id } });
+      const catData = toCatData(entry, existingCat);
       await transaction.cat.upsert({
         where: { id: entry.cat.id },
         create: {
@@ -387,26 +413,28 @@ export async function countTables(client) {
   );
 }
 
-function toFixedPageData(page) {
-  return {
+function toFixedPageData(page, existing) {
+  const data = {
     title: page.title,
     status: page.status,
-    seo_title: page.seoTitle ?? null,
-    seo_description: page.seoDescription ?? null,
     content_schema_version: page.contentSchemaVersion,
-    content_json: page.contentJson,
+    content_json: mergeFixedPageContentJson(existing?.content_json, page.contentJson),
     published_at: page.status === "published" ? new Date() : null,
   };
+  for (const [inputField, dataField] of Object.entries(OPTIONAL_FIXED_PAGE_FIELD_MAP)) {
+    if (Object.hasOwn(page, inputField)) data[dataField] = page[inputField];
+  }
+  return data;
 }
 
-function toCatData(entry) {
+function toCatData(entry, existing) {
   return {
     name: entry.cat.name,
     gender: entry.cat.gender,
     color: entry.cat.color,
     lifecycle_status: entry.cat.lifecycleStatus,
     visibility: entry.cat.visibility,
-    story_json: entry.cat.storyJson,
+    story_json: mergeCatStoryJson(existing?.story_json, entry.cat.storyJson),
   };
 }
 
@@ -415,10 +443,67 @@ function toBreedingProfileData(entry) {
     breeding_role: entry.breedingProfile.breedingRole,
     reproductive_state: entry.breedingProfile.reproductiveState,
     status_label: entry.breedingProfile.statusLabel,
-    trait: entry.breedingProfile.trait,
-    source: entry.breedingProfile.source,
     sort_order: entry.breedingProfile.sortOrder,
   };
+}
+
+function getFixedPageOwnedFields(page) {
+  const fields = [...FIXED_PAGE_OWNED_FIELDS];
+  for (const [inputField, dataField] of Object.entries(OPTIONAL_FIXED_PAGE_FIELD_MAP)) {
+    if (Object.hasOwn(page, inputField)) fields.push(dataField);
+  }
+  return fields;
+}
+
+function readPublicContentImportId(cat) {
+  if (!cat) return null;
+  const storyJson = cat.story_json;
+  if (!isPlainObject(storyJson) || !isPlainObject(storyJson.source)) return null;
+  const importId = storyJson.source.publicContentImportId;
+  return typeof importId === "string" && importId.trim() ? importId : null;
+}
+
+function mergeFixedPageContentJson(existing, manifestContentJson) {
+  return mergePlainJsonObjects(existing, manifestContentJson);
+}
+
+function mergeCatStoryJson(existing, manifestStoryJson) {
+  const merged = mergePlainJsonObjects(existing, manifestStoryJson);
+  merged.story = manifestStoryJson.story;
+  merged.source = mergePlainJsonObjects(existing?.source, pickImporterSource(manifestStoryJson.source));
+  return merged;
+}
+
+function pickImporterSource(source) {
+  const picked = {};
+  if (!isPlainObject(source)) return picked;
+  for (const key of IMPORTER_SOURCE_KEYS) {
+    if (Object.hasOwn(source, key)) picked[key] = source[key];
+  }
+  return picked;
+}
+
+function mergePlainJsonObjects(existing, next) {
+  const merged = {};
+  copySafeJsonEntries(merged, existing);
+  copySafeJsonEntries(merged, next);
+  return merged;
+}
+
+function copySafeJsonEntries(target, source) {
+  if (!isPlainObject(source)) return;
+  for (const [key, value] of Object.entries(source)) {
+    if (UNSAFE_JSON_KEYS.has(key)) continue;
+    target[key] = value;
+  }
+}
+
+function assertPublicContentApplyRuntime(runtimeContext) {
+  if (!runtimeContext) return assertPublicContentImporterRuntime();
+  if (runtimeContext[PUBLIC_CONTENT_IMPORT_RUNTIME_VALIDATED] !== true) {
+    throw new PublicContentImportError("Public content apply requires validated runtime context.");
+  }
+  return runtimeContext;
 }
 
 function diffAction(existing, next, fields) {
@@ -464,7 +549,21 @@ function arrayOrEmpty(value) {
 }
 
 function isPlainObject(value) {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function collectUnsafeJsonKeyErrors(value, path, errors) {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectUnsafeJsonKeyErrors(item, `${path}[${index}]`, errors));
+    return;
+  }
+  if (!isPlainObject(value)) return;
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (UNSAFE_JSON_KEYS.has(key)) errors.push(`${path}.${key} is not allowed`);
+    collectUnsafeJsonKeyErrors(nestedValue, `${path}.${key}`, errors);
+  }
 }
 
 function jsonEqual(left, right) {
