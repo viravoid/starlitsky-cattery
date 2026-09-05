@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "sourceBatchId": "environment-media-2026-09-05",
+  "originalAttachmentBatchName": "StarlitSky_environment_media_batch_2026-09-05.zip",
+  "page": {
+    "ownerType": "fixed_page",
+    "ownerId": "fixed-page-environment",
+    "slug": "environment"
+  },
+  "binaryCommittedToGit": false,
+  "uploadedToCos": false,
+  "items": [
+    {
+      "id": "environment-public-area-2026-09-05",
+      "filename": "environment_public_area.jpg",
+      "sha256": "698aedf83f7d0d7eb6986c33ba059fbc492ec81c1a8e8c9b9fd25839f4d6a696",
+      "sizeBytes": 971676,
+      "width": 1279,
+      "height": 1706,
+      "businessSlot": "environment:public-area",
+      "sortOrder": 10,
+      "intendedTitle": "公共活动区",
+      "intendedAltLabel": "星月缅因猫舍公共活动区环境照片",
+      "replacementMode": "append-or-manual-bind",
+      "replacementSet": false,
+      "binaryCommittedToGit": false,
+      "uploadedToCos": false
+    },
+    {
+      "id": "environment-medical-room-2026-09-05",
+      "filename": "environment_medical_room.jpg",
+      "sha256": "53d8824fbf6384f88edfc474164a5670f452b6960ac369ed9c7b5e11bd60025d",
+      "sizeBytes": 146055,
+      "width": 1279,
+      "height": 1706,
+      "businessSlot": "environment:medical",
+      "sortOrder": 10,
+      "intendedTitle": "医疗间",
+      "intendedAltLabel": "星月缅因猫舍医疗间环境照片",
+      "replacementMode": "append-or-manual-bind",
+      "replacementSet": false,
+      "binaryCommittedToGit": false,
+      "uploadedToCos": false
+    },
+    {
+      "id": "environment-maternity-01-2026-09-05",
+      "filename": "environment_maternity_01.jpg",
+      "sha256": "4474baeaae14f4fcc05763c17b29e98b2e8f994560f7cd55bcb962bc9872f72d",
+      "sizeBytes": 649625,
+      "width": 2048,
+      "height": 1536,
+      "businessSlot": "environment:maternity",
+      "sortOrder": 10,
+      "intendedTitle": "母婴房 01",
+      "intendedAltLabel": "星月缅因猫舍母婴房环境照片 01",
+      "replacementMode": "replace-visible-slot-bindings",
+      "replacementSet": true,
+      "binaryCommittedToGit": false,
+      "uploadedToCos": false
+    },
+    {
+      "id": "environment-maternity-02-2026-09-05",
+      "filename": "environment_maternity_02.jpg",
+      "sha256": "4cece66a185b2eba2d04c5a8a0b011332521f248e0ec8b32b3b7fa884ae6c35c",
+      "sizeBytes": 656260,
+      "width": 2048,
+      "height": 1536,
+      "businessSlot": "environment:maternity",
+      "sortOrder": 20,
+      "intendedTitle": "母婴房 02",
+      "intendedAltLabel": "星月缅因猫舍母婴房环境照片 02",
+      "replacementMode": "replace-visible-slot-bindings",
+      "replacementSet": true,
+      "binaryCommittedToGit": false,
+      "uploadedToCos": false
+    },
+    {
+      "id": "environment-maternity-03-2026-09-05",
+      "filename": "environment_maternity_03.jpg",
+      "sha256": "83271ca288cb1ce3e36b5d34a194b88c6d914b521f616452b274d78f3d3f7073",
+      "sizeBytes": 820719,
+      "width": 1536,
+      "height": 2048,
+      "businessSlot": "environment:maternity",
+      "sortOrder": 30,
+      "intendedTitle": "母婴房 03",
+      "intendedAltLabel": "星月缅因猫舍母婴房环境照片 03",
+      "replacementMode": "replace-visible-slot-bindings",
+      "replacementSet": true,
+      "binaryCommittedToGit": false,
+      "uploadedToCos": false
+    }
+  ],
+  "futureApplySemantics": {
+    "environment:maternity": {
+      "replacementSet": true,
+      "archiveExistingVisibleBindingsOnly": true,
+      "deleteMediaAssets": false,
+      "visibleSortOrder": [10, 20, 30]
+    },
+    "environment:public-area": {
+      "replacementSet": false,
+      "visibleSortOrder": [10]
+    },
+    "environment:medical": {
+      "replacementSet": false,
+      "visibleSortOrder": [10]
+    }
+  },
+  "externalNoOps": {
+    "cosUpload": false,
+    "productionDbWrite": false,
+    "serverAccess": false,
+    "secretRequested": false
+  }
+}

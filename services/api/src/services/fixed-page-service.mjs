@@ -149,6 +149,9 @@ async function listVisibleFixedPageMedia(pageIds) {
       byPageId.get(binding.owner_id)?.push(toFixedPageMediaDto(item, binding));
     }
   }
+  for (const items of byPageId.values()) {
+    items.sort(compareFixedPageMediaDto);
+  }
   return byPageId;
 }
 
@@ -200,6 +203,14 @@ function toFixedPageMediaDto(media, binding) {
     usage: binding.usage,
     sortOrder: binding.sort_order,
   };
+}
+
+function compareFixedPageMediaDto(left, right) {
+  return (
+    left.sortOrder - right.sortOrder ||
+    left.usage.localeCompare(right.usage) ||
+    left.id.localeCompare(right.id)
+  );
 }
 
 function assertPlainObject(value) {

@@ -1,4 +1,9 @@
-import type { FixedPageMediaAssetData } from "@starlitsky/shared";
+import {
+  ENVIRONMENT_MEDIA_USAGES,
+  getFixedPageMediaUrl,
+  mapFixedPageMedia,
+} from "@starlitsky/shared";
+import type { FixedPageMediaAssetData, FixedPageMediaLike } from "@starlitsky/shared";
 import { getFixedPage } from "../../utils/public-content";
 
 interface FixedPageOptions {
@@ -13,6 +18,7 @@ interface ContactAccount {
 
 interface ViewSection {
   body: string;
+  mediaGroups: SectionMediaGroup[];
   title: string;
 }
 
@@ -22,6 +28,12 @@ interface PageImage {
   title: string;
   usage: string;
   url: string;
+}
+
+interface SectionMediaGroup {
+  id: string;
+  images: PageImage[];
+  title: string;
 }
 
 interface FixedPageViewData {
@@ -216,12 +228,31 @@ function normalizeFixedPage(
   mediaAssets: FixedPageMediaAssetData[] = [],
 ) {
   const fallback = PAGE_DEFAULTS[slug] ?? PAGE_DEFAULTS.about;
-  const imageData = normalizePageImages(mediaAssets);
+  const { environmentSlots, ...imageData } = normalizePageImages(slug, mediaAssets);
   if (!value || typeof value !== "object") {
-    return { ...fallback, ...imageData, title: title || fallback.title };
+    return {
+      ...fallback,
+      ...imageData,
+      sections: attachEnvironmentMediaToSections(
+        slug,
+        normalizeViewSections(fallback.sections),
+        environmentSlots,
+      ),
+      title: title || fallback.title,
+    };
   }
   const input = value as Record<string, any>;
-  if (Object.keys(input).length === 0) return { ...fallback, ...imageData, title: title || fallback.title };
+  if (Object.keys(input).length === 0)
+    return {
+      ...fallback,
+      ...imageData,
+      sections: attachEnvironmentMediaToSections(
+        slug,
+        normalizeViewSections(fallback.sections),
+        environmentSlots,
+      ),
+      title: title || fallback.title,
+    };
   const facts = input.facts && typeof input.facts === "object" ? Object.values(input.facts) : [];
   const accounts = Array.isArray(input.accounts)
     ? input.accounts
@@ -232,14 +263,17 @@ function normalizeFixedPage(
         }))
         .filter((item: ContactAccount) => item.value)
     : fallback.accounts;
-  const sections = Array.isArray(input.sections)
-    ? input.sections
-        .map((item: any) => ({
-          title: stringOr(item?.title, ""),
-          body: stringOr(item?.body ?? item?.description ?? item?.content, ""),
-        }))
-        .filter((item: ViewSection) => item.title || item.body)
-    : fallback.sections;
+  const sections = normalizeViewSections(
+    Array.isArray(input.sections)
+      ? input.sections
+          .map((item: any) => ({
+            title: stringOr(item?.title, ""),
+            body: stringOr(item?.body ?? item?.description ?? item?.content, ""),
+          }))
+          .filter((item) => item.title || item.body)
+      : fallback.sections,
+  );
+  const sectionsWithMedia = attachEnvironmentMediaToSections(slug, sections, environmentSlots);
 
   return {
     ...fallback,
@@ -250,35 +284,88 @@ function normalizeFixedPage(
     footerNotice: stringOr(input.footerNotice, fallback.footerNotice),
     introduction: stringOr(input.introduction, fallback.introduction),
     isContact: slug === "contact",
-    sections,
+    sections: sectionsWithMedia,
     title: title || fallback.title,
   };
 }
 
-function normalizePageImages(mediaAssets: FixedPageMediaAssetData[]) {
-  const images = mediaAssets
-    .filter((item) => item.kind === "image")
-    .map(toPageImage)
-    .filter((item): item is PageImage => Boolean(item));
-  const coverImage = images.find((item) => item.usage === "cover") ?? images[0] ?? null;
-  const galleryImages = images.filter((item) => !coverImage || item.id !== coverImage.id);
+function normalizeViewSections(sections: Array<Pick<ViewSection, "body" | "title">>) {
+  return sections.map((section) => ({
+    ...section,
+    mediaGroups: [],
+  }));
+}
+
+function normalizePageImages(slug: string, mediaAssets: FixedPageMediaAssetData[]) {
+  const mapped = mapFixedPageMedia(slug, mediaAssets);
   return {
-    coverImage,
-    galleryImages,
-    previewUrls: images.map((item) => item.url),
+    coverImage: toPageImage(mapped.coverMedia),
+    environmentSlots: {
+      maternity: mapped.environmentSlots.maternity.map(toPageImage).filter(isPageImage),
+      publicArea: mapped.environmentSlots.publicArea.map(toPageImage).filter(isPageImage),
+      medical: mapped.environmentSlots.medical.map(toPageImage).filter(isPageImage),
+    },
+    galleryImages: mapped.galleryMedia.map(toPageImage).filter(isPageImage),
+    previewUrls: mapped.previewMedia.map(getFixedPageMediaUrl).filter(Boolean),
   };
 }
 
-function toPageImage(media: FixedPageMediaAssetData): PageImage | null {
-  const url = media.sourceUrl || media.thumbnailUrl || "";
+function attachEnvironmentMediaToSections(
+  slug: string,
+  sections: ViewSection[],
+  environmentSlots: {
+    maternity: PageImage[];
+    publicArea: PageImage[];
+    medical: PageImage[];
+  },
+) {
+  if (slug !== "environment") return sections;
+
+  return sections.map((section) => {
+    const mediaGroups: SectionMediaGroup[] = [];
+    if (section.title.includes("母婴")) {
+      mediaGroups.push({
+        id: ENVIRONMENT_MEDIA_USAGES.maternity,
+        images: environmentSlots.maternity,
+        title: "母婴房",
+      });
+    }
+    if (section.title.includes("公共活动区") || section.title.includes("公区")) {
+      mediaGroups.push({
+        id: ENVIRONMENT_MEDIA_USAGES.publicArea,
+        images: environmentSlots.publicArea,
+        title: "公共活动区",
+      });
+    }
+    if (section.title.includes("其他功能空间")) {
+      mediaGroups.push({
+        id: ENVIRONMENT_MEDIA_USAGES.medical,
+        images: environmentSlots.medical,
+        title: "医疗间",
+      });
+    }
+    return {
+      ...section,
+      mediaGroups: mediaGroups.filter((group) => group.images.length > 0),
+    };
+  });
+}
+
+function toPageImage(media: FixedPageMediaLike | null): PageImage | null {
+  if (!media) return null;
+  const url = getFixedPageMediaUrl(media);
   if (!url) return null;
   return {
     altText: media.altText || media.title || "",
-    id: media.id,
+    id: `${media.id}:${media.usage}:${media.sortOrder}`,
     title: media.title || "",
     usage: media.usage,
     url,
   };
+}
+
+function isPageImage(image: PageImage | null): image is PageImage {
+  return Boolean(image);
 }
 
 function normalizeSlug(value: unknown) {

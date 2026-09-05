@@ -38,6 +38,23 @@
       <view wx:for="{{sections}}" wx:key="title" class="section-card">
         <text class="section-title">{{item.title}}</text>
         <text class="section-body">{{item.body}}</text>
+        <view wx:if="{{item.mediaGroups.length}}" class="section-media-list">
+          <view wx:for="{{item.mediaGroups}}" wx:for-item="group" wx:key="id" class="section-media-group">
+            <text class="section-media-title">{{group.title}}</text>
+            <scroll-view class="section-media-strip" scroll-x enable-flex>
+              <image
+                wx:for="{{group.images}}"
+                wx:for-item="image"
+                wx:key="id"
+                class="section-media-image"
+                src="{{image.url}}"
+                mode="aspectFill"
+                data-url="{{image.url}}"
+                bindtap="previewPageImage"
+              />
+            </scroll-view>
+          </view>
+        </view>
       </view>
     </view>
 

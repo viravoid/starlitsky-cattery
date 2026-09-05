@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit",
     "verify:admin-auth": "npm --workspace @starlitsky/api run verify:admin-auth",
     "verify:community": "npm --workspace @starlitsky/api run verify:community",
+    "verify:fixed-page-media": "npm --workspace @starlitsky/api run verify:fixed-page-media",
     "verify:media-upload": "npm --workspace @starlitsky/api run verify:media-upload",
     "verify:migration-smoke": "npm --workspace @starlitsky/api run verify:migration-smoke",
     "verify:parent-flow": "npm --workspace @starlitsky/api run verify:parent-flow",

@@ -15,6 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify:community": "node src/services/community-service.verify.mjs",
     "verify:media-upload": "node src/services/media-upload-service.verify.mjs",
+    "verify:fixed-page-media": "node src/services/fixed-page-media-service.verify.mjs",
     "verify:migration-smoke": "node src/services/prisma-migration-smoke.verify.mjs",
     "verify:production-env": "node src/config/production-env.verify.mjs",
     "verify:security": "node src/services/security-hardening.verify.mjs",

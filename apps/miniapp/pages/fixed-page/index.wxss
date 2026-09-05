@@ -149,6 +149,38 @@
   font-weight: 700;
 }
 
+.section-media-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-top: 22rpx;
+}
+
+.section-media-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.section-media-title {
+  color: #8a6420;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.section-media-strip {
+  display: flex;
+  white-space: nowrap;
+}
+
+.section-media-image {
+  width: 300rpx;
+  height: 224rpx;
+  margin-right: 18rpx;
+  border-radius: 18rpx;
+  background: #f6ecd3;
+}
+
 .account {
   display: grid;
   grid-template-columns: 144rpx minmax(0, 1fr) 64rpx;

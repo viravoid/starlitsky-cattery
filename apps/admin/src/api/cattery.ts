@@ -347,16 +347,22 @@ export function completeMediaUpload(id: string, data: CompleteMediaUploadRequest
 }
 
 async function uploadImageForOwner({
+  altText,
   fallbackFileName,
   file,
   ownerId,
   ownerType,
+  sortOrder,
+  title,
   usage,
 }: {
+  altText?: string | null;
   fallbackFileName: string;
   file: File;
   ownerId: string;
   ownerType: string;
+  sortOrder?: number;
+  title?: string | null;
   usage: string;
 }) {
   if (!file.type) {
@@ -364,13 +370,14 @@ async function uploadImageForOwner({
   }
 
   const imageUpload = await requestImageUpload({
-    altText: file.name,
+    altText: altText ?? file.name,
     fileName: file.name || fallbackFileName,
     mimeType: file.type,
     ownerId,
     ownerType,
     sizeBytes: file.size,
-    title: file.name,
+    sortOrder,
+    title: title ?? file.name,
     usage,
     bindingVisibility: "visible",
   });
@@ -410,13 +417,25 @@ export function uploadLitterImage(litterId: string, file: File) {
   });
 }
 
-export function uploadFixedPageImage(pageId: string, file: File) {
+export function uploadFixedPageImage(
+  pageId: string,
+  file: File,
+  options: {
+    altText?: string | null;
+    sortOrder?: number;
+    title?: string | null;
+    usage?: string;
+  } = {},
+) {
   return uploadImageForOwner({
+    altText: options.altText,
     fallbackFileName: "fixed-page-image",
     file,
     ownerId: pageId,
     ownerType: "fixed_page",
-    usage: "gallery",
+    sortOrder: options.sortOrder,
+    title: options.title,
+    usage: options.usage ?? "gallery",
   });
 }
 
