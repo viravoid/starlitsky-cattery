@@ -13,8 +13,8 @@ const confirmProduction = args.has("--confirm-production");
 const json = args.has("--json");
 
 try {
-  assertPublicContentImporterRuntime({ confirmProduction });
-  const result = await runPublicContentImport({ apply, client: prisma });
+  const runtimeContext = assertPublicContentImporterRuntime({ confirmProduction });
+  const result = await runPublicContentImport({ apply, client: prisma, runtimeContext });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
   } else {

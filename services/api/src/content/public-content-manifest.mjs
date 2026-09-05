@@ -28,7 +28,6 @@ export const PUBLIC_CONTENT_MANIFEST = {
           location: "西安",
           registration: "WCF、CFA协会",
           socialization: "从出生开始记录日常并进行社会化训练",
-          aftercare: "重视售后和长期陪伴",
           screening: "遗传病筛选（all n/n)",
         },
         sections: [],
@@ -202,7 +201,6 @@ export const PUBLIC_CONTENT_MANIFEST = {
       contentSchemaVersion: 1,
       sourceCertainty: "direct",
       contentJson: {
-        introduction: "点击即可复制账号，欢迎来聊聊猫、看看小猫日常。",
         accounts: [
           { id: "wechat", label: "微信", value: "xingyuemianyinmao" },
           { id: "weibo", label: "微博", value: "星月缅因猫舍" },
@@ -564,8 +562,6 @@ function breedingCat({
       breedingRole,
       reproductiveState,
       statusLabel,
-      trait: null,
-      source: null,
       sortOrder,
     },
   };
