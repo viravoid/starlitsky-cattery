@@ -23,7 +23,9 @@
     "verify:parent-flow": "node src/services/parent-application-service.verify.mjs",
     "verify:selection-application": "node src/services/selection-application-service.verify.mjs",
     "verify:public-content-import": "node src/services/public-content-importer.verify.mjs",
-    "import:public-content": "node src/cli/import-public-content.mjs"
+    "verify:environment-media-batch": "node src/services/environment-media-batch-importer.verify.mjs",
+    "import:public-content": "node src/cli/import-public-content.mjs",
+    "media:apply-environment-batch": "node src/cli/apply-environment-media-batch.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.12.0"
