@@ -87,6 +87,13 @@ function verifyProductionEnvGuards() {
       failures.push(`Miniapp ${envVersion} API base URL must not be blank.`);
     }
   }
+  const developMatch = envText.match(/develop:\s*([^,\n]+)/);
+  if (!developMatch || /127\.0\.0\.1|localhost/.test(developMatch[1])) {
+    failures.push("Miniapp develop API base URL must default to the production HTTPS API.");
+  }
+  if (!/getExplicitLocalApiBaseUrl\(envVersion\)/.test(envText)) {
+    failures.push("Miniapp local API debugging must require an explicit develop-only opt-in.");
+  }
 }
 
 function verifyPageRegistrations() {
