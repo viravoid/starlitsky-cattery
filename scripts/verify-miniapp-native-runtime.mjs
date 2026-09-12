@@ -91,8 +91,11 @@ function verifyProductionEnvGuards() {
   if (!developMatch || /127\.0\.0\.1|localhost/.test(developMatch[1])) {
     failures.push("Miniapp develop API base URL must default to the production HTTPS API.");
   }
-  if (!/getExplicitLocalApiBaseUrl\(envVersion\)/.test(envText)) {
-    failures.push("Miniapp local API debugging must require an explicit develop-only opt-in.");
+  if (/http:\/\/127\.0\.0\.1:4310|localhost/.test(miniappText)) {
+    failures.push("apps/miniapp must not contain loopback API defaults.");
+  }
+  if (/MINIAPP_LOCAL_API_BASE_URL_STORAGE_KEY|getExplicitLocalApiBaseUrl|localApiBaseUrl/i.test(envText)) {
+    failures.push("Miniapp API base URL must not be overridable from local storage.");
   }
 }
 

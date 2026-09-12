@@ -33,6 +33,17 @@ for (const envVersion of ["develop", "trial", "release"]) {
   assert.equal(url.hostname, "api.starlitskycattery.top");
 }
 
+assert.equal(
+  /http:\/\/127\.0\.0\.1:4310|localhost/.test(combinedMiniappText),
+  false,
+  "Miniapp source must not contain loopback API defaults.",
+);
+assert.equal(
+  /MINIAPP_LOCAL_API_BASE_URL_STORAGE_KEY|getExplicitLocalApiBaseUrl|localApiBaseUrl/i.test(envText),
+  false,
+  "Miniapp API base URL must not be overridable from local storage.",
+);
+
 assert.match(
   envText,
   /throw new Error\(`Miniapp API base URL is not configured for \$\{envVersion\}`\)/,
@@ -41,15 +52,6 @@ assert.match(
 assert.match(
   envText,
   /MINIAPP_PRODUCTION_API_BASE_URL\s*=\s*"https:\/\/api\.starlitskycattery\.top"/,
-);
-assert.match(
-  envText,
-  /MINIAPP_LOCAL_API_BASE_URL_STORAGE_KEY\s*=\s*"starlitsky:miniapp:localApiBaseUrl"/,
-);
-assert.match(
-  envText,
-  /getExplicitLocalApiBaseUrl\(envVersion\)/,
-  "Develop local API use must require an explicit runtime opt-in.",
 );
 assert.match(envText, /MINIAPP_PRODUCTION_API_HOST\s*=\s*"api\.starlitskycattery\.top"/);
 assert.match(
