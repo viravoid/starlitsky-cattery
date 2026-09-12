@@ -5,7 +5,7 @@ import {
   deleteCommunityPost,
   getCommunityPost,
   toggleCommunityPostLike,
-} from "../../utils/public-content";
+} from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 
 interface DetailOptions {

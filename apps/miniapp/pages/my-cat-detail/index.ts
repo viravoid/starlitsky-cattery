@@ -1,5 +1,5 @@
 import type { CommunityPostData, MyCatData } from "@starlitsky/shared";
-import { getMyCat } from "../../utils/public-content";
+import { getMyCat } from "../../utils/public-content/index";
 import { refreshCurrentUser } from "../../utils/session/auth";
 
 interface DetailOptions {

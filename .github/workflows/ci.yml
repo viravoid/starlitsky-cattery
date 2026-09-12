@@ -45,6 +45,9 @@ jobs:
       - name: Verify miniapp production config
         run: npm run verify:miniapp-production-config
 
+      - name: Verify miniapp native runtime
+        run: npm run verify:miniapp-native-runtime
+
       - name: Typecheck admin
         run: npm run typecheck:admin
 

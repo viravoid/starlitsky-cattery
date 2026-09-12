@@ -1,5 +1,5 @@
 import type { FixedPageMediaAssetData } from "@starlitsky/shared";
-import { getFixedPage } from "../../utils/public-content";
+import { getFixedPage } from "../../utils/public-content/index";
 
 interface HomeEntry {
   desc: string;

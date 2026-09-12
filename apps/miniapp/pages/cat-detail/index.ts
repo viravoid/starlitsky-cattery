@@ -1,5 +1,5 @@
 import type { CatData } from "@starlitsky/shared";
-import { getPublicCat } from "../../utils/public-content";
+import { getPublicCat } from "../../utils/public-content/index";
 
 interface DetailOptions {
   id?: string;

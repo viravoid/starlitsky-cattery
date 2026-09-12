@@ -2,9 +2,10 @@ import {
   ENVIRONMENT_MEDIA_USAGES,
   getFixedPageMediaUrl,
   mapFixedPageMedia,
-} from "@starlitsky/shared";
-import type { FixedPageMediaAssetData, FixedPageMediaLike } from "@starlitsky/shared";
-import { getFixedPage } from "../../utils/public-content";
+} from "../../utils/fixed-page-media";
+import type { FixedPageMediaLike } from "../../utils/fixed-page-media";
+import type { FixedPageMediaAssetData } from "@starlitsky/shared";
+import { getFixedPage } from "../../utils/public-content/index";
 
 interface FixedPageOptions {
   slug?: string;

@@ -8,5 +8,8 @@
     "es6": true,
     "minified": true,
     "postcss": true
-  }
+  },
+  "useCompilerPlugins": [
+    "typescript"
+  ]
 }

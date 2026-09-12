@@ -9,7 +9,7 @@ import {
   searchCats,
   submitParentApplication,
   verifyParentInvite,
-} from "../../utils/parent-auth";
+} from "../../utils/parent-auth/index";
 
 interface ParentAuthLoadOptions {
   code?: string;

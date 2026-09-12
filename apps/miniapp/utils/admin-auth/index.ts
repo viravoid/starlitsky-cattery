@@ -3,7 +3,7 @@ import type {
   ResolvedAdminLoginChallengeData,
   ResolveAdminLoginChallengeRequest,
 } from "@starlitsky/shared";
-import { post } from "../request";
+import { post } from "../request/index";
 
 export async function resolveAdminLoginChallenge(data: ResolveAdminLoginChallengeRequest) {
   const response = await post<ResolvedAdminLoginChallengeData, ResolveAdminLoginChallengeRequest>(

@@ -1,5 +1,5 @@
 import type { CatData } from "@starlitsky/shared";
-import { listPublicCats } from "../../utils/public-content";
+import { listPublicCats } from "../../utils/public-content/index";
 
 type TabKey = "kittens" | "studs";
 
