@@ -13,41 +13,17 @@ export function setObjectStorageTestClient(client) {
 export function createPresignedPutUpload({ objectKey, mimeType }) {
   const storage = getStorageConfig();
   const now = new Date();
-  const amzDate = formatAmzDate(now);
-  const dateStamp = amzDate.slice(0, 8);
   const expiresSeconds = Math.min(storage.uploadExpiresSeconds, 3600);
   const signedHeaders = "content-type;host";
-  const uploadUrl = buildUploadUrl(storage, objectKey);
-  const credentialScope = `${dateStamp}/${storage.region}/${SIGNING_SERVICE}/aws4_request`;
-
-  const presignParams = [
-    ["X-Amz-Algorithm", SIGNING_ALGORITHM],
-    ["X-Amz-Credential", `${storage.accessKeyId}/${credentialScope}`],
-    ["X-Amz-Date", amzDate],
-    ["X-Amz-Expires", String(expiresSeconds)],
-    ["X-Amz-SignedHeaders", signedHeaders],
-  ];
-
-  const canonicalQuery = canonicalizeQuery(presignParams);
-  const canonicalHeaders = `content-type:${mimeType}\nhost:${uploadUrl.host}\n`;
-  const canonicalRequest = [
-    "PUT",
-    uploadUrl.pathname,
-    canonicalQuery,
-    canonicalHeaders,
+  const uploadUrl = createPresignedObjectUrl({
+    method: "PUT",
+    objectKey,
+    storage,
+    now,
+    expiresSeconds,
     signedHeaders,
-    "UNSIGNED-PAYLOAD",
-  ].join("\n");
-  const stringToSign = [
-    SIGNING_ALGORITHM,
-    amzDate,
-    credentialScope,
-    sha256Hex(canonicalRequest),
-  ].join("\n");
-  const signingKey = createSigningKey(storage.accessKeySecret, dateStamp, storage.region);
-  const signature = hmacHex(signingKey, stringToSign);
-
-  uploadUrl.search = `${canonicalQuery}&X-Amz-Signature=${signature}`;
+    canonicalHeaders: (url) => `content-type:${mimeType}\nhost:${url.host}\n`,
+  });
 
   return {
     provider: storage.provider,
@@ -63,6 +39,30 @@ export function createPresignedPutUpload({ objectKey, mimeType }) {
       expiresAt: new Date(now.getTime() + expiresSeconds * 1000).toISOString(),
       expiresInSeconds: expiresSeconds,
     },
+  };
+}
+
+export function createPresignedGetUrl({ objectKey }) {
+  const storage = getStorageConfig();
+  const now = new Date();
+  const expiresSeconds = Math.min(storage.readExpiresSeconds, 3600);
+
+  return {
+    provider: storage.provider,
+    bucket: storage.bucket,
+    objectKey,
+    method: "GET",
+    url: createPresignedObjectUrl({
+      method: "GET",
+      objectKey,
+      storage,
+      now,
+      expiresSeconds,
+      signedHeaders: "host",
+      canonicalHeaders: (url) => `host:${url.host}\n`,
+    }).toString(),
+    expiresAt: new Date(now.getTime() + expiresSeconds * 1000).toISOString(),
+    expiresInSeconds: expiresSeconds,
   };
 }
 
@@ -117,11 +117,53 @@ export function buildObjectKey({ fileName, mimeType }) {
   return [prefix, "images", yyyy, mm, dd, `${randomName}.${extension}`].filter(Boolean).join("/");
 }
 
+function createPresignedObjectUrl({
+  method,
+  objectKey,
+  storage,
+  now,
+  expiresSeconds,
+  signedHeaders,
+  canonicalHeaders,
+}) {
+  const amzDate = formatAmzDate(now);
+  const dateStamp = amzDate.slice(0, 8);
+  const requestUrl = buildStorageUrl(storage, objectKey);
+  const credentialScope = `${dateStamp}/${storage.region}/${SIGNING_SERVICE}/aws4_request`;
+  const presignParams = [
+    ["X-Amz-Algorithm", SIGNING_ALGORITHM],
+    ["X-Amz-Credential", `${storage.accessKeyId}/${credentialScope}`],
+    ["X-Amz-Date", amzDate],
+    ["X-Amz-Expires", String(expiresSeconds)],
+    ["X-Amz-SignedHeaders", signedHeaders],
+  ];
+  const canonicalQuery = canonicalizeQuery(presignParams);
+  const canonicalRequest = [
+    method,
+    requestUrl.pathname,
+    canonicalQuery,
+    canonicalHeaders(requestUrl),
+    signedHeaders,
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+  const stringToSign = [
+    SIGNING_ALGORITHM,
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+  const signingKey = createSigningKey(storage.accessKeySecret, dateStamp, storage.region);
+  const signature = hmacHex(signingKey, stringToSign);
+
+  requestUrl.search = `${canonicalQuery}&X-Amz-Signature=${signature}`;
+  return requestUrl;
+}
+
 async function fetchSignedStorageRequest({ method, objectKey, storage }) {
   const now = new Date();
   const amzDate = formatAmzDate(now);
   const dateStamp = amzDate.slice(0, 8);
-  const requestUrl = buildUploadUrl(storage, objectKey);
+  const requestUrl = buildStorageUrl(storage, objectKey);
   const credentialScope = `${dateStamp}/${storage.region}/${SIGNING_SERVICE}/aws4_request`;
   const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
   const canonicalHeaders = [
@@ -193,7 +235,7 @@ function deriveEndpoint(storage) {
   return "";
 }
 
-function buildUploadUrl(storage, objectKey) {
+function buildStorageUrl(storage, objectKey) {
   const endpoint = new URL(storage.endpoint);
   const encodedKey = encodePath(objectKey);
 
@@ -258,7 +300,9 @@ function inferExtension(fileName, mimeType) {
   };
   if (known[mimeType]) return known[mimeType];
 
-  const match = String(fileName).toLowerCase().match(/\.([a-z0-9]{1,8})$/);
+  const match = String(fileName)
+    .toLowerCase()
+    .match(/\.([a-z0-9]{1,8})$/);
   return match ? match[1] : "bin";
 }
 
@@ -269,15 +313,13 @@ function parseNullableInteger(value) {
 }
 
 function encodePath(path) {
-  return trimSlashes(path)
-    .split("/")
-    .map(encodeRfc3986)
-    .join("/");
+  return trimSlashes(path).split("/").map(encodeRfc3986).join("/");
 }
 
 function encodeRfc3986(value) {
-  return encodeURIComponent(value).replace(/[!'()*]/g, (char) =>
-    `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
   );
 }
 

@@ -2,6 +2,11 @@ import { prisma } from "../db/prisma.mjs";
 import { ensureActiveFixedPageExists } from "./fixed-page-service.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parseBooleanParam, parsePagination } from "../utils/request.mjs";
+import {
+  isPresignedStorageUrl,
+  resolveMediaSourceUrl,
+  resolveMediaThumbnailUrl,
+} from "./media-delivery-service.mjs";
 
 const MEDIA_KIND_VALUES = new Set(["image", "video", "document", "audio"]);
 const MEDIA_STATUS_VALUES = new Set(["pending", "active", "rejected", "archived"]);
@@ -125,6 +130,7 @@ export async function updateMedia(id, input) {
   const data = normalizeMediaInput(input, {
     mode: "update",
     allowedFields: MEDIA_UPDATE_FIELDS,
+    existing,
   });
 
   if (Object.keys(data).length === 0) {
@@ -420,12 +426,16 @@ function buildMediaWhere(searchParams) {
   return where;
 }
 
-function normalizeMediaInput(input, { mode, allowedFields }) {
+function normalizeMediaInput(input, { mode, allowedFields, existing = null }) {
   assertNoUnknownFields(input, allowedFields);
   const data = {};
 
   if (mode === "create" || Object.hasOwn(input, "sourceUrl")) {
-    data.source_url = requiredString(input.sourceUrl, "sourceUrl");
+    const sourceUrl = requiredString(input.sourceUrl, "sourceUrl");
+    if (mode === "update" && existing?.metadata_json?.upload && isPresignedStorageUrl(sourceUrl)) {
+      throw badRequest("sourceUrl must not be a short-lived presigned URL");
+    }
+    data.source_url = sourceUrl;
   }
 
   if (Object.hasOwn(input, "kind")) {
@@ -623,8 +633,9 @@ function toMediaDto(media) {
   return {
     id: media.id,
     kind: media.kind,
-    sourceUrl: media.source_url,
-    thumbnailUrl: media.thumbnail_url,
+    sourceUrl: resolveMediaSourceUrl(media),
+    storedSourceUrl: media.source_url,
+    thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
     mimeType: media.mime_type,

@@ -85,6 +85,11 @@ export const config = {
     keyPrefix: process.env.STORAGE_KEY_PREFIX || "media",
     forcePathStyle: parseBoolean(process.env.STORAGE_FORCE_PATH_STYLE),
     uploadExpiresSeconds: parsePositiveInteger(process.env.STORAGE_UPLOAD_EXPIRES_SECONDS, 600),
+    readExpiresSeconds: parseBoundedPositiveInteger(
+      process.env.STORAGE_READ_EXPIRES_SECONDS,
+      3600,
+      3600,
+    ),
     maxImageBytes: parsePositiveInteger(process.env.STORAGE_MAX_IMAGE_BYTES, 10 * 1024 * 1024),
   },
 };
@@ -99,6 +104,11 @@ function parsePositiveInteger(value, fallback) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
   return parsed;
+}
+
+function parseBoundedPositiveInteger(value, fallback, max) {
+  const parsed = parsePositiveInteger(value, fallback);
+  return Math.min(parsed, max);
 }
 
 function parseBoolean(value) {

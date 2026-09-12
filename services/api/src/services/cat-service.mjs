@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parseBooleanParam, parsePagination } from "../utils/request.mjs";
+import { resolveMediaSourceUrl, resolveMediaThumbnailUrl } from "./media-delivery-service.mjs";
 
 const VISIBILITY_VALUES = new Set(["visible", "hidden", "archived"]);
 const CREATE_FIELDS = [
@@ -299,8 +300,8 @@ function toCatMediaDto(media, binding) {
   return {
     id: media.id,
     kind: media.kind,
-    sourceUrl: media.source_url,
-    thumbnailUrl: media.thumbnail_url,
+    sourceUrl: resolveMediaSourceUrl(media),
+    thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
     usage: binding.usage,

@@ -714,6 +714,7 @@ export interface MediaAssetData {
   id: string;
   kind: string;
   sourceUrl: string;
+  storedSourceUrl?: string;
   thumbnailUrl: string | null;
   title: string | null;
   altText: string | null;

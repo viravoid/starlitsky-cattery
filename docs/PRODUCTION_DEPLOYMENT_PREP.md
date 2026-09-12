@@ -13,7 +13,7 @@ This document prepares a repeatable Tencent Cloud Lightweight Application Server
 - Prisma migrate deploy: `db:migrate:deploy` runs `node prisma/ensure-local-sqlite.mjs && prisma migrate deploy --schema prisma/schema.prisma`.
 - SQLite location: Prisma uses `DATABASE_URL`. Relative SQLite paths such as `file:dev.db` resolve under `services/api/prisma`; production must use an absolute path outside the release directory, for example `file:/opt/starlitsky/data/starlitsky.sqlite`.
 - SQLite ownership: the API service runs as the `starlitsky` user/group. The repeatable deploy script provisions that account if absent, creates `/opt/starlitsky/data`, `/opt/starlitsky/backups/sqlite`, and `/opt/starlitsky/logs` as `starlitsky:starlitsky` with `0750`, and re-applies `0640` ownership to the database plus SQLite journal/WAL sidecar files after migrations.
-- Env verifier: `npm run verify:production-env` requires `NODE_ENV=production`, `DATABASE_URL`, production-grade auth secret, WeChat credentials, explicit non-wildcard CORS origins, disabled mocks, and COS/S3 storage placeholders replaced with real server-side values.
+- Env verifier: `npm run verify:production-env` requires `NODE_ENV=production`, `DATABASE_URL`, production-grade auth secret, WeChat credentials, explicit non-wildcard CORS origins, disabled mocks, bounded media upload/read presign expiry values, and COS/S3 storage placeholders replaced with real server-side values.
 - Production runtime dependencies: Node.js matching CI (`24.16.0`), npm, Bun `1.3.14` for lockfile installs/build commands, systemd, Nginx, sqlite3 CLI for backups, curl for health checks, and the installed workspace `node_modules`.
 
 ## Filesystem Layout
@@ -145,7 +145,7 @@ All sensitive values are placeholders. Real `AUTH_TOKEN_SECRET`, WeChat secret, 
 - CORS: browser requests from `https://admin.<domain>` receive the exact allowed origin; random origins do not.
 - Auth: WeChat login and `/auth/me` session behavior work with mocks disabled.
 - QR: Admin QR login challenge can be created, scanned, approved, consumed once, and expired/cancelled paths still behave.
-- Media: presigned image upload respects the 10 MiB limit, writes metadata, and public media URLs resolve.
+- Media: presigned image upload respects the 10 MiB limit, writes metadata, managed media responses return short-lived signed read URLs, and external media URLs remain unchanged.
 - DB persistence: create or update a low-risk record, restart `starlitsky-api`, and confirm the data remains.
 - Miniapp: release/trial build uses `https://api.<domain>` and WeChat console request/upload/download domains are configured.
 
@@ -156,6 +156,6 @@ All sensitive values are placeholders. Real `AUTH_TOKEN_SECRET`, WeChat secret, 
 - Tencent Cloud server public IP and non-secret login method for the operator
 - installed Node.js path if not `/usr/bin/node`
 - final WeChat Mini Program AppID and secret
-- final COS bucket, region, endpoint/public URL, access key ID, and secret
+- final COS bucket, region, endpoint hostname, optional public URL for non-managed media, access key ID, secret, and `STORAGE_READ_EXPIRES_SECONDS`
 - certificate issuance method and resulting certificate file paths
 - intended Linux user/group ownership, if different from `starlitsky`
