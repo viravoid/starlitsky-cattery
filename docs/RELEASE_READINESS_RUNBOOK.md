@@ -21,7 +21,8 @@ This runbook records the engineering steps required before staging and productio
    - `CORS_ALLOWED_ORIGINS` with the exact Admin web origin list
    - `STORAGE_PROVIDER`, `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_ACCESS_KEY_SECRET`
    - `STORAGE_ENDPOINT` when the selected provider cannot be derived by the API
-   - `STORAGE_PUBLIC_BASE_URL` when public media should use a CDN or custom domain
+   - `STORAGE_READ_EXPIRES_SECONDS` for short-lived managed media read URLs; default and maximum production value is 3600 seconds
+   - `STORAGE_PUBLIC_BASE_URL` only when externally managed public media should keep using a CDN or custom domain
 2. Install dependencies from the lockfile.
 3. Run `npm run verify:production-env` with production env loaded.
 4. Run `npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api db:validate`.
@@ -59,7 +60,7 @@ This runbook records the engineering steps required before staging and productio
    - `release` must point at the production API base URL before release upload.
 2. Configure WeChat Mini Program server domain prerequisites in the WeChat console:
    - request domain for the API
-   - upload/download domains if storage or CDN domains are used directly by the Miniapp
+   - upload/download domains for the API and the object-storage host used by signed media URLs
 3. Build the Miniapp package.
 4. Import `apps/miniapp` in WeChat Developer Tools.
 5. Use the real AppID for staging or production checks.
@@ -68,13 +69,15 @@ This runbook records the engineering steps required before staging and productio
 ## Storage readiness
 
 1. Select S3-compatible storage or Tencent COS during deployment planning.
-2. Configure bucket, region, access key, secret, and endpoint/public URL values in the deployment secret store.
+2. Configure bucket, region, access key, secret, endpoint, and read expiry values in the deployment secret store.
 3. Configure bucket CORS to allow presigned `PUT` uploads from the Admin origin and Miniapp prerequisites where applicable.
-4. Confirm public media URL behavior:
-   - direct bucket public URL, or
-   - CDN/custom domain in `STORAGE_PUBLIC_BASE_URL`
-5. The API process runs a best-effort bounded maintenance task that marks pending media uploads older than the service stale threshold as rejected in the database, so they stop accumulating as usable media. The cleanup intentionally does not delete remote objects; object deletion remains a manual/quarantined COS audit task until least-privilege delete permissions and ownership evidence are configured.
-6. Do not store production object-storage credentials in the repo.
+4. Keep managed buckets private-read. API responses derive short-lived presigned `GET` URLs from `metadata_json.upload.objectKey`; the database keeps only stable object identity and the original stable `source_url`.
+5. Confirm the client-visible media host:
+   - if `STORAGE_ENDPOINT` is set, use that URL's hostname
+   - otherwise Tencent COS uses `${STORAGE_BUCKET}.cos.${STORAGE_REGION}.myqcloud.com`
+   - this host must be allowed later in WeChat Mini Program download/image domains when the Miniapp loads images directly from COS
+6. The API process runs a best-effort bounded maintenance task that marks pending media uploads older than the service stale threshold as rejected in the database, so they stop accumulating as usable media. The cleanup intentionally does not delete remote objects; object deletion remains a manual/quarantined COS audit task until least-privilege delete permissions and ownership evidence are configured.
+7. Do not store production object-storage credentials in the repo.
 
 ## Staging smoke order
 

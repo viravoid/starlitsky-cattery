@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.mjs";
 import { FIXED_PAGE_DEFINITIONS, FIXED_PAGE_SLUGS } from "../content/fixed-page-definitions.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
+import { resolveMediaSourceUrl, resolveMediaThumbnailUrl } from "./media-delivery-service.mjs";
 
 const STATUS_VALUES = new Set(["draft", "published", "hidden"]);
 const UPDATE_FIELDS = [
@@ -196,8 +197,8 @@ function toFixedPageMediaDto(media, binding) {
   return {
     id: media.id,
     kind: media.kind,
-    sourceUrl: media.source_url,
-    thumbnailUrl: media.thumbnail_url,
+    sourceUrl: resolveMediaSourceUrl(media),
+    thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
     usage: binding.usage,

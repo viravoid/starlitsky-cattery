@@ -156,13 +156,17 @@ function validateStorage() {
     validateHttpUrl("STORAGE_PUBLIC_BASE_URL", publicBaseUrl);
   } else {
     warnings.push(
-      "STORAGE_PUBLIC_BASE_URL is not set; uploaded media will use the storage endpoint as its public URL.",
+      "STORAGE_PUBLIC_BASE_URL is not set; uploaded managed media will keep a stable storage endpoint URL in the database, while API responses generate short-lived read URLs from object metadata.",
     );
   }
 
   const uploadExpires = readPositiveInteger("STORAGE_UPLOAD_EXPIRES_SECONDS");
   if (uploadExpires !== undefined && uploadExpires > 3600) {
     fail("STORAGE_UPLOAD_EXPIRES_SECONDS must be no more than 3600.");
+  }
+  const readExpires = readPositiveInteger("STORAGE_READ_EXPIRES_SECONDS");
+  if (readExpires !== undefined && readExpires > 3600) {
+    fail("STORAGE_READ_EXPIRES_SECONDS must be no more than 3600.");
   }
 
   readPositiveInteger("STORAGE_MAX_IMAGE_BYTES");

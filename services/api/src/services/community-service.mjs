@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, forbidden, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
+import { resolveMediaSourceUrl, resolveMediaThumbnailUrl } from "./media-delivery-service.mjs";
 import { completeMediaUpload, requestImageUpload } from "./media-upload-service.mjs";
 
 const CATEGORY_VALUES = new Set(["cattery_daily", "parent_share", "personal_thoughts"]);
@@ -26,7 +27,10 @@ export async function listCommunityPosts(searchParams, viewer = null) {
     }),
     prisma.post.count({ where }),
   ]);
-  const publicData = await getPublicPostSupplements(items.map((post) => post.id), { viewer });
+  const publicData = await getPublicPostSupplements(
+    items.map((post) => post.id),
+    { viewer },
+  );
 
   return {
     items: items.map((post) => toCommunityPostDto(post, publicData, { viewer })),
@@ -49,11 +53,14 @@ export async function listAdminCommunityPosts(searchParams, user) {
     }),
     prisma.post.count({ where }),
   ]);
-  const publicData = await getPublicPostSupplements(items.map((post) => post.id), {
-    includeComments: true,
-    relationAccess: { revealAll: true },
-    viewer: user,
-  });
+  const publicData = await getPublicPostSupplements(
+    items.map((post) => post.id),
+    {
+      includeComments: true,
+      relationAccess: { revealAll: true },
+      viewer: user,
+    },
+  );
 
   return {
     items: items.map((post) => toAdminCommunityPostDto(post, publicData)),
@@ -97,8 +104,12 @@ export async function getAdminCommunityPost(id, user) {
   });
   return toAdminCommunityPostDto(post, {
     ...publicData,
-    commentsByPostId: new Map([[post.id, post.comments.map((comment) => toCommunityCommentDto(comment, { viewer: user }))]]),
-    commentCountByPostId: new Map([[post.id, post.comments.filter((comment) => !comment.deleted_at).length]]),
+    commentsByPostId: new Map([
+      [post.id, post.comments.map((comment) => toCommunityCommentDto(comment, { viewer: user }))],
+    ]),
+    commentCountByPostId: new Map([
+      [post.id, post.comments.filter((comment) => !comment.deleted_at).length],
+    ]),
   });
 }
 
@@ -119,11 +130,14 @@ export async function listMyCommunityPosts(searchParams, user) {
     }),
     prisma.post.count({ where }),
   ]);
-  const publicData = await getPublicPostSupplements(items.map((post) => post.id), {
-    includeComments: true,
-    revealHiddenRelations: true,
-    viewer: user,
-  });
+  const publicData = await getPublicPostSupplements(
+    items.map((post) => post.id),
+    {
+      includeComments: true,
+      revealHiddenRelations: true,
+      viewer: user,
+    },
+  );
 
   return {
     items: items.map((post) =>
@@ -342,7 +356,8 @@ export async function moderateCommunityPost(id, input, user) {
     data.deleted_at = shouldDelete ? new Date() : null;
     if (shouldDelete) data.visibility = "archived";
   }
-  if (Object.keys(data).length === 0) throw badRequest("At least one moderation field must be provided");
+  if (Object.keys(data).length === 0)
+    throw badRequest("At least one moderation field must be provided");
 
   const post = await prisma.post.update({
     where: { id },
@@ -356,8 +371,12 @@ export async function moderateCommunityPost(id, input, user) {
   });
   return toAdminCommunityPostDto(post, {
     ...publicData,
-    commentsByPostId: new Map([[post.id, post.comments.map((comment) => toCommunityCommentDto(comment, { viewer: user }))]]),
-    commentCountByPostId: new Map([[post.id, post.comments.filter((comment) => !comment.deleted_at).length]]),
+    commentsByPostId: new Map([
+      [post.id, post.comments.map((comment) => toCommunityCommentDto(comment, { viewer: user }))],
+    ]),
+    commentCountByPostId: new Map([
+      [post.id, post.comments.filter((comment) => !comment.deleted_at).length],
+    ]),
   });
 }
 
@@ -455,7 +474,8 @@ export async function moderateCommunityComment(postId, commentId, input, user) {
     data.deleted_at = shouldDelete ? new Date() : null;
     if (shouldDelete) data.visibility = "archived";
   }
-  if (Object.keys(data).length === 0) throw badRequest("At least one moderation field must be provided");
+  if (Object.keys(data).length === 0)
+    throw badRequest("At least one moderation field must be provided");
 
   const updated = await prisma.comment.update({
     where: { id: comment.id },
@@ -569,7 +589,8 @@ function buildAdminPostWhere(searchParams) {
     where.category = category;
   }
   if (visibility) {
-    if (!VISIBILITY_VALUES.has(visibility)) throw badRequest("visibility contains an unsupported value");
+    if (!VISIBILITY_VALUES.has(visibility))
+      throw badRequest("visibility contains an unsupported value");
     where.visibility = visibility;
   }
   if (authorUserId) where.author_user_id = authorUserId;
@@ -586,7 +607,12 @@ function buildAdminPostWhere(searchParams) {
 
 async function getPublicPostSupplements(
   postIds,
-  { includeComments = false, relationAccess = null, revealHiddenRelations = false, viewer = null } = {},
+  {
+    includeComments = false,
+    relationAccess = null,
+    revealHiddenRelations = false,
+    viewer = null,
+  } = {},
 ) {
   const mediaByPostId = await listVisiblePostMedia(postIds);
   const [commentGroups, likeGroups, viewerLikes, comments] =
@@ -637,9 +663,7 @@ async function getPublicPostSupplements(
   }
 
   return {
-    commentCountByPostId: new Map(
-      commentGroups.map((group) => [group.post_id, group._count._all]),
-    ),
+    commentCountByPostId: new Map(commentGroups.map((group) => [group.post_id, group._count._all])),
     likeCountByPostId: new Map(likeGroups.map((group) => [group.post_id, group._count._all])),
     mediaByPostId,
     commentsByPostId,
@@ -686,7 +710,9 @@ async function listVisiblePostMedia(postIds) {
     }
   }
   for (const items of byPostId.values()) {
-    items.sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
+    items.sort(
+      (left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id),
+    );
   }
   return byPostId;
 }
@@ -728,7 +754,11 @@ function toAdminCommunityPostDto(post, publicData) {
 
 function toAccessibleCatDto(cat, relationAccess) {
   if (!cat || cat.deleted_at) return null;
-  if (cat.visibility === "visible" || relationAccess?.revealAll || relationAccess?.catIds?.has(cat.id)) {
+  if (
+    cat.visibility === "visible" ||
+    relationAccess?.revealAll ||
+    relationAccess?.catIds?.has(cat.id)
+  ) {
     return toRelatedCatDto(cat);
   }
   return null;
@@ -784,8 +814,8 @@ function toPostMediaDto(media, binding) {
   return {
     id: media.id,
     kind: media.kind,
-    sourceUrl: media.source_url,
-    thumbnailUrl: media.thumbnail_url,
+    sourceUrl: resolveMediaSourceUrl(media),
+    thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
     usage: binding.usage,
@@ -807,7 +837,9 @@ function toCommunityCommentDto(comment, { viewer = null } = {}) {
     authorRole,
     content: comment.content,
     visibility: comment.visibility,
-    canDelete: Boolean(viewer && (isPrivilegedUser(viewer) || viewer.id === comment.author_user_id)),
+    canDelete: Boolean(
+      viewer && (isPrivilegedUser(viewer) || viewer.id === comment.author_user_id),
+    ),
     createdAt: toIsoString(comment.created_at),
     updatedAt: toIsoString(comment.updated_at),
     deletedAt: toIsoString(comment.deleted_at),
@@ -861,7 +893,8 @@ function normalizeCategory(value) {
 
 function normalizeVisibility(value) {
   const visibility = requiredString(value, "visibility");
-  if (!VISIBILITY_VALUES.has(visibility)) throw badRequest("visibility contains an unsupported value");
+  if (!VISIBILITY_VALUES.has(visibility))
+    throw badRequest("visibility contains an unsupported value");
   return visibility;
 }
 
@@ -953,7 +986,9 @@ async function listActiveParentCatIds(parentProfileId) {
 function normalizeIdArray(value, fieldName) {
   if (value == null) return [];
   if (!Array.isArray(value)) throw badRequest(`${fieldName} must be an array`);
-  return Array.from(new Set(value.map((item, index) => requiredString(item, `${fieldName}[${index}]`))));
+  return Array.from(
+    new Set(value.map((item, index) => requiredString(item, `${fieldName}[${index}]`))),
+  );
 }
 
 function assertAllRequestedIdsExist(requestedIds, records, fieldName) {
@@ -1032,7 +1067,11 @@ function canReadPostDetail(user, post) {
 async function getRelationAccessForPostDetail(user, post) {
   if (!user) return null;
   if (isPrivilegedUser(user)) return { revealAll: true };
-  if (post.author_user_id !== user.id || !hasRole(user, "parent") || user.parentProfile?.status !== "active") {
+  if (
+    post.author_user_id !== user.id ||
+    !hasRole(user, "parent") ||
+    user.parentProfile?.status !== "active"
+  ) {
     return null;
   }
 

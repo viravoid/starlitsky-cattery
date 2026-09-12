@@ -204,7 +204,7 @@ export function MediaManagementPanel({
     setNotice("");
 
     try {
-      const payload = toMediaPayload(form, editorMode === "create");
+      const payload = toMediaPayload(form, editorMode === "create", selectedMedia);
       const savedMedia =
         editorMode === "edit" && selectedMedia
           ? await updateMedia(selectedMedia.id, payload as UpdateMediaAssetRequest)
@@ -224,7 +224,7 @@ export function MediaManagementPanel({
   async function handleArchiveMedia(media: MediaAssetData) {
     if (confirmingArchiveId !== media.id) {
       setConfirmingArchiveId(media.id);
-      setNotice(`再次点击“确认归档”以归档 ${media.title || media.sourceUrl}`);
+      setNotice(`再次点击“确认归档”以归档 ${media.title || getStoredSourceUrl(media)}`);
       return;
     }
 
@@ -381,13 +381,13 @@ export function MediaManagementPanel({
                           type="button"
                           onClick={() => void selectMedia(media)}
                         >
-                          {media.title || media.sourceUrl}
+                          {media.title || getStoredSourceUrl(media)}
                         </button>
                       </td>
                       <td>{formatOption(media.kind, KIND_OPTIONS)}</td>
                       <td>{formatOption(media.status, STATUS_OPTIONS)}</td>
                       <td>{media.bindings.length}</td>
-                      <td className="truncate-cell">{media.sourceUrl}</td>
+                      <td className="truncate-cell">{getStoredSourceUrl(media)}</td>
                       <td>
                         <div className="table-actions">
                           <button
@@ -665,7 +665,7 @@ function MediaDetail({
       <div className="section-heading">
         <div>
           <p className="eyebrow">Media Detail</p>
-          <h3>{media.title || media.sourceUrl}</h3>
+          <h3>{media.title || getStoredSourceUrl(media)}</h3>
         </div>
         <div className="table-actions">
           <button
@@ -697,7 +697,7 @@ function MediaDetail({
         {[
           ["类型", formatOption(media.kind, KIND_OPTIONS)],
           ["状态", formatOption(media.status, STATUS_OPTIONS)],
-          ["源地址", media.sourceUrl],
+          ["源地址", getStoredSourceUrl(media)],
           ["缩略图", media.thumbnailUrl || "-"],
           ["替代文本", media.altText || "-"],
           ["MIME", media.mimeType || "-"],
@@ -827,7 +827,7 @@ function toMediaForm(media: MediaAssetData): MediaFormState {
     height: media.height == null ? "" : String(media.height),
     kind: media.kind,
     mimeType: media.mimeType ?? "",
-    sourceUrl: media.sourceUrl,
+    sourceUrl: getStoredSourceUrl(media),
     status: media.status,
     thumbnailUrl: media.thumbnailUrl ?? "",
     title: media.title ?? "",
@@ -838,8 +838,10 @@ function toMediaForm(media: MediaAssetData): MediaFormState {
 function toMediaPayload(
   form: MediaFormState,
   includeInitialBinding: boolean,
+  originalMedia: MediaAssetData | null,
 ): CreateMediaAssetRequest | UpdateMediaAssetRequest {
-  return {
+  const sourceUrl = form.sourceUrl.trim();
+  const payload = {
     altText: emptyToNull(form.altText),
     height: optionalNumber(form.height),
     kind: form.kind,
@@ -847,13 +849,20 @@ function toMediaPayload(
     ownerId: includeInitialBinding ? emptyToUndefined(form.ownerId) : undefined,
     ownerType: includeInitialBinding && form.ownerId ? form.ownerType : undefined,
     sortOrder: includeInitialBinding && form.ownerId ? optionalNumber(form.sortOrder) : undefined,
-    sourceUrl: form.sourceUrl.trim(),
     status: form.status,
     thumbnailUrl: emptyToNull(form.thumbnailUrl),
     title: emptyToNull(form.title),
     usage: includeInitialBinding && form.ownerId ? form.usage : undefined,
     width: optionalNumber(form.width),
   };
+  if (includeInitialBinding || !originalMedia || sourceUrl !== getStoredSourceUrl(originalMedia)) {
+    return { ...payload, sourceUrl };
+  }
+  return payload;
+}
+
+function getStoredSourceUrl(media: MediaAssetData) {
+  return media.storedSourceUrl ?? media.sourceUrl;
 }
 
 function toBindingPayload(form: BindingFormState): CreateMediaBindingRequest {

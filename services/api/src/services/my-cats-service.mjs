@@ -1,6 +1,7 @@
 import { prisma } from "../db/prisma.mjs";
 import { forbidden, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
+import { resolveMediaSourceUrl, resolveMediaThumbnailUrl } from "./media-delivery-service.mjs";
 
 export async function listMyCats(searchParams, user) {
   const parentProfileId = requireActiveParentProfileId(user);
@@ -99,7 +100,9 @@ async function listVisibleCatMedia(catIds) {
     }
   }
   for (const items of byCatId.values()) {
-    items.sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
+    items.sort(
+      (left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id),
+    );
   }
   return byCatId;
 }
@@ -206,7 +209,9 @@ async function listVisiblePostMedia(postIds) {
     }
   }
   for (const items of byPostId.values()) {
-    items.sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id));
+    items.sort(
+      (left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id),
+    );
   }
   return byPostId;
 }
@@ -287,8 +292,8 @@ function toMediaDto(media, binding) {
   return {
     id: media.id,
     kind: media.kind,
-    sourceUrl: media.source_url,
-    thumbnailUrl: media.thumbnail_url,
+    sourceUrl: resolveMediaSourceUrl(media),
+    thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
     usage: binding.usage,
