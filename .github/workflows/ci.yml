@@ -42,6 +42,9 @@ jobs:
       - name: Typecheck miniapp
         run: npm run typecheck:miniapp
 
+      - name: Verify miniapp production config
+        run: npm run verify:miniapp-production-config
+
       - name: Typecheck admin
         run: npm run typecheck:admin
 
