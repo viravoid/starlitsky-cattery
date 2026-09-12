@@ -43,14 +43,22 @@ function verifyProjectConfig() {
   if (projectConfig.appid === "touristappid") {
     failures.push("apps/miniapp/project.config.json must not use touristappid.");
   }
-  if (!Array.isArray(projectConfig.useCompilerPlugins)) {
-    failures.push('apps/miniapp/project.config.json must set "useCompilerPlugins" to an array.');
+  if (Object.hasOwn(projectConfig, "useCompilerPlugins")) {
+    failures.push(
+      'apps/miniapp/project.config.json must not set top-level "useCompilerPlugins"; put it under "setting".',
+    );
+  }
+  const compilerPlugins = projectConfig.setting?.useCompilerPlugins;
+  if (!Array.isArray(compilerPlugins)) {
+    failures.push(
+      'apps/miniapp/project.config.json must set "setting.useCompilerPlugins" to an array.',
+    );
   } else if (
-    projectConfig.useCompilerPlugins.length !== 1 ||
-    projectConfig.useCompilerPlugins[0] !== "typescript"
+    compilerPlugins.length !== 1 ||
+    compilerPlugins[0] !== "typescript"
   ) {
     failures.push(
-      'apps/miniapp/project.config.json must set "useCompilerPlugins": ["typescript"].',
+      'apps/miniapp/project.config.json must set "setting.useCompilerPlugins": ["typescript"].',
     );
   }
   if (Object.hasOwn(projectConfig, "compilerPlugins")) {

@@ -7,9 +7,9 @@
   "setting": {
     "es6": true,
     "minified": true,
-    "postcss": true
-  },
-  "useCompilerPlugins": [
-    "typescript"
-  ]
+    "postcss": true,
+    "useCompilerPlugins": [
+      "typescript"
+    ]
+  }
 }
