@@ -3,8 +3,8 @@ import type {
   CurrentUserResponseData,
   WechatLoginRequest,
 } from "@starlitsky/shared";
-import { get, post } from "../request";
-import { resetSessionState, setSessionState } from "../../store/session";
+import { get, post } from "../request/index";
+import { resetSessionState, setSessionState } from "../../store/session/index";
 import { clearToken, getToken, setToken } from "./token-storage";
 
 export async function loginWithWechat() {

@@ -1,5 +1,5 @@
 import type { MyCatData } from "@starlitsky/shared";
-import { listMyCats } from "../../utils/public-content";
+import { listMyCats } from "../../utils/public-content/index";
 import { refreshCurrentUser } from "../../utils/session/auth";
 
 interface MyCatCard {

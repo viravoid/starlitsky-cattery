@@ -1,6 +1,6 @@
 import type { CommunityPostCategory, CommunityPostData } from "@starlitsky/shared";
-import { listCommunityPosts, toggleCommunityPostLike } from "../../utils/public-content";
-import { getSessionState } from "../../store/session";
+import { listCommunityPosts, toggleCommunityPostLike } from "../../utils/public-content/index";
+import { getSessionState } from "../../store/session/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 
 interface CategoryTab {

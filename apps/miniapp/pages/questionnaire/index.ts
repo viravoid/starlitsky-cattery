@@ -1,5 +1,5 @@
 import type { SelectionApplicationAnswers } from "@starlitsky/shared";
-import { submitSelectionApplication } from "../../utils/public-content";
+import { submitSelectionApplication } from "../../utils/public-content/index";
 
 type FieldKey = keyof SelectionApplicationAnswers;
 

@@ -4,7 +4,7 @@ import type {
   SubmitParentApplicationRequest,
   VerifyParentInviteData,
 } from "@starlitsky/shared";
-import { get, post } from "../request";
+import { get, post } from "../request/index";
 
 export async function verifyParentInvite(params: {
   code?: string;

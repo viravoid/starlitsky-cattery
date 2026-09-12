@@ -1,6 +1,6 @@
 import type { ResolvedAdminLoginChallengeData } from "@starlitsky/shared";
-import { getSessionState } from "../../store/session";
-import { approveAdminLoginChallenge, resolveAdminLoginChallenge } from "../../utils/admin-auth";
+import { getSessionState } from "../../store/session/index";
+import { approveAdminLoginChallenge, resolveAdminLoginChallenge } from "../../utils/admin-auth/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 
 interface AdminAuthLoadOptions {

@@ -20,7 +20,7 @@ import type {
   ToggleCommunityPostLikeData,
   UpdateCommunityPostRequest,
 } from "@starlitsky/shared";
-import { get, post, patch, del } from "../request";
+import { get, post, patch, del } from "../request/index";
 
 export async function getFixedPage(slug: string) {
   const response = await get<FixedPageData>(`/fixed-pages/${encodeURIComponent(slug)}`);

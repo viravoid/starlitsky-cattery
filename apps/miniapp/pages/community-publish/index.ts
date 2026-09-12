@@ -12,7 +12,7 @@ import {
   getCommunityPostOptions,
   requestCommunityPostImageUpload,
   updateCommunityPost,
-} from "../../utils/public-content";
+} from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 
 interface PublishOptions {
