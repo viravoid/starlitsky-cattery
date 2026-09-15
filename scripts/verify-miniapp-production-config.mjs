@@ -21,17 +21,28 @@ const miniappTextByPath = new Map(miniappFiles.map((path) => [path, readFileSync
 const combinedMiniappText = [...miniappTextByPath.values()].join("\n");
 
 const apiBaseUrls = extractApiBaseUrls(envText);
-assert.equal(apiBaseUrls.develop, "http://127.0.0.1:4310");
+assert.equal(apiBaseUrls.develop, expectedApiBaseUrl);
 assert.equal(apiBaseUrls.trial, expectedApiBaseUrl);
 assert.equal(apiBaseUrls.release, expectedApiBaseUrl);
 
-for (const envVersion of ["trial", "release"]) {
+for (const envVersion of ["develop", "trial", "release"]) {
   const url = new URL(apiBaseUrls[envVersion]);
   assert.equal(url.protocol, "https:", `${envVersion} API base must use HTTPS.`);
   assert.notEqual(url.hostname, "localhost", `${envVersion} API base must not use localhost.`);
   assert.notEqual(url.hostname, "127.0.0.1", `${envVersion} API base must not use loopback.`);
   assert.equal(url.hostname, "api.starlitskycattery.top");
 }
+
+assert.equal(
+  /http:\/\/127\.0\.0\.1:4310|localhost/.test(combinedMiniappText),
+  false,
+  "Miniapp source must not contain loopback API defaults.",
+);
+assert.equal(
+  /MINIAPP_LOCAL_API_BASE_URL_STORAGE_KEY|getExplicitLocalApiBaseUrl|localApiBaseUrl/i.test(envText),
+  false,
+  "Miniapp API base URL must not be overridable from local storage.",
+);
 
 assert.match(
   envText,
@@ -94,11 +105,11 @@ console.log("Miniapp production config verification passed.");
 
 function extractApiBaseUrls(text) {
   const match = text.match(
-    /const API_BASE_URLS:[^{]+{\s*develop:\s*"([^"]+)",\s*trial:\s*([^,\n]+),\s*release:\s*([^,\n]+),\s*}/m,
+    /const API_BASE_URLS:[^{]+{\s*develop:\s*([^,\n]+),\s*trial:\s*([^,\n]+),\s*release:\s*([^,\n]+),\s*}/m,
   );
   assert.ok(match, "API_BASE_URLS block must be explicit.");
   return {
-    develop: match[1],
+    develop: resolveEnvValue(match[1], text),
     trial: resolveEnvValue(match[2], text),
     release: resolveEnvValue(match[3], text),
   };

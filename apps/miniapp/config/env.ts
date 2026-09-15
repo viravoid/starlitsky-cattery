@@ -13,7 +13,7 @@ export const MINIAPP_WECHAT_LEGAL_DOMAINS = {
 } as const;
 
 const API_BASE_URLS: Record<MiniProgramEnvVersion, string> = {
-  develop: "http://127.0.0.1:4310",
+  develop: MINIAPP_PRODUCTION_API_BASE_URL,
   trial: MINIAPP_PRODUCTION_API_BASE_URL,
   release: MINIAPP_PRODUCTION_API_BASE_URL,
 };
