@@ -44,7 +44,7 @@
       <button class="{{likedByMe ? 'like-button liked' : 'like-button'}}" bindtap="toggleLike">
         {{likedByMe ? '●' : '○'}}
       </button>
-      <text>{{meta}}</text>
+      <text class="meta-text">{{meta}}</text>
     </view>
 
     <view wx:if="{{canEdit || canDelete}}" class="action-row">

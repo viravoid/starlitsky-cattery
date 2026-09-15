@@ -31,7 +31,7 @@
   <view wx:else class="list">
     <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
       <view class="thumb">
-        <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill" />
+        <image wx:if="{{item.imageUrl}}" class="thumb-image" src="{{item.imageUrl}}" mode="aspectFill" />
         <view wx:else class="thumb-empty xy-soft-placeholder">
           <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
         </view>

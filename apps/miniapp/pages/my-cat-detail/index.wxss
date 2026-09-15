@@ -27,7 +27,6 @@
   width: 132rpx;
   height: 132rpx;
   opacity: 0.38;
-  mix-blend-mode: multiply;
 }
 
 .auth-title {
@@ -95,7 +94,7 @@
 
 .relationship,
 .post-category {
-  width: fit-content;
+  display: inline-flex;
   padding: 4rpx 14rpx;
   border-radius: 999rpx;
   background: #f9f0d4;

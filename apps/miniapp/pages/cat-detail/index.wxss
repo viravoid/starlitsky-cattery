@@ -215,7 +215,7 @@
   text-transform: uppercase;
 }
 
-.about-divider view {
+.about-divider .about-line {
   height: 1rpx;
   flex: 1;
   background: linear-gradient(90deg, transparent, rgba(154, 163, 207, 0.36), transparent);
@@ -262,7 +262,7 @@
   font-size: 22rpx;
 }
 
-.signature view {
+.signature .signature-line {
   width: 64rpx;
   height: 1rpx;
   background: rgba(140, 146, 154, 0.32);

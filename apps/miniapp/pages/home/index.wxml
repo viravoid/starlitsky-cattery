@@ -66,7 +66,7 @@
             </view>
             <view class="{{item.artKey === 'windingPath' ? 'group-art path-art' : 'group-art cat-art'}}">
               <text wx:if="{{item.artKey === 'windingPath'}}">⌁</text>
-              <image wx:else src="../../assets/placeholder-cat.png" mode="aspectFit" />
+              <image wx:else class="group-cat-image" src="../../assets/placeholder-cat.png" mode="aspectFit" />
             </view>
           </view>
 
@@ -93,11 +93,11 @@
         </view>
 
         <view wx:if="{{groupIndex === 0}}" class="paw-trail">
-          <view></view>
+          <view class="trail-line"></view>
           <text>●</text>
           <text class="low">●</text>
           <text>●</text>
-          <view></view>
+          <view class="trail-line"></view>
         </view>
       </block>
     </view>

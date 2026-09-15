@@ -145,7 +145,7 @@
 }
 
 .star-divider .line,
-.paw-trail view {
+.paw-trail .trail-line {
   height: 1rpx;
   flex: 1;
   background: linear-gradient(90deg, transparent 0%, var(--xy-color-border) 50%, transparent 100%);
@@ -229,14 +229,13 @@
   color: rgba(170, 180, 231, 0.72);
 }
 
-.cat-art image {
+.cat-art .group-cat-image {
   width: 116rpx;
   height: 116rpx;
   opacity: 0.38;
-  mix-blend-mode: multiply;
 }
 
-.path-art text {
+.path-art {
   color: rgba(170, 180, 231, 0.72);
   font-size: 106rpx;
   line-height: 1;
@@ -342,7 +341,6 @@
   width: 190rpx;
   height: 190rpx;
   opacity: 0.24;
-  mix-blend-mode: multiply;
 }
 
 .cats-title {

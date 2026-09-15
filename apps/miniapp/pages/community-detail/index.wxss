@@ -75,7 +75,7 @@
 .author,
 .date,
 .content,
-.meta-row text {
+.meta-text {
   display: block;
 }
 
@@ -140,11 +140,6 @@
   grid-column: span 3;
   height: 430rpx;
   border-radius: 32rpx;
-}
-
-.gallery-image:first-child:nth-last-child(2),
-.gallery-image:first-child:nth-last-child(2) ~ .gallery-image {
-  grid-column: span 1;
 }
 
 .links {

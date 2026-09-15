@@ -150,7 +150,7 @@
   background: var(--xy-color-muted-surface);
 }
 
-.thumb image,
+.thumb-image,
 .thumb-empty {
   width: 100%;
   height: 100%;

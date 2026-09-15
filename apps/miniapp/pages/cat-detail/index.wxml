@@ -69,9 +69,9 @@
 
     <view class="note">
       <view class="about-divider">
-        <view></view>
+        <view class="about-line"></view>
         <text>About</text>
-        <view></view>
+        <view class="about-line"></view>
       </view>
       <text class="note-title">关于{{cat.name}}</text>
       <text class="note-subtitle">主理人手记 · Keeper's Note</text>
@@ -79,7 +79,7 @@
         <text wx:for="{{noteParagraphs}}" wx:key="*this" class="note-body">「{{item}}」</text>
       </view>
       <view class="signature">
-        <view></view>
+        <view class="signature-line"></view>
         <text>星月 · 主理人</text>
       </view>
     </view>

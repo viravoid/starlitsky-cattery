@@ -1,4 +1,4 @@
-:root {
+page {
   --xy-color-background: #fffaf1;
   --xy-color-surface: #fffdf8;
   --xy-color-muted-surface: #fff8e8;
@@ -44,7 +44,6 @@
 .xy-pill {
   display: inline-flex;
   align-items: center;
-  width: fit-content;
   min-height: 36rpx;
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
@@ -69,5 +68,4 @@
   width: 136rpx;
   height: 136rpx;
   opacity: 0.38;
-  mix-blend-mode: multiply;
 }

@@ -19,6 +19,7 @@ verifyProjectConfig();
 verifyProductionEnvGuards();
 verifyPageRegistrations();
 verifyRuntimeImports();
+verifyWxssCompatibility();
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -170,6 +171,51 @@ function verifyRuntimeImports() {
   }
 }
 
+function verifyWxssCompatibility() {
+  const wxssFiles = listTextFiles(miniappRoot).filter((path) => path.endsWith(".wxss"));
+  const unsupportedPatterns = [
+    [/:root\b/, 'Use "page" instead of ":root" for miniapp WXSS custom properties.'],
+    [/\bwidth\s*:\s*fit-content\b/, 'Avoid "width: fit-content"; use intrinsic inline/flex sizing.'],
+    [/\bmix-blend-mode\s*:/, 'Avoid "mix-blend-mode"; it is not reliable in native miniapp WXSS.'],
+    [/@supports\b/, 'Avoid "@supports"; it is not part of the safe native WXSS subset.'],
+    [/@layer\b/, 'Avoid "@layer"; it is not part of the safe native WXSS subset.'],
+    [/:has\s*\(/, 'Avoid ":has(...)"; it is not part of the safe native WXSS subset.'],
+  ];
+  const pageComponentTagSelector =
+    /(^|[\s>+~,])(?:view|text|image|button|input|textarea|swiper|swiper-item|scroll-view)(?=$|[\s.#:[>+~,])/;
+
+  for (const filePath of wxssFiles) {
+    const text = readFileSync(filePath, "utf8");
+    const relativePath = toRepoPath(filePath);
+
+    for (const [pattern, message] of unsupportedPatterns) {
+      const match = pattern.exec(text);
+      if (match) {
+        failures.push(`${relativePath}:${lineForIndex(text, match.index)}: ${message}`);
+      }
+    }
+
+    if (!relativePath.startsWith("apps/miniapp/pages/")) {
+      continue;
+    }
+
+    for (const block of text.matchAll(/([^{}]+)\{/g)) {
+      const selector = block[1].trim();
+      const match = pageComponentTagSelector.exec(selector);
+      if (match) {
+        failures.push(
+          `${relativePath}:${lineForIndex(text, block.index)}: Page WXSS must use class selectors instead of native tag selector "${match[0].trim()}".`,
+        );
+      }
+      if (selector.includes("~")) {
+        failures.push(
+          `${relativePath}:${lineForIndex(text, block.index)}: Page WXSS must avoid the "~" sibling combinator; wcsc rejects it in native miniapp styles.`,
+        );
+      }
+    }
+  }
+}
+
 function visitImports(sourceFile, onImport) {
   const visit = (node) => {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -245,4 +291,8 @@ function readJson(path) {
 
 function toRepoPath(path) {
   return relative(repoRoot, path).split(sep).join("/");
+}
+
+function lineForIndex(text, index) {
+  return text.slice(0, index).split("\n").length;
 }

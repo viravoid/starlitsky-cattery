@@ -65,8 +65,7 @@
   font-weight: 700;
 }
 
-input,
-textarea {
+.field-control {
   min-height: 78rpx;
   padding: 0 24rpx;
   border: 1rpx solid var(--xy-color-border);
@@ -76,13 +75,16 @@ textarea {
   font-size: 27rpx;
 }
 
-textarea {
+.textarea-control {
   min-height: 160rpx;
   padding-top: 20rpx;
   line-height: 1.65;
 }
 
-button {
+.secondary,
+.active,
+.cat-row,
+.submit {
   border-radius: 999rpx;
   background: var(--xy-color-violet);
   color: #ffffff;
@@ -90,7 +92,10 @@ button {
   font-weight: 700;
 }
 
-button::after {
+.secondary::after,
+.active::after,
+.cat-row::after,
+.submit::after {
   border: 0;
 }
 
@@ -132,7 +137,7 @@ button::after {
 }
 
 .status {
-  width: fit-content;
+  display: inline-flex;
   border-radius: 999rpx;
   font-size: 24rpx;
   font-weight: 700;
