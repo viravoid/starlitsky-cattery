@@ -13,7 +13,7 @@
     </button>
   </view>
 
-  <view class="category-tabs">
+  <scroll-view class="category-tabs" scroll-x enable-flex>
     <button
       wx:for="{{categoryTabs}}"
       wx:key="key"
@@ -25,10 +25,10 @@
       <text wx:if="{{activeCategory === item.key}}" class="tab-line"></text>
     </button>
     <button class="{{activeLitterId ? 'category-tab active-category' : 'category-tab'}}" bindtap="toggleLitter">
-      窝次{{activeLitterId ? "筛选中" : ""}}
+      窝次{{activeLitterId ? "：" + activeLitterLabel : ""}}
       <text wx:if="{{activeLitterId}}" class="tab-line"></text>
     </button>
-  </view>
+  </scroll-view>
 
   <view wx:if="{{litterOpen}}" class="litter-tabs">
     <button

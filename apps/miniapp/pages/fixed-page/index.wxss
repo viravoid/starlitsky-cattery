@@ -187,15 +187,51 @@
 
 .section-media-strip {
   display: flex;
-  white-space: nowrap;
+  flex-wrap: nowrap;
+  gap: 18rpx;
 }
 
 .section-media-image {
   width: 322rpx;
   height: 242rpx;
-  margin-right: 18rpx;
   border-radius: 28rpx;
   background: var(--xy-gradient-cream);
+}
+
+.environment-page .cover-image {
+  display: none;
+}
+
+.environment-page .section-media-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.environment-page .section-media-image {
+  width: 100%;
+  height: 236rpx;
+  border-radius: 28rpx;
+}
+
+.feeding-page .section-list {
+  gap: 26rpx;
+}
+
+.feeding-page .section-card {
+  padding: 30rpx;
+}
+
+.feeding-page .section-media-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.feeding-page .section-media-image {
+  width: 100%;
+  height: auto;
+  border-radius: 28rpx;
 }
 
 .account {

@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 34rpx 30rpx calc(236rpx + env(safe-area-inset-bottom));
+  padding: 34rpx 30rpx calc(276rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
 }
 
@@ -28,7 +28,6 @@
   padding: 30rpx;
   border-radius: 40rpx;
   background: var(--xy-gradient-cream);
-  box-shadow: var(--xy-shadow-card);
 }
 
 .intro {
@@ -38,7 +37,11 @@
 }
 
 .group {
-  margin-top: 36rpx;
+  margin-top: 64rpx;
+}
+
+.first-group {
+  margin-top: 18rpx;
 }
 
 .group-heading {
@@ -65,7 +68,7 @@
   display: flex;
   flex-direction: column;
   gap: 14rpx;
-  margin-bottom: 22rpx;
+  margin-bottom: 32rpx;
 }
 
 .label {
@@ -113,6 +116,7 @@
 .choice {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8rpx;
   max-width: 100%;
   min-height: 58rpx;

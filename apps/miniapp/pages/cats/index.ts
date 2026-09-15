@@ -10,6 +10,7 @@ interface CatListItem {
   lineOne: string;
   lineTwo: string;
   litterId: string;
+  litterName: string;
   name: string;
   pill: string;
   statusKey: string;
@@ -18,6 +19,7 @@ interface CatListItem {
 interface CatsPage {
   data: {
     activeFilter: string;
+    activeLitterLabel: string;
     activeLitterId: string;
     activeTab: TabKey;
     items: CatListItem[];
@@ -46,6 +48,7 @@ const STUD_FILTERS = ["现役公猫", "现役母猫", "预备役种猫"];
 Page({
   data: {
     activeFilter: "待找家",
+    activeLitterLabel: "全部窝次",
     activeLitterId: "",
     activeTab: "kittens" as TabKey,
     error: "",
@@ -153,8 +156,11 @@ function deriveView(
   const normalizedLitterId = litterFilters.some((item) => item.id === activeLitterId)
     ? activeLitterId
     : "";
+  const activeLitterLabel =
+    litterFilters.find((item) => item.id === normalizedLitterId)?.name || "全部窝次";
   return {
     activeFilter: normalizedFilter,
+    activeLitterLabel,
     activeLitterId: normalizedLitterId,
     filters,
     litterFilters,
@@ -179,6 +185,7 @@ function toCatListItem(cat: CatData): CatListItem | null {
         cat.kittenProfile.priceText || "价格沟通"
       }`,
       litterId: cat.kittenProfile.litter?.id || "",
+      litterName: cat.kittenProfile.litter?.name || "",
       name: cat.name,
       pill: status,
       statusKey: status,
@@ -194,6 +201,7 @@ function toCatListItem(cat: CatData): CatListItem | null {
       lineOne: `${category} · ${cat.color || "颜色待补充"}`,
       lineTwo: cat.breedingProfile.trait || cat.breedingProfile.source || "资料待补充",
       litterId: "",
+      litterName: "",
       name: cat.name,
       pill:
         cat.breedingProfile.statusLabel ||

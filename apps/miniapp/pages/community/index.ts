@@ -31,6 +31,7 @@ interface CommunityPostCard {
 
 interface CommunityData {
   activeCategory: "" | CommunityPostCategory;
+  activeLitterLabel: string;
   activeLitterId: string;
   canPublish: boolean;
   categoryTabs: CategoryTab[];
@@ -66,6 +67,7 @@ const CATEGORY_TABS: CategoryTab[] = [
 Page({
   data: {
     activeCategory: "",
+    activeLitterLabel: "全部窝次",
     activeLitterId: "",
     canPublish: false,
     categoryTabs: CATEGORY_TABS,
@@ -97,6 +99,7 @@ Page({
         pageSize: 50,
       });
       this.setData({
+        activeLitterLabel: deriveActiveLitterLabel(this.data.activeLitterId, data.items),
         error: "",
         isLoading: false,
         litterFilters: deriveLitterFilters(data.items),
@@ -118,7 +121,7 @@ Page({
   async setCategory(this: CommunityPage, event: TapEvent) {
     const key = event.currentTarget.dataset.key as "" | CommunityPostCategory;
     if (key === this.data.activeCategory) return;
-    this.setData({ activeCategory: key, activeLitterId: "" });
+    this.setData({ activeCategory: key, activeLitterLabel: "全部窝次", activeLitterId: "" });
     await this.loadPosts();
   },
 
@@ -178,6 +181,15 @@ function deriveLitterFilters(posts: CommunityPostData[]) {
     }
   }
   return filters;
+}
+
+function deriveActiveLitterLabel(activeLitterId: string, posts: CommunityPostData[]) {
+  if (!activeLitterId) return "全部窝次";
+  return (
+    posts
+      .flatMap((post) => post.litters)
+      .find((litter) => litter.id === activeLitterId)?.name || "全部窝次"
+  );
 }
 
 function toPostCard(post: CommunityPostData): CommunityPostCard {

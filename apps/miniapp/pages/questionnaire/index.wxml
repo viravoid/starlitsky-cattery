@@ -23,7 +23,7 @@
       <button wx:if="{{!isSubmitting}}" class="retry-button" bindtap="retrySubmit">重试提交</button>
     </view>
 
-    <view wx:for="{{groups}}" wx:key="title" class="group">
+    <view wx:for="{{groups}}" wx:key="title" class="{{index === 0 ? 'group first-group' : 'group'}}">
       <view class="group-heading">
         <text class="group-no">{{item.no}}</text>
         <text class="group-title">{{item.title}}</text>

@@ -47,7 +47,10 @@ interface FixedPageViewData {
   galleryImages: PageImage[];
   introduction: string;
   isContact: boolean;
+  isEnvironment: boolean;
+  isFeeding: boolean;
   isLoading: boolean;
+  pageClass: string;
   previewUrls: string[];
   sections: ViewSection[];
   slug: string;
@@ -68,7 +71,13 @@ interface TapEvent {
   };
 }
 
-const PAGE_DEFAULTS: Record<string, Omit<FixedPageViewData, "error" | "isLoading" | "slug">> = {
+const PAGE_DEFAULTS: Record<
+  string,
+  Omit<
+    FixedPageViewData,
+    "error" | "isEnvironment" | "isFeeding" | "isLoading" | "pageClass" | "slug"
+  >
+> = {
   about: {
     accounts: [],
     body: "欢迎了解我们的猫舍。星月缅因猫舍成立于 2019 年，位于西安，注册于 WCF、CFA。\n\n我们由主理人星下和月七全职经营，重视小猫健康、社会化训练、喂养和生活环境。",
@@ -183,6 +192,7 @@ const PAGE_DEFAULTS: Record<string, Omit<FixedPageViewData, "error" | "isLoading
 Page({
   data: {
     ...PAGE_DEFAULTS.about,
+    ...pagePresentation("about"),
     error: "",
     isLoading: true,
     slug: "about",
@@ -201,7 +211,7 @@ Page({
 
   async loadPage(this: FixedPageInstance, slug: string) {
     const fallback = PAGE_DEFAULTS[slug] ?? PAGE_DEFAULTS.about;
-    this.setData({ ...fallback, error: "", isLoading: true, slug });
+    this.setData({ ...fallback, ...pagePresentation(slug), error: "", isLoading: true, slug });
     try {
       const page = await getFixedPage(slug);
       const viewData = normalizeFixedPage(slug, page.title, page.contentJson, page.mediaAssets);
@@ -213,7 +223,13 @@ Page({
       });
       wx.setNavigationBarTitle({ title: viewData.title });
     } catch (error) {
-      this.setData({ ...fallback, error: getErrorMessage(error), isLoading: false, slug });
+      this.setData({
+        ...fallback,
+        ...pagePresentation(slug),
+        error: getErrorMessage(error),
+        isLoading: false,
+        slug,
+      });
       wx.setNavigationBarTitle({ title: fallback.title });
     }
   },
@@ -242,11 +258,17 @@ function normalizeFixedPage(
   mediaAssets: FixedPageMediaAssetData[] = [],
 ) {
   const fallback = PAGE_DEFAULTS[slug] ?? PAGE_DEFAULTS.about;
+  const presentation = pagePresentation(slug);
   const { environmentSlots, ...imageData } = normalizePageImages(slug, mediaAssets);
+  const pageImages = {
+    ...imageData,
+    coverImage: slug === "environment" ? null : imageData.coverImage,
+  };
   if (!value || typeof value !== "object") {
     return {
       ...fallback,
-      ...imageData,
+      ...presentation,
+      ...pageImages,
       sections: attachEnvironmentMediaToSections(
         slug,
         normalizeViewSections(fallback.sections),
@@ -259,7 +281,8 @@ function normalizeFixedPage(
   if (Object.keys(input).length === 0)
     return {
       ...fallback,
-      ...imageData,
+      ...presentation,
+      ...pageImages,
       sections: attachEnvironmentMediaToSections(
         slug,
         normalizeViewSections(fallback.sections),
@@ -291,7 +314,8 @@ function normalizeFixedPage(
 
   return {
     ...fallback,
-    ...imageData,
+    ...presentation,
+    ...pageImages,
     accounts,
     body: stringOr(input.body ?? input.openingBelief, fallback.body),
     facts: facts.filter((item): item is string => typeof item === "string" && Boolean(item.trim())),
@@ -300,6 +324,15 @@ function normalizeFixedPage(
     isContact: slug === "contact",
     sections: sectionsWithMedia,
     title: title || fallback.title,
+  };
+}
+
+function pagePresentation(slug: string) {
+  return {
+    isEnvironment: slug === "environment",
+    isFeeding: slug === "feeding",
+    pageClass:
+      slug === "environment" ? "environment-page" : slug === "feeding" ? "feeding-page" : "",
   };
 }
 
