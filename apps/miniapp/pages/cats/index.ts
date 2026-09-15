@@ -102,6 +102,10 @@ Page({
       url: `/pages/cat-detail/index?id=${encodeURIComponent(id)}&kind=${kind}`,
     });
   },
+
+  openQuestionnaire() {
+    wx.navigateTo({ url: "/pages/questionnaire/index" });
+  },
 });
 
 function deriveView(items: CatListItem[], tab: TabKey, activeFilter: string) {

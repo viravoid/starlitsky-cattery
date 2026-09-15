@@ -5,8 +5,14 @@
   </view>
 
   <view class="tabs">
-    <button class="{{activeTab === 'kittens' ? 'tab active' : 'tab'}}" data-tab="kittens" bindtap="switchTab">小猫</button>
-    <button class="{{activeTab === 'studs' ? 'tab active' : 'tab'}}" data-tab="studs" bindtap="switchTab">种猫</button>
+    <button class="{{activeTab === 'kittens' ? 'tab active' : 'tab'}}" data-tab="kittens" bindtap="switchTab">
+      小猫
+      <text wx:if="{{activeTab === 'kittens'}}" class="tab-line"></text>
+    </button>
+    <button class="{{activeTab === 'studs' ? 'tab active' : 'tab'}}" data-tab="studs" bindtap="switchTab">
+      种猫
+      <text wx:if="{{activeTab === 'studs'}}" class="tab-line"></text>
+    </button>
   </view>
 
   <scroll-view class="filters" scroll-x enable-flex>
@@ -26,7 +32,9 @@
     <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
       <view class="thumb">
         <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill" />
-        <view wx:else class="thumb-empty">星月</view>
+        <view wx:else class="thumb-empty xy-soft-placeholder">
+          <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+        </view>
       </view>
       <view class="info">
         <view class="pill-row">
@@ -38,5 +46,9 @@
         <text class="detail">了解详情 ›</text>
       </view>
     </button>
+  </view>
+
+  <view class="bottom-cta">
+    <button class="questionnaire-button" bindtap="openQuestionnaire">填写选猫问卷</button>
   </view>
 </view>

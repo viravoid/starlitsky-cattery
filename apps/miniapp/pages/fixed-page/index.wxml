@@ -20,12 +20,13 @@
       bindtap="previewPageImage"
     />
 
-    <view wx:if="{{isContact}}" class="contact-intro">
+    <view wx:if="{{isContact && introduction}}" class="contact-intro">
       <text>{{introduction}}</text>
     </view>
 
     <view wx:if="{{facts.length}}" class="facts">
       <view wx:for="{{facts}}" wx:key="*this" class="fact">
+        <image class="fact-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
         <text>{{item}}</text>
       </view>
     </view>

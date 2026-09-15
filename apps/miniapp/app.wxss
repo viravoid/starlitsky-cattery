@@ -3,10 +3,14 @@
 page {
   background: var(--xy-color-background);
   color: var(--xy-color-text);
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font-family: "Quicksand", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 view,
 text {
+  box-sizing: border-box;
+}
+
+button {
   box-sizing: border-box;
 }

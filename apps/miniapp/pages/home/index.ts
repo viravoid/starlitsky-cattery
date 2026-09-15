@@ -4,15 +4,24 @@ import { getFixedPage } from "../../utils/public-content/index";
 interface HomeEntry {
   desc: string;
   no: string;
+  statusLabel: string;
   title: string;
   url: string;
 }
 
 interface HomeGroup {
+  artKey: "catProfile" | "windingPath";
   cn: string;
   en: string;
   entries: HomeEntry[];
   lead: string;
+  reverse: boolean;
+}
+
+interface HomeHeroSlide {
+  id: string;
+  imageUrl: string;
+  label: string;
 }
 
 interface HomeData {
@@ -22,7 +31,8 @@ interface HomeData {
   };
   error: string;
   groups: HomeGroup[];
-  heroImageUrl: string;
+  hasHeroImages: boolean;
+  heroSlides: HomeHeroSlide[];
   introBody: string;
   introMeta: string;
   isLoading: boolean;
@@ -34,7 +44,7 @@ interface HomeData {
 interface HomePage {
   data: HomeData;
   loadHome(): Promise<void>;
-  previewHeroImage(): void;
+  previewHeroImage(event: TapEvent): void;
   retryLoad(): Promise<void>;
   setData(data: Partial<HomeData>): void;
 }
@@ -55,36 +65,47 @@ const DEFAULT_HOME = {
     {
       en: "About StarlitSky",
       cn: "关于星月",
-      lead: "了解星月的成立时间、主理人与繁育理念、生活照顾方式。",
+      lead: "了解星月缅因猫舍的\n成立时间、主理人\n与繁育理念、生活照顾方式。",
       entries: [
-        entry("01", "猫舍介绍", "2019 年成立于西安，注册于 WCF、CFA。", "about"),
-        entry("02", "猫舍环境", "600 余平别墅散养，科学分区，拒绝笼养。", "environment"),
-        entry("03", "繁育理念", "繁育体质好、亲人自信的小猫。", "philosophy"),
-        entry("04", "喂养体系", "湿粮、熟自制、猫粮与营养补充的日常体系。", "feeding"),
+        entry("01", "猫舍介绍", "2019 年成立于西安，注册于 WCF、CFA，由星下与月七全职经营。", "about"),
+        entry("02", "猫舍环境", "600 余平别墅散养，科学分区、拒绝笼养，另有三个院子供奔跑。", "environment"),
+        entry("03", "繁育理念", "繁育体质好、亲人自信的小猫，从出生记录到去新家的每一步。", "philosophy"),
+        entry("04", "繁育计划", "查看 2026 下半年繁育组合、预计时间与可能花色。", "breeding-plan"),
+        entry("05", "喂养体系", "白天湿粮与熟自制，夜间猫粮自助并补充冻干、营养品。", "feeding"),
       ],
+      artKey: "catProfile" as const,
+      reverse: false,
     },
     {
       en: "Before You Adopt",
       cn: "接猫前了解",
-      lead: "正式咨询和接猫前，可以先了解流程、保障和联系方式。",
+      lead: "在正式咨询和接猫前\n可以先了解流程、保障\n问卷和联系方式。",
       entries: [
-        entry("05", "价格与接猫流程", "阅读介绍、排队、选猫，到体检绝育后接猫。", "process"),
+        entry("01", "价格与接猫流程", "阅读介绍、填写问卷、排队、选猫，到疫苗体检绝育后接猫。", "process"),
         {
-          no: "06",
+          no: "02",
           title: "选猫问卷",
           desc: "填写一份问卷，让我们更好地了解你的期待与生活方式。",
+          statusLabel: "",
           url: "/pages/questionnaire/index",
         },
-        entry("07", "售后保障", "遗传病筛查、窝次透明，去新家前完成基础保障。", "aftercare"),
-        entry("08", "联系方式", "微信、小红书、微博、抖音账号可复制。", "contact"),
+        entry("03", "售后保障", "种猫遗传病 all n/n，窝次透明，去新家前完成疫苗、体检与绝育。", "aftercare"),
+        entry("04", "联系方式", "微信、小红书、微博、抖音与小猫日常号，都可一键复制。", "contact"),
       ],
+      artKey: "windingPath" as const,
+      reverse: true,
     },
   ],
   catsPreview: {
     title: "我们的猫",
-    description: "查看在售与观察中的小猫，以及陪伴我们的种猫。",
+    description: "在售与观察中的小猫，以及陪伴我们的种猫，血线清晰、健康透明。",
   },
-  heroImageUrl: "",
+  hasHeroImages: false,
+  heroSlides: [
+    { id: "hero-1", imageUrl: "", label: "示例图片（首页轮播照片 1，待替换）" },
+    { id: "hero-2", imageUrl: "", label: "示例图片（首页轮播照片 2，待替换）" },
+    { id: "hero-3", imageUrl: "", label: "示例图片（首页轮播照片 3，待替换）" },
+  ],
   previewUrls: [],
 };
 
@@ -126,9 +147,10 @@ Page({
     await this.loadHome();
   },
 
-  previewHeroImage(this: HomePage) {
-    if (!this.data.heroImageUrl || this.data.previewUrls.length === 0) return;
-    wx.previewImage({ current: this.data.heroImageUrl, urls: this.data.previewUrls });
+  previewHeroImage(this: HomePage, event: TapEvent) {
+    const current = event.currentTarget.dataset.url;
+    if (!current || this.data.previewUrls.length === 0) return;
+    wx.previewImage({ current, urls: this.data.previewUrls });
   },
 
   openEntry(event: TapEvent) {
@@ -146,17 +168,21 @@ function entry(no: string, title: string, desc: string, slug: string): HomeEntry
     no,
     title,
     desc,
+    statusLabel: "",
     url: `/pages/fixed-page/index?slug=${encodeURIComponent(slug)}`,
   };
 }
 
 function normalizeHomeContent(value: unknown, mediaAssets: FixedPageMediaAssetData[] = []) {
-  const images = normalizeHomeImages(mediaAssets);
+  const heroSlides = normalizeHomeSlides(value, mediaAssets);
+  const images = normalizeHomeImages(heroSlides);
   if (!value || typeof value !== "object") return { ...DEFAULT_HOME, ...images };
   const input = value as Record<string, any>;
   const hero = isObject(input.hero) ? input.hero : {};
   const intro = isObject(input.intro) ? input.intro : {};
   const catsPreview = isObject(input.catsPreview) ? input.catsPreview : {};
+  const entriesInput = isObject(input.entries) ? input.entries : {};
+  const groupsInput = Array.isArray(input.groups) ? input.groups : [];
   return {
     ...DEFAULT_HOME,
     title: stringOr(hero.title, DEFAULT_HOME.title),
@@ -169,19 +195,80 @@ function normalizeHomeContent(value: unknown, mediaAssets: FixedPageMediaAssetDa
       title: stringOr(catsPreview.title, DEFAULT_HOME.catsPreview.title),
       description: stringOr(catsPreview.description, DEFAULT_HOME.catsPreview.description),
     },
+    groups: normalizeGroups(groupsInput, entriesInput),
     ...images,
   };
 }
 
-function normalizeHomeImages(mediaAssets: FixedPageMediaAssetData[]) {
-  const urls = mediaAssets
-    .filter((item) => item.kind === "image")
-    .map((item) => item.sourceUrl || item.thumbnailUrl || "")
-    .filter(Boolean);
+function normalizeHomeSlides(value: unknown, mediaAssets: FixedPageMediaAssetData[]) {
+  const input = isObject(value) ? (value as Record<string, any>) : {};
+  const hero = isObject(input.hero) ? input.hero : {};
+  const contentSlides = Array.isArray(hero.slides) ? hero.slides : DEFAULT_HOME.heroSlides;
+  const mediaById = new Map(mediaAssets.map((item) => [item.id, item]));
+  const imageMedia = mediaAssets.filter((item) => item.kind === "image");
+
+  return contentSlides.map((slide: any, index: number) => {
+    const id = stringOr(slide?.id, `hero-${index + 1}`);
+    const label = stringOr(slide?.label, `首页轮播照片 ${index + 1}`);
+    const imageId = typeof slide?.imageId === "string" ? slide.imageId : "";
+    const matched = imageId ? mediaById.get(imageId) : imageMedia[index];
+    return {
+      id,
+      imageUrl: matched ? matched.sourceUrl || matched.thumbnailUrl || "" : "",
+      label,
+    };
+  });
+}
+
+function normalizeHomeImages(heroSlides: HomeHeroSlide[]) {
+  const urls = heroSlides.map((item) => item.imageUrl).filter(Boolean);
   return {
-    heroImageUrl: urls[0] ?? "",
+    hasHeroImages: urls.length > 0,
+    heroSlides,
     previewUrls: urls,
   };
+}
+
+function normalizeGroups(groupsInput: any[], entriesInput: Record<string, unknown>): HomeGroup[] {
+  const entryIndex = new Map<string, any>(
+    Object.entries(entriesInput).filter(([, value]) => isObject(value)),
+  );
+  const groups = groupsInput.length ? groupsInput : DEFAULT_HOME.groups;
+  return groups.map((group, groupIndex) => {
+    const fallback = DEFAULT_HOME.groups[groupIndex] ?? DEFAULT_HOME.groups[0];
+    const order = Array.isArray(group?.entryOrder)
+      ? group.entryOrder
+      : fallback.entries.map((item) => item.title);
+    const entries = order
+      .map((entryId: unknown, index: number) => {
+        const item = typeof entryId === "string" ? entryIndex.get(entryId) : null;
+        if (!item) return fallback.entries[index];
+        return {
+          no: String(index + 1).padStart(2, "0"),
+          title: stringOr(item.title, fallback.entries[index]?.title ?? ""),
+          desc: stringOr(item.desc, fallback.entries[index]?.desc ?? ""),
+          statusLabel: stringOr(item.statusLabel, ""),
+          url: toMiniappUrl(item.to, fallback.entries[index]?.url ?? ""),
+        };
+      })
+      .filter(Boolean);
+    return {
+      artKey: group?.artKey === "windingPath" ? "windingPath" : "catProfile",
+      cn: stringOr(group?.cn, fallback.cn),
+      en: stringOr(group?.en, fallback.en),
+      entries,
+      lead: stringOr(group?.lead, fallback.lead),
+      reverse: groupIndex % 2 === 1,
+    };
+  });
+}
+
+function toMiniappUrl(value: unknown, fallback: string) {
+  if (typeof value !== "string" || !value) return fallback;
+  if (value === "/cats") return "/pages/cats/index";
+  if (value === "/questionnaire") return "/pages/questionnaire/index";
+  const slug = value.replace(/^\//, "");
+  return `/pages/fixed-page/index?slug=${encodeURIComponent(slug)}`;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

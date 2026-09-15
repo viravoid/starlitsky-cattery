@@ -5,6 +5,7 @@
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
   <view wx:elif="{{needsParentAuth}}" class="state auth-state">
+    <image class="auth-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
     <text class="auth-title">尚未完成家长认证</text>
     <text class="auth-copy">完成家长认证后，才能查看自己的猫咪详情。</text>
     <button class="auth-button" bindtap="openParentAuth">去家长认证</button>
@@ -13,7 +14,9 @@
   <view wx:else>
     <view class="hero">
       <image wx:if="{{imageUrl}}" class="hero-image" src="{{imageUrl}}" mode="aspectFill" />
-      <view wx:else class="hero-empty">星月</view>
+      <view wx:else class="hero-empty xy-soft-placeholder">
+        <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+      </view>
       <view class="hero-copy">
         <text class="relationship">{{relationship}}</text>
         <text class="name">{{name}}</text>
