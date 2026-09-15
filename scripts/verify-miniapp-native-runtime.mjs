@@ -18,6 +18,7 @@ const typeOnlyImports = [];
 verifyProjectConfig();
 verifyProductionEnvGuards();
 verifyPageRegistrations();
+verifyMobileParityTabBar();
 verifyRuntimeImports();
 verifyWxssCompatibility();
 
@@ -120,6 +121,66 @@ function verifyPageRegistrations() {
     const text = readFileSync(pageTsPath, "utf8");
     if (!/\bPage\s*\(/.test(text)) {
       failures.push(`app.json page "${page}" must register with Page(...).`);
+    }
+  }
+}
+
+function verifyMobileParityTabBar() {
+  const appJson = readJson(appJsonPath);
+  const expectedTabs = [
+    ["pages/home/index", "首页", "assets/tabbar/home.png", "assets/tabbar/home-active.png"],
+    [
+      "pages/community/index",
+      "猫友圈",
+      "assets/tabbar/community.png",
+      "assets/tabbar/community-active.png",
+    ],
+    ["pages/cats/index", "我们的猫", "assets/tabbar/cats.png", "assets/tabbar/cats-active.png"],
+  ];
+  const tabs = appJson.tabBar?.list;
+  if (!Array.isArray(tabs) || tabs.length !== expectedTabs.length) {
+    failures.push("apps/miniapp/app.json tabBar must match the 3-item React PhoneFrame navigation.");
+    return;
+  }
+
+  for (const [index, [pagePath, text, iconPath, selectedIconPath]] of expectedTabs.entries()) {
+    const tab = tabs[index];
+    if (
+      tab?.pagePath !== pagePath ||
+      tab?.text !== text ||
+      tab?.iconPath !== iconPath ||
+      tab?.selectedIconPath !== selectedIconPath
+    ) {
+      failures.push(
+        `apps/miniapp/app.json tabBar item ${index + 1} must be ${pagePath} / ${text} with local icon assets.`,
+      );
+    }
+    for (const asset of [iconPath, selectedIconPath]) {
+      if (!existsSync(join(miniappRoot, asset))) {
+        failures.push(`Missing miniapp tabBar icon asset: apps/miniapp/${asset}.`);
+      }
+    }
+  }
+
+  const homeWxmlPath = join(miniappRoot, "pages/home/index.wxml");
+  const homeWxml = readFileSync(homeWxmlPath, "utf8");
+  for (const forbidden of ["⌁", "●", "✦", "☾"]) {
+    if (homeWxml.includes(forbidden)) {
+      failures.push(
+        `apps/miniapp/pages/home/index.wxml must use migrated visual assets instead of decorative character "${forbidden}".`,
+      );
+    }
+  }
+
+  const characterIconSubstitutes = ["⌁", "●", "○", "✦", "☾", "＋", "×"];
+  for (const wxmlPath of listTextFiles(miniappRoot).filter((path) => path.endsWith(".wxml"))) {
+    const source = readFileSync(wxmlPath, "utf8");
+    for (const forbidden of characterIconSubstitutes) {
+      if (source.includes(forbidden)) {
+        failures.push(
+          `${relative(repoRoot, wxmlPath)} must use local visual assets instead of character icon substitute "${forbidden}".`,
+        );
+      }
     }
   }
 }

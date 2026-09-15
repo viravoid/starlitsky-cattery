@@ -15,6 +15,7 @@ interface HomeGroup {
   en: string;
   entries: HomeEntry[];
   lead: string;
+  partLabel: string;
   reverse: boolean;
 }
 
@@ -74,6 +75,7 @@ const DEFAULT_HOME = {
         entry("05", "喂养体系", "白天湿粮与熟自制，夜间猫粮自助并补充冻干、营养品。", "feeding"),
       ],
       artKey: "catProfile" as const,
+      partLabel: "One",
       reverse: false,
     },
     {
@@ -82,17 +84,18 @@ const DEFAULT_HOME = {
       lead: "在正式咨询和接猫前\n可以先了解流程、保障\n问卷和联系方式。",
       entries: [
         entry("01", "价格与接猫流程", "阅读介绍、填写问卷、排队、选猫，到疫苗体检绝育后接猫。", "process"),
+        entry("02", "售后保障", "种猫遗传病 all n/n，窝次透明，去新家前完成疫苗、体检与绝育。", "aftercare"),
         {
-          no: "02",
+          no: "03",
           title: "选猫问卷",
           desc: "填写一份问卷，让我们更好地了解你的期待与生活方式。",
           statusLabel: "",
           url: "/pages/questionnaire/index",
         },
-        entry("03", "售后保障", "种猫遗传病 all n/n，窝次透明，去新家前完成疫苗、体检与绝育。", "aftercare"),
         entry("04", "联系方式", "微信、小红书、微博、抖音与小猫日常号，都可一键复制。", "contact"),
       ],
       artKey: "windingPath" as const,
+      partLabel: "Two",
       reverse: true,
     },
   ],
@@ -258,6 +261,7 @@ function normalizeGroups(groupsInput: any[], entriesInput: Record<string, unknow
       en: stringOr(group?.en, fallback.en),
       entries,
       lead: stringOr(group?.lead, fallback.lead),
+      partLabel: groupIndex === 0 ? "One" : groupIndex === 1 ? "Two" : String(groupIndex + 1),
       reverse: groupIndex % 2 === 1,
     };
   });

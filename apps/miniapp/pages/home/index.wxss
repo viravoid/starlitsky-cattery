@@ -135,8 +135,7 @@
   line-height: 2;
 }
 
-.star-divider,
-.paw-trail {
+.star-divider {
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -144,8 +143,7 @@
   color: rgba(180, 135, 37, 0.52);
 }
 
-.star-divider .line,
-.paw-trail .trail-line {
+.star-divider .line {
   height: 1rpx;
   flex: 1;
   background: linear-gradient(90deg, transparent 0%, var(--xy-color-border) 50%, transparent 100%);
@@ -162,9 +160,14 @@
   font-size: 24rpx;
 }
 
-.star-cluster .moon {
-  color: var(--xy-color-lilac);
-  font-size: 27rpx;
+.star-icon {
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.moon-icon {
+  width: 28rpx;
+  height: 28rpx;
 }
 
 .groups {
@@ -229,16 +232,9 @@
   color: rgba(170, 180, 231, 0.72);
 }
 
-.cat-art .group-cat-image {
-  width: 116rpx;
-  height: 116rpx;
-  opacity: 0.38;
-}
-
-.path-art {
-  color: rgba(170, 180, 231, 0.72);
-  font-size: 106rpx;
-  line-height: 1;
+.group-art-image {
+  width: 128rpx;
+  height: 128rpx;
 }
 
 .entry-list {
@@ -311,12 +307,11 @@
 }
 
 .paw-trail {
-  margin: 34rpx 10rpx 56rpx;
-  font-size: 16rpx;
+  margin: 34rpx 0 56rpx;
 }
 
-.paw-trail .low {
-  transform: translateY(8rpx);
+.paw-trail-image {
+  width: 100%;
 }
 
 .cats-preview {

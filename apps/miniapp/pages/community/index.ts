@@ -38,11 +38,13 @@ interface CommunityData {
   isLoading: boolean;
   litterFilters: LitterFilter[];
   posts: CommunityPostCard[];
+  showMyCats: boolean;
 }
 
 interface CommunityPage {
   data: CommunityData;
   loadPosts(): Promise<void>;
+  openMyCats(): void;
   retryLoad(): Promise<void>;
   setData(data: Partial<CommunityData>): void;
 }
@@ -70,11 +72,12 @@ Page({
     isLoading: true,
     litterFilters: [{ id: "", name: "全部窝次" }],
     posts: [],
+    showMyCats: false,
   } as CommunityData,
 
   async onLoad(this: CommunityPage) {
     await refreshCurrentUser();
-    this.setData({ canPublish: canPublish() });
+    this.setData({ canPublish: canPublish(), showMyCats: canOpenMyCats() });
     await this.loadPosts();
   },
 
@@ -132,6 +135,10 @@ Page({
 
   openPublish() {
     wx.navigateTo({ url: "/pages/community-publish/index" });
+  },
+
+  openMyCats() {
+    wx.navigateTo({ url: "/pages/my-cats/index" });
   },
 
   async toggleLike(this: CommunityPage, event: TapEvent) {
@@ -197,6 +204,10 @@ function canPublish() {
     roles.includes("keeper") ||
     (roles.includes("parent") && session.user?.parentProfile?.status === "active")
   );
+}
+
+function canOpenMyCats() {
+  return getSessionState().roles.includes("parent");
 }
 
 async function ensureLoggedIn() {

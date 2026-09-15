@@ -163,22 +163,31 @@
   justify-content: center;
   border: 2rpx dashed var(--xy-color-border);
   background: #ffffff;
-  color: var(--xy-color-accent-text);
-  font-size: 52rpx;
   line-height: 208rpx;
+}
+
+.add-image-icon {
+  width: 48rpx;
+  height: 48rpx;
 }
 
 .remove-image {
   position: absolute;
   right: 8rpx;
   top: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 42rpx;
   height: 42rpx;
   border-radius: 999rpx;
   background: rgba(65, 84, 108, 0.82);
-  color: #ffffff;
-  font-size: 28rpx;
   line-height: 42rpx;
+}
+
+.remove-image-icon {
+  width: 24rpx;
+  height: 24rpx;
 }
 
 .restore-image {

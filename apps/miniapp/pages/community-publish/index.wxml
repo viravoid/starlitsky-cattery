@@ -92,14 +92,18 @@
             data-id="{{item.id}}"
             bindtap="removeExistingImage"
           >
-            ×
+            <image class="remove-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
           </button>
         </view>
         <view wx:for="{{selectedImages}}" wx:key="tempFilePath" wx:for-index="index" class="image-wrap">
           <image class="image-tile" src="{{item.tempFilePath}}" mode="aspectFill" />
-          <button class="remove-image" data-index="{{index}}" bindtap="removeSelectedImage">×</button>
+          <button class="remove-image" data-index="{{index}}" bindtap="removeSelectedImage">
+            <image class="remove-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
+          </button>
         </view>
-        <button class="add-image" bindtap="chooseImages">＋</button>
+        <button class="add-image" bindtap="chooseImages">
+          <image class="add-image-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+        </button>
       </view>
     </view>
 

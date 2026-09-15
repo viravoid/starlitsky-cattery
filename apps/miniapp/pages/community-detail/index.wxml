@@ -42,7 +42,11 @@
 
     <view class="meta-row">
       <button class="{{likedByMe ? 'like-button liked' : 'like-button'}}" bindtap="toggleLike">
-        {{likedByMe ? '●' : '○'}}
+        <image
+          class="like-icon"
+          src="{{likedByMe ? '../../assets/illustrations/paw-like-active.png' : '../../assets/illustrations/paw-like.png'}}"
+          mode="aspectFit"
+        />
       </button>
       <text class="meta-text">{{meta}}</text>
     </view>

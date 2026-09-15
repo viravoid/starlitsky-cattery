@@ -6,6 +6,13 @@
     </view>
   </view>
 
+  <view wx:if="{{showMyCats}}" class="quick-links">
+    <button class="quick-link" bindtap="openMyCats">
+      <image class="quick-link-icon" src="../../assets/tabbar/cats-active.png" mode="aspectFit" />
+      <text>我的猫咪</text>
+    </button>
+  </view>
+
   <scroll-view class="category-tabs" scroll-x enable-flex>
     <button
       wx:for="{{categoryTabs}}"
@@ -81,7 +88,11 @@
           data-id="{{item.id}}"
           catchtap="toggleLike"
         >
-          {{item.likedByMe ? '●' : '○'}}
+          <image
+            class="like-icon"
+            src="{{item.likedByMe ? '../../assets/illustrations/paw-like-active.png' : '../../assets/illustrations/paw-like.png'}}"
+            mode="aspectFit"
+          />
         </button>
         <text class="meta">{{item.meta}}</text>
         <text wx:if="{{item.imageCount > 1}}" class="meta">{{item.imageCount}} 张图片</text>
@@ -89,5 +100,7 @@
     </view>
   </view>
 
-  <button wx:if="{{canPublish}}" class="floating-publish" bindtap="openPublish">＋</button>
+  <button wx:if="{{canPublish}}" class="floating-publish" bindtap="openPublish">
+    <image class="publish-icon" src="../../assets/illustrations/plus-icon.png" mode="aspectFit" />
+  </button>
 </view>
