@@ -54,12 +54,18 @@
           <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="label" class="rating-row">
             <text>{{row.label}}</text>
             <view class="stars">
-              <text
+              <view
                 wx:for="{{row.stars}}"
                 wx:for-item="star"
                 wx:key="*this"
-                class="{{star.active ? (star.highlight ? 'star active highlight' : 'star active') : 'star'}}"
-              >★</text>
+                class="star"
+              >
+                <image
+                  class="star-icon"
+                  src="{{star.active ? (star.highlight ? '../../assets/illustrations/star-rating-highlight.png' : '../../assets/illustrations/star-rating-active.png') : '../../assets/illustrations/star-rating-inactive.png'}}"
+                  mode="aspectFit"
+                />
+              </view>
             </view>
           </view>
         </view>

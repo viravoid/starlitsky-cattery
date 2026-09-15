@@ -179,17 +179,15 @@
 }
 
 .star {
-  color: #dce3ed;
-  font-size: 27rpx;
+  display: inline-flex;
+  width: 27rpx;
+  height: 27rpx;
   line-height: 1;
 }
 
-.star.active {
-  color: var(--xy-color-accent);
-}
-
-.star.highlight {
-  color: #f1b84b;
+.star-icon {
+  width: 27rpx;
+  height: 27rpx;
 }
 
 .rating-note {

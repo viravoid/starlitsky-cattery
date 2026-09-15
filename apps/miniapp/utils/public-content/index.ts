@@ -21,6 +21,14 @@ import type {
   UpdateCommunityPostRequest,
 } from "@starlitsky/shared";
 import { get, post, patch, del } from "../request/index";
+import { isVisualQaModeEnabled } from "../visual-qa/mode";
+import {
+  getVisualQaCat,
+  getVisualQaCommunityPost,
+  getVisualQaCommunityPostOptions,
+  listVisualQaCats,
+  listVisualQaCommunityPosts,
+} from "../visual-qa/fixtures";
 
 export async function getFixedPage(slug: string) {
   const response = await get<FixedPageData>(`/fixed-pages/${encodeURIComponent(slug)}`);
@@ -33,6 +41,8 @@ export async function listPublicCats(params: {
   pageSize?: number;
   q?: string;
 }) {
+  if (isVisualQaModeEnabled()) return listVisualQaCats();
+
   const response = await get<CatListData>(
     `/cats${toSearch({
       lifecycleStatus: params.lifecycleStatus,
@@ -45,6 +55,8 @@ export async function listPublicCats(params: {
 }
 
 export async function getPublicCat(id: string) {
+  if (isVisualQaModeEnabled()) return getVisualQaCat(id);
+
   const response = await get<CatData>(`/cats/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
   return response.data;
@@ -72,6 +84,8 @@ export async function listCommunityPosts(params: {
   pageSize?: number;
   q?: string;
 } = {}) {
+  if (isVisualQaModeEnabled()) return listVisualQaCommunityPosts(params);
+
   const response = await get<CommunityPostListData>(
     `/community/posts${toSearch({
       category: params.category,
@@ -85,6 +99,8 @@ export async function listCommunityPosts(params: {
 }
 
 export async function getCommunityPost(id: string) {
+  if (isVisualQaModeEnabled()) return getVisualQaCommunityPost(id);
+
   const response = await get<CommunityPostData>(`/community/posts/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
   return response.data;
@@ -101,6 +117,8 @@ export async function listMyCommunityPosts(params: { pageSize?: number } = {}) {
 }
 
 export async function getCommunityPostOptions() {
+  if (isVisualQaModeEnabled()) return getVisualQaCommunityPostOptions();
+
   const response = await get<CommunityPostOptionsData>("/community/post-options");
   if (!response.success) throw new Error(response.message);
   return response.data;

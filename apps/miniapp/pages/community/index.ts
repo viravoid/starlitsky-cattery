@@ -37,6 +37,7 @@ interface CommunityData {
   error: string;
   isLoading: boolean;
   litterFilters: LitterFilter[];
+  litterOpen: boolean;
   posts: CommunityPostCard[];
   showMyCats: boolean;
 }
@@ -71,6 +72,7 @@ Page({
     error: "",
     isLoading: true,
     litterFilters: [{ id: "", name: "全部窝次" }],
+    litterOpen: false,
     posts: [],
     showMyCats: false,
   } as CommunityData,
@@ -120,10 +122,14 @@ Page({
     await this.loadPosts();
   },
 
+  toggleLitter(this: CommunityPage) {
+    this.setData({ litterOpen: !this.data.litterOpen });
+  },
+
   async setLitter(this: CommunityPage, event: TapEvent) {
     const id = event.currentTarget.dataset.id || "";
     if (id === this.data.activeLitterId) return;
-    this.setData({ activeLitterId: id });
+    this.setData({ activeLitterId: id, litterOpen: false });
     await this.loadPosts();
   },
 

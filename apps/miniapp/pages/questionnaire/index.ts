@@ -19,6 +19,7 @@ interface Question {
 }
 
 interface QuestionGroup {
+  no: string;
   title: string;
   questions: Question[];
 }
@@ -61,7 +62,8 @@ const ACCEPT_OPTIONS = [
 
 const GROUPS: QuestionGroup[] = [
   {
-    title: "一、基本信息",
+    no: "一",
+    title: "基本信息",
     questions: [
       textQuestion("name", "真实姓名", "请输入真实姓名"),
       radioQuestion("gender", "性别", [
@@ -77,7 +79,8 @@ const GROUPS: QuestionGroup[] = [
     ],
   },
   {
-    title: "二、养猫经验",
+    no: "二",
+    title: "养猫经验",
     questions: [
       radioQuestion("experience", "是否有养猫经验", YES_NO_OPTIONS),
       radioQuestion("residents", "家里是否有原住民", YES_NO_OPTIONS),
@@ -90,7 +93,8 @@ const GROUPS: QuestionGroup[] = [
     ],
   },
   {
-    title: "三、居住与家庭环境",
+    no: "三",
+    title: "居住与家庭环境",
     questions: [
       radioQuestion("hasKids", "是否有小孩", YES_NO_OPTIONS),
       radioQuestion("housing", "是否租房，如果租房房东是否同意养猫", [
@@ -113,7 +117,8 @@ const GROUPS: QuestionGroup[] = [
     ],
   },
   {
-    title: "四、选猫偏好",
+    no: "四",
+    title: "选猫偏好",
     questions: [
       textareaQuestion("maineCoonKnowledge", "对缅因猫的了解", "可简单写写你了解的体型、活动量、护理需求等", false),
       radioQuestion("wantGender", "想要公猫 or 母猫（现猫无需填写）", [
@@ -134,7 +139,8 @@ const GROUPS: QuestionGroup[] = [
     ],
   },
   {
-    title: "五、饲养理念与承诺",
+    no: "五",
+    title: "饲养理念与承诺",
     questions: [
       radioQuestion(
         "scientificFeeding",

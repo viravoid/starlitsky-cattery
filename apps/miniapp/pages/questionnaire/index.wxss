@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 34rpx 30rpx calc(170rpx + env(safe-area-inset-bottom));
+  padding: 34rpx 30rpx calc(236rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
 }
 
@@ -14,12 +14,6 @@
 .heart {
   width: 48rpx;
   height: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--xy-color-violet);
-  font-size: 42rpx;
-  line-height: 1;
 }
 
 .title {
@@ -140,7 +134,7 @@
 }
 
 .native-radio {
-  transform: scale(0.72);
+  display: none;
 }
 
 .field-error {
@@ -196,6 +190,10 @@
 }
 
 .submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
   width: 100%;
   border-radius: 999rpx;
   background: var(--xy-color-violet);
@@ -203,6 +201,11 @@
   font-size: 30rpx;
   font-weight: 700;
   line-height: 88rpx;
+}
+
+.submit-icon {
+  width: 38rpx;
+  height: 38rpx;
 }
 
 .submit[disabled] {
@@ -226,9 +229,11 @@
   justify-content: center;
   border-radius: 999rpx;
   background: rgba(122, 154, 192, 0.25);
-  color: var(--xy-color-violet);
-  font-size: 78rpx;
-  font-weight: 700;
+}
+
+.success-icon {
+  width: 78rpx;
+  height: 78rpx;
 }
 
 .success-title {

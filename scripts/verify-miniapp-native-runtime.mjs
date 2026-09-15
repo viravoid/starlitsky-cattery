@@ -19,6 +19,7 @@ verifyProjectConfig();
 verifyProductionEnvGuards();
 verifyPageRegistrations();
 verifyMobileParityTabBar();
+verifyVisualQaFixtures();
 verifyRuntimeImports();
 verifyWxssCompatibility();
 
@@ -182,6 +183,41 @@ function verifyMobileParityTabBar() {
         );
       }
     }
+  }
+}
+
+function verifyVisualQaFixtures() {
+  const modePath = join(miniappRoot, "utils/visual-qa/mode.ts");
+  const fixturePath = join(miniappRoot, "utils/visual-qa/fixtures.ts");
+  const publicContentPath = join(miniappRoot, "utils/public-content/index.ts");
+  const appPath = join(miniappRoot, "app.ts");
+  for (const requiredPath of [modePath, fixturePath]) {
+    if (!existsSync(requiredPath)) {
+      failures.push(`${relative(repoRoot, requiredPath)} is required for explicit Visual QA fixture mode.`);
+    }
+  }
+  if (!existsSync(modePath) || !existsSync(publicContentPath)) return;
+
+  const modeText = readFileSync(modePath, "utf8");
+  const publicContentText = readFileSync(publicContentPath, "utf8");
+  const appText = readFileSync(appPath, "utf8");
+  if (!modeText.includes('VISUAL_QA_QUERY_KEY = "visualQa"')) {
+    failures.push("Visual QA fixture mode must use the explicit visualQa query key.");
+  }
+  if (!/query\[VISUAL_QA_QUERY_KEY\]\s*===\s*"1"/.test(modeText)) {
+    failures.push("Visual QA fixture mode must require visualQa=1.");
+  }
+  if (!/getMiniProgramEnvVersion\(\)\s*===\s*"develop"/.test(modeText)) {
+    failures.push("Visual QA fixture mode must be disabled outside develop.");
+  }
+  if (!appText.includes("configureVisualQaMode(options?.query)")) {
+    failures.push("App launch must configure Visual QA mode from the explicit launch query.");
+  }
+  if (!publicContentText.includes("isVisualQaModeEnabled()")) {
+    failures.push("Public content helpers must gate Visual QA fixtures behind isVisualQaModeEnabled().");
+  }
+  if (/catch\s*\([^)]*\)\s*\{[^}]*VisualQa/s.test(publicContentText)) {
+    failures.push("Visual QA fixtures must not be used as an API failure fallback.");
   }
 }
 

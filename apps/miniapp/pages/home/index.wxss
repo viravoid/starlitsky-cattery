@@ -318,8 +318,9 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  width: calc(100% - 32rpx);
-  margin: 88rpx 16rpx 0;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 88rpx 0 0;
   padding: 46rpx 42rpx;
   overflow: hidden;
   border: 1rpx solid var(--xy-color-border);
