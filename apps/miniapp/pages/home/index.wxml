@@ -1,17 +1,33 @@
 <view class="page">
-  <view class="hero">
-    <image
-      wx:if="{{heroImageUrl}}"
-      class="hero-image"
-      src="{{heroImageUrl}}"
-      mode="aspectFill"
-      bindtap="previewHeroImage"
-    />
-    <view class="hero-art">
-      <text class="moon">☾</text>
-      <text class="star">✦</text>
-    </view>
-    <view class="hero-copy">
+  <view class="hero-shell">
+    <swiper
+      class="hero-swiper"
+      autoplay="{{heroSlides.length > 1}}"
+      circular="{{heroSlides.length > 1}}"
+      interval="3800"
+      duration="500"
+      indicator-dots="{{heroSlides.length > 1}}"
+      indicator-color="rgba(255,253,248,0.78)"
+      indicator-active-color="#e7c15d"
+    >
+      <swiper-item wx:for="{{heroSlides}}" wx:key="id">
+        <view class="hero-slide">
+          <image
+            wx:if="{{item.imageUrl}}"
+            class="hero-image"
+            src="{{item.imageUrl}}"
+            mode="aspectFill"
+            data-url="{{item.imageUrl}}"
+            bindtap="previewHeroImage"
+          />
+          <view wx:else class="hero-placeholder xy-soft-placeholder">
+            <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+            <text class="hero-placeholder-label">{{item.label}}</text>
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
+    <view class="{{hasHeroImages ? 'hero-copy on-image' : 'hero-copy'}}">
       <text class="title">{{title}}</text>
       <text class="subtitle">{{subtitle}}</text>
     </view>
@@ -29,36 +45,64 @@
       <text class="intro-text">{{introBody}}</text>
     </view>
 
-    <view class="divider">
-      <view></view>
-      <text>✦</text>
-      <view></view>
+    <view class="star-divider">
+      <view class="line"></view>
+      <view class="star-cluster">
+        <image class="star-icon" src="../../assets/illustrations/star-icon.png" mode="aspectFit" />
+        <image class="moon-icon" src="../../assets/illustrations/moon-icon.png" mode="aspectFit" />
+        <image class="star-icon" src="../../assets/illustrations/star-icon.png" mode="aspectFit" />
+      </view>
+      <view class="line"></view>
     </view>
 
-    <view wx:for="{{groups}}" wx:key="cn" class="group">
-      <text class="group-en">{{item.en}}</text>
-      <text class="group-title">{{item.cn}}</text>
-      <text class="group-lead">{{item.lead}}</text>
-      <view class="entry-list">
-        <button
-          wx:for="{{item.entries}}"
-          wx:for-item="entry"
-          wx:key="no"
-          class="entry"
-          data-url="{{entry.url}}"
-          bindtap="openEntry"
-        >
-          <text class="entry-no">{{entry.no}}</text>
-          <view class="entry-main">
-            <text class="entry-title">{{entry.title}}</text>
-            <text class="entry-desc">{{entry.desc}}</text>
+    <view class="groups">
+      <block wx:for="{{groups}}" wx:key="cn" wx:for-index="groupIndex">
+        <view class="group">
+          <view class="{{item.reverse ? 'group-head reverse' : 'group-head'}}">
+            <view class="group-copy">
+              <text class="group-en">Part {{item.partLabel}} · {{item.en}}</text>
+              <text class="group-title">{{item.cn}}</text>
+              <text class="group-lead">{{item.lead}}</text>
+            </view>
+            <view class="{{item.artKey === 'windingPath' ? 'group-art path-art' : 'group-art cat-art'}}">
+              <image
+                class="group-art-image"
+                src="{{item.artKey === 'windingPath' ? '../../assets/illustrations/winding-path.png' : '../../assets/illustrations/cat-profile.png'}}"
+                mode="aspectFit"
+              />
+            </view>
           </view>
-          <text class="entry-arrow">›</text>
-        </button>
-      </view>
+
+          <view class="entry-list">
+            <button
+              wx:for="{{item.entries}}"
+              wx:for-item="entry"
+              wx:key="no"
+              class="{{index > 0 ? 'entry bordered' : 'entry'}}"
+              data-url="{{entry.url}}"
+              bindtap="openEntry"
+            >
+              <text class="entry-no">{{entry.no}}</text>
+              <view class="entry-main">
+                <view class="entry-title-row">
+                  <text class="entry-title">{{entry.title}}</text>
+                  <text wx:if="{{entry.statusLabel}}" class="entry-status">{{entry.statusLabel}}</text>
+                </view>
+                <text class="entry-desc">{{entry.desc}}</text>
+              </view>
+              <text class="entry-arrow">›</text>
+            </button>
+          </view>
+        </view>
+
+        <view wx:if="{{groupIndex === 0}}" class="paw-trail">
+          <image class="paw-trail-image" src="../../assets/illustrations/paw-trail.png" mode="widthFix" />
+        </view>
+      </block>
     </view>
 
     <button class="cats-preview" bindtap="openCats">
+      <image class="cats-art" src="../../assets/illustrations/curled-cat.png" mode="aspectFit" />
       <text class="eyebrow">Our Cats</text>
       <text class="cats-title">{{catsPreview.title}}</text>
       <text class="cats-desc">{{catsPreview.description}}</text>

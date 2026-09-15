@@ -1,9 +1,16 @@
 <view class="page">
   <view class="header">
-    <text class="eyebrow">Community</text>
-    <text class="title">猫友圈</text>
-    <text class="subtitle">猫舍日常、碎碎念和家长分享</text>
-    <button wx:if="{{canPublish}}" class="publish-button" bindtap="openPublish">发布动态</button>
+    <view>
+      <text class="title">猫友圈</text>
+      <text class="subtitle">猫舍日常、碎碎念和家长分享</text>
+    </view>
+  </view>
+
+  <view wx:if="{{showMyCats}}" class="quick-links">
+    <button class="quick-link" bindtap="openMyCats">
+      <image class="quick-link-icon" src="../../assets/tabbar/cats-active.png" mode="aspectFit" />
+      <text>我的猫咪</text>
+    </button>
   </view>
 
   <scroll-view class="category-tabs" scroll-x enable-flex>
@@ -15,10 +22,15 @@
       bindtap="setCategory"
     >
       {{item.label}}
+      <text wx:if="{{activeCategory === item.key}}" class="tab-line"></text>
+    </button>
+    <button class="{{activeLitterId ? 'category-tab active-category' : 'category-tab'}}" bindtap="toggleLitter">
+      窝次{{activeLitterId ? "：" + activeLitterLabel : ""}}
+      <text wx:if="{{activeLitterId}}" class="tab-line"></text>
     </button>
   </scroll-view>
 
-  <scroll-view wx:if="{{litterFilters.length > 1}}" class="litter-tabs" scroll-x enable-flex>
+  <view wx:if="{{litterOpen}}" class="litter-tabs">
     <button
       wx:for="{{litterFilters}}"
       wx:key="id"
@@ -28,14 +40,14 @@
     >
       {{item.name}}
     </button>
-  </scroll-view>
+  </view>
 
   <view wx:if="{{isLoading}}" class="state">正在加载猫友圈...</view>
   <view wx:elif="{{error}}" class="state error-state">
     <text class="error">{{error}}</text>
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
-  <view wx:elif="{{!posts.length}}" class="state">暂无可展示动态</view>
+  <view wx:elif="{{!posts.length}}" class="empty-card">当前筛选下还没有动态。</view>
 
   <view wx:else class="feed">
     <view
@@ -48,14 +60,17 @@
     >
       <view class="post-head">
         <view class="author-block">
-          <text class="author">{{item.author}}</text>
+          <view class="author-row">
+            <text class="author">{{item.author}}</text>
+            <text class="role-pill">星月猫友</text>
+            <text wx:if="{{item.isPinned}}" class="pin">置顶</text>
+          </view>
           <text class="date">{{item.date}}</text>
         </view>
-        <view class="tag-row">
-          <text wx:if="{{item.isPinned}}" class="pin">置顶</text>
-          <text class="category">{{item.category}}</text>
-        </view>
+        <text class="category">{{item.category}}</text>
       </view>
+
+      <text class="content">{{item.content}}</text>
 
       <image
         wx:if="{{item.firstImageUrl}}"
@@ -66,11 +81,9 @@
         catchtap="previewImage"
       />
 
-      <text class="content">{{item.content}}</text>
-
       <view wx:if="{{item.linkedLitters || item.linkedCats}}" class="links">
-        <text wx:if="{{item.linkedLitters}}">窝次：{{item.linkedLitters}}</text>
-        <text wx:if="{{item.linkedCats}}">猫咪：{{item.linkedCats}}</text>
+        <text wx:if="{{item.linkedCats}}" class="link-pill">猫咪：{{item.linkedCats}}</text>
+        <text wx:if="{{item.linkedLitters}}" class="link-pill litter">窝次：{{item.linkedLitters}}</text>
       </view>
 
       <view class="post-foot">
@@ -79,12 +92,19 @@
           data-id="{{item.id}}"
           catchtap="toggleLike"
         >
-          {{item.likedByMe ? '已喜欢' : '喜欢'}}
+          <image
+            class="like-icon"
+            src="{{item.likedByMe ? '../../assets/illustrations/paw-like-active.png' : '../../assets/illustrations/paw-like.png'}}"
+            mode="aspectFit"
+          />
         </button>
-        <text>{{item.meta}}</text>
-        <text wx:if="{{item.imageCount > 1}}">{{item.imageCount}} 张图片</text>
-        <text class="read-more">查看详情 ›</text>
+        <text class="meta">{{item.meta}}</text>
+        <text wx:if="{{item.imageCount > 1}}" class="meta">{{item.imageCount}} 张图片</text>
       </view>
     </view>
   </view>
+
+  <button wx:if="{{canPublish}}" class="floating-publish" bindtap="openPublish">
+    <image class="publish-icon" src="../../assets/illustrations/plus-icon.png" mode="aspectFit" />
+  </button>
 </view>

@@ -47,7 +47,10 @@ interface FixedPageViewData {
   galleryImages: PageImage[];
   introduction: string;
   isContact: boolean;
+  isEnvironment: boolean;
+  isFeeding: boolean;
   isLoading: boolean;
+  pageClass: string;
   previewUrls: string[];
   sections: ViewSection[];
   slug: string;
@@ -68,7 +71,13 @@ interface TapEvent {
   };
 }
 
-const PAGE_DEFAULTS: Record<string, Omit<FixedPageViewData, "error" | "isLoading" | "slug">> = {
+const PAGE_DEFAULTS: Record<
+  string,
+  Omit<
+    FixedPageViewData,
+    "error" | "isEnvironment" | "isFeeding" | "isLoading" | "pageClass" | "slug"
+  >
+> = {
   about: {
     accounts: [],
     body: "欢迎了解我们的猫舍。星月缅因猫舍成立于 2019 年，位于西安，注册于 WCF、CFA。\n\n我们由主理人星下和月七全职经营，重视小猫健康、社会化训练、喂养和生活环境。",
@@ -134,6 +143,19 @@ const PAGE_DEFAULTS: Record<string, Omit<FixedPageViewData, "error" | "isLoading
     sections: [],
     title: "价格与接猫流程",
   },
+  "breeding-plan": {
+    accounts: [],
+    body: "繁育计划用于查看预计组合、时间范围与可能花色。实际出生时间、小猫数量和花色存在自然不确定性，请以后续公开更新为准。",
+    coverImage: null,
+    facts: ["预计组合", "时间范围", "可能花色", "持续更新"],
+    footerNotice: "",
+    galleryImages: [],
+    introduction: "",
+    isContact: false,
+    previewUrls: [],
+    sections: [],
+    title: "繁育计划",
+  },
   aftercare: {
     accounts: [],
     body: "我们重视长期售后。小猫去新家前会完成基础健康检查、疫苗安排和绝育要求，也会持续陪伴家长解决适应期问题。",
@@ -170,6 +192,7 @@ const PAGE_DEFAULTS: Record<string, Omit<FixedPageViewData, "error" | "isLoading
 Page({
   data: {
     ...PAGE_DEFAULTS.about,
+    ...pagePresentation("about"),
     error: "",
     isLoading: true,
     slug: "about",
@@ -188,7 +211,7 @@ Page({
 
   async loadPage(this: FixedPageInstance, slug: string) {
     const fallback = PAGE_DEFAULTS[slug] ?? PAGE_DEFAULTS.about;
-    this.setData({ ...fallback, error: "", isLoading: true, slug });
+    this.setData({ ...fallback, ...pagePresentation(slug), error: "", isLoading: true, slug });
     try {
       const page = await getFixedPage(slug);
       const viewData = normalizeFixedPage(slug, page.title, page.contentJson, page.mediaAssets);
@@ -200,7 +223,13 @@ Page({
       });
       wx.setNavigationBarTitle({ title: viewData.title });
     } catch (error) {
-      this.setData({ ...fallback, error: getErrorMessage(error), isLoading: false, slug });
+      this.setData({
+        ...fallback,
+        ...pagePresentation(slug),
+        error: getErrorMessage(error),
+        isLoading: false,
+        slug,
+      });
       wx.setNavigationBarTitle({ title: fallback.title });
     }
   },
@@ -229,11 +258,17 @@ function normalizeFixedPage(
   mediaAssets: FixedPageMediaAssetData[] = [],
 ) {
   const fallback = PAGE_DEFAULTS[slug] ?? PAGE_DEFAULTS.about;
+  const presentation = pagePresentation(slug);
   const { environmentSlots, ...imageData } = normalizePageImages(slug, mediaAssets);
+  const pageImages = {
+    ...imageData,
+    coverImage: slug === "environment" ? null : imageData.coverImage,
+  };
   if (!value || typeof value !== "object") {
     return {
       ...fallback,
-      ...imageData,
+      ...presentation,
+      ...pageImages,
       sections: attachEnvironmentMediaToSections(
         slug,
         normalizeViewSections(fallback.sections),
@@ -246,7 +281,8 @@ function normalizeFixedPage(
   if (Object.keys(input).length === 0)
     return {
       ...fallback,
-      ...imageData,
+      ...presentation,
+      ...pageImages,
       sections: attachEnvironmentMediaToSections(
         slug,
         normalizeViewSections(fallback.sections),
@@ -278,7 +314,8 @@ function normalizeFixedPage(
 
   return {
     ...fallback,
-    ...imageData,
+    ...presentation,
+    ...pageImages,
     accounts,
     body: stringOr(input.body ?? input.openingBelief, fallback.body),
     facts: facts.filter((item): item is string => typeof item === "string" && Boolean(item.trim())),
@@ -287,6 +324,15 @@ function normalizeFixedPage(
     isContact: slug === "contact",
     sections: sectionsWithMedia,
     title: title || fallback.title,
+  };
+}
+
+function pagePresentation(slug: string) {
+  return {
+    isEnvironment: slug === "environment",
+    isFeeding: slug === "feeding",
+    pageClass:
+      slug === "environment" ? "environment-page" : slug === "feeding" ? "feeding-page" : "",
   };
 }
 

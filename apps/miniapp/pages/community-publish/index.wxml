@@ -6,6 +6,11 @@
   </view>
 
   <view wx:else class="form">
+    <view class="header">
+      <text class="title">{{isEditing ? '编辑动态' : '发布动态'}}</text>
+      <text class="subtitle">记录今天想分享的猫咪时刻</text>
+    </view>
+
     <view class="section">
       <text class="label">分类</text>
       <view class="option-row">
@@ -87,23 +92,29 @@
             data-id="{{item.id}}"
             bindtap="removeExistingImage"
           >
-            ×
+            <image class="remove-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
           </button>
         </view>
         <view wx:for="{{selectedImages}}" wx:key="tempFilePath" wx:for-index="index" class="image-wrap">
           <image class="image-tile" src="{{item.tempFilePath}}" mode="aspectFill" />
-          <button class="remove-image" data-index="{{index}}" bindtap="removeSelectedImage">×</button>
+          <button class="remove-image" data-index="{{index}}" bindtap="removeSelectedImage">
+            <image class="remove-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
+          </button>
         </view>
-        <button class="add-image" bindtap="chooseImages">+</button>
+        <button class="add-image" bindtap="chooseImages">
+          <image class="add-image-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+        </button>
       </view>
     </view>
 
-    <button
-      class="submit-button"
-      disabled="{{!canSubmit || isSubmitting}}"
-      bindtap="submit"
-    >
-      {{isSubmitting ? '提交中...' : isEditing ? '保存动态' : '发布动态'}}
-    </button>
+    <view class="bottom-cta">
+      <button
+        class="submit-button"
+        disabled="{{!canSubmit || isSubmitting}}"
+        bindtap="submit"
+      >
+        {{isSubmitting ? '提交中...' : isEditing ? '保存动态' : '发布动态'}}
+      </button>
+    </view>
   </view>
 </view>

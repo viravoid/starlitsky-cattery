@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page {{pageClass}}">
   <view class="header">
     <text class="eyebrow">StarlitSky</text>
     <text class="title">{{title}}</text>
@@ -20,12 +20,13 @@
       bindtap="previewPageImage"
     />
 
-    <view wx:if="{{isContact}}" class="contact-intro">
+    <view wx:if="{{isContact && introduction}}" class="contact-intro">
       <text>{{introduction}}</text>
     </view>
 
     <view wx:if="{{facts.length}}" class="facts">
       <view wx:for="{{facts}}" wx:key="*this" class="fact">
+        <image class="fact-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
         <text>{{item}}</text>
       </view>
     </view>
@@ -41,18 +42,18 @@
         <view wx:if="{{item.mediaGroups.length}}" class="section-media-list">
           <view wx:for="{{item.mediaGroups}}" wx:for-item="group" wx:key="id" class="section-media-group">
             <text class="section-media-title">{{group.title}}</text>
-            <scroll-view class="section-media-strip" scroll-x enable-flex>
+            <view class="section-media-strip">
               <image
                 wx:for="{{group.images}}"
                 wx:for-item="image"
                 wx:key="id"
                 class="section-media-image"
                 src="{{image.url}}"
-                mode="aspectFill"
+                mode="{{isFeeding ? 'widthFix' : 'aspectFill'}}"
                 data-url="{{image.url}}"
                 bindtap="previewPageImage"
               />
-            </scroll-view>
+            </view>
           </view>
         </view>
       </view>

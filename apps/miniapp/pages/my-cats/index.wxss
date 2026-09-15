@@ -5,23 +5,25 @@
 }
 
 .header {
-  padding: 8rpx 10rpx 24rpx;
+  padding: 8rpx 16rpx 24rpx;
 }
 
 .eyebrow {
   display: block;
-  color: #b48725;
+  color: var(--xy-color-accent-text);
+  font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
-  letter-spacing: 5rpx;
+  letter-spacing: 6rpx;
   text-transform: uppercase;
 }
 
 .title {
   display: block;
   margin-top: 8rpx;
-  color: #41546c;
+  color: var(--xy-color-heading);
   font-size: 44rpx;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .state {
@@ -43,9 +45,15 @@
   gap: 20rpx;
 }
 
+.auth-art {
+  width: 132rpx;
+  height: 132rpx;
+  opacity: 0.38;
+}
+
 .auth-title {
-  color: #41546c;
-  font-size: 29rpx;
+  color: var(--xy-color-heading);
+  font-size: 30rpx;
   font-weight: 700;
 }
 
@@ -53,7 +61,7 @@
   max-width: 560rpx;
   color: var(--xy-color-muted);
   font-size: 25rpx;
-  line-height: 1.55;
+  line-height: 1.65;
 }
 
 .retry-button,
@@ -77,43 +85,41 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 20rpx;
 }
 
 .cat-card {
   display: flex;
-  gap: 20rpx;
+  min-height: 232rpx;
+  gap: 22rpx;
   width: 100%;
   box-sizing: border-box;
-  padding: 22rpx;
+  padding: 20rpx;
   border: 1rpx solid var(--xy-color-border);
-  border-radius: 24rpx;
+  border-radius: 44rpx;
   background: var(--xy-color-surface);
   text-align: left;
+  box-shadow: var(--xy-shadow-card);
 }
 
 .thumb {
   flex-shrink: 0;
-  width: 188rpx;
-  height: 188rpx;
+  width: 190rpx;
+  height: 190rpx;
   overflow: hidden;
-  border-radius: 20rpx;
-  background: #f6ecd3;
+  border-radius: 34rpx;
+  background: var(--xy-color-muted-surface);
 }
 
-.thumb image,
+.thumb-image,
 .thumb-empty {
   width: 100%;
   height: 100%;
 }
 
-.thumb-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #b48725;
-  font-size: 28rpx;
-  font-weight: 700;
+.thumb-empty .xy-placeholder-cat {
+  width: 96rpx;
+  height: 96rpx;
 }
 
 .info {
@@ -129,31 +135,31 @@
 }
 
 .relationship {
-  width: fit-content;
+  display: inline-flex;
   padding: 4rpx 14rpx;
   border-radius: 999rpx;
   background: #f9f0d4;
-  color: #b48725;
+  color: var(--xy-color-accent-text);
   font-size: 21rpx;
   font-weight: 700;
 }
 
 .name {
-  margin-top: 10rpx;
-  color: #41546c;
+  margin-top: 12rpx;
+  color: var(--xy-color-heading);
   font-size: 32rpx;
   font-weight: 700;
 }
 
 .meta {
-  margin-top: 6rpx;
+  margin-top: 7rpx;
   color: var(--xy-color-muted);
   font-size: 24rpx;
   line-height: 1.4;
 }
 
 .detail {
-  margin-top: 12rpx;
+  margin-top: 14rpx;
   color: var(--xy-color-primary);
   font-size: 24rpx;
   font-weight: 700;

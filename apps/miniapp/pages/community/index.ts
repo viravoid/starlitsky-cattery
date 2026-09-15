@@ -31,18 +31,22 @@ interface CommunityPostCard {
 
 interface CommunityData {
   activeCategory: "" | CommunityPostCategory;
+  activeLitterLabel: string;
   activeLitterId: string;
   canPublish: boolean;
   categoryTabs: CategoryTab[];
   error: string;
   isLoading: boolean;
   litterFilters: LitterFilter[];
+  litterOpen: boolean;
   posts: CommunityPostCard[];
+  showMyCats: boolean;
 }
 
 interface CommunityPage {
   data: CommunityData;
   loadPosts(): Promise<void>;
+  openMyCats(): void;
   retryLoad(): Promise<void>;
   setData(data: Partial<CommunityData>): void;
 }
@@ -63,18 +67,21 @@ const CATEGORY_TABS: CategoryTab[] = [
 Page({
   data: {
     activeCategory: "",
+    activeLitterLabel: "全部窝次",
     activeLitterId: "",
     canPublish: false,
     categoryTabs: CATEGORY_TABS,
     error: "",
     isLoading: true,
     litterFilters: [{ id: "", name: "全部窝次" }],
+    litterOpen: false,
     posts: [],
+    showMyCats: false,
   } as CommunityData,
 
   async onLoad(this: CommunityPage) {
     await refreshCurrentUser();
-    this.setData({ canPublish: canPublish() });
+    this.setData({ canPublish: canPublish(), showMyCats: canOpenMyCats() });
     await this.loadPosts();
   },
 
@@ -92,6 +99,7 @@ Page({
         pageSize: 50,
       });
       this.setData({
+        activeLitterLabel: deriveActiveLitterLabel(this.data.activeLitterId, data.items),
         error: "",
         isLoading: false,
         litterFilters: deriveLitterFilters(data.items),
@@ -113,14 +121,18 @@ Page({
   async setCategory(this: CommunityPage, event: TapEvent) {
     const key = event.currentTarget.dataset.key as "" | CommunityPostCategory;
     if (key === this.data.activeCategory) return;
-    this.setData({ activeCategory: key, activeLitterId: "" });
+    this.setData({ activeCategory: key, activeLitterLabel: "全部窝次", activeLitterId: "" });
     await this.loadPosts();
+  },
+
+  toggleLitter(this: CommunityPage) {
+    this.setData({ litterOpen: !this.data.litterOpen });
   },
 
   async setLitter(this: CommunityPage, event: TapEvent) {
     const id = event.currentTarget.dataset.id || "";
     if (id === this.data.activeLitterId) return;
-    this.setData({ activeLitterId: id });
+    this.setData({ activeLitterId: id, litterOpen: false });
     await this.loadPosts();
   },
 
@@ -132,6 +144,10 @@ Page({
 
   openPublish() {
     wx.navigateTo({ url: "/pages/community-publish/index" });
+  },
+
+  openMyCats() {
+    wx.navigateTo({ url: "/pages/my-cats/index" });
   },
 
   async toggleLike(this: CommunityPage, event: TapEvent) {
@@ -167,6 +183,15 @@ function deriveLitterFilters(posts: CommunityPostData[]) {
   return filters;
 }
 
+function deriveActiveLitterLabel(activeLitterId: string, posts: CommunityPostData[]) {
+  if (!activeLitterId) return "全部窝次";
+  return (
+    posts
+      .flatMap((post) => post.litters)
+      .find((litter) => litter.id === activeLitterId)?.name || "全部窝次"
+  );
+}
+
 function toPostCard(post: CommunityPostData): CommunityPostCard {
   const images = post.mediaAssets
     .filter((item) => item.kind === "image")
@@ -197,6 +222,10 @@ function canPublish() {
     roles.includes("keeper") ||
     (roles.includes("parent") && session.user?.parentProfile?.status === "active")
   );
+}
+
+function canOpenMyCats() {
+  return getSessionState().roles.includes("parent");
 }
 
 async function ensureLoggedIn() {

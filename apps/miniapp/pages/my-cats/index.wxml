@@ -10,11 +10,13 @@
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
   <view wx:elif="{{needsParentAuth}}" class="state auth-state">
+    <image class="auth-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
     <text class="auth-title">尚未完成家长认证</text>
     <text class="auth-copy">完成家长认证后，可以在这里查看自己的猫咪资料和时光轴。</text>
     <button class="auth-button" bindtap="openParentAuth">去家长认证</button>
   </view>
   <view wx:elif="{{isEmpty}}" class="state auth-state">
+    <image class="auth-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
     <text class="auth-title">暂时没有已关联猫咪</text>
     <text class="auth-copy">请联系主理人确认猫咪归属。</text>
   </view>
@@ -22,8 +24,10 @@
   <view wx:else class="list">
     <button wx:for="{{items}}" wx:key="id" class="cat-card" data-id="{{item.id}}" bindtap="openCat">
       <view class="thumb">
-        <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill" />
-        <view wx:else class="thumb-empty">星月</view>
+        <image wx:if="{{item.imageUrl}}" class="thumb-image" src="{{item.imageUrl}}" mode="aspectFill" />
+        <view wx:else class="thumb-empty xy-soft-placeholder">
+          <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+        </view>
       </view>
       <view class="info">
         <text class="relationship">{{item.relationship}}</text>

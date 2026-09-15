@@ -8,13 +8,13 @@
   <view wx:else class="post">
     <view class="post-head">
       <view>
-        <text class="author">{{author}}</text>
+        <view class="author-row">
+          <text class="author">{{author}}</text>
+          <text wx:if="{{pinned}}" class="pin">置顶</text>
+        </view>
         <text class="date">{{date}}</text>
       </view>
-      <view class="tag-row">
-        <text wx:if="{{pinned}}" class="pin">置顶</text>
-        <text class="category">{{category}}</text>
-      </view>
+      <text class="category">{{category}}</text>
     </view>
 
     <text class="content">{{content}}</text>
@@ -32,24 +32,26 @@
     </view>
 
     <view wx:if="{{linkedLitters.length || linkedCats.length}}" class="links">
-      <view wx:if="{{linkedLitters.length}}" class="link-group">
-        <text class="link-label">相关窝次</text>
-        <text wx:for="{{linkedLitters}}" wx:key="*this" class="link-pill">{{item}}</text>
-      </view>
       <view wx:if="{{linkedCats.length}}" class="link-group">
-        <text class="link-label">相关猫咪</text>
-        <text wx:for="{{linkedCats}}" wx:key="*this" class="link-pill">{{item}}</text>
+        <text wx:for="{{linkedCats}}" wx:key="*this" class="link-pill">猫咪：{{item}}</text>
+      </view>
+      <view wx:if="{{linkedLitters.length}}" class="link-group">
+        <text wx:for="{{linkedLitters}}" wx:key="*this" class="link-pill litter">窝次：{{item}}</text>
       </view>
     </view>
 
     <view class="meta-row">
-      <text>{{meta}}</text>
+      <button class="{{likedByMe ? 'like-button liked' : 'like-button'}}" bindtap="toggleLike">
+        <image
+          class="like-icon"
+          src="{{likedByMe ? '../../assets/illustrations/paw-like-active.png' : '../../assets/illustrations/paw-like.png'}}"
+          mode="aspectFit"
+        />
+      </button>
+      <text class="meta-text">{{meta}}</text>
     </view>
 
-    <view class="action-row">
-      <button class="{{likedByMe ? 'like-button liked' : 'like-button'}}" bindtap="toggleLike">
-        {{likedByMe ? '已喜欢' : '喜欢'}}
-      </button>
+    <view wx:if="{{canEdit || canDelete}}" class="action-row">
       <button wx:if="{{canEdit}}" class="secondary-button" bindtap="openEdit">编辑</button>
       <button wx:if="{{canDelete}}" class="danger-button" bindtap="deletePost">删除</button>
     </view>
@@ -72,15 +74,16 @@
           删除
         </button>
       </view>
-      <view class="comment-form">
-        <input
-          class="comment-input"
-          placeholder="写一条评论"
-          value="{{commentText}}"
-          bindinput="onCommentInput"
-        />
-        <button class="comment-submit" bindtap="submitComment">发送</button>
-      </view>
     </view>
+  </view>
+
+  <view wx:if="{{!isLoading && !error}}" class="comment-form">
+    <input
+      class="comment-input"
+      placeholder="留下你的评论…"
+      value="{{commentText}}"
+      bindinput="onCommentInput"
+    />
+    <button class="comment-submit" bindtap="submitComment">发送</button>
   </view>
 </view>
