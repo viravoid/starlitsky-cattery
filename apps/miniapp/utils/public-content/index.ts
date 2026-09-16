@@ -33,8 +33,10 @@ import {
   getVisualQaCommunityPost,
   getVisualQaCommunityPostOptions,
   getVisualQaFixedPage,
+  getVisualQaMyCat,
   listVisualQaCats,
   listVisualQaCommunityPosts,
+  listVisualQaMyCats,
   requestVisualQaCommunityPostImageUpload,
   submitVisualQaSelectionApplication,
   toggleVisualQaCommunityPostLike,
@@ -76,6 +78,8 @@ export async function getPublicCat(id: string) {
 }
 
 export async function listMyCats(params: { pageSize?: number } = {}) {
+  if (isVisualQaModeEnabled()) return listVisualQaMyCats(params);
+
   const response = await get<MyCatListData>(
     `/me/cats${toSearch({
       pageSize: String(params.pageSize ?? 100),
@@ -86,6 +90,8 @@ export async function listMyCats(params: { pageSize?: number } = {}) {
 }
 
 export async function getMyCat(id: string) {
+  if (isVisualQaModeEnabled()) return getVisualQaMyCat(id);
+
   const response = await get<MyCatData>(`/me/cats/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
   return response.data;

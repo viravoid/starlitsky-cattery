@@ -1,9 +1,4 @@
 <view class="page">
-  <view class="header">
-    <text class="eyebrow">My Cats</text>
-    <text class="title">我的猫咪</text>
-  </view>
-
   <view wx:if="{{isLoading}}" class="state">正在加载我的猫咪...</view>
   <view wx:elif="{{error}}" class="state error-state">
     <text class="error">{{error}}</text>
@@ -22,6 +17,7 @@
   </view>
 
   <view wx:else class="list">
+    <text class="intro">添加你的猫咪，可以在发布动态时关联它，也能生成一条专属的成长时光轴。</text>
     <button wx:for="{{items}}" wx:key="id" class="cat-card" data-id="{{item.id}}" bindtap="openCat">
       <view class="thumb">
         <image wx:if="{{item.imageUrl}}" class="thumb-image" src="{{item.imageUrl}}" mode="aspectFill" />
@@ -30,10 +26,12 @@
         </view>
       </view>
       <view class="info">
-        <text class="relationship">{{item.relationship}}</text>
-        <text class="name">{{item.name}}</text>
-        <text class="meta">{{item.lineOne}}</text>
-        <text class="meta">{{item.lineTwo}}</text>
+        <view class="name-row">
+          <text class="name">{{item.name}}</text>
+          <text class="{{item.genderClass}}">{{item.gender}}</text>
+        </view>
+        <text class="meta">{{item.color}}</text>
+        <text class="meta">{{item.relationship}} · {{item.litterName}} · {{item.status}}</text>
         <text class="detail">查看时光轴 ›</text>
       </view>
     </button>

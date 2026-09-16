@@ -4,12 +4,14 @@ import { refreshCurrentUser } from "../../utils/session/auth";
 
 interface MyCatCard {
   color: string;
+  gender: string;
+  genderClass: string;
   id: string;
   imageUrl: string;
-  lineOne: string;
-  lineTwo: string;
+  litterName: string;
   name: string;
   relationship: string;
+  status: string;
 }
 
 interface MyCatsData {
@@ -96,12 +98,14 @@ function toCard(cat: MyCatData): MyCatCard {
   const image = cat.mediaAssets.find((item) => item.usage === "cover") ?? cat.mediaAssets[0];
   return {
     color: cat.color || "颜色待补充",
+    gender: genderLabel(cat.gender),
+    genderClass: cat.gender === "female" ? "gender-pill female" : "gender-pill male",
     id: cat.id,
     imageUrl: image?.thumbnailUrl || image?.sourceUrl || "",
-    lineOne: `${genderLabel(cat.gender)} · ${cat.color || "颜色待补充"}`,
-    lineTwo: cat.litter ? `${cat.litter.name} · ${statusLabel(cat.lifecycleStatus)}` : statusLabel(cat.lifecycleStatus),
+    litterName: cat.litter?.name || "暂无窝次信息",
     name: cat.name,
     relationship: relationshipLabel(cat.relationship),
+    status: statusLabel(cat.lifecycleStatus),
   };
 }
 

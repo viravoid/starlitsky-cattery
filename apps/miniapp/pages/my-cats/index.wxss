@@ -1,29 +1,7 @@
 .page {
   min-height: 100vh;
-  padding: 30rpx 24rpx calc(148rpx + env(safe-area-inset-bottom));
+  padding: 40rpx 40rpx calc(96rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
-}
-
-.header {
-  padding: 8rpx 16rpx 24rpx;
-}
-
-.eyebrow {
-  display: block;
-  color: var(--xy-color-accent-text);
-  font-family: "Songti SC", "PingFang SC", serif;
-  font-size: 21rpx;
-  letter-spacing: 6rpx;
-  text-transform: uppercase;
-}
-
-.title {
-  display: block;
-  margin-top: 8rpx;
-  color: var(--xy-color-heading);
-  font-size: 44rpx;
-  font-weight: 700;
-  line-height: 1.2;
 }
 
 .state {
@@ -88,15 +66,24 @@
   gap: 20rpx;
 }
 
+.intro {
+  display: block;
+  color: var(--xy-color-secondary);
+  font-size: 25rpx;
+  line-height: 1.75;
+  margin-bottom: 4rpx;
+}
+
 .cat-card {
   display: flex;
-  min-height: 232rpx;
-  gap: 22rpx;
+  align-items: center;
+  gap: 24rpx;
   width: 100%;
   box-sizing: border-box;
-  padding: 20rpx;
+  min-height: 156rpx;
+  padding: 24rpx;
   border: 1rpx solid var(--xy-color-border);
-  border-radius: 44rpx;
+  border-radius: 36rpx;
   background: var(--xy-color-surface);
   text-align: left;
   box-shadow: var(--xy-shadow-card);
@@ -104,10 +91,10 @@
 
 .thumb {
   flex-shrink: 0;
-  width: 190rpx;
-  height: 190rpx;
+  width: 112rpx;
+  height: 112rpx;
   overflow: hidden;
-  border-radius: 34rpx;
+  border-radius: 24rpx;
   background: var(--xy-color-muted-surface);
 }
 
@@ -118,8 +105,8 @@
 }
 
 .thumb-empty .xy-placeholder-cat {
-  width: 96rpx;
-  height: 96rpx;
+  width: 62rpx;
+  height: 62rpx;
 }
 
 .info {
@@ -127,40 +114,56 @@
   min-width: 0;
 }
 
-.relationship,
+.name-row,
 .name,
 .meta,
 .detail {
   display: block;
 }
 
-.relationship {
-  display: inline-flex;
-  padding: 4rpx 14rpx;
-  border-radius: 999rpx;
-  background: #f9f0d4;
-  color: var(--xy-color-accent-text);
-  font-size: 21rpx;
-  font-weight: 700;
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
 }
 
 .name {
-  margin-top: 12rpx;
+  overflow: hidden;
   color: var(--xy-color-heading);
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gender-pill {
+  flex-shrink: 0;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(212, 231, 242, 0.48);
+  color: #6b8db3;
+  font-size: 21rpx;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.gender-pill.female {
+  background: rgba(255, 232, 166, 0.45);
+  color: var(--xy-color-accent-text);
 }
 
 .meta {
-  margin-top: 7rpx;
+  margin-top: 8rpx;
   color: var(--xy-color-muted);
-  font-size: 24rpx;
-  line-height: 1.4;
+  font-size: 23rpx;
+  line-height: 1.5;
 }
 
 .detail {
-  margin-top: 14rpx;
+  margin-top: 10rpx;
   color: var(--xy-color-primary);
-  font-size: 24rpx;
+  font-size: 23rpx;
   font-weight: 700;
 }

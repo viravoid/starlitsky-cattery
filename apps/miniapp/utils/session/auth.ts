@@ -6,6 +6,8 @@ import type {
 import { get, post } from "../request/index";
 import { resetSessionState, setSessionState } from "../../store/session/index";
 import { clearToken, getToken, setToken } from "./token-storage";
+import { isVisualQaModeEnabled } from "../visual-qa/mode";
+import { getVisualQaCurrentUser } from "../visual-qa/fixtures";
 
 export async function loginWithWechat() {
   const code = await getWechatLoginCode();
@@ -29,6 +31,19 @@ export async function loginWithWechat() {
 }
 
 export async function refreshCurrentUser() {
+  if (isVisualQaModeEnabled()) {
+    const user = getVisualQaCurrentUser();
+    setSessionState({
+      token: "visual-qa-token",
+      userId: user.id,
+      currentRole: user.currentRole,
+      roles: user.roles,
+      user,
+      expiresAt: "2099-01-01T00:00:00.000Z",
+    });
+    return user;
+  }
+
   const token = getToken();
   if (!token) {
     resetSessionState();

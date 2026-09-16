@@ -6,11 +6,14 @@ import type {
   CommunityPostData,
   CommunityPostListData,
   CommunityPostOptionsData,
+  CurrentUserData,
   CreateCommunityPostRequest,
   DeleteCommunityPostMediaData,
   FixedPageData,
   ImageUploadData,
   MediaAssetData,
+  MyCatData,
+  MyCatListData,
   SelectionApplicationData,
   SubmitSelectionApplicationRequest,
   ToggleCommunityPostLikeData,
@@ -83,6 +86,33 @@ export function getVisualQaCommunityPost(id: string) {
   const post = posts.find((item) => item.id === id);
   if (!post) throw new Error("Visual QA fixture post not found");
   return post;
+}
+
+export function getVisualQaCurrentUser(): CurrentUserData {
+  return {
+    id: "visual-parent-user",
+    nickname: "Visual QA 家长",
+    avatarUrl: null,
+    status: "active",
+    roles: ["parent"],
+    currentRole: "parent",
+    parentProfile: {
+      id: "visual-parent-profile",
+      displayName: "Visual QA 家长",
+      status: "active",
+      activatedAt: now,
+    },
+  };
+}
+
+export function listVisualQaMyCats(params: { pageSize?: number } = {}): MyCatListData {
+  return paginate(myCats.slice(0, params.pageSize ?? myCats.length));
+}
+
+export function getVisualQaMyCat(id: string): MyCatData {
+  const cat = myCats.find((item) => item.id === id);
+  if (!cat) throw new Error("Visual QA fixture my cat not found");
+  return cat;
 }
 
 export function getVisualQaCommunityPostOptions(): CommunityPostOptionsData {
@@ -655,6 +685,37 @@ const posts: CommunityPostData[] = [
     likeCount: 12,
     commentCount: 0,
   }),
+];
+
+const myCats: MyCatData[] = [
+  {
+    id: "visual-my-cat-yunduo",
+    name: "云朵",
+    gender: "female",
+    color: "蓝银虎斑加白",
+    birthday: "2026-07-18",
+    lifecycleStatus: "adopted",
+    personality: "亲人、胆大，会主动贴贴。时光轴用于验收家长猫咪详情的动态卡片密度。",
+    visibility: "visible",
+    mediaAssets: [
+      {
+        id: "visual-my-cat-yunduo-cover",
+        kind: "image",
+        sourceUrl: `${imageBase}/kitten-available.png`,
+        thumbnailUrl: `${imageBase}/kitten-available.png`,
+        title: "云朵 Visual QA",
+        altText: "云朵",
+        usage: "cover",
+        sortOrder: 0,
+      },
+    ],
+    relationship: "owner",
+    relationshipStartedAt: "2026-09-01T00:00:00.000Z",
+    litter: litters[0],
+    timelinePosts: posts.slice(0, 2),
+    createdAt: now,
+    updatedAt: now,
+  },
 ];
 
 function post(input: {

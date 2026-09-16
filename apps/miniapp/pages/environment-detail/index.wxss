@@ -6,8 +6,8 @@
 }
 
 .section {
-  padding-left: 40rpx;
-  padding-right: 40rpx;
+  padding-left: 32rpx;
+  padding-right: 32rpx;
 }
 
 .state {
@@ -49,8 +49,8 @@
 }
 
 .intro-card {
-  padding: 32rpx;
-  border-radius: 40rpx;
+  padding: 28rpx;
+  border-radius: 32rpx;
   background: var(--xy-gradient-cream);
 }
 
@@ -61,8 +61,8 @@
 }
 
 .section-icon {
-  width: 40rpx;
-  height: 40rpx;
+  width: 36rpx;
+  height: 36rpx;
   flex-shrink: 0;
 }
 
@@ -77,7 +77,7 @@
 
 .detail-title {
   display: block;
-  margin-top: 16rpx;
+  margin-top: 14rpx;
   color: var(--xy-color-heading);
   font-size: 40rpx;
   font-weight: 600;
@@ -88,28 +88,28 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10rpx;
-  margin-top: 20rpx;
+  margin-top: 18rpx;
 }
 
 .summary {
   display: block;
-  margin-top: 24rpx;
+  margin-top: 20rpx;
   color: var(--xy-color-text);
   font-size: 26rpx;
-  line-height: 1.85;
+  line-height: 1.75;
 }
 
 .room-stack {
   display: flex;
   flex-direction: column;
-  gap: 32rpx;
-  margin-top: 40rpx;
-  margin-bottom: 80rpx;
+  gap: 24rpx;
+  margin-top: 32rpx;
+  margin-bottom: 64rpx;
 }
 
 .room-card {
-  padding: 32rpx;
-  border-radius: 40rpx;
+  padding: 28rpx;
+  border-radius: 32rpx;
 }
 
 .room-title {
@@ -131,17 +131,18 @@
 .room-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20rpx;
-  margin-top: 32rpx;
+  gap: 16rpx;
+  margin-top: 24rpx;
 }
 
 .room-image-button {
   display: block;
   overflow: hidden;
   width: 100%;
-  height: 242rpx;
+  aspect-ratio: 4 / 3;
+  height: auto;
   padding: 0;
-  border-radius: 40rpx;
+  border-radius: 24rpx;
   background: var(--xy-gradient-cream);
   box-shadow: var(--xy-shadow-card);
 }
@@ -166,10 +167,10 @@
 }
 
 .room-empty {
-  margin-top: 32rpx;
-  padding: 40rpx 32rpx;
+  margin-top: 24rpx;
+  padding: 32rpx 28rpx;
   border: 2rpx dashed var(--xy-color-border);
-  border-radius: 40rpx;
+  border-radius: 32rpx;
   background: var(--xy-color-background);
   color: var(--xy-color-muted);
   font-size: 24rpx;
