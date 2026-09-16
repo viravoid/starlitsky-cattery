@@ -1,16 +1,418 @@
-<view class="page {{pageClass}}">
-  <view class="header">
-    <text class="eyebrow">StarlitSky</text>
-    <text class="title">{{title}}</text>
-  </view>
-
+<view class="page {{viewKind}}-page">
   <view wx:if="{{isLoading}}" class="state">正在加载内容...</view>
   <view wx:elif="{{error}}" class="state error-state">
     <text class="error">{{error}}</text>
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
 
+  <view wx:elif="{{viewKind === 'about'}}">
+    <view class="section about-hero-section">
+      <swiper
+        class="about-hero"
+        style="height: {{aboutHeroHeight}}rpx"
+        indicator-dots="{{aboutHeroSlides.length > 1}}"
+        indicator-color="rgba(255,253,248,0.78)"
+        indicator-active-color="#e7c15d"
+      >
+        <swiper-item wx:for="{{aboutHeroSlides}}" wx:key="id">
+          <image
+            wx:if="{{item.image}}"
+            class="image-fill"
+            src="{{item.image.url}}"
+            mode="aspectFill"
+            data-url="{{item.image.url}}"
+            bindtap="previewPageImage"
+          />
+          <view wx:else class="placeholder about-placeholder xy-soft-placeholder">
+            <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+          </view>
+        </swiper-item>
+      </swiper>
+    </view>
+
+    <view class="section about-facts-section">
+      <view class="section-title-wrap">
+        <text class="section-title">猫舍名片</text>
+        <text class="section-en">At a glance</text>
+      </view>
+      <view class="about-facts-grid">
+        <view wx:for="{{aboutFacts}}" wx:key="id" class="about-fact xy-card">
+          <image class="about-fact-icon" src="{{item.icon}}" mode="aspectFit" />
+          <text class="about-fact-text">{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section about-owner-section">
+      <view class="owner-card xy-card">
+        <text class="owner-title">主理人 · 星下 &amp; 月七</text>
+        <text class="owner-body">两位主理人全职经营猫舍，持续陪伴小猫成长，也在不断学习和完善繁育与行为学知识。</text>
+      </view>
+    </view>
+
+    <view class="section about-body-section">
+      <text class="body-eyebrow">About StarlitSky</text>
+      <view class="about-paragraphs">
+        <text wx:for="{{aboutBodyParagraphs}}" wx:key="id" class="about-body">{{item.text}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{viewKind === 'philosophy'}}" class="section philosophy-section">
+    <view class="philosophy-stack">
+      <text wx:for="{{philosophyParagraphs}}" wx:key="id" class="philosophy-body">{{item.text}}</text>
+    </view>
+  </view>
+
+  <view wx:elif="{{viewKind === 'environment'}}">
+    <view class="section environment-intro-section">
+      <view class="environment-intro-card xy-card">
+        <view class="section-title-icon-row">
+          <image class="section-icon" src="../../assets/illustrations/paw-like.png" mode="aspectFit" />
+          <text class="section-en">Environment</text>
+        </view>
+        <text class="environment-intro">{{environmentIntro}}</text>
+        <view class="pill-row environment-tags">
+          <text wx:for="{{environmentTags}}" wx:key="id" class="xy-pill">{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section environment-list-section">
+      <button
+        wx:for="{{environmentSections}}"
+        wx:key="id"
+        class="environment-card xy-card"
+        data-id="{{item.id}}"
+        bindtap="openEnvironmentSection"
+      >
+        <view class="environment-card-head">
+          <text class="environment-card-title">{{item.title}}</text>
+          <image class="environment-chevron" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+        </view>
+        <view class="pill-row">
+          <text class="xy-pill">{{item.roomCount}} 个房间 / 子区域</text>
+          <text class="xy-pill">{{item.photoCount}} 张照片</text>
+          <text wx:if="{{item.meta}}" class="xy-pill">{{item.meta}}</text>
+        </view>
+        <text class="environment-summary">{{item.summary}}</text>
+        <view class="environment-link">
+          <text>查看环境</text>
+          <image class="inline-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+        </view>
+      </button>
+    </view>
+  </view>
+
+  <view wx:elif="{{viewKind === 'feeding'}}">
+    <view class="section feeding-intro-section">
+      <view class="section-title-icon-row">
+        <image class="section-icon" src="../../assets/illustrations/paw-like.png" mode="aspectFit" />
+        <text class="section-en">Feeding</text>
+      </view>
+      <text class="feeding-intro">{{feedingIntro}}</text>
+    </view>
+
+    <view class="feeding-modules">
+      <view wx:for="{{feedingModules}}" wx:key="id" class="section feeding-module-section">
+        <view class="feeding-card xy-card">
+          <view class="module-head">
+            <text class="module-no">{{item.no}}</text>
+            <view class="module-copy">
+              <text class="module-title">{{item.title}}</text>
+              <text class="module-body">{{item.body}}</text>
+            </view>
+          </view>
+          <view wx:if="{{item.images.length}}" class="feeding-image-stack">
+            <button wx:for="{{item.images}}" wx:for-item="imageSlot" wx:key="id" class="feeding-image-button">
+              <image
+                wx:if="{{imageSlot.image}}"
+                class="feeding-image"
+                src="{{imageSlot.image.url}}"
+                mode="widthFix"
+                data-url="{{imageSlot.image.url}}"
+                bindtap="previewPageImage"
+              />
+              <view wx:else class="feeding-placeholder xy-soft-placeholder">
+                <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+              </view>
+            </button>
+          </view>
+          <view wx:else class="dashed-empty">这个模块还没有上传照片。</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{viewKind === 'process'}}" class="process-stack">
+    <view wx:if="{{pricingIntro || priceCards.length}}" class="section process-section">
+      <view class="section-title-wrap with-icon">
+        <image class="section-icon" src="../../assets/illustrations/star-icon.png" mode="aspectFit" />
+        <view>
+          <text class="section-title">价格区间</text>
+          <text class="section-en">Pricing</text>
+        </view>
+      </view>
+      <text wx:if="{{pricingIntro}}" class="process-intro">{{pricingIntro}}</text>
+      <view class="card-stack">
+        <view wx:for="{{priceCards}}" wx:key="id" class="price-card xy-card {{item.tone}}">
+          <view class="price-row">
+            <text class="price-label">{{item.label}}</text>
+            <text class="price-value">{{item.value}}</text>
+          </view>
+          <text wx:if="{{item.note}}" class="price-note">{{item.note}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{processBreedingIntro || processBreedingCards.length}}" class="section process-section">
+      <view class="section-title-wrap with-icon">
+        <image class="section-icon" src="../../assets/illustrations/paw-like.png" mode="aspectFit" />
+        <view>
+          <text class="section-title">繁育权</text>
+          <text class="section-en">Breeding Rights</text>
+        </view>
+      </view>
+      <text wx:if="{{processBreedingIntro}}" class="process-intro">{{processBreedingIntro}}</text>
+      <view class="simple-grid two">
+        <view wx:for="{{processBreedingCards}}" wx:key="id" class="simple-card xy-card">
+          <text class="simple-label">{{item.label}}</text>
+          <text class="simple-value">{{item.value}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{processReturningIntro || processReturningBenefits.length}}" class="section process-section">
+      <view class="section-title-wrap with-icon">
+        <image class="section-icon" src="../../assets/illustrations/heart-icon.png" mode="aspectFit" />
+        <view>
+          <text class="section-title">老家长福利</text>
+          <text class="section-en">Returning Families</text>
+        </view>
+      </view>
+      <text wx:if="{{processReturningIntro}}" class="process-intro">{{processReturningIntro}}</text>
+      <view class="simple-grid four">
+        <view wx:for="{{processReturningBenefits}}" wx:key="id" class="simple-card returning-card xy-card">
+          <text class="simple-label">{{item.label}}</text>
+          <text class="simple-value">{{item.value}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{processSteps.length}}" class="section process-section">
+      <view class="section-title-wrap with-icon">
+        <image class="section-icon" src="../../assets/illustrations/winding-path.png" mode="aspectFit" />
+        <view>
+          <text class="section-title">购买流程</text>
+          <text class="section-en">Steps</text>
+        </view>
+      </view>
+      <view class="steps">
+        <view class="step-line"></view>
+        <view wx:for="{{processSteps}}" wx:key="id" class="step-item">
+          <text class="step-no">{{item.no}}</text>
+          <view class="step-card xy-card">
+            <text class="step-title">{{item.title}}</text>
+            <text wx:if="{{item.description}}" class="step-desc">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{welcomeKitItems.length || welcomeKitNote}}" class="section process-section">
+      <view class="section-title-wrap with-icon">
+        <image class="section-icon" src="../../assets/illustrations/curled-cat.png" mode="aspectFit" />
+        <view>
+          <text class="section-title">新家礼包</text>
+          <text class="section-en">Welcome Kit</text>
+        </view>
+      </view>
+      <view class="welcome-card xy-card">
+        <view class="welcome-pills">
+          <text wx:for="{{welcomeKitItems}}" wx:key="id" class="welcome-pill">{{item.text}}</text>
+        </view>
+        <text wx:if="{{welcomeKitNote}}" class="welcome-note">{{welcomeKitNote}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{processContractNotice}}" class="section process-notice-section">
+      <view class="notice-card">
+        <image class="notice-icon" src="../../assets/illustrations/moon-icon.png" mode="aspectFit" />
+        <text>{{processContractNotice}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{viewKind === 'aftercare'}}" class="aftercare-stack">
+    <view wx:if="{{aftercarePromises.length}}" class="section aftercare-section">
+      <view class="section-title-wrap with-icon">
+        <image class="section-icon" src="../../assets/illustrations/paw-like.png" mode="aspectFit" />
+        <view>
+          <text class="section-title">繁育与售后承诺</text>
+          <text class="section-en">Our Promise</text>
+        </view>
+      </view>
+      <view class="card-stack compact">
+        <view wx:for="{{aftercarePromises}}" wx:key="id" class="promise-card xy-card">
+          <image class="promise-icon" src="{{item.icon}}" mode="aspectFit" />
+          <text class="promise-text">{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{aftercareHealthItems.length}}" class="section aftercare-section">
+      <view class="section-title-wrap with-icon">
+        <image class="section-icon" src="../../assets/illustrations/check-icon.png" mode="aspectFit" />
+        <view>
+          <text class="section-title">去新家前项目</text>
+          <text class="section-en">Health Check</text>
+        </view>
+      </view>
+      <view class="health-card xy-card">
+        <view wx:for="{{aftercareHealthItems}}" wx:key="id" class="health-row">
+          <view class="bullet"></view>
+          <text>{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section aftercare-section">
+      <view class="section-title-wrap with-icon">
+        <image class="section-icon" src="../../assets/illustrations/moon-icon.png" mode="aspectFit" />
+        <view>
+          <text class="section-title">合同文件</text>
+          <text class="section-en">Contract</text>
+        </view>
+      </view>
+      <view class="contract-card xy-card">
+        <view class="contract-head">
+          <view class="contract-copy">
+            <text class="contract-title">{{aftercareContractTitle}}</text>
+            <text class="contract-file">{{aftercareContractFileName}}</text>
+          </view>
+          <text class="contract-badge">{{aftercareContractBadge}}</text>
+        </view>
+        <view wx:if="{{!hasAftercareContractAsset}}" class="contract-empty">当前还没有上传合同文件。</view>
+      </view>
+    </view>
+
+    <view wx:if="{{processContractNotice}}" class="section aftercare-notice-section">
+      <view class="notice-card">
+        <image class="notice-icon" src="../../assets/illustrations/moon-icon.png" mode="aspectFit" />
+        <text>{{processContractNotice}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{viewKind === 'contact'}}">
+    <view class="section contact-hero-section">
+      <image class="contact-art" src="../../assets/illustrations/heart-icon.png" mode="aspectFit" />
+      <text class="contact-title">在这些地方找到星月</text>
+      <text wx:if="{{contactIntroduction}}" class="contact-intro">{{contactIntroduction}}</text>
+    </view>
+
+    <view wx:if="{{accounts.length}}" class="section contact-account-section">
+      <button
+        wx:for="{{accounts}}"
+        wx:key="id"
+        class="copy-row xy-card"
+        data-value="{{item.value}}"
+        bindtap="copyAccount"
+      >
+        <text class="copy-label">{{item.label}}</text>
+        <text class="copy-value">{{item.value}}</text>
+        <text class="copy-action">复制</text>
+      </button>
+    </view>
+
+    <view wx:if="{{contactFooterNotice}}" class="section contact-footer-section">
+      <view class="contact-footer-card xy-card">{{contactFooterNotice}}</view>
+    </view>
+  </view>
+
+  <view wx:elif="{{viewKind === 'breeding-plan'}}" class="breeding-stack">
+    <view class="section breeding-hero-section">
+      <text class="breeding-eyebrow">Breeding Plan</text>
+      <text wx:if="{{breedingPeriod}}" class="breeding-period">{{breedingPeriod}}</text>
+      <view wx:if="{{breedingPeriod}}" class="breeding-rule"></view>
+      <text wx:if="{{breedingIntroduction}}" class="breeding-intro">{{breedingIntroduction}}</text>
+      <text class="breeding-tip">点击种猫卡片，可查看对应种猫的详情介绍</text>
+    </view>
+
+    <view wx:for="{{breedingGroups}}" wx:key="id" class="section breeding-group-section">
+      <view wx:if="{{item.showTrail}}" class="native-paw-trail">
+        <image class="paw-trail-image" src="../../assets/illustrations/paw-trail.png" mode="widthFix" />
+      </view>
+      <view class="breeding-group-head">
+        <text wx:if="{{item.eyebrow}}" class="group-eyebrow">{{item.eyebrow}}</text>
+        <text wx:if="{{item.title}}" class="breeding-group-title">{{item.title}}</text>
+        <text wx:if="{{item.description}}" class="breeding-group-desc">{{item.description}}</text>
+      </view>
+      <view class="pairing-stack">
+        <view wx:for="{{item.pairings}}" wx:for-item="pairing" wx:key="id" class="pairing-card xy-card">
+          <view wx:if="{{pairing.timeLabel}}" class="pairing-time-row">
+            <text class="xy-pill time-pill">{{pairing.timeLabel}}</text>
+          </view>
+          <view class="pairing-body">
+            <button class="stud-card" data-id="{{pairing.male ? pairing.male.id : ''}}" bindtap="openStud">
+              <image wx:if="{{pairing.male && pairing.male.imageUrl}}" class="stud-image" src="{{pairing.male.imageUrl}}" mode="aspectFill" />
+              <view wx:else class="stud-image stud-placeholder xy-soft-placeholder">
+                <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+              </view>
+              <text class="stud-role">公猫</text>
+              <text class="stud-name">{{pairing.male ? pairing.male.name : '资料待补充'}}</text>
+              <text class="stud-color">{{pairing.male ? pairing.male.color : pairing.maleFallbackId}}</text>
+            </button>
+            <view class="pairing-join">
+              <image class="pairing-plus" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+              <view class="pairing-line"></view>
+            </view>
+            <button class="stud-card" data-id="{{pairing.female ? pairing.female.id : ''}}" bindtap="openStud">
+              <image wx:if="{{pairing.female && pairing.female.imageUrl}}" class="stud-image" src="{{pairing.female.imageUrl}}" mode="aspectFill" />
+              <view wx:else class="stud-image stud-placeholder xy-soft-placeholder">
+                <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+              </view>
+              <text class="stud-role">母猫</text>
+              <text class="stud-name">{{pairing.female ? pairing.female.name : '资料待补充'}}</text>
+              <text class="stud-color">{{pairing.female ? pairing.female.color : pairing.femaleFallbackId}}</text>
+            </button>
+          </view>
+          <view class="colors-card">
+            <view class="colors-head">
+              <text class="colors-title">可能花色</text>
+              <text wx:if="{{!pairing.colors.length && !pairing.colorNote}}" class="colors-empty-label">待补充</text>
+            </view>
+            <view wx:if="{{pairing.colors.length}}" class="color-pills">
+              <text wx:for="{{pairing.colors}}" wx:for-item="color" wx:key="id" class="xy-pill color-pill">{{color.text}}</text>
+            </view>
+            <view wx:if="{{pairing.colorNote}}" class="color-note">
+              <view class="color-note-title">
+                <image class="tiny-icon" src="../../assets/illustrations/star-icon.png" mode="aspectFit" />
+                <text>其他可能</text>
+              </view>
+              <text>{{pairing.colorNote}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{colorDisclaimer || scheduleDisclaimer}}" class="section breeding-notice-section">
+      <view class="breeding-notice">
+        <image class="notice-icon" src="../../assets/illustrations/star-icon.png" mode="aspectFit" />
+        <view>
+          <text wx:if="{{colorDisclaimer}}" class="notice-text">{{colorDisclaimer}}</text>
+          <text wx:if="{{scheduleDisclaimer}}" class="notice-text">{{scheduleDisclaimer}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
   <view wx:else>
+    <view class="generic-header">
+      <text class="generic-eyebrow">StarlitSky</text>
+      <text class="generic-title">{{title}}</text>
+    </view>
     <image
       wx:if="{{coverImage}}"
       class="cover-image"
@@ -19,76 +421,17 @@
       data-url="{{coverImage.url}}"
       bindtap="previewPageImage"
     />
-
-    <view wx:if="{{isContact && introduction}}" class="contact-intro">
-      <text>{{introduction}}</text>
-    </view>
-
-    <view wx:if="{{facts.length}}" class="facts">
-      <view wx:for="{{facts}}" wx:key="*this" class="fact">
-        <image class="fact-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
-        <text>{{item}}</text>
+    <view wx:if="{{body}}" class="section">
+      <view class="body-card xy-card">
+        <text class="body">{{body}}</text>
       </view>
     </view>
-
-    <view wx:if="{{body}}" class="body-card">
-      <text class="body">{{body}}</text>
-    </view>
-
-    <view wx:if="{{sections.length}}" class="section-list">
-      <view wx:for="{{sections}}" wx:key="title" class="section-card">
-        <text class="section-title">{{item.title}}</text>
-        <text class="section-body">{{item.body}}</text>
-        <view wx:if="{{item.mediaGroups.length}}" class="section-media-list">
-          <view wx:for="{{item.mediaGroups}}" wx:for-item="group" wx:key="id" class="section-media-group">
-            <text class="section-media-title">{{group.title}}</text>
-            <view class="section-media-strip">
-              <image
-                wx:for="{{group.images}}"
-                wx:for-item="image"
-                wx:key="id"
-                class="section-media-image"
-                src="{{image.url}}"
-                mode="{{isFeeding ? 'widthFix' : 'aspectFill'}}"
-                data-url="{{image.url}}"
-                bindtap="previewPageImage"
-              />
-            </view>
-          </view>
-        </view>
+    <view wx:for="{{genericSections}}" wx:key="id" class="section">
+      <view class="section-card xy-card">
+        <text class="generic-section-title">{{item.title}}</text>
+        <text class="body">{{item.body}}</text>
       </view>
     </view>
-
-    <scroll-view wx:if="{{galleryImages.length}}" class="gallery" scroll-x enable-flex>
-      <image
-        wx:for="{{galleryImages}}"
-        wx:key="id"
-        class="gallery-image"
-        src="{{item.url}}"
-        mode="aspectFill"
-        data-url="{{item.url}}"
-        bindtap="previewPageImage"
-      />
-    </scroll-view>
-
-    <view wx:if="{{accounts.length}}" class="accounts">
-      <button
-        wx:for="{{accounts}}"
-        wx:key="id"
-        class="account"
-        data-value="{{item.value}}"
-        bindtap="copyAccount"
-      >
-        <text class="account-label">{{item.label}}</text>
-        <text class="account-value">{{item.value}}</text>
-        <text class="copy">复制</text>
-      </button>
-    </view>
-
-    <view wx:if="{{footerNotice}}" class="footer">
-      <text>{{footerNotice}}</text>
-    </view>
-
-    <view wx:if="{{!body && !sections.length && !accounts.length && !coverImage && !galleryImages.length}}" class="state">暂无内容</view>
+    <view wx:if="{{!body && !genericSections.length && !coverImage}}" class="state">暂无内容</view>
   </view>
 </view>

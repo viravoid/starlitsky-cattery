@@ -26,11 +26,14 @@ import {
   getVisualQaCat,
   getVisualQaCommunityPost,
   getVisualQaCommunityPostOptions,
+  getVisualQaFixedPage,
   listVisualQaCats,
   listVisualQaCommunityPosts,
 } from "../visual-qa/fixtures";
 
 export async function getFixedPage(slug: string) {
+  if (isVisualQaModeEnabled()) return getVisualQaFixedPage(slug);
+
   const response = await get<FixedPageData>(`/fixed-pages/${encodeURIComponent(slug)}`);
   if (!response.success) throw new Error(response.message);
   return response.data;

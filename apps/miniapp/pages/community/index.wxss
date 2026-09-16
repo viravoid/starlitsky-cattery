@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 30rpx 24rpx calc(168rpx + env(safe-area-inset-bottom));
+  padding: 32rpx 40rpx calc(168rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
 }
 
@@ -9,7 +9,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 20rpx;
-  padding: 8rpx 16rpx 18rpx;
+  padding: 0 0 8rpx;
 }
 
 .title {
@@ -32,7 +32,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 28rpx;
-  padding: 0 16rpx 20rpx;
+  padding: 0 0 20rpx;
 }
 
 .quick-link {
@@ -57,7 +57,7 @@
   align-items: flex-end;
   gap: 40rpx;
   width: 100%;
-  padding: 0 16rpx;
+  padding: 0;
   border-bottom: 1rpx solid rgba(233, 221, 191, 0.86);
   overflow: hidden;
   white-space: nowrap;
@@ -178,7 +178,7 @@
 }
 
 .post-card {
-  padding: 30rpx;
+  padding: 32rpx 40rpx;
   border: 1rpx solid rgba(233, 221, 191, 0.72);
   border-radius: 48rpx;
   background: var(--xy-color-surface);

@@ -5,6 +5,7 @@ import type {
   CommunityPostData,
   CommunityPostListData,
   CommunityPostOptionsData,
+  FixedPageData,
 } from "@starlitsky/shared";
 
 const now = "2026-09-15T00:00:00.000Z";
@@ -89,6 +90,36 @@ export function getVisualQaCommunityPostOptions(): CommunityPostOptionsData {
     litters,
   };
 }
+
+export function getVisualQaFixedPage(slug: string): FixedPageData {
+  const title = fixedPageTitles[slug] ?? "内容";
+  return {
+    id: `visual-fixed-${slug}`,
+    slug: slug as FixedPageData["slug"],
+    title,
+    status: "published",
+    seoTitle: null,
+    seoDescription: null,
+    contentSchemaVersion: 1,
+    contentJson: {},
+    publishedAt: now,
+    mediaAssets: [],
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+}
+
+const fixedPageTitles: Record<string, string> = {
+  about: "猫舍介绍",
+  aftercare: "售后保障",
+  "breeding-plan": "繁育计划",
+  contact: "联系方式",
+  environment: "猫舍环境",
+  feeding: "喂养体系",
+  philosophy: "繁育理念",
+  process: "价格与接猫流程",
+};
 
 function cat(input: {
   birthday: string;

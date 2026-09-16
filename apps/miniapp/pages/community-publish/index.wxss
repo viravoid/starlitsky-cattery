@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 30rpx 24rpx calc(166rpx + env(safe-area-inset-bottom));
+  padding: 32rpx 40rpx calc(166rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
 }
 
@@ -23,7 +23,7 @@
 }
 
 .header {
-  padding: 8rpx 10rpx 2rpx;
+  display: none;
 }
 
 .title {
@@ -67,22 +67,18 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 22rpx;
+  gap: 32rpx;
 }
 
 .section {
-  padding: 26rpx 24rpx;
-  border: 1rpx solid var(--xy-color-border);
-  border-radius: 40rpx;
-  background: var(--xy-color-surface);
-  box-shadow: var(--xy-shadow-card);
+  padding: 0;
 }
 
 .label {
   display: block;
   margin-bottom: 16rpx;
   color: var(--xy-color-heading);
-  font-size: 27rpx;
+  font-size: 26rpx;
   font-weight: 700;
 }
 
@@ -114,7 +110,7 @@
   width: 100%;
   min-height: 280rpx;
   box-sizing: border-box;
-  padding: 24rpx;
+  padding: 24rpx 32rpx;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 32rpx;
   background: var(--xy-color-background);
