@@ -27,7 +27,9 @@ interface HomeHeroSlide {
 
 interface HomeData {
   catsPreview: {
+    buttonText: string;
     description: string;
+    eyebrow: string;
     title: string;
   };
   error: string;
@@ -100,8 +102,10 @@ const DEFAULT_HOME = {
     },
   ],
   catsPreview: {
+    eyebrow: "Our Cats",
     title: "我们的猫",
     description: "在售与观察中的小猫，以及陪伴我们的种猫，血线清晰、健康透明。",
+    buttonText: "查看小猫与种猫",
   },
   hasHeroImages: false,
   heroSlides: [
@@ -195,8 +199,10 @@ function normalizeHomeContent(value: unknown, mediaAssets: FixedPageMediaAssetDa
       .join(" "),
     introBody: stringOr(intro.body, DEFAULT_HOME.introBody),
     catsPreview: {
+      eyebrow: stringOr(catsPreview.eyebrow, DEFAULT_HOME.catsPreview.eyebrow),
       title: stringOr(catsPreview.title, DEFAULT_HOME.catsPreview.title),
       description: stringOr(catsPreview.description, DEFAULT_HOME.catsPreview.description),
+      buttonText: stringOr(catsPreview.buttonText, DEFAULT_HOME.catsPreview.buttonText),
     },
     groups: normalizeGroups(groupsInput, entriesInput),
     ...images,
@@ -208,13 +214,12 @@ function normalizeHomeSlides(value: unknown, mediaAssets: FixedPageMediaAssetDat
   const hero = isObject(input.hero) ? input.hero : {};
   const contentSlides = Array.isArray(hero.slides) ? hero.slides : DEFAULT_HOME.heroSlides;
   const mediaById = new Map(mediaAssets.map((item) => [item.id, item]));
-  const imageMedia = mediaAssets.filter((item) => item.kind === "image");
 
   return contentSlides.map((slide: any, index: number) => {
     const id = stringOr(slide?.id, `hero-${index + 1}`);
     const label = stringOr(slide?.label, `首页轮播照片 ${index + 1}`);
     const imageId = typeof slide?.imageId === "string" ? slide.imageId : "";
-    const matched = imageId ? mediaById.get(imageId) : imageMedia[index];
+    const matched = imageId ? mediaById.get(imageId) : null;
     return {
       id,
       imageUrl: matched ? matched.sourceUrl || matched.thumbnailUrl || "" : "",

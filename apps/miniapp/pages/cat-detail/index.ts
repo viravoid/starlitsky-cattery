@@ -27,6 +27,13 @@ interface RatingGroup {
   rows: RatingRow[];
 }
 
+interface NoteParagraph {
+  id: string;
+  prefix: string;
+  suffix: string;
+  text: string;
+}
+
 interface CatDetailData {
   cat: CatData | null;
   error: string;
@@ -36,7 +43,7 @@ interface CatDetailData {
   info: InfoItem[];
   isLoading: boolean;
   kindLabel: string;
-  noteParagraphs: string[];
+  noteParagraphs: NoteParagraph[];
   ratingGroups: RatingGroup[];
   showStructureRating: boolean;
   statusLabel: string;
@@ -132,7 +139,6 @@ function toDetailView(cat: CatData) {
   const gallery = galleryItems.map((item) => item.url);
   const commonInfo: InfoItem[] = [
     { label: "颜色", value: cat.color || "待补充" },
-    { label: "性别", value: genderLabel(cat.gender) },
     { label: "生日", value: cat.birthday ? cat.birthday.slice(0, 10) : "待补充" },
   ];
 
@@ -143,13 +149,18 @@ function toDetailView(cat: CatData) {
       galleryItems,
       info: [
         ...commonInfo,
-        { label: "价格", value: cat.kittenProfile.priceText || "沟通确认" },
-        { label: "窝次", value: cat.kittenProfile.litter?.name || "未分配" },
+        ...(cat.kittenProfile.saleStatus !== "adopted"
+          ? [{ label: "是否已绝育", value: "示例文字（待更新）" }]
+          : []),
         { label: "父亲", value: cat.kittenProfile.litter?.fatherCat?.name || "待补充" },
         { label: "母亲", value: cat.kittenProfile.litter?.motherCat?.name || "待补充" },
+        { label: "窝次", value: cat.kittenProfile.litter?.name || "暂未分配" },
+        { label: "价格", value: cat.kittenProfile.priceText || "沟通确认" },
       ],
       kindLabel: "小猫详情",
-      noteParagraphs: paragraphsFromStory(cat.storyJson, cat.personality || "主理人介绍待补充。"),
+      noteParagraphs: toNoteParagraphs(
+        paragraphsFromStory(cat.storyJson, cat.personality || "主理人介绍待补充。"),
+      ),
       ratingGroups,
       showStructureRating: ratingGroups.some((group) => group.rows.length > 0),
       statusLabel: saleStatusLabel(cat.kittenProfile.saleStatus),
@@ -167,9 +178,11 @@ function toDetailView(cat: CatData) {
         { label: "来源 / 血线", value: cat.breedingProfile.source || "待补充" },
       ],
       kindLabel: "种猫详情",
-      noteParagraphs: paragraphsFromStory(
-        cat.storyJson,
-        cat.breedingProfile.trait || cat.personality || "主理人介绍待补充。",
+      noteParagraphs: toNoteParagraphs(
+        paragraphsFromStory(
+          cat.storyJson,
+          cat.breedingProfile.trait || cat.personality || "主理人介绍待补充。",
+        ),
       ),
       ratingGroups: [],
       showStructureRating: false,
@@ -184,11 +197,22 @@ function toDetailView(cat: CatData) {
     galleryItems,
     info: commonInfo,
     kindLabel: "猫咪详情",
-    noteParagraphs: paragraphsFromStory(cat.storyJson, cat.personality || "资料待补充。"),
+    noteParagraphs: toNoteParagraphs(
+      paragraphsFromStory(cat.storyJson, cat.personality || "资料待补充。"),
+    ),
     ratingGroups: [],
     showStructureRating: false,
     statusLabel: lifecycleLabel(cat.lifecycleStatus),
   };
+}
+
+function toNoteParagraphs(paragraphs: string[]): NoteParagraph[] {
+  return paragraphs.map((text, index) => ({
+    id: `note-${index}`,
+    prefix: index === 0 ? "「" : "",
+    suffix: index === paragraphs.length - 1 ? "」" : "",
+    text,
+  }));
 }
 
 function paragraphsFromStory(value: unknown, fallback: string) {
@@ -245,12 +269,6 @@ function ratingRow(label: string, raw: unknown): RatingRow | null {
       highlight: value === 6 && index === 0,
     })),
   };
-}
-
-function genderLabel(value: string | null) {
-  if (value === "male") return "弟弟";
-  if (value === "female") return "妹妹";
-  return "未设置";
 }
 
 function saleStatusLabel(value: string) {

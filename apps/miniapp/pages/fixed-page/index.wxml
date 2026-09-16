@@ -68,7 +68,7 @@
     <view class="section environment-intro-section">
       <view class="environment-intro-card xy-card">
         <view class="section-title-icon-row">
-          <image class="section-icon" src="../../assets/illustrations/paw-like.png" mode="aspectFit" />
+          <image class="section-icon" src="../../assets/illustrations/leaf-icon.png" mode="aspectFit" />
           <text class="section-en">Environment</text>
         </view>
         <text class="environment-intro">{{environmentIntro}}</text>
@@ -88,7 +88,7 @@
       >
         <view class="environment-card-head">
           <text class="environment-card-title">{{item.title}}</text>
-          <image class="environment-chevron" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+          <image class="environment-chevron" src="../../assets/illustrations/chevron-right-icon.png" mode="aspectFit" />
         </view>
         <view class="pill-row">
           <text class="xy-pill">{{item.roomCount}} 个房间 / 子区域</text>
@@ -98,7 +98,7 @@
         <text class="environment-summary">{{item.summary}}</text>
         <view class="environment-link">
           <text>查看环境</text>
-          <image class="inline-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+          <image class="inline-icon" src="../../assets/illustrations/chevron-right-icon.png" mode="aspectFit" />
         </view>
       </button>
     </view>
@@ -107,7 +107,7 @@
   <view wx:elif="{{viewKind === 'feeding'}}">
     <view class="section feeding-intro-section">
       <view class="section-title-icon-row">
-        <image class="section-icon" src="../../assets/illustrations/paw-like.png" mode="aspectFit" />
+        <image class="section-icon" src="../../assets/illustrations/bowl-icon.png" mode="aspectFit" />
         <text class="section-en">Feeding</text>
       </view>
       <text class="feeding-intro">{{feedingIntro}}</text>
@@ -147,7 +147,7 @@
   <view wx:elif="{{viewKind === 'process'}}" class="process-stack">
     <view wx:if="{{pricingIntro || priceCards.length}}" class="section process-section">
       <view class="section-title-wrap with-icon">
-        <image class="section-icon" src="../../assets/illustrations/star-icon.png" mode="aspectFit" />
+        <image class="section-icon" src="../../assets/illustrations/price-tag-icon.png" mode="aspectFit" />
         <view>
           <text class="section-title">价格区间</text>
           <text class="section-en">Pricing</text>
@@ -167,7 +167,7 @@
 
     <view wx:if="{{processBreedingIntro || processBreedingCards.length}}" class="section process-section">
       <view class="section-title-wrap with-icon">
-        <image class="section-icon" src="../../assets/illustrations/paw-like.png" mode="aspectFit" />
+        <image class="section-icon" src="../../assets/illustrations/paw-icon.png" mode="aspectFit" />
         <view>
           <text class="section-title">繁育权</text>
           <text class="section-en">Breeding Rights</text>
@@ -184,7 +184,7 @@
 
     <view wx:if="{{processReturningIntro || processReturningBenefits.length}}" class="section process-section">
       <view class="section-title-wrap with-icon">
-        <image class="section-icon" src="../../assets/illustrations/heart-icon.png" mode="aspectFit" />
+        <image class="section-icon" src="../../assets/illustrations/heart-line-icon.png" mode="aspectFit" />
         <view>
           <text class="section-title">老家长福利</text>
           <text class="section-en">Returning Families</text>
@@ -201,7 +201,7 @@
 
     <view wx:if="{{processSteps.length}}" class="section process-section">
       <view class="section-title-wrap with-icon">
-        <image class="section-icon" src="../../assets/illustrations/winding-path.png" mode="aspectFit" />
+        <image class="section-icon" src="../../assets/illustrations/route-icon.png" mode="aspectFit" />
         <view>
           <text class="section-title">购买流程</text>
           <text class="section-en">Steps</text>
@@ -221,7 +221,7 @@
 
     <view wx:if="{{welcomeKitItems.length || welcomeKitNote}}" class="section process-section">
       <view class="section-title-wrap with-icon">
-        <image class="section-icon" src="../../assets/illustrations/curled-cat.png" mode="aspectFit" />
+        <image class="section-icon" src="../../assets/illustrations/gift-icon.png" mode="aspectFit" />
         <view>
           <text class="section-title">新家礼包</text>
           <text class="section-en">Welcome Kit</text>
@@ -237,7 +237,7 @@
 
     <view wx:if="{{processContractNotice}}" class="section process-notice-section">
       <view class="notice-card">
-        <image class="notice-icon" src="../../assets/illustrations/moon-icon.png" mode="aspectFit" />
+        <image class="notice-icon" src="../../assets/illustrations/moon-line-icon.png" mode="aspectFit" />
         <text>{{processContractNotice}}</text>
       </view>
     </view>
@@ -278,7 +278,7 @@
 
     <view class="section aftercare-section">
       <view class="section-title-wrap with-icon">
-        <image class="section-icon" src="../../assets/illustrations/moon-icon.png" mode="aspectFit" />
+        <image class="section-icon" src="../../assets/illustrations/moon-line-icon.png" mode="aspectFit" />
         <view>
           <text class="section-title">合同文件</text>
           <text class="section-en">Contract</text>
@@ -298,7 +298,7 @@
 
     <view wx:if="{{processContractNotice}}" class="section aftercare-notice-section">
       <view class="notice-card">
-        <image class="notice-icon" src="../../assets/illustrations/moon-icon.png" mode="aspectFit" />
+        <image class="notice-icon" src="../../assets/illustrations/moon-line-icon.png" mode="aspectFit" />
         <text>{{processContractNotice}}</text>
       </view>
     </view>

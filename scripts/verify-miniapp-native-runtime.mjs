@@ -20,6 +20,7 @@ verifyProductionEnvGuards();
 verifyPageRegistrations();
 verifyMobileParityTabBar();
 verifyVisualQaFixtures();
+verifyVisualQaMutationGuards();
 verifyRuntimeImports();
 verifyWxssCompatibility();
 
@@ -218,6 +219,56 @@ function verifyVisualQaFixtures() {
   }
   if (/catch\s*\([^)]*\)\s*\{[^}]*VisualQa/s.test(publicContentText)) {
     failures.push("Visual QA fixtures must not be used as an API failure fallback.");
+  }
+}
+
+function verifyVisualQaMutationGuards() {
+  const requestPath = join(miniappRoot, "utils/request/index.ts");
+  const publicContentPath = join(miniappRoot, "utils/public-content/index.ts");
+  const fixturePath = join(miniappRoot, "utils/visual-qa/fixtures.ts");
+  const publishPath = join(miniappRoot, "pages/community-publish/index.ts");
+  if (![requestPath, publicContentPath, fixturePath, publishPath].every(existsSync)) return;
+
+  const requestText = readFileSync(requestPath, "utf8");
+  const publicContentText = readFileSync(publicContentPath, "utf8");
+  const fixtureText = readFileSync(fixturePath, "utf8");
+  const publishText = readFileSync(publishPath, "utf8");
+
+  if (!/method\s*!==\s*"GET"\s*&&\s*isVisualQaModeEnabled\(\)/.test(requestText)) {
+    failures.push("Visual QA mode must block non-GET requests in the shared miniapp request wrapper.");
+  }
+  if (!requestText.includes("VISUAL_QA_MUTATION_BLOCKED")) {
+    failures.push("Visual QA mutation blocking must return an explicit VISUAL_QA_MUTATION_BLOCKED error.");
+  }
+
+  const guardedMutations = [
+    ["createCommunityPost", "createVisualQaCommunityPost"],
+    ["updateCommunityPost", "updateVisualQaCommunityPost"],
+    ["deleteCommunityPost", "deleteVisualQaCommunityPost"],
+    ["toggleCommunityPostLike", "toggleVisualQaCommunityPostLike"],
+    ["createCommunityComment", "createVisualQaCommunityComment"],
+    ["deleteCommunityComment", "deleteVisualQaCommunityComment"],
+    ["requestCommunityPostImageUpload", "requestVisualQaCommunityPostImageUpload"],
+    ["completeCommunityPostImageUpload", "completeVisualQaCommunityPostImageUpload"],
+    ["deleteCommunityPostImage", "deleteVisualQaCommunityPostImage"],
+    ["submitSelectionApplication", "submitVisualQaSelectionApplication"],
+  ];
+  for (const [publicFunction, fixtureFunction] of guardedMutations) {
+    const publicPattern = new RegExp(
+      `function\\s+${publicFunction}\\b[\\s\\S]*?isVisualQaModeEnabled\\(\\)[\\s\\S]*?${fixtureFunction}\\(`,
+    );
+    if (!publicPattern.test(publicContentText)) {
+      failures.push(
+        `apps/miniapp/utils/public-content/index.ts must route ${publicFunction} to ${fixtureFunction} when visualQa=1.`,
+      );
+    }
+    if (!new RegExp(`function\\s+${fixtureFunction}\\b`).test(fixtureText)) {
+      failures.push(`Missing Visual QA fixture mutation helper: ${fixtureFunction}.`);
+    }
+  }
+
+  if (!/function\s+uploadPostImage\b[\s\S]*?isVisualQaModeEnabled\(\)[\s\S]*?return;/.test(publishText)) {
+    failures.push("Community post image upload must skip direct wx.request PUT in Visual QA mode.");
   }
 }
 

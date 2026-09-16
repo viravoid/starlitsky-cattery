@@ -23,12 +23,22 @@ import type {
 import { get, post, patch, del } from "../request/index";
 import { isVisualQaModeEnabled } from "../visual-qa/mode";
 import {
+  completeVisualQaCommunityPostImageUpload,
+  createVisualQaCommunityComment,
+  createVisualQaCommunityPost,
+  deleteVisualQaCommunityComment,
+  deleteVisualQaCommunityPost,
+  deleteVisualQaCommunityPostImage,
   getVisualQaCat,
   getVisualQaCommunityPost,
   getVisualQaCommunityPostOptions,
   getVisualQaFixedPage,
   listVisualQaCats,
   listVisualQaCommunityPosts,
+  requestVisualQaCommunityPostImageUpload,
+  submitVisualQaSelectionApplication,
+  toggleVisualQaCommunityPostLike,
+  updateVisualQaCommunityPost,
 } from "../visual-qa/fixtures";
 
 export async function getFixedPage(slug: string) {
@@ -128,6 +138,8 @@ export async function getCommunityPostOptions() {
 }
 
 export async function createCommunityPost(data: CreateCommunityPostRequest) {
+  if (isVisualQaModeEnabled()) return createVisualQaCommunityPost(data);
+
   const response = await post<CommunityPostData, CreateCommunityPostRequest>(
     "/community/posts",
     data,
@@ -137,6 +149,8 @@ export async function createCommunityPost(data: CreateCommunityPostRequest) {
 }
 
 export async function updateCommunityPost(id: string, data: UpdateCommunityPostRequest) {
+  if (isVisualQaModeEnabled()) return updateVisualQaCommunityPost(id, data);
+
   const response = await patch<CommunityPostData, UpdateCommunityPostRequest>(
     `/community/posts/${encodeURIComponent(id)}`,
     data,
@@ -146,12 +160,16 @@ export async function updateCommunityPost(id: string, data: UpdateCommunityPostR
 }
 
 export async function deleteCommunityPost(id: string) {
+  if (isVisualQaModeEnabled()) return deleteVisualQaCommunityPost(id);
+
   const response = await del<CommunityPostData>(`/community/posts/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
   return response.data;
 }
 
 export async function toggleCommunityPostLike(id: string) {
+  if (isVisualQaModeEnabled()) return toggleVisualQaCommunityPostLike(id);
+
   const response = await post<ToggleCommunityPostLikeData>(
     `/community/posts/${encodeURIComponent(id)}/like`,
   );
@@ -160,6 +178,8 @@ export async function toggleCommunityPostLike(id: string) {
 }
 
 export async function createCommunityComment(id: string, content: string) {
+  if (isVisualQaModeEnabled()) return createVisualQaCommunityComment(id, content);
+
   const response = await post<CommunityCommentData, CreateCommunityCommentRequest>(
     `/community/posts/${encodeURIComponent(id)}/comments`,
     { content },
@@ -169,6 +189,8 @@ export async function createCommunityComment(id: string, content: string) {
 }
 
 export async function deleteCommunityComment(postId: string, commentId: string) {
+  if (isVisualQaModeEnabled()) return deleteVisualQaCommunityComment(postId, commentId);
+
   const response = await del<CommunityCommentData>(
     `/community/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
   );
@@ -190,6 +212,8 @@ export async function requestCommunityPostImageUpload(
     sortOrder?: number;
   },
 ) {
+  if (isVisualQaModeEnabled()) return requestVisualQaCommunityPostImageUpload(postId, data);
+
   const response = await post<ImageUploadData, typeof data>(
     `/community/posts/${encodeURIComponent(postId)}/media/uploads`,
     data,
@@ -203,6 +227,8 @@ export async function completeCommunityPostImageUpload(
   mediaId: string,
   data: CompleteMediaUploadRequest = {},
 ) {
+  if (isVisualQaModeEnabled()) return completeVisualQaCommunityPostImageUpload(postId, mediaId);
+
   const response = await post<MediaAssetData, CompleteMediaUploadRequest>(
     `/community/posts/${encodeURIComponent(postId)}/media/${encodeURIComponent(mediaId)}/upload/complete`,
     data,
@@ -212,6 +238,8 @@ export async function completeCommunityPostImageUpload(
 }
 
 export async function deleteCommunityPostImage(postId: string, mediaId: string) {
+  if (isVisualQaModeEnabled()) return deleteVisualQaCommunityPostImage(postId, mediaId);
+
   const response = await del<DeleteCommunityPostMediaData>(
     `/community/posts/${encodeURIComponent(postId)}/media/${encodeURIComponent(mediaId)}`,
   );
@@ -220,6 +248,8 @@ export async function deleteCommunityPostImage(postId: string, mediaId: string) 
 }
 
 export async function submitSelectionApplication(data: SubmitSelectionApplicationRequest) {
+  if (isVisualQaModeEnabled()) return submitVisualQaSelectionApplication(data);
+
   const response = await post<SelectionApplicationData, SubmitSelectionApplicationRequest>(
     "/selection-applications",
     data,

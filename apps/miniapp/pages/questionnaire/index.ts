@@ -1,5 +1,12 @@
 import type { SelectionApplicationAnswers } from "@starlitsky/shared";
 import { submitSelectionApplication } from "../../utils/public-content/index";
+import {
+  DEFAULT_QUESTIONNAIRE_CONTENT,
+  type QuestionnaireChoiceOption,
+  type QuestionnaireChoiceQuestion,
+  type QuestionnaireContent,
+  type QuestionnaireTextQuestion,
+} from "../../utils/questionnaire-content/index";
 
 type FieldKey = keyof SelectionApplicationAnswers;
 
@@ -15,7 +22,7 @@ interface Question {
   options?: Option[];
   placeholder?: string;
   required?: boolean;
-  type: "radio" | "text" | "textarea";
+  type: "commitment" | "radio" | "text" | "textarea";
 }
 
 interface QuestionGroup {
@@ -29,8 +36,13 @@ interface QuestionnaireData {
   error: string;
   errors: Partial<Record<FieldKey, string>>;
   groups: QuestionGroup[];
+  intro: string;
   isSubmitting: boolean;
+  privacyNotice: string;
+  ps: string;
   submitted: boolean;
+  successBody: string;
+  successTitle: string;
   values: SelectionApplicationAnswers;
 }
 
@@ -49,118 +61,8 @@ interface InputEvent {
   };
 }
 
-const YES_NO_OPTIONS = [
-  { label: "有", value: "yes" },
-  { label: "没有", value: "no" },
-];
-
-const ACCEPT_OPTIONS = [
-  { label: "能接受", value: "accept" },
-  { label: "需要进一步了解", value: "needMoreInfo" },
-  { label: "不能接受", value: "cannotAccept" },
-];
-
-const GROUPS: QuestionGroup[] = [
-  {
-    no: "一",
-    title: "基本信息",
-    questions: [
-      textQuestion("name", "真实姓名", "请输入真实姓名"),
-      radioQuestion("gender", "性别", [
-        { label: "女", value: "female" },
-        { label: "男", value: "male" },
-        { label: "其他", value: "other" },
-        { label: "不便透露", value: "private" },
-      ]),
-      textQuestion("phone", "电话", "请输入手机号"),
-      textQuestion("age", "年龄", "请输入年龄"),
-      textQuestion("job", "职业", "请输入职业"),
-      textQuestion("city", "现居城市", "例如：西安"),
-    ],
-  },
-  {
-    no: "二",
-    title: "养猫经验",
-    questions: [
-      radioQuestion("experience", "是否有养猫经验", YES_NO_OPTIONS),
-      radioQuestion("residents", "家里是否有原住民", YES_NO_OPTIONS),
-      radioQuestion("residentsNeutered", "原住民是否绝育", [
-        { label: "已绝育", value: "neutered" },
-        { label: "未绝育", value: "notNeutered" },
-        { label: "部分绝育", value: "partiallyNeutered" },
-        { label: "暂不适用", value: "notApplicable" },
-      ], false),
-    ],
-  },
-  {
-    no: "三",
-    title: "居住与家庭环境",
-    questions: [
-      radioQuestion("hasKids", "是否有小孩", YES_NO_OPTIONS),
-      radioQuestion("housing", "是否租房，如果租房房东是否同意养猫", [
-        { label: "自有住房", value: "owned" },
-        { label: "租房，房东同意养猫", value: "rentApproved" },
-        { label: "租房，尚未确认", value: "rentUnconfirmed" },
-        { label: "租房，房东不同意", value: "rentRejected" },
-      ]),
-      radioQuestion("windowSealed", "住房是否有封窗", [
-        { label: "已封窗", value: "sealed" },
-        { label: "暂未封窗但可以封", value: "canSeal" },
-        { label: "无法封窗", value: "cannotSeal" },
-      ]),
-      radioQuestion("familyAgree", "家庭成员或室友是否同意养猫", [
-        { label: "全部同意", value: "allAgree" },
-        { label: "部分同意", value: "partAgree" },
-        { label: "尚未沟通", value: "notDiscussed" },
-        { label: "不同意", value: "disagree" },
-      ]),
-    ],
-  },
-  {
-    no: "四",
-    title: "选猫偏好",
-    questions: [
-      textareaQuestion("maineCoonKnowledge", "对缅因猫的了解", "可简单写写你了解的体型、活动量、护理需求等", false),
-      radioQuestion("wantGender", "想要公猫 or 母猫（现猫无需填写）", [
-        { label: "公猫", value: "male" },
-        { label: "母猫", value: "female" },
-        { label: "都可以", value: "either" },
-        { label: "咨询现猫，暂不填写", value: "currentCat" },
-      ]),
-      textQuestion("wantColor", "想要幼猫颜色", "例如银虎斑、棕虎斑、玳瑁、都可以等"),
-      textQuestion("budget", "接受的价格范围（现猫无需填写）", "例如 1w-2w、2w-3w、可根据小猫情况沟通等"),
-      radioQuestion("acceptNeuter", "能否接受绝育", ACCEPT_OPTIONS),
-      radioQuestion("monthlySpend", "每个月给猫支出范围", [
-        { label: "300 以内", value: "under300" },
-        { label: "300-500", value: "300to500" },
-        { label: "500-1000", value: "500to1000" },
-        { label: "1000 以上", value: "over1000" },
-      ]),
-    ],
-  },
-  {
-    no: "五",
-    title: "饲养理念与承诺",
-    questions: [
-      radioQuestion(
-        "scientificFeeding",
-        "能否接受科学（天然粮 / 主食罐 / 生骨肉 / 熟自制）喂养，承诺不喂垃圾粮、不喂来源不明确的生肉",
-        ACCEPT_OPTIONS,
-      ),
-      radioQuestion(
-        "acceptActive",
-        "小猫比较活泼，日常可能抓挠家具、咬线、玩闹误伤，能否接受",
-        ACCEPT_OPTIONS,
-      ),
-      radioQuestion(
-        "commitment",
-        "是否承诺对小猫不离不弃，如无法继续饲养，会先与猫舍联系",
-        ACCEPT_OPTIONS,
-      ),
-      textareaQuestion("additionalNote", "自由补充", "还有什么想告诉我们，或特别期待的小猫性格", false),
-    ],
-  },
-];
+const CONTENT = DEFAULT_QUESTIONNAIRE_CONTENT;
+const GROUPS: QuestionGroup[] = createGroups(CONTENT);
 
 const REQUIRED_FIELDS = GROUPS.flatMap((group) => group.questions)
   .filter((question) => question.required)
@@ -172,8 +74,13 @@ Page({
     error: "",
     errors: {},
     groups: GROUPS,
+    intro: CONTENT.intro,
     isSubmitting: false,
+    privacyNotice: CONTENT.privacyNotice,
+    ps: CONTENT.ps,
     submitted: false,
+    successBody: CONTENT.successBody,
+    successTitle: CONTENT.successTitle,
     values: createBlankValues(),
   } as QuestionnaireData,
 
@@ -286,8 +193,68 @@ function createBlankValues(): SelectionApplicationAnswers {
   };
 }
 
-function textQuestion(key: FieldKey, label: string, placeholder: string): Question {
-  return { key, label, placeholder, required: true, type: "text" };
+function createGroups(content: QuestionnaireContent): QuestionGroup[] {
+  return [
+    {
+      no: "一",
+      title: "基本信息",
+      questions: [
+        textQuestion("name", content.basicInfo.name),
+        radioQuestion("gender", content.basicInfo.gender),
+        textQuestion("phone", content.basicInfo.phone),
+        textQuestion("age", content.basicInfo.age),
+        textQuestion("job", content.basicInfo.job),
+        textQuestion("city", content.basicInfo.city),
+      ],
+    },
+    {
+      no: "二",
+      title: "养猫经验",
+      questions: [
+        radioQuestion("experience", content.catExperience.experience),
+        radioQuestion("residents", content.catExperience.residents),
+        radioQuestion("residentsNeutered", content.catExperience.residentsNeutered, false),
+      ],
+    },
+    {
+      no: "三",
+      title: "居住与家庭环境",
+      questions: [
+        radioQuestion("hasKids", content.livingEnvironment.hasKids),
+        radioQuestion("housing", content.livingEnvironment.housing),
+        radioQuestion("windowSealed", content.livingEnvironment.windowSealed),
+        radioQuestion("familyAgree", content.livingEnvironment.familyAgree),
+      ],
+    },
+    {
+      no: "四",
+      title: "选猫偏好",
+      questions: [
+        radioQuestion("wantGender", content.catPreference.wantGender),
+        textQuestion("wantColor", content.catPreference.wantColor),
+        textQuestion("budget", content.catPreference.budget),
+        radioQuestion("acceptNeuter", content.catPreference.acceptNeuter),
+        radioQuestion("monthlySpend", content.catPreference.monthlySpend),
+      ],
+    },
+    {
+      no: "五",
+      title: "饲养理念与承诺",
+      questions: [
+        commitmentQuestion(
+          "scientificFeeding",
+          content.commitments.scientificFeeding,
+          content.commitments.options,
+        ),
+        commitmentQuestion("acceptActive", content.commitments.acceptActive, content.commitments.options),
+        commitmentQuestion("commitment", content.commitments.commitment, content.commitments.options),
+      ],
+    },
+  ];
+}
+
+function textQuestion(key: FieldKey, question: QuestionnaireTextQuestion): Question {
+  return { key, label: question.label, placeholder: question.placeholder, required: true, type: "text" };
 }
 
 function textareaQuestion(
@@ -301,11 +268,34 @@ function textareaQuestion(
 
 function radioQuestion(
   key: FieldKey,
-  label: string,
-  options: Option[],
+  question: QuestionnaireChoiceQuestion,
   required = true,
 ): Question {
-  return { key, label, options, required, type: "radio" };
+  return {
+    key,
+    label: question.label,
+    options: question.options.map(toNativeOption),
+    required,
+    type: "radio",
+  };
+}
+
+function commitmentQuestion(
+  key: FieldKey,
+  label: string,
+  options: QuestionnaireChoiceOption[],
+): Question {
+  return {
+    key,
+    label,
+    options: options.map(toNativeOption),
+    required: true,
+    type: "commitment",
+  };
+}
+
+function toNativeOption(option: QuestionnaireChoiceOption): Option {
+  return { label: option.label, value: option.id };
 }
 
 function createClientDedupKey() {

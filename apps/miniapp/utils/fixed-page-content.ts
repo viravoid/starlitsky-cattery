@@ -169,11 +169,24 @@ const IMAGE_ASSETS = {
   cat: "../../assets/tabbar/cats-active.png",
   catProfile: "../../assets/illustrations/cat-profile.png",
   check: "../../assets/illustrations/check-icon.png",
+  chevronRight: "../../assets/illustrations/chevron-right-icon.png",
+  cottage: "../../assets/illustrations/cottage.png",
   curledCat: "../../assets/illustrations/curled-cat.png",
+  dnaHelix: "../../assets/illustrations/dna-helix.png",
+  gift: "../../assets/illustrations/gift-icon.png",
   heart: "../../assets/illustrations/heart-icon.png",
+  heartLine: "../../assets/illustrations/heart-line-icon.png",
+  heartPaw: "../../assets/illustrations/heart-paw.png",
+  leaf: "../../assets/illustrations/leaf-icon.png",
   moon: "../../assets/illustrations/moon-icon.png",
+  moonLine: "../../assets/illustrations/moon-line-icon.png",
+  moonStars: "../../assets/illustrations/moon-stars.png",
   paw: "../../assets/illustrations/paw-like.png",
+  pawLine: "../../assets/illustrations/paw-icon.png",
   paper: "../../assets/illustrations/paper-icon-white.png",
+  priceTag: "../../assets/illustrations/price-tag-icon.png",
+  rosette: "../../assets/illustrations/rosette.png",
+  route: "../../assets/illustrations/route-icon.png",
   star: "../../assets/illustrations/star-icon.png",
   windingPath: "../../assets/illustrations/winding-path.png",
 };
@@ -229,12 +242,12 @@ const EMPTY_VIEW: FixedPageViewData = {
 
 const FIXED_TAGS = ["共四层", "600+ ㎡ 室内", "两个庭院 + 下沉院", "科学规划"];
 const ABOUT_FACT_ORDER = [
-  ["founded", "moon"],
-  ["location", "catProfile"],
-  ["registration", "star"],
-  ["socialization", "heart"],
+  ["founded", "moonStars"],
+  ["location", "cottage"],
+  ["registration", "rosette"],
+  ["socialization", "heartPaw"],
   ["aftercare", "curledCat"],
-  ["screening", "paw"],
+  ["screening", "dnaHelix"],
 ] as const;
 const AFTERCARE_PROMISE_ICONS = ["paw", "heart", "cat", "check"];
 const PRICE_TONES = ["tone-sky", "tone-creamblue", "tone-sunny"];

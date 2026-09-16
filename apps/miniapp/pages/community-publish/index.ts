@@ -14,6 +14,7 @@ import {
   updateCommunityPost,
 } from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
+import { isVisualQaModeEnabled } from "../../utils/visual-qa/mode";
 
 interface PublishOptions {
   id?: string;
@@ -295,6 +296,10 @@ async function uploadPostImage(postId: string, image: SelectedImage, sortOrder: 
     usage: "gallery",
     sortOrder,
   });
+  if (isVisualQaModeEnabled()) {
+    await completeCommunityPostImageUpload(postId, upload.media.id, { sizeBytes: image.sizeBytes });
+    return;
+  }
   const data = await readFile(image.tempFilePath);
   await putUpload(upload.upload.url, upload.upload.headers, data);
   await completeCommunityPostImageUpload(postId, upload.media.id, { sizeBytes: image.sizeBytes });

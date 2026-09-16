@@ -1,6 +1,7 @@
 import type { ApiErrorResponse, ApiResponse } from "@starlitsky/shared";
 import { getApiBaseUrl } from "../../config/env";
 import { clearToken, getToken } from "../session/token-storage";
+import { isVisualQaModeEnabled } from "../visual-qa/mode";
 
 type RequestMethod = "DELETE" | "GET" | "PATCH" | "POST";
 
@@ -38,6 +39,14 @@ function request<TResponse, TBody = unknown>(
   options: RequestOptions<TBody>,
   method: RequestMethod,
 ): Promise<ApiResponse<TResponse>> {
+  if (method !== "GET" && isVisualQaModeEnabled()) {
+    return Promise.reject({
+      success: false,
+      error: { code: "VISUAL_QA_MUTATION_BLOCKED" },
+      message: "Visual QA mode blocks production mutations."
+    } satisfies ApiErrorResponse);
+  }
+
   const token = getToken();
 
   return new Promise((resolve, reject) => {

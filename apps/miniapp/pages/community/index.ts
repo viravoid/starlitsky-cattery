@@ -17,16 +17,22 @@ interface CommunityPostCard {
   id: string;
   author: string;
   category: string;
+  commentCount: number;
   content: string;
   date: string;
-  firstImageUrl: string;
+  footerCommentLabel: string;
+  footerLikeLabel: string;
   imageCount: number;
+  imageGridClass: string;
+  images: Array<{ id: string; url: string }>;
   isPinned: boolean;
+  likeCount: number;
   likedByMe: boolean;
-  linkedCats: string;
-  linkedLitters: string;
+  linkedCats: Array<{ id: string; name: string }>;
+  linkedLitters: Array<{ id: string; name: string }>;
   meta: string;
   previewUrls: string[];
+  roleLabel: string;
 }
 
 interface CommunityData {
@@ -163,10 +169,11 @@ Page({
   },
 
   previewImage(this: CommunityPage, event: TapEvent) {
-    const index = Number(event.currentTarget.dataset.index || 0);
-    const post = this.data.posts[index];
+    const postIndex = Number(event.currentTarget.dataset.postIndex || 0);
+    const imageIndex = Number(event.currentTarget.dataset.imageIndex || 0);
+    const post = this.data.posts[postIndex];
     if (!post || post.previewUrls.length === 0) return;
-    wx.previewImage({ current: post.firstImageUrl, urls: post.previewUrls });
+    wx.previewImage({ current: post.previewUrls[imageIndex] || post.previewUrls[0], urls: post.previewUrls });
   },
 });
 
@@ -195,23 +202,41 @@ function deriveActiveLitterLabel(activeLitterId: string, posts: CommunityPostDat
 function toPostCard(post: CommunityPostData): CommunityPostCard {
   const images = post.mediaAssets
     .filter((item) => item.kind === "image")
-    .map((item) => item.sourceUrl || item.thumbnailUrl || "")
-    .filter(Boolean);
+    .slice(0, 9)
+    .map((item) => ({
+      id: item.id,
+      url: item.sourceUrl || item.thumbnailUrl || "",
+    }))
+    .filter((item) => item.url);
+  const likeCount = post.likeCount;
+  const commentCount = post.commentCount;
   return {
     id: post.id,
     author: post.authorName || "星月猫友",
     category: categoryLabel(post.category),
+    commentCount,
     content: post.content,
     date: formatDate(post.createdAt),
-    firstImageUrl: images[0] ?? "",
+    footerCommentLabel: String(commentCount),
+    footerLikeLabel: String(likeCount),
     imageCount: images.length,
+    imageGridClass: imageGridClass(images.length),
+    images,
     isPinned: post.pinned,
+    likeCount,
     likedByMe: post.likedByMe,
-    linkedCats: post.cats.map((cat) => cat.name).join("、"),
-    linkedLitters: post.litters.map((litter) => litter.name).join("、"),
-    meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
-    previewUrls: images,
+    linkedCats: post.cats.map((cat) => ({ id: cat.id, name: cat.name })),
+    linkedLitters: post.litters.map((litter) => ({ id: litter.id, name: litter.name })),
+    meta: `${commentCount} 条评论 · ${likeCount} 个喜欢`,
+    previewUrls: images.map((image) => image.url),
+    roleLabel: post.authorRole || "星月猫友",
   };
+}
+
+function imageGridClass(count: number) {
+  if (count <= 1) return "post-images single-image-grid";
+  if (count === 2 || count === 4) return "post-images two-image-grid";
+  return "post-images three-image-grid";
 }
 
 function canPublish() {

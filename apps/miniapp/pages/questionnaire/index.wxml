@@ -3,8 +3,8 @@
     <view class="success-mark">
       <image class="success-icon" src="../../assets/illustrations/check-icon.png" mode="aspectFit" />
     </view>
-    <text class="success-title">问卷已提交，感谢你的填写</text>
-    <text class="success-body">我们会尽快查看你的问卷，请耐心等待回复。</text>
+    <text class="success-title">{{successTitle}}</text>
+    <text class="success-body">{{successBody}}</text>
     <button class="secondary-action" bindtap="resetForm">返回问卷</button>
   </view>
 
@@ -15,7 +15,8 @@
     </view>
 
     <view class="intro-card">
-      <text class="intro">正规猫舍双向选择。以下信息仅用于猫舍沟通，不会公开展示。</text>
+      <text wx:if="{{intro}}" class="intro">{{intro}}</text>
+      <text wx:if="{{privacyNotice}}" class="privacy-notice">{{privacyNotice}}</text>
     </view>
 
     <view wx:if="{{error}}" class="error-banner">
@@ -28,8 +29,8 @@
         <text class="group-no">{{item.no}}</text>
         <text class="group-title">{{item.title}}</text>
       </view>
-      <view wx:for="{{item.questions}}" wx:for-item="question" wx:key="key" class="field" wx:if="{{question.key !== 'residentsNeutered' || values.residents === 'yes'}}">
-        <text class="label">
+      <view wx:for="{{item.questions}}" wx:for-item="question" wx:key="key" class="{{question.type === 'commitment' ? 'field commitment-card' : 'field'}}" wx:if="{{question.key !== 'residentsNeutered' || values.residents === 'yes'}}">
+        <text class="{{question.type === 'commitment' ? 'label commitment-label' : 'label'}}">
           {{question.label}}
           <text wx:if="{{question.required}}" class="required">*</text>
         </text>
@@ -54,7 +55,7 @@
 
         <radio-group
           wx:else
-          class="choice-list"
+          class="{{question.type === 'commitment' ? 'choice-list commitment-choice-list' : 'choice-list'}}"
           data-key="{{question.key}}"
           bindchange="onChoice"
         >
@@ -68,8 +69,8 @@
       </view>
     </view>
 
-    <view class="ps">
-      <text>PS：性别和颜色仅做了解，排队不分颜色窝次，不限选猫时间。</text>
+    <view wx:if="{{ps}}" class="ps">
+      <text>{{ps}}</text>
     </view>
 
     <view class="bottom-cta">

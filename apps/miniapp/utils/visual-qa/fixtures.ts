@@ -1,11 +1,20 @@
 import type {
   CatData,
   CatListData,
+  CommunityCommentData,
   CommunityPostCategory,
   CommunityPostData,
   CommunityPostListData,
   CommunityPostOptionsData,
+  CreateCommunityPostRequest,
+  DeleteCommunityPostMediaData,
   FixedPageData,
+  ImageUploadData,
+  MediaAssetData,
+  SelectionApplicationData,
+  SubmitSelectionApplicationRequest,
+  ToggleCommunityPostLikeData,
+  UpdateCommunityPostRequest,
 } from "@starlitsky/shared";
 
 const now = "2026-09-15T00:00:00.000Z";
@@ -91,6 +100,199 @@ export function getVisualQaCommunityPostOptions(): CommunityPostOptionsData {
   };
 }
 
+export function createVisualQaCommunityPost(input: CreateCommunityPostRequest): CommunityPostData {
+  return visualQaPostFromInput("visual-post-local", input, {
+    canDelete: true,
+    canEdit: true,
+  });
+}
+
+export function updateVisualQaCommunityPost(
+  id: string,
+  input: UpdateCommunityPostRequest,
+): CommunityPostData {
+  const existing = posts.find((post) => post.id === id);
+  if (!existing) {
+    return visualQaPostFromInput(
+      id,
+      {
+        category: input.category || "personal_thoughts",
+        content: input.content || "Visual QA 本地编辑动态。",
+        catIds: input.catIds,
+        litterIds: input.litterIds,
+      },
+      { canDelete: true, canEdit: true },
+    );
+  }
+  return {
+    ...existing,
+    category: input.category || existing.category,
+    content: input.content || existing.content,
+    cats: resolvePostCats(input.catIds) ?? existing.cats,
+    litters: resolvePostLitters(input.litterIds) ?? existing.litters,
+    updatedAt: now,
+    canDelete: true,
+    canEdit: true,
+  };
+}
+
+export function deleteVisualQaCommunityPost(id: string): CommunityPostData {
+  const existing = posts.find((post) => post.id === id);
+  return existing
+    ? { ...existing, canDelete: true }
+    : visualQaPostFromInput(
+        id,
+        { category: "personal_thoughts", content: "Visual QA 本地删除动态。" },
+        { canDelete: true },
+      );
+}
+
+export function toggleVisualQaCommunityPostLike(id: string): ToggleCommunityPostLikeData {
+  const existing = posts.find((post) => post.id === id);
+  const liked = !(existing?.likedByMe ?? false);
+  return {
+    liked,
+    likeCount: Math.max(0, (existing?.likeCount ?? 0) + (liked ? 1 : -1)),
+  };
+}
+
+export function createVisualQaCommunityComment(
+  postId: string,
+  content: string,
+): CommunityCommentData {
+  return {
+    id: `visual-comment-${Date.now()}`,
+    postId,
+    authorName: "Visual QA",
+    authorRole: "user",
+    content,
+    visibility: "visible",
+    canDelete: true,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+}
+
+export function deleteVisualQaCommunityComment(
+  postId: string,
+  commentId: string,
+): CommunityCommentData {
+  return {
+    id: commentId,
+    postId,
+    authorName: "Visual QA",
+    authorRole: "user",
+    content: "Visual QA 本地删除评论。",
+    visibility: "visible",
+    canDelete: true,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: now,
+  };
+}
+
+export function requestVisualQaCommunityPostImageUpload(
+  postId: string,
+  input: {
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    title?: string | null;
+    altText?: string | null;
+    width?: number | null;
+    height?: number | null;
+    usage?: string;
+    sortOrder?: number;
+  },
+): ImageUploadData {
+  const media = visualQaMediaAsset(postId, `visual-media-${Date.now()}`, input);
+  return {
+    media,
+    upload: {
+      method: "PUT",
+      url: "visualqa://local-upload",
+      headers: {},
+      expiresAt: now,
+      expiresInSeconds: 0,
+    },
+    objectKey: `visual-qa/${media.id}`,
+    publicUrl: media.sourceUrl,
+  };
+}
+
+export function completeVisualQaCommunityPostImageUpload(
+  postId: string,
+  mediaId: string,
+): MediaAssetData {
+  return visualQaMediaAsset(postId, mediaId, {
+    fileName: "visual-qa-upload.jpg",
+    mimeType: "image/jpeg",
+    sizeBytes: 0,
+  });
+}
+
+export function deleteVisualQaCommunityPostImage(
+  postId: string,
+  mediaId: string,
+): DeleteCommunityPostMediaData {
+  return {
+    id: mediaId,
+    bindingId: `visual-binding-${mediaId}`,
+    ownerType: "post",
+    ownerId: postId,
+    deletedAt: now,
+  };
+}
+
+export function submitVisualQaSelectionApplication(
+  input: SubmitSelectionApplicationRequest,
+): SelectionApplicationData {
+  return {
+    id: `visual-selection-${Date.now()}`,
+    userId: null,
+    contactName: input.name,
+    contactGender: input.gender,
+    contactPhone: input.phone,
+    contactAge: input.age,
+    contactJob: input.job,
+    contactCity: input.city,
+    catExperience: { experience: input.experience },
+    existingPets: {
+      residents: input.residents,
+      residentsNeutered: input.residentsNeutered || null,
+    },
+    livingEnvironment: {
+      hasKids: input.hasKids,
+      housing: input.housing,
+      windowSealed: input.windowSealed,
+      familyAgree: input.familyAgree,
+    },
+    maineCoonKnowledge: input.maineCoonKnowledge || null,
+    preferences: {
+      wantGender: input.wantGender,
+      wantColor: input.wantColor,
+      budget: input.budget,
+      monthlySpend: input.monthlySpend,
+    },
+    commitments: {
+      acceptNeuter: input.acceptNeuter,
+      scientificFeeding: input.scientificFeeding,
+      acceptActive: input.acceptActive,
+      commitment: input.commitment,
+    },
+    additionalNote: input.additionalNote || null,
+    status: "submitted",
+    submittedAt: now,
+    adminNote: null,
+    reviewedAt: null,
+    createdAt: now,
+    updatedAt: now,
+    user: null,
+    reviewedBy: null,
+  };
+}
+
 export function getVisualQaFixedPage(slug: string): FixedPageData {
   const title = fixedPageTitles[slug] ?? "内容";
   return {
@@ -120,6 +322,103 @@ const fixedPageTitles: Record<string, string> = {
   philosophy: "繁育理念",
   process: "价格与接猫流程",
 };
+
+function visualQaPostFromInput(
+  id: string,
+  input: CreateCommunityPostRequest,
+  permissions: { canDelete?: boolean; canEdit?: boolean } = {},
+): CommunityPostData {
+  return {
+    id,
+    authorName: "Visual QA",
+    authorRole: "keeper",
+    category: input.category,
+    content: input.content,
+    visibility: input.visibility || "visible",
+    pinned: Boolean(input.pinned),
+    cats: resolvePostCats(input.catIds) ?? [],
+    litters: resolvePostLitters(input.litterIds) ?? [],
+    mediaAssets: [],
+    comments: [],
+    commentCount: 0,
+    likeCount: 0,
+    likedByMe: false,
+    canEdit: Boolean(permissions.canEdit),
+    canDelete: Boolean(permissions.canDelete),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function resolvePostCats(ids?: string[]) {
+  if (!ids) return null;
+  return cats
+    .filter((cat) => ids.includes(cat.id))
+    .map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      gender: cat.gender,
+      color: cat.color,
+      lifecycleStatus: cat.lifecycleStatus,
+      visibility: cat.visibility,
+    }));
+}
+
+function resolvePostLitters(ids?: string[]) {
+  if (!ids) return null;
+  return litters.filter((litter) => ids.includes(litter.id));
+}
+
+function visualQaMediaAsset(
+  postId: string,
+  mediaId: string,
+  input: {
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    title?: string | null;
+    altText?: string | null;
+    width?: number | null;
+    height?: number | null;
+    usage?: string;
+    sortOrder?: number;
+  },
+): MediaAssetData {
+  return {
+    id: mediaId,
+    kind: "image",
+    sourceUrl: `${imageBase}/kitten-available.png`,
+    storedSourceUrl: `${imageBase}/kitten-available.png`,
+    thumbnailUrl: `${imageBase}/kitten-available.png`,
+    title: input.title || input.fileName,
+    altText: input.altText || input.fileName,
+    mimeType: input.mimeType,
+    sizeBytes: input.sizeBytes,
+    width: input.width ?? null,
+    height: input.height ?? null,
+    durationSeconds: null,
+    checksum: null,
+    status: "ready",
+    metadataJson: {},
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    bindings: [
+      {
+        id: `visual-binding-${mediaId}`,
+        mediaId,
+        ownerType: "post",
+        ownerId: postId,
+        usage: input.usage || "gallery",
+        sortOrder: input.sortOrder ?? 0,
+        visibility: "visible",
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      },
+    ],
+  };
+}
 
 function cat(input: {
   birthday: string;

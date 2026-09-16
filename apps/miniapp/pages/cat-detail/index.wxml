@@ -82,7 +82,7 @@
       <text class="note-title">关于{{cat.name}}</text>
       <text class="note-subtitle">主理人手记 · Keeper's Note</text>
       <view class="note-body-wrap">
-        <text wx:for="{{noteParagraphs}}" wx:key="*this" class="note-body">「{{item}}」</text>
+        <text wx:for="{{noteParagraphs}}" wx:key="id" class="note-body">{{item.prefix}}{{item.text}}{{item.suffix}}</text>
       </view>
       <view class="signature">
         <view class="signature-line"></view>

@@ -9,7 +9,7 @@
     <view class="section intro-section">
       <view class="intro-card xy-card">
         <view class="title-icon-row">
-          <image class="section-icon" src="../../assets/illustrations/paw-like.png" mode="aspectFit" />
+          <image class="section-icon" src="../../assets/illustrations/leaf-icon.png" mode="aspectFit" />
           <text class="section-en">Environment</text>
         </view>
         <text class="detail-title">{{section.title}}</text>
