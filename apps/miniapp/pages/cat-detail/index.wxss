@@ -279,6 +279,16 @@
   background: rgba(255, 253, 248, 0.96);
 }
 
+.questionnaire-icon {
+  position: absolute;
+  left: calc(50% - 100rpx);
+  top: 43rpx;
+  z-index: 1;
+  width: 34rpx;
+  height: 34rpx;
+  pointer-events: none;
+}
+
 .questionnaire-button {
   display: flex;
   align-items: center;

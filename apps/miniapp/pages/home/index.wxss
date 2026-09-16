@@ -45,8 +45,7 @@
 }
 
 .hero-copy.on-image {
-  padding-top: 120rpx;
-  background: linear-gradient(180deg, rgba(15, 26, 38, 0) 0%, rgba(15, 26, 38, 0.22) 100%);
+  background: transparent;
 }
 
 .title {
@@ -68,13 +67,13 @@
 }
 
 .hero-copy.on-image .title {
-  color: #ffffff;
-  text-shadow: 0 4rpx 18rpx rgba(27, 40, 55, 0.32);
+  color: var(--xy-color-heading);
+  text-shadow: 0 3rpx 12rpx rgba(255, 253, 248, 0.72);
 }
 
 .hero-copy.on-image .subtitle {
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 4rpx 18rpx rgba(27, 40, 55, 0.28);
+  color: var(--xy-color-secondary);
+  text-shadow: 0 3rpx 12rpx rgba(255, 253, 248, 0.72);
 }
 
 .state {

@@ -26,14 +26,19 @@
   line-height: 1.2;
 }
 
-.tabs {
+.sticky-controls {
   position: sticky;
   top: 0;
   z-index: 2;
+  padding-top: 16rpx;
+  background: rgba(255, 250, 241, 0.96);
+  backdrop-filter: blur(20rpx);
+}
+
+.tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   border-bottom: 1rpx solid rgba(233, 221, 191, 0.86);
-  background: rgba(255, 250, 241, 0.96);
 }
 
 .tab {
@@ -67,14 +72,14 @@
   flex-wrap: nowrap;
   gap: 14rpx;
   width: 100%;
-  margin: 20rpx 0 16rpx;
+  margin: 20rpx 0 0;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .litter-filters {
   flex-wrap: wrap;
-  margin-top: -4rpx;
+  margin-top: 16rpx;
   padding-bottom: 10rpx;
   white-space: normal;
 }
@@ -248,6 +253,16 @@
   padding: 20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid var(--xy-color-border);
   background: rgba(255, 253, 248, 0.96);
+}
+
+.questionnaire-icon {
+  position: absolute;
+  left: calc(50% - 142rpx);
+  top: 44rpx;
+  z-index: 1;
+  width: 40rpx;
+  height: 40rpx;
+  pointer-events: none;
 }
 
 .questionnaire-button {

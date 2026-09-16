@@ -32,6 +32,7 @@
     </view>
 
     <view wx:if="{{linkedLitters.length || linkedCats.length}}" class="links">
+      <text class="links-title">关联信息</text>
       <view wx:if="{{linkedCats.length}}" class="link-group">
         <text wx:for="{{linkedCats}}" wx:key="*this" class="link-pill">猫咪：{{item}}</text>
       </view>

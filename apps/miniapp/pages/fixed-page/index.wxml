@@ -88,7 +88,6 @@
       >
         <view class="environment-card-head">
           <text class="environment-card-title">{{item.title}}</text>
-          <image class="environment-chevron" src="../../assets/illustrations/chevron-right-icon.png" mode="aspectFit" />
         </view>
         <view class="pill-row">
           <text class="xy-pill">{{item.roomCount}} 个房间 / 子区域</text>

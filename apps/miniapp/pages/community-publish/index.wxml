@@ -105,6 +105,12 @@
           <image class="add-image-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
         </button>
       </view>
+      <text class="image-hint">实际接入微信小程序后可从相册选择</text>
+    </view>
+
+    <view class="notice">
+      <text class="notice-pill">发布须知</text>
+      <text class="notice-text">请发布与缅因猫、猫舍生活相关的内容。主理人保留隐藏或删除不当内容的权限。</text>
     </view>
 
     <view class="bottom-cta">

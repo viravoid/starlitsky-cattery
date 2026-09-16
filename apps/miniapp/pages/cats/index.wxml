@@ -4,6 +4,7 @@
     <text class="title">我们的猫</text>
   </view>
 
+  <view class="sticky-controls">
   <view class="tabs">
     <button class="{{activeTab === 'kittens' ? 'tab active' : 'tab'}}" data-tab="kittens" bindtap="switchTab">
       小猫
@@ -23,6 +24,7 @@
       窝次{{activeLitterId ? "：" + activeLitterLabel : ""}}
     </button>
   </scroll-view>
+  </view>
 
   <view wx:if="{{activeTab === 'kittens' && litterOpen}}" class="litter-filters">
     <button wx:for="{{litterFilters}}" wx:key="id" class="{{activeLitterId === item.id ? 'filter active-filter' : 'filter'}}" data-id="{{item.id}}" bindtap="setLitter">
@@ -59,6 +61,7 @@
   </view>
 
   <view class="bottom-cta">
+    <image class="questionnaire-icon" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
     <button class="questionnaire-button" bindtap="openQuestionnaire">填写选猫问卷</button>
   </view>
 </view>

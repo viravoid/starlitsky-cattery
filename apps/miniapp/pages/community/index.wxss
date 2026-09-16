@@ -21,7 +21,7 @@
 }
 
 .subtitle {
-  display: block;
+  display: none;
   margin-top: 10rpx;
   color: var(--xy-color-muted);
   font-size: 25rpx;
