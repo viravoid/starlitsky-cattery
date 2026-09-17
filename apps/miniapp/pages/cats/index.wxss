@@ -67,7 +67,7 @@
 }
 
 .filters-scroll,
-.litter-filters {
+.litter-filters-scroll {
   width: 100%;
   margin: 20rpx 0 0;
   overflow: hidden;
@@ -83,11 +83,13 @@
 
 .litter-filters {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 16rpx;
+  width: max-content;
+  min-width: 100%;
   margin-top: 16rpx;
   padding-bottom: 10rpx;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .filter {

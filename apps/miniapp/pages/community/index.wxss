@@ -28,6 +28,43 @@
   line-height: 1.45;
 }
 
+.identity {
+  flex-shrink: 0;
+  padding-top: 4rpx;
+}
+
+.identity-action,
+.logout-action {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--xy-color-violet);
+  font-size: 24rpx;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.identity-user {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  color: var(--xy-color-muted);
+  font-size: 24rpx;
+  line-height: 1.4;
+}
+
+.identity-name {
+  max-width: 220rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-action {
+  color: rgba(140, 146, 154, 0.82);
+  text-decoration: underline;
+}
+
 .quick-links {
   display: flex;
   flex-wrap: wrap;
@@ -50,6 +87,17 @@
 .quick-link-icon {
   width: 28rpx;
   height: 28rpx;
+}
+
+.notice {
+  margin: 0 0 20rpx;
+  padding: 16rpx 24rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 28rpx;
+  background: rgba(255, 253, 248, 0.68);
+  color: var(--xy-color-muted);
+  font-size: 23rpx;
+  line-height: 1.7;
 }
 
 .category-tabs-scroll {
@@ -99,18 +147,26 @@
   transform: translateX(-50%);
 }
 
-.litter-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14rpx;
+.litter-tabs-scroll {
   width: 100%;
   margin: 20rpx 0 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.litter-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 14rpx;
+  width: max-content;
+  min-width: 100%;
 }
 
 .litter-tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   margin: 0;
   padding: 8rpx 22rpx;
   border: 1rpx solid var(--xy-color-border);
@@ -131,6 +187,8 @@
 .category-tab::after,
 .litter-tab::after,
 .quick-link::after,
+.identity-action::after,
+.logout-action::after,
 .retry-button::after,
 .like-button::after,
 .floating-publish::after {

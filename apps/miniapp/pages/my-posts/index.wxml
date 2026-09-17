@@ -1,0 +1,49 @@
+<view class="page">
+  <view wx:if="{{isLoading}}" class="state">正在加载我的发布...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+  <view wx:else>
+    <view wx:if="{{parentInactive}}" class="notice">
+      当前家长身份已停用。历史动态仍会保留，但暂时不能继续编辑或发布新内容。
+    </view>
+    <view wx:if="{{!posts.length}}" class="empty-card">
+      <text>还没有发布过内容～</text>
+      <button wx:if="{{canPublish}}" class="text-link" bindtap="openPublish">去写第一条动态</button>
+    </view>
+    <view wx:else class="feed">
+      <view wx:for="{{posts}}" wx:key="id" wx:for-index="postIndex" class="post-card">
+        <view class="post-main" data-id="{{item.id}}" bindtap="openPost">
+          <view class="post-head">
+            <view>
+              <text class="author">{{item.author}}</text>
+              <text class="date">{{item.date}}</text>
+            </view>
+            <text class="category">{{item.category}}</text>
+          </view>
+          <text class="content">{{item.content}}</text>
+          <view wx:if="{{item.images.length}}" class="{{item.imageGridClass}}">
+            <image
+              wx:for="{{item.images}}"
+              wx:for-item="image"
+              wx:for-index="imageIndex"
+              wx:key="id"
+              class="post-image"
+              src="{{image.url}}"
+              mode="aspectFill"
+              data-post-index="{{postIndex}}"
+              data-image-index="{{imageIndex}}"
+              catchtap="previewImage"
+            />
+          </view>
+          <view class="meta">{{item.meta}}</view>
+        </view>
+        <view class="actions">
+          <button class="action-button" disabled="{{!item.canEdit}}" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
+          <button class="action-button danger" disabled="{{!item.canDelete}}" data-id="{{item.id}}" bindtap="deletePost">删除</button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

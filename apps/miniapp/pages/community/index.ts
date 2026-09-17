@@ -1,7 +1,7 @@
 import type { CommunityPostCategory, CommunityPostData } from "@starlitsky/shared";
 import { listCommunityPosts, toggleCommunityPostLike } from "../../utils/public-content/index";
 import { getSessionState } from "../../store/session/index";
-import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
+import { loginWithWechat, logout, refreshCurrentUser } from "../../utils/session/auth";
 
 interface CategoryTab {
   key: "" | CommunityPostCategory;
@@ -42,11 +42,17 @@ interface CommunityData {
   canPublish: boolean;
   categoryTabs: CategoryTab[];
   error: string;
+  identityLabel: string;
   isLoading: boolean;
   litterFilters: LitterFilter[];
   litterOpen: boolean;
+  parentInactive: boolean;
   posts: CommunityPostCard[];
+  showLogin: boolean;
   showMyCats: boolean;
+  showMyPosts: boolean;
+  showParentOnboard: boolean;
+  showUserActions: boolean;
 }
 
 interface CommunityPage {
@@ -78,16 +84,22 @@ Page({
     canPublish: false,
     categoryTabs: CATEGORY_TABS,
     error: "",
+    identityLabel: "",
     isLoading: true,
     litterFilters: [{ id: "", name: "全部窝次" }],
     litterOpen: false,
+    parentInactive: false,
     posts: [],
+    showLogin: true,
     showMyCats: false,
+    showMyPosts: false,
+    showParentOnboard: false,
+    showUserActions: false,
   } as CommunityData,
 
   async onLoad(this: CommunityPage) {
     await refreshCurrentUser();
-    this.setData({ canPublish: canPublish(), showMyCats: canOpenMyCats() });
+    this.setData(deriveSessionView());
     await this.loadPosts();
   },
 
@@ -130,6 +142,22 @@ Page({
     await this.loadPosts();
   },
 
+  async login(this: CommunityPage) {
+    try {
+      await loginWithWechat();
+      this.setData(deriveSessionView());
+      await this.loadPosts();
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
+  },
+
+  async logout(this: CommunityPage) {
+    await logout();
+    this.setData(deriveSessionView());
+    await this.loadPosts();
+  },
+
   async setCategory(this: CommunityPage, event: TapEvent) {
     const key = event.currentTarget.dataset.key as "" | CommunityPostCategory;
     if (key === this.data.activeCategory) return;
@@ -160,6 +188,14 @@ Page({
 
   openMyCats() {
     wx.navigateTo({ url: "/pages/my-cats/index" });
+  },
+
+  openMyPosts() {
+    wx.navigateTo({ url: "/pages/my-posts/index" });
+  },
+
+  openParentOnboard() {
+    wx.navigateTo({ url: "/pages/parent-onboard/index" });
   },
 
   async toggleLike(this: CommunityPage, event: TapEvent) {
@@ -257,6 +293,27 @@ function canPublish() {
 
 function canOpenMyCats() {
   return getSessionState().roles.includes("parent");
+}
+
+function deriveSessionView() {
+  const session = getSessionState();
+  const roles = session.roles;
+  const isLoggedIn = Boolean(session.user);
+  const parentInactive =
+    roles.includes("parent") &&
+    Boolean(session.user?.parentProfile?.status) &&
+    session.user?.parentProfile?.status !== "active";
+
+  return {
+    canPublish: canPublish(),
+    identityLabel: session.user?.parentProfile?.displayName || session.user?.nickname || "已登录",
+    parentInactive,
+    showLogin: !isLoggedIn,
+    showMyCats: canOpenMyCats(),
+    showMyPosts: isLoggedIn,
+    showParentOnboard: isLoggedIn && !roles.includes("parent"),
+    showUserActions: isLoggedIn,
+  };
 }
 
 async function ensureLoggedIn() {

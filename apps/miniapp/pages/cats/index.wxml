@@ -28,11 +28,13 @@
   </scroll-view>
   </view>
 
-  <view wx:if="{{activeTab === 'kittens' && litterOpen}}" class="litter-filters">
-    <button wx:for="{{litterFilters}}" wx:key="id" class="{{activeLitterId === item.id ? 'filter active-filter' : 'filter'}}" data-id="{{item.id}}" bindtap="setLitter">
-      {{item.name}}
-    </button>
-  </view>
+  <scroll-view wx:if="{{activeTab === 'kittens' && litterOpen}}" class="litter-filters-scroll" scroll-x enable-flex>
+    <view class="litter-filters">
+      <button wx:for="{{litterFilters}}" wx:key="id" class="{{activeLitterId === item.id ? 'filter active-filter' : 'filter'}}" data-id="{{item.id}}" bindtap="setLitter">
+        {{item.name}}
+      </button>
+    </view>
+  </scroll-view>
 
   <view wx:if="{{isLoading}}" class="state">正在加载猫咪资料...</view>
   <view wx:elif="{{error}}" class="state error-state">

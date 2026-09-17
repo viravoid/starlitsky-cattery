@@ -4,13 +4,32 @@
       <text class="title">猫友圈</text>
       <text class="subtitle">猫舍日常、碎碎念和家长分享</text>
     </view>
+    <view class="identity">
+      <button wx:if="{{showLogin}}" class="identity-action" bindtap="login">登录</button>
+      <view wx:else class="identity-user">
+        <text class="identity-name">{{identityLabel}}</text>
+        <button class="logout-action" bindtap="logout">退出</button>
+      </view>
+    </view>
   </view>
 
-  <view wx:if="{{showMyCats}}" class="quick-links">
-    <button class="quick-link" bindtap="openMyCats">
+  <view wx:if="{{showUserActions}}" class="quick-links">
+    <button wx:if="{{showMyCats}}" class="quick-link" bindtap="openMyCats">
       <image class="quick-link-icon" src="../../assets/tabbar/cats-active.png" mode="aspectFit" />
       <text>我的猫咪</text>
     </button>
+    <button wx:if="{{showMyPosts}}" class="quick-link" bindtap="openMyPosts">
+      <image class="quick-link-icon" src="../../assets/illustrations/paw-like-active.png" mode="aspectFit" />
+      <text>我的发布</text>
+    </button>
+    <button wx:if="{{showParentOnboard}}" class="quick-link" bindtap="openParentOnboard">
+      <image class="quick-link-icon" src="../../assets/illustrations/cat-profile.png" mode="aspectFit" />
+      <text>开通家长</text>
+    </button>
+  </view>
+
+  <view wx:if="{{parentInactive}}" class="notice">
+    当前家长身份已停用。历史猫咪和历史动态仍保留，但暂时不能继续发布、编辑或新增家长内容。
   </view>
 
   <scroll-view class="category-tabs-scroll" scroll-x enable-flex>
@@ -32,17 +51,19 @@
     </view>
   </scroll-view>
 
-  <view wx:if="{{litterOpen}}" class="litter-tabs">
-    <button
-      wx:for="{{litterFilters}}"
-      wx:key="id"
-      class="{{activeLitterId === item.id ? 'litter-tab active-litter' : 'litter-tab'}}"
-      data-id="{{item.id}}"
-      bindtap="setLitter"
-    >
-      {{item.name}}
-    </button>
-  </view>
+  <scroll-view wx:if="{{litterOpen}}" class="litter-tabs-scroll" scroll-x enable-flex>
+    <view class="litter-tabs">
+      <button
+        wx:for="{{litterFilters}}"
+        wx:key="id"
+        class="{{activeLitterId === item.id ? 'litter-tab active-litter' : 'litter-tab'}}"
+        data-id="{{item.id}}"
+        bindtap="setLitter"
+      >
+        {{item.name}}
+      </button>
+    </view>
+  </scroll-view>
 
   <view wx:if="{{isLoading}}" class="state">正在加载猫友圈...</view>
   <view wx:elif="{{error}}" class="state error-state">

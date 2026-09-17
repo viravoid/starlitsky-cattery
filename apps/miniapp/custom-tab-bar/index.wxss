@@ -6,10 +6,9 @@
   z-index: 50;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 12rpx 20rpx calc(12rpx + env(safe-area-inset-bottom));
+  padding: 12rpx 16rpx calc(48rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid rgba(233, 221, 191, 0.92);
-  background: rgba(255, 250, 241, 0.96);
-  box-shadow: 0 -12rpx 28rpx rgba(91, 127, 168, 0.08);
+  background: #fffaf0;
 }
 
 .tab {
@@ -18,7 +17,7 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
-  padding: 0;
+  padding: 12rpx 0;
   background: transparent;
   color: #8c929a;
   line-height: 1;
@@ -37,8 +36,8 @@
   display: block;
   margin-top: 10rpx;
   font-size: 22rpx;
-  font-weight: 700;
-  line-height: 1.15;
+  font-weight: 500;
+  line-height: 1;
 }
 
 .tab::after {
