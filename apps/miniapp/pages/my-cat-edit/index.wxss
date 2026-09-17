@@ -1,0 +1,127 @@
+.page {
+  min-height: 100vh;
+  padding: 32rpx 40rpx calc(72rpx + env(safe-area-inset-bottom));
+  background: var(--xy-color-background);
+}
+
+.state {
+  padding: 96rpx 24rpx;
+  color: var(--xy-color-muted);
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.error {
+  color: #b42318;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx;
+}
+
+.cover-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 32rpx;
+  color: var(--xy-color-muted);
+  font-size: 25rpx;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.cover-cat {
+  width: 104rpx;
+  height: 104rpx;
+  opacity: 0.5;
+}
+
+.cover-copy {
+  display: block;
+  margin-top: 14rpx;
+}
+
+.field,
+.label {
+  display: block;
+}
+
+.label {
+  margin-bottom: 12rpx;
+  color: var(--xy-color-heading);
+  font-size: 25rpx;
+  font-weight: 600;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20rpx 28rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 32rpx;
+  background: var(--xy-color-surface);
+  color: var(--xy-color-text);
+  font-size: 28rpx;
+  line-height: 1.45;
+}
+
+.textarea {
+  min-height: 144rpx;
+}
+
+.textarea.small {
+  min-height: 112rpx;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24rpx;
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.choice {
+  padding: 12rpx 28rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: var(--xy-color-surface);
+  color: var(--xy-color-muted);
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.choice.active {
+  border-color: var(--xy-color-primary);
+  background: var(--xy-color-primary);
+  color: #ffffff;
+  box-shadow: var(--xy-shadow-card);
+}
+
+.save-button {
+  width: 100%;
+  margin-top: 4rpx;
+  border-radius: 999rpx;
+  background: var(--xy-color-primary);
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 88rpx;
+  box-shadow: var(--xy-shadow-card);
+}
+
+.choice::after,
+.save-button::after {
+  border: 0;
+}

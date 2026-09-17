@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 34rpx 30rpx calc(276rpx + env(safe-area-inset-bottom));
+  padding: 34rpx 40rpx calc(276rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
 }
 

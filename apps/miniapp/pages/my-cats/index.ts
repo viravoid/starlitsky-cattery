@@ -1,5 +1,5 @@
 import type { MyCatData } from "@starlitsky/shared";
-import { listMyCats } from "../../utils/public-content/index";
+import { deleteMyCat, listMyCats } from "../../utils/public-content/index";
 import { refreshCurrentUser } from "../../utils/session/auth";
 
 interface MyCatCard {
@@ -91,6 +91,37 @@ Page({
     const id = event.currentTarget.dataset.id;
     if (!id) return;
     wx.navigateTo({ url: `/pages/my-cat-detail/index?id=${encodeURIComponent(id)}` });
+  },
+
+  openNewCat() {
+    wx.navigateTo({ url: "/pages/my-cat-edit/index?id=new" });
+  },
+
+  openCatEdit(event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    wx.navigateTo({ url: `/pages/my-cat-edit/index?id=${encodeURIComponent(id)}` });
+  },
+
+  async deleteCat(this: MyCatsPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    wx.showModal({
+      title: "删除猫咪",
+      content: "删除后会从我的猫咪列表移除，已有关联动态不会被删除。",
+      confirmText: "删除",
+      cancelText: "取消",
+      success: async (result) => {
+        if (!result.confirm) return;
+        try {
+          await deleteMyCat(id);
+          wx.showToast({ icon: "success", title: "已删除" });
+          await this.loadCats();
+        } catch (error) {
+          wx.showToast({ icon: "none", title: getErrorMessage(error) });
+        }
+      },
+    });
   },
 });
 

@@ -119,9 +119,10 @@ Page({
 
   setLitter(this: CatsPage, event: TapEvent) {
     const id = event.currentTarget.dataset.id || "";
+    const nextId = id === this.data.activeLitterId ? "" : id;
     this.setData({
       litterOpen: false,
-      ...deriveView(this.data.items, this.data.activeTab, this.data.activeFilter, id),
+      ...deriveView(this.data.items, this.data.activeTab, this.data.activeFilter, nextId),
     });
   },
 

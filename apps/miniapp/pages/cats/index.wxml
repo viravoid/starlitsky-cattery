@@ -16,13 +16,15 @@
     </button>
   </view>
 
-  <scroll-view class="filters" scroll-x enable-flex>
-    <button wx:for="{{filters}}" wx:key="*this" class="{{activeFilter === item ? 'filter active-filter' : 'filter'}}" data-filter="{{item}}" bindtap="setFilter">
-      {{item}}
-    </button>
-    <button wx:if="{{activeTab === 'kittens'}}" class="{{activeLitterId ? 'filter active-filter' : 'filter'}}" bindtap="toggleLitter">
-      窝次{{activeLitterId ? "：" + activeLitterLabel : ""}}
-    </button>
+  <scroll-view class="filters-scroll" scroll-x enable-flex>
+    <view class="filters-row">
+      <button wx:for="{{filters}}" wx:key="*this" class="{{activeFilter === item ? 'filter active-filter' : 'filter'}}" data-filter="{{item}}" bindtap="setFilter">
+        {{item}}
+      </button>
+      <button wx:if="{{activeTab === 'kittens'}}" class="{{activeLitterId ? 'filter active-filter' : 'filter'}}" bindtap="toggleLitter">
+        窝次{{activeLitterId ? "：" + activeLitterLabel : ""}}
+      </button>
+    </view>
   </scroll-view>
   </view>
 

@@ -6,8 +6,8 @@
 }
 
 .section {
-  padding-left: 32rpx;
-  padding-right: 32rpx;
+  padding-left: 40rpx;
+  padding-right: 40rpx;
 }
 
 .state {
@@ -115,8 +115,8 @@
 }
 
 .section-icon {
-  width: 36rpx;
-  height: 36rpx;
+  width: 72rpx;
+  height: 72rpx;
   flex-shrink: 0;
 }
 
@@ -175,17 +175,17 @@
 }
 
 .about-fact {
-  min-height: 148rpx;
+  min-height: 176rpx;
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 20rpx;
+  padding: 24rpx;
   border-radius: 32rpx;
 }
 
 .about-fact-icon {
-  width: 58rpx;
-  height: 58rpx;
+  width: 72rpx;
+  height: 72rpx;
   flex-shrink: 0;
   opacity: 0.58;
 }
@@ -1106,9 +1106,9 @@
 
 .cover-image {
   display: block;
-  width: calc(100% - 64rpx);
+  width: calc(100% - 80rpx);
   height: 480rpx;
-  margin: 0 32rpx 24rpx;
+  margin: 0 40rpx 24rpx;
   border-radius: 32rpx;
   background: var(--xy-gradient-cream);
   box-shadow: var(--xy-shadow-card);

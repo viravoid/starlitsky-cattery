@@ -56,7 +56,9 @@
 
 .retry-button::after,
 .auth-button::after,
-.cat-card::after {
+.cat-main::after,
+.card-action::after,
+.add-card::after {
   border: 0;
 }
 
@@ -74,19 +76,39 @@
   margin-bottom: 4rpx;
 }
 
+.add-card {
+  width: 100%;
+  padding: 20rpx 24rpx;
+  border: 1rpx dashed rgba(180, 135, 37, 0.46);
+  border-radius: 32rpx;
+  background: rgba(255, 253, 248, 0.62);
+  color: var(--xy-color-accent-text);
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .cat-card {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 32rpx;
+  background: var(--xy-color-surface);
+  box-shadow: var(--xy-shadow-card);
+}
+
+.cat-main {
   display: flex;
   align-items: center;
   gap: 24rpx;
   width: 100%;
   box-sizing: border-box;
-  min-height: 156rpx;
-  padding: 24rpx;
-  border: 1rpx solid var(--xy-color-border);
-  border-radius: 36rpx;
-  background: var(--xy-color-surface);
+  min-height: 116rpx;
+  padding: 0;
+  background: transparent;
   text-align: left;
-  box-shadow: var(--xy-shadow-card);
 }
 
 .thumb {
@@ -161,9 +183,31 @@
   line-height: 1.5;
 }
 
-.detail {
-  margin-top: 10rpx;
-  color: var(--xy-color-primary);
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+  padding-left: 136rpx;
+}
+
+.card-action {
+  padding: 8rpx 18rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: rgba(255, 253, 248, 0.78);
+  color: var(--xy-color-muted);
   font-size: 23rpx;
   font-weight: 700;
+  line-height: 1.35;
+}
+
+.card-action.primary {
+  border-color: rgba(91, 127, 168, 0.24);
+  color: var(--xy-color-primary);
+}
+
+.card-action.danger {
+  border-color: rgba(196, 106, 106, 0.26);
+  color: #b35d5d;
 }

@@ -13,12 +13,14 @@ import type {
   CompleteMediaUploadRequest,
   ImageUploadData,
   MediaAssetData,
+  CreateMyCatRequest,
   MyCatData,
   MyCatListData,
   SelectionApplicationData,
   SubmitSelectionApplicationRequest,
   ToggleCommunityPostLikeData,
   UpdateCommunityPostRequest,
+  UpdateMyCatRequest,
 } from "@starlitsky/shared";
 import { get, post, patch, del } from "../request/index";
 import { isVisualQaModeEnabled } from "../visual-qa/mode";
@@ -26,9 +28,11 @@ import {
   completeVisualQaCommunityPostImageUpload,
   createVisualQaCommunityComment,
   createVisualQaCommunityPost,
+  createVisualQaMyCat,
   deleteVisualQaCommunityComment,
   deleteVisualQaCommunityPost,
   deleteVisualQaCommunityPostImage,
+  deleteVisualQaMyCat,
   getVisualQaCat,
   getVisualQaCommunityPost,
   getVisualQaCommunityPostOptions,
@@ -41,6 +45,7 @@ import {
   submitVisualQaSelectionApplication,
   toggleVisualQaCommunityPostLike,
   updateVisualQaCommunityPost,
+  updateVisualQaMyCat,
 } from "../visual-qa/fixtures";
 
 export async function getFixedPage(slug: string) {
@@ -97,7 +102,35 @@ export async function getMyCat(id: string) {
   return response.data;
 }
 
+export async function createMyCat(data: CreateMyCatRequest) {
+  if (isVisualQaModeEnabled()) return createVisualQaMyCat(data);
+
+  const response = await post<MyCatData, CreateMyCatRequest>("/me/cats", data);
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
+export async function updateMyCat(id: string, data: UpdateMyCatRequest) {
+  if (isVisualQaModeEnabled()) return updateVisualQaMyCat(id, data);
+
+  const response = await patch<MyCatData, UpdateMyCatRequest>(
+    `/me/cats/${encodeURIComponent(id)}`,
+    data,
+  );
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
+export async function deleteMyCat(id: string) {
+  if (isVisualQaModeEnabled()) return deleteVisualQaMyCat(id);
+
+  const response = await del<MyCatData>(`/me/cats/${encodeURIComponent(id)}`);
+  if (!response.success) throw new Error(response.message);
+  return response.data;
+}
+
 export async function listCommunityPosts(params: {
+  catId?: string;
   category?: CommunityPostCategory | string;
   litterId?: string;
   pageSize?: number;
@@ -107,6 +140,7 @@ export async function listCommunityPosts(params: {
 
   const response = await get<CommunityPostListData>(
     `/community/posts${toSearch({
+      catId: params.catId,
       category: params.category,
       litterId: params.litterId,
       pageSize: String(params.pageSize ?? 50),

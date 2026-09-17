@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 30rpx 24rpx calc(88rpx + env(safe-area-inset-bottom));
+  padding: 32rpx 40rpx calc(88rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
 }
 
@@ -60,7 +60,7 @@
 }
 
 .profile {
-  padding: 0 16rpx;
+  padding: 0;
 }
 
 .hero-image,
@@ -358,9 +358,15 @@
 }
 
 .more-link {
+  width: 100%;
   padding: 18rpx 16rpx 0;
+  background: transparent;
   color: var(--xy-color-secondary);
   font-size: 23rpx;
   line-height: 1.6;
   text-align: center;
+}
+
+.more-link::after {
+  border: 0;
 }

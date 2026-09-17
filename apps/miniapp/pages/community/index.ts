@@ -99,16 +99,22 @@ Page({
   async loadPosts(this: CommunityPage) {
     this.setData({ error: "", isLoading: true });
     try {
-      const data = await listCommunityPosts({
-        category: this.data.activeCategory || undefined,
-        litterId: this.data.activeLitterId || undefined,
-        pageSize: 50,
-      });
+      const [data, filterData] = await Promise.all([
+        listCommunityPosts({
+          category: this.data.activeCategory || undefined,
+          litterId: this.data.activeLitterId || undefined,
+          pageSize: 50,
+        }),
+        listCommunityPosts({
+          category: this.data.activeCategory || undefined,
+          pageSize: 100,
+        }),
+      ]);
       this.setData({
-        activeLitterLabel: deriveActiveLitterLabel(this.data.activeLitterId, data.items),
+        activeLitterLabel: deriveActiveLitterLabel(this.data.activeLitterId, filterData.items),
         error: "",
         isLoading: false,
-        litterFilters: deriveLitterFilters(data.items),
+        litterFilters: deriveLitterFilters(filterData.items),
         posts: data.items.map(toPostCard),
       });
     } catch (error) {
@@ -137,8 +143,8 @@ Page({
 
   async setLitter(this: CommunityPage, event: TapEvent) {
     const id = event.currentTarget.dataset.id || "";
-    if (id === this.data.activeLitterId) return;
-    this.setData({ activeLitterId: id, litterOpen: false });
+    const nextId = id === this.data.activeLitterId ? "" : id;
+    this.setData({ activeLitterId: nextId, litterOpen: false });
     await this.loadPosts();
   },
 

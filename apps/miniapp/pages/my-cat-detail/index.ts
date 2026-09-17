@@ -134,6 +134,10 @@ Page({
     if (!post || post.previewUrls.length === 0) return;
     wx.previewImage({ current: post.previewUrls[imageIndex] || post.previewUrls[0], urls: post.previewUrls });
   },
+
+  openPublicCats() {
+    wx.switchTab({ url: "/pages/cats/index" });
+  },
 });
 
 function toDetailView(cat: MyCatData): Partial<MyCatDetailData> {

@@ -90,7 +90,7 @@
                 </view>
                 <text class="entry-desc">{{entry.desc}}</text>
               </view>
-              <text class="entry-arrow">›</text>
+              <text class="entry-arrow">→</text>
             </button>
           </view>
         </view>
@@ -106,7 +106,7 @@
       <text class="eyebrow">{{catsPreview.eyebrow}}</text>
       <text class="cats-title">{{catsPreview.title}}</text>
       <text class="cats-desc">{{catsPreview.description}}</text>
-      <text class="cats-link">{{catsPreview.buttonText}} ›</text>
+      <text class="cats-link">{{catsPreview.buttonText}} →</text>
     </button>
   </view>
 </view>

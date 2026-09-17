@@ -639,6 +639,7 @@ export interface MyCatData {
   mediaAssets: CatMediaAssetData[];
   relationship: string;
   relationshipStartedAt: string | null;
+  note: string | null;
   litter: CommunityPostRelatedLitterData | null;
   timelinePosts: CommunityPostData[];
   createdAt: string;
@@ -646,6 +647,19 @@ export interface MyCatData {
 }
 
 export type MyCatListData = PaginatedResponse<MyCatData>;
+
+export interface CreateMyCatRequest {
+  name: string;
+  gender?: string | null;
+  color?: string | null;
+  birthday?: string | null;
+  personality?: string | null;
+  relationship?: string;
+  relationshipStartedAt?: string | null;
+  note?: string | null;
+}
+
+export type UpdateMyCatRequest = Partial<CreateMyCatRequest>;
 
 export interface CommunityPostOptionsData {
   categories: CommunityPostCategory[];

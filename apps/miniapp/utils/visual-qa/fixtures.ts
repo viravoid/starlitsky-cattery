@@ -8,6 +8,7 @@ import type {
   CommunityPostOptionsData,
   CurrentUserData,
   CreateCommunityPostRequest,
+  CreateMyCatRequest,
   DeleteCommunityPostMediaData,
   FixedPageData,
   ImageUploadData,
@@ -18,6 +19,7 @@ import type {
   SubmitSelectionApplicationRequest,
   ToggleCommunityPostLikeData,
   UpdateCommunityPostRequest,
+  UpdateMyCatRequest,
 } from "@starlitsky/shared";
 
 const now = "2026-09-15T00:00:00.000Z";
@@ -71,11 +73,13 @@ export function getVisualQaCat(id: string) {
 }
 
 export function listVisualQaCommunityPosts(params: {
+  catId?: string;
   category?: CommunityPostCategory | string;
   litterId?: string;
 } = {}): CommunityPostListData {
   const items = posts.filter(
     (post) =>
+      (!params.catId || post.cats.some((cat) => cat.id === params.catId)) &&
       (!params.category || post.category === params.category) &&
       (!params.litterId || post.litters.some((litter) => litter.id === params.litterId)),
   );
@@ -112,6 +116,47 @@ export function listVisualQaMyCats(params: { pageSize?: number } = {}): MyCatLis
 export function getVisualQaMyCat(id: string): MyCatData {
   const cat = myCats.find((item) => item.id === id);
   if (!cat) throw new Error("Visual QA fixture my cat not found");
+  return cat;
+}
+
+export function createVisualQaMyCat(input: CreateMyCatRequest): MyCatData {
+  const cat: MyCatData = {
+    id: `visual-my-cat-${Date.now()}`,
+    name: input.name.trim(),
+    gender: input.gender || "female",
+    color: input.color || null,
+    birthday: input.birthday || null,
+    lifecycleStatus: "adopted",
+    personality: input.personality || null,
+    visibility: "hidden",
+    mediaAssets: [],
+    relationship: input.relationship || "owner",
+    relationshipStartedAt: input.relationshipStartedAt || null,
+    note: input.note || null,
+    litter: null,
+    timelinePosts: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  myCats = [cat, ...myCats];
+  return cat;
+}
+
+export function updateVisualQaMyCat(id: string, input: UpdateMyCatRequest): MyCatData {
+  const index = myCats.findIndex((item) => item.id === id);
+  if (index < 0) throw new Error("Visual QA fixture my cat not found");
+  const cat = {
+    ...myCats[index],
+    ...stripUndefined(input),
+    updatedAt: now,
+  };
+  myCats = myCats.map((item) => (item.id === id ? cat : item));
+  return cat;
+}
+
+export function deleteVisualQaMyCat(id: string): MyCatData {
+  const cat = getVisualQaMyCat(id);
+  myCats = myCats.filter((item) => item.id !== id);
   return cat;
 }
 
@@ -687,7 +732,7 @@ const posts: CommunityPostData[] = [
   }),
 ];
 
-const myCats: MyCatData[] = [
+let myCats: MyCatData[] = [
   {
     id: "visual-my-cat-yunduo",
     name: "云朵",
@@ -711,12 +756,17 @@ const myCats: MyCatData[] = [
     ],
     relationship: "owner",
     relationshipStartedAt: "2026-09-01T00:00:00.000Z",
+    note: "Visual QA fixture parent-scoped note.",
     litter: litters[0],
     timelinePosts: posts.slice(0, 2),
     createdAt: now,
     updatedAt: now,
   },
 ];
+
+function stripUndefined<T extends Record<string, unknown>>(input: T) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
 
 function post(input: {
   authorName: string;

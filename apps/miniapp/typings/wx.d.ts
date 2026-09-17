@@ -2,6 +2,10 @@ declare function App(options: Record<string, unknown>): void;
 
 declare function Page(options: Record<string, unknown>): void;
 
+declare function Component(options: Record<string, unknown>): void;
+
+declare function getCurrentPages(): Array<{ route?: string }>;
+
 declare const wx: {
   request(options: {
     url: string;

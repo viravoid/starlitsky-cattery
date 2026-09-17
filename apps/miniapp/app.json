@@ -5,10 +5,12 @@
     "pages/environment-detail/index",
     "pages/questionnaire/index",
     "pages/community/index",
+    "pages/community-linked/index",
     "pages/community-detail/index",
     "pages/community-publish/index",
     "pages/my-cats/index",
     "pages/my-cat-detail/index",
+    "pages/my-cat-edit/index",
     "pages/cats/index",
     "pages/cat-detail/index",
     "pages/admin-auth/index",
@@ -21,6 +23,7 @@
     "backgroundColor": "#fffaf1"
   },
   "tabBar": {
+    "custom": true,
     "color": "#8c929a",
     "selectedColor": "#b48725",
     "backgroundColor": "#fffaf1",

@@ -42,7 +42,8 @@ interface CatDetailData {
   id: string;
   info: InfoItem[];
   isLoading: boolean;
-  kindLabel: string;
+  litterId: string;
+  litterName: string;
   noteParagraphs: NoteParagraph[];
   ratingGroups: RatingGroup[];
   showStructureRating: boolean;
@@ -71,7 +72,8 @@ Page({
     id: "",
     info: [],
     isLoading: true,
-    kindLabel: "猫咪详情",
+    litterId: "",
+    litterName: "",
     noteParagraphs: [],
     ratingGroups: [],
     showStructureRating: false,
@@ -119,6 +121,20 @@ Page({
   openQuestionnaire() {
     wx.navigateTo({ url: "/pages/questionnaire/index" });
   },
+
+  openCatTimeline(this: CatDetailPage) {
+    if (!this.data.id) return;
+    wx.navigateTo({
+      url: `/pages/community-linked/index?catId=${encodeURIComponent(this.data.id)}&title=${encodeURIComponent("TA 的猫友圈动态")}`,
+    });
+  },
+
+  openLitterTimeline(this: CatDetailPage) {
+    if (!this.data.litterId) return;
+    wx.navigateTo({
+      url: `/pages/community-linked/index?litterId=${encodeURIComponent(this.data.litterId)}&title=${encodeURIComponent(`${this.data.litterName || "所属窝次"}的动态`)}`,
+    });
+  },
 });
 
 function toDetailView(cat: CatData) {
@@ -157,7 +173,8 @@ function toDetailView(cat: CatData) {
         { label: "窝次", value: cat.kittenProfile.litter?.name || "暂未分配" },
         { label: "价格", value: cat.kittenProfile.priceText || "沟通确认" },
       ],
-      kindLabel: "小猫详情",
+      litterId: cat.kittenProfile.litter?.id || "",
+      litterName: cat.kittenProfile.litter?.name || "",
       noteParagraphs: toNoteParagraphs(
         paragraphsFromStory(cat.storyJson, cat.personality || "主理人介绍待补充。"),
       ),
@@ -177,7 +194,8 @@ function toDetailView(cat: CatData) {
         { label: "繁育状态", value: reproductiveStateLabel(cat.breedingProfile.reproductiveState) },
         { label: "来源 / 血线", value: cat.breedingProfile.source || "待补充" },
       ],
-      kindLabel: "种猫详情",
+      litterId: "",
+      litterName: "",
       noteParagraphs: toNoteParagraphs(
         paragraphsFromStory(
           cat.storyJson,
@@ -196,7 +214,8 @@ function toDetailView(cat: CatData) {
     gallery,
     galleryItems,
     info: commonInfo,
-    kindLabel: "猫咪详情",
+    litterId: "",
+    litterName: "",
     noteParagraphs: toNoteParagraphs(
       paragraphsFromStory(cat.storyJson, cat.personality || "资料待补充。"),
     ),

@@ -13,27 +13,35 @@
   <view wx:elif="{{isEmpty}}" class="state auth-state">
     <image class="auth-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
     <text class="auth-title">暂时没有已关联猫咪</text>
-    <text class="auth-copy">请联系主理人确认猫咪归属。</text>
+    <text class="auth-copy">可以先添加自家猫咪，之后在发布动态时关联它。</text>
+    <button class="auth-button" bindtap="openNewCat">添加猫咪</button>
   </view>
 
   <view wx:else class="list">
     <text class="intro">添加你的猫咪，可以在发布动态时关联它，也能生成一条专属的成长时光轴。</text>
-    <button wx:for="{{items}}" wx:key="id" class="cat-card" data-id="{{item.id}}" bindtap="openCat">
-      <view class="thumb">
-        <image wx:if="{{item.imageUrl}}" class="thumb-image" src="{{item.imageUrl}}" mode="aspectFill" />
-        <view wx:else class="thumb-empty xy-soft-placeholder">
-          <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+    <button class="add-card" bindtap="openNewCat">+ 添加猫咪</button>
+    <view wx:for="{{items}}" wx:key="id" class="cat-card">
+      <button class="cat-main" data-id="{{item.id}}" bindtap="openCat">
+        <view class="thumb">
+          <image wx:if="{{item.imageUrl}}" class="thumb-image" src="{{item.imageUrl}}" mode="aspectFill" />
+          <view wx:else class="thumb-empty xy-soft-placeholder">
+            <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+          </view>
         </view>
-      </view>
-      <view class="info">
-        <view class="name-row">
-          <text class="name">{{item.name}}</text>
-          <text class="{{item.genderClass}}">{{item.gender}}</text>
+        <view class="info">
+          <view class="name-row">
+            <text class="name">{{item.name}}</text>
+            <text class="{{item.genderClass}}">{{item.gender}}</text>
+          </view>
+          <text class="meta">{{item.color}}</text>
+          <text class="meta">{{item.relationship}} · {{item.litterName}} · {{item.status}}</text>
         </view>
-        <text class="meta">{{item.color}}</text>
-        <text class="meta">{{item.relationship}} · {{item.litterName}} · {{item.status}}</text>
-        <text class="detail">查看时光轴 ›</text>
+      </button>
+      <view class="action-row">
+        <button class="card-action" data-id="{{item.id}}" catchtap="openCatEdit">编辑</button>
+        <button class="card-action primary" data-id="{{item.id}}" catchtap="openCat">查看时光轴</button>
+        <button class="card-action danger" data-id="{{item.id}}" catchtap="deleteCat">删除</button>
       </view>
-    </button>
+    </view>
   </view>
 </view>

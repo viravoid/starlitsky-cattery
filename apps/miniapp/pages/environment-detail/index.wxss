@@ -6,8 +6,8 @@
 }
 
 .section {
-  padding-left: 32rpx;
-  padding-right: 32rpx;
+  padding-left: 40rpx;
+  padding-right: 40rpx;
 }
 
 .state {
@@ -61,8 +61,8 @@
 }
 
 .section-icon {
-  width: 36rpx;
-  height: 36rpx;
+  width: 72rpx;
+  height: 72rpx;
   flex-shrink: 0;
 }
 

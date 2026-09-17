@@ -1,0 +1,61 @@
+<view class="page">
+  <view wx:if="{{isLoading}}" class="state">正在加载猫咪资料...</view>
+  <view wx:elif="{{error}}" class="state error">{{error}}</view>
+
+  <view wx:else class="form">
+    <view class="cover-placeholder xy-soft-placeholder">
+      <image class="cover-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+      <text class="cover-copy">示例图片（图片上传待接入安全家长接口）</text>
+    </view>
+
+    <view class="field">
+      <text class="label">名字 *</text>
+      <input class="input" value="{{name}}" placeholder="例如：呼呼" data-key="name" bindinput="onInput" />
+    </view>
+
+    <view class="field">
+      <text class="label">性别</text>
+      <view class="pill-row">
+        <button class="{{gender === 'male' ? 'choice active' : 'choice'}}" data-gender="male" bindtap="setGender">弟弟</button>
+        <button class="{{gender === 'female' ? 'choice active' : 'choice'}}" data-gender="female" bindtap="setGender">妹妹</button>
+      </view>
+    </view>
+
+    <view class="field">
+      <text class="label">毛色</text>
+      <input class="input" value="{{color}}" placeholder="例如：棕虎斑加白" data-key="color" bindinput="onInput" />
+    </view>
+
+    <view class="two-col">
+      <view class="field">
+        <text class="label">生日</text>
+        <input class="input" value="{{birthday}}" placeholder="YYYY-MM-DD" data-key="birthday" bindinput="onInput" />
+      </view>
+      <view class="field">
+        <text class="label">到家日期</text>
+        <input class="input" value="{{relationshipStartedAt}}" placeholder="YYYY-MM-DD" data-key="relationshipStartedAt" bindinput="onInput" />
+      </view>
+    </view>
+
+    <view class="field">
+      <text class="label">关系</text>
+      <view class="pill-row">
+        <button class="{{relationship === 'owner' ? 'choice active' : 'choice'}}" data-relationship="owner" bindtap="setRelationship">家长</button>
+        <button class="{{relationship === 'co_owner' ? 'choice active' : 'choice'}}" data-relationship="co_owner" bindtap="setRelationship">共同家长</button>
+        <button class="{{relationship === 'caregiver' ? 'choice active' : 'choice'}}" data-relationship="caregiver" bindtap="setRelationship">照护人</button>
+      </view>
+    </view>
+
+    <view class="field">
+      <text class="label">性格</text>
+      <textarea class="textarea" value="{{personality}}" placeholder="用一两句话形容它～" data-key="personality" bindinput="onInput" />
+    </view>
+
+    <view class="field">
+      <text class="label">给自家猫的一句话（可选）</text>
+      <textarea class="textarea small" value="{{note}}" placeholder="例如：希望你健康快乐地陪我们很久很久。" data-key="note" bindinput="onInput" />
+    </view>
+
+    <button class="save-button" loading="{{isSubmitting}}" disabled="{{isSubmitting}}" bindtap="save">保存</button>
+  </view>
+</view>
