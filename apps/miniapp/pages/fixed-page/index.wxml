@@ -292,6 +292,10 @@
           <text class="contract-badge">{{aftercareContractBadge}}</text>
         </view>
         <view wx:if="{{!hasAftercareContractAsset}}" class="contract-empty">当前还没有上传合同文件。</view>
+        <view wx:else class="contract-actions">
+          <button class="contract-action primary" bindtap="openAftercareContract">查看</button>
+          <button class="contract-action" bindtap="downloadAftercareContract">下载</button>
+        </view>
       </view>
     </view>
 
@@ -354,8 +358,15 @@
           </view>
           <view class="pairing-body">
             <button class="stud-card" data-id="{{pairing.male ? pairing.male.id : ''}}" bindtap="openStud">
-              <image wx:if="{{pairing.male && pairing.male.imageUrl}}" class="stud-image" src="{{pairing.male.imageUrl}}" mode="aspectFill" />
-              <view wx:else class="stud-image stud-placeholder xy-soft-placeholder">
+              <view wx:if="{{pairing.male && pairing.male.imageUrl}}" class="stud-image-frame">
+                <image
+                  class="{{pairing.male.imageClass}}"
+                  src="{{pairing.male.imageUrl}}"
+                  mode="{{pairing.male.imageMode}}"
+                  style="{{pairing.male.imageStyle}}"
+                />
+              </view>
+              <view wx:else class="stud-image-frame stud-placeholder xy-soft-placeholder">
                 <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
               </view>
               <text class="stud-role">公猫</text>
@@ -367,8 +378,15 @@
               <view class="pairing-line"></view>
             </view>
             <button class="stud-card" data-id="{{pairing.female ? pairing.female.id : ''}}" bindtap="openStud">
-              <image wx:if="{{pairing.female && pairing.female.imageUrl}}" class="stud-image" src="{{pairing.female.imageUrl}}" mode="aspectFill" />
-              <view wx:else class="stud-image stud-placeholder xy-soft-placeholder">
+              <view wx:if="{{pairing.female && pairing.female.imageUrl}}" class="stud-image-frame">
+                <image
+                  class="{{pairing.female.imageClass}}"
+                  src="{{pairing.female.imageUrl}}"
+                  mode="{{pairing.female.imageMode}}"
+                  style="{{pairing.female.imageStyle}}"
+                />
+              </view>
+              <view wx:else class="stud-image-frame stud-placeholder xy-soft-placeholder">
                 <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
               </view>
               <text class="stud-role">母猫</text>

@@ -201,6 +201,10 @@ function toFixedPageMediaDto(media, binding) {
     thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
+    mimeType: media.mime_type,
+    sizeBytes: media.size_bytes,
+    width: media.width,
+    height: media.height,
     usage: binding.usage,
     sortOrder: binding.sort_order,
   };

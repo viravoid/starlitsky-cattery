@@ -1,14 +1,19 @@
 import type { CatData } from "@starlitsky/shared";
 import { listPublicCats } from "../../utils/public-content/index";
+import { resolveCatFrame, type ImageFrameMode } from "../../utils/cat-presentation";
 
 type TabKey = "kittens" | "studs";
 
 interface CatListItem {
   id: string;
+  imageClass: string;
+  imageMode: ImageFrameMode;
+  imageStyle: string;
   imageUrl: string;
   kind: TabKey;
   lineOne: string;
   lineTwo: string;
+  lineThree: string;
   litterId: string;
   litterName: string;
   name: string;
@@ -175,16 +180,22 @@ function deriveView(
 
 function toCatListItem(cat: CatData): CatListItem | null {
   const image = cat.mediaAssets.find((item) => item.usage === "cover") ?? cat.mediaAssets[0];
+  const frame = resolveCatFrame(cat, "listCard");
+  const imageFields = {
+    imageClass: frame?.mode === "scaleToFill" ? "thumb-image manual-crop-image" : "thumb-image",
+    imageMode: frame?.mode ?? "aspectFill",
+    imageStyle: frame?.style ?? "",
+    imageUrl: frame?.url || image?.thumbnailUrl || image?.sourceUrl || "",
+  };
   if (cat.kittenProfile) {
     const status = saleStatusLabel(cat.kittenProfile.saleStatus);
     return {
       id: cat.id,
-      imageUrl: image?.thumbnailUrl || image?.sourceUrl || "",
+      ...imageFields,
       kind: "kittens",
-      lineOne: `性别 ${genderLabel(cat.gender)} · ${cat.color || "颜色待补充"}`,
-      lineTwo: `${cat.kittenProfile.litter?.name || "未分配窝次"} · ${
-        cat.kittenProfile.priceText || "价格沟通"
-      }`,
+      lineOne: `性别 ${genderLabel(cat.gender)} · 颜色 ${cat.color || "待补充"}`,
+      lineTwo: `生日 ${formatBirthday(cat.birthday)}`,
+      lineThree: `价格 ${cat.kittenProfile.priceText || "沟通确认"}`,
       litterId: cat.kittenProfile.litter?.id || "",
       litterName: cat.kittenProfile.litter?.name || "",
       name: cat.name,
@@ -197,10 +208,11 @@ function toCatListItem(cat: CatData): CatListItem | null {
     const category = breedingCategoryLabel(cat.breedingProfile.category);
     return {
       id: cat.id,
-      imageUrl: image?.thumbnailUrl || image?.sourceUrl || "",
+      ...imageFields,
       kind: "studs",
       lineOne: `${category} · ${cat.color || "颜色待补充"}`,
       lineTwo: cat.breedingProfile.trait || cat.breedingProfile.source || "资料待补充",
+      lineThree: cat.birthday ? `生日 ${formatBirthday(cat.birthday)}` : "",
       litterId: "",
       litterName: "",
       name: cat.name,
@@ -220,10 +232,14 @@ function deriveLitterFilters(items: CatListItem[]) {
   for (const item of items) {
     if (item.kind !== "kittens" || !item.litterId || seen.has(item.litterId)) continue;
     seen.add(item.litterId);
-    const name = item.lineTwo.split(" · ")[0] || item.litterId;
+    const name = item.litterName || item.litterId;
     filters.push({ id: item.litterId, name });
   }
   return filters;
+}
+
+function formatBirthday(value: string | null) {
+  return value ? value.slice(0, 10) : "待补充";
 }
 
 function genderLabel(value: string | null) {

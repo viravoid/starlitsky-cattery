@@ -34,7 +34,7 @@
             <text class="{{item.genderClass}}">{{item.gender}}</text>
           </view>
           <text class="meta">{{item.color}}</text>
-          <text class="meta">{{item.relationship}} · {{item.litterName}} · {{item.status}}</text>
+          <text class="meta">{{item.litterName}} · {{item.status}}</text>
         </view>
       </button>
       <view class="action-row">

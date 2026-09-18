@@ -1,5 +1,7 @@
 import type { CatData, FixedPageMediaAssetData } from "@starlitsky/shared";
+import { resolveCatFrame, type ImageFrameMode } from "./cat-presentation";
 import { getFixedPageMediaUrl, mapFixedPageMedia } from "./fixed-page-media";
+import { isVisualQaModeEnabled } from "./visual-qa/mode";
 
 export type FixedPageViewKind =
   | "about"
@@ -92,6 +94,9 @@ export interface ProcessStepView {
 export interface BreedingPlanStudView {
   color: string;
   id: string;
+  imageClass: string;
+  imageMode: ImageFrameMode;
+  imageStyle: string;
   imageUrl: string;
   name: string;
 }
@@ -123,8 +128,10 @@ export interface FixedPageViewData {
   aboutHeroSlides: PageImageSlot[];
   accounts: ProcessSimpleCardView[];
   aftercareContractBadge: string;
+  aftercareContractExtension: string;
   aftercareContractFileName: string;
   aftercareContractTitle: string;
+  aftercareContractUrl: string;
   aftercareHealthItems: TextItem[];
   aftercarePromises: Array<TextItem & { icon: string }>;
   body: string;
@@ -198,8 +205,10 @@ const EMPTY_VIEW: FixedPageViewData = {
   aboutHeroSlides: [],
   accounts: [],
   aftercareContractBadge: "",
+  aftercareContractExtension: "",
   aftercareContractFileName: "",
   aftercareContractTitle: "",
+  aftercareContractUrl: "",
   aftercareHealthItems: [],
   aftercarePromises: [],
   body: "",
@@ -445,7 +454,7 @@ export function normalizeFixedPageView(
     case "process":
       return normalizeProcess(common, input);
     case "aftercare":
-      return normalizeAftercare(common, input);
+      return normalizeAftercare(common, input, mediaAssets);
     case "contact":
       return normalizeContact(common, input);
     case "breeding-plan":
@@ -541,6 +550,11 @@ function normalizeEnvironment(
       : DEFAULT_ENVIRONMENT_SECTIONS;
   const environmentSections = sections
     .map((section, index) => normalizeEnvironmentSection(section, index, mediaAssets))
+    .filter((section) =>
+      isVisualQaModeEnabled()
+        ? true
+        : section?.id !== "environment-zone-common" || section.photoCount > 0,
+    )
     .filter(Boolean) as EnvironmentSectionView[];
 
   return {
@@ -610,22 +624,32 @@ function normalizeProcess(view: FixedPageViewData, input: Record<string, unknown
   };
 }
 
-function normalizeAftercare(view: FixedPageViewData, input: Record<string, unknown>) {
+function normalizeAftercare(
+  view: FixedPageViewData,
+  input: Record<string, unknown>,
+  mediaAssets: FixedPageMediaAssetData[],
+) {
   const contractFile = isRecord(input.contractFile) ? input.contractFile : {};
-  const hasAsset = Boolean(stringOr(contractFile.assetId, ""));
+  const contractMedia = resolveMediaAsset(stringOr(contractFile.assetId, ""), mediaAssets);
+  const contractUrl = contractMedia ? getFixedPageMediaUrl(contractMedia) : "";
+  const hasAsset = Boolean(contractUrl);
+  const mimeType = stringOr(contractMedia?.mimeType ?? contractFile.mimeType, "");
+  const fileName = stringOr(
+    contractFile.fileName ?? contractMedia?.title,
+    "后台上传后，这里会显示可查看 / 下载的合同文件。",
+  );
 
   return {
     ...view,
-    aftercareContractBadge: stringOr(contractFile.mimeType, "").includes("pdf")
+    aftercareContractBadge: mimeType.includes("pdf")
       ? "PDF"
       : hasAsset
         ? "文件"
         : "待上传",
-    aftercareContractFileName: stringOr(
-      contractFile.fileName,
-      "后台上传后，这里会显示可查看 / 下载的合同文件。",
-    ),
+    aftercareContractExtension: contractExtension(fileName, mimeType),
+    aftercareContractFileName: fileName,
     aftercareContractTitle: stringOr(contractFile.title, "购猫合同"),
+    aftercareContractUrl: contractUrl,
     aftercareHealthItems: normalizeTextItems(
       input.healthItems,
       "aftercare-health",
@@ -664,15 +688,22 @@ function normalizeBreedingPlan(
   const studMap = new Map(
     cats
       .filter((cat) => cat.breedingProfile)
-      .map((cat) => [
-        normalizePublicCatId(cat.id),
-        {
-          color: cat.color || "待补充",
-          id: cat.id,
-          imageUrl: firstCatImageUrl(cat),
-          name: cat.name,
-        },
-      ]),
+      .map((cat) => {
+        const frame = resolveCatFrame(cat, "breedingPlanCard");
+        return [
+          normalizePublicCatId(cat.id),
+          {
+            color: cat.color || "待补充",
+            id: cat.id,
+            imageClass:
+              frame?.mode === "scaleToFill" ? "stud-image manual-crop-image" : "stud-image",
+            imageMode: frame?.mode ?? "aspectFill",
+            imageStyle: frame?.style ?? "",
+            imageUrl: frame?.url || firstCatImageUrl(cat),
+            name: cat.name,
+          },
+        ];
+      }),
   );
 
   return {
@@ -828,8 +859,13 @@ function normalizePageImages(slug: string, mediaAssets: FixedPageMediaAssetData[
 
 function resolveImage(imageId: string, mediaAssets: FixedPageMediaAssetData[]) {
   if (!imageId) return null;
-  const media = mediaAssets.find((item) => item.id === imageId);
+  const media = resolveMediaAsset(imageId, mediaAssets);
   return toPageImage(media ?? null);
+}
+
+function resolveMediaAsset(mediaId: string, mediaAssets: FixedPageMediaAssetData[]) {
+  if (!mediaId) return null;
+  return mediaAssets.find((item) => item.id === mediaId) ?? null;
 }
 
 function toPageImage(media: FixedPageMediaAssetData | null): PageImage | null {
@@ -1055,6 +1091,15 @@ function firstCatImageUrl(cat: CatData) {
 
 function normalizePublicCatId(value: string) {
   return value.replace(/^public-content-cat-/, "");
+}
+
+function contractExtension(fileName: string, mimeType: string) {
+  const fromName = fileName.match(/\.([a-z0-9]+)$/i)?.[1];
+  if (fromName) return fromName.toLowerCase();
+  if (mimeType.includes("pdf")) return "pdf";
+  if (mimeType.includes("wordprocessingml")) return "docx";
+  if (mimeType.includes("msword")) return "doc";
+  return "";
 }
 
 function toTextItem(prefix: string) {

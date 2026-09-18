@@ -187,3 +187,125 @@ export const DEFAULT_QUESTIONNAIRE_CONTENT: QuestionnaireContent = {
   successTitle: "问卷已提交，感谢你的填写",
   successBody: "我们会尽快查看你的问卷，请耐心等待回复。",
 };
+
+export function cloneQuestionnaireContent(
+  content: QuestionnaireContent = DEFAULT_QUESTIONNAIRE_CONTENT,
+): QuestionnaireContent {
+  return JSON.parse(JSON.stringify(content)) as QuestionnaireContent;
+}
+
+export function normalizeQuestionnaireContent(value: unknown): QuestionnaireContent {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return cloneQuestionnaireContent();
+  }
+  const input = value as Partial<QuestionnaireContent>;
+  const base = cloneQuestionnaireContent();
+  return {
+    version: 1,
+    intro: stringOr(input.intro, base.intro),
+    privacyNotice: stringOr(input.privacyNotice, base.privacyNotice),
+    basicInfo: {
+      name: normalizeTextQuestion(input.basicInfo?.name, base.basicInfo.name),
+      gender: normalizeChoiceQuestion(input.basicInfo?.gender, base.basicInfo.gender),
+      phone: normalizeTextQuestion(input.basicInfo?.phone, base.basicInfo.phone),
+      age: normalizeTextQuestion(input.basicInfo?.age, base.basicInfo.age),
+      job: normalizeTextQuestion(input.basicInfo?.job, base.basicInfo.job),
+      city: normalizeTextQuestion(input.basicInfo?.city, base.basicInfo.city),
+    },
+    catExperience: {
+      experience: normalizeChoiceQuestion(input.catExperience?.experience, base.catExperience.experience),
+      residents: normalizeChoiceQuestion(input.catExperience?.residents, base.catExperience.residents),
+      residentsNeutered: normalizeChoiceQuestion(
+        input.catExperience?.residentsNeutered,
+        base.catExperience.residentsNeutered,
+      ),
+    },
+    livingEnvironment: {
+      hasKids: normalizeChoiceQuestion(input.livingEnvironment?.hasKids, base.livingEnvironment.hasKids),
+      housing: normalizeChoiceQuestion(input.livingEnvironment?.housing, base.livingEnvironment.housing),
+      windowSealed: normalizeChoiceQuestion(
+        input.livingEnvironment?.windowSealed,
+        base.livingEnvironment.windowSealed,
+      ),
+      familyAgree: normalizeChoiceQuestion(
+        input.livingEnvironment?.familyAgree,
+        base.livingEnvironment.familyAgree,
+      ),
+    },
+    catPreference: {
+      wantGender: normalizeChoiceQuestion(input.catPreference?.wantGender, base.catPreference.wantGender),
+      wantColor: normalizeTextQuestion(input.catPreference?.wantColor, base.catPreference.wantColor),
+      budget: normalizeTextQuestion(input.catPreference?.budget, base.catPreference.budget),
+      acceptNeuter: normalizeChoiceQuestion(
+        input.catPreference?.acceptNeuter,
+        base.catPreference.acceptNeuter,
+      ),
+      monthlySpend: normalizeChoiceQuestion(
+        input.catPreference?.monthlySpend,
+        base.catPreference.monthlySpend,
+      ),
+    },
+    commitments: {
+      scientificFeeding: stringOr(
+        input.commitments?.scientificFeeding,
+        base.commitments.scientificFeeding,
+      ),
+      acceptActive: stringOr(input.commitments?.acceptActive, base.commitments.acceptActive),
+      commitment: stringOr(input.commitments?.commitment, base.commitments.commitment),
+      options: normalizeOptions(input.commitments?.options, base.commitments.options),
+    },
+    ps: stringOr(input.ps, base.ps),
+    successTitle: stringOr(input.successTitle, base.successTitle),
+    successBody: stringOr(input.successBody, base.successBody),
+  };
+}
+
+function normalizeTextQuestion(
+  value: unknown,
+  fallback: QuestionnaireTextQuestion,
+): QuestionnaireTextQuestion {
+  const input = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Partial<QuestionnaireTextQuestion>)
+    : {};
+  return {
+    label: stringOr(input.label, fallback.label),
+    placeholder: stringOr(input.placeholder, fallback.placeholder),
+  };
+}
+
+function normalizeChoiceQuestion(
+  value: unknown,
+  fallback: QuestionnaireChoiceQuestion,
+): QuestionnaireChoiceQuestion {
+  const input = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Partial<QuestionnaireChoiceQuestion>)
+    : {};
+  return {
+    label: stringOr(input.label, fallback.label),
+    options: normalizeOptions(input.options, fallback.options),
+  };
+}
+
+function normalizeOptions(
+  value: unknown,
+  fallback: QuestionnaireChoiceOption[],
+): QuestionnaireChoiceOption[] {
+  if (!Array.isArray(value)) return fallback;
+  return fallback.map((fallbackOption) => {
+    const matching = value.find(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        !Array.isArray(item) &&
+        (item as Partial<QuestionnaireChoiceOption>).id === fallbackOption.id,
+    ) as Partial<QuestionnaireChoiceOption> | undefined;
+    return {
+      id: fallbackOption.id,
+      label: stringOr(matching?.label, fallbackOption.label),
+    };
+  });
+}
+
+function stringOr(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}

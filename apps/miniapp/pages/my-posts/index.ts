@@ -1,7 +1,9 @@
 import type { CommunityPostData } from "@starlitsky/shared";
 import {
   deleteCommunityPost,
+  getCommunityPostOptions,
   listMyCommunityPosts,
+  updateCommunityPost,
 } from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 import { getSessionState } from "../../store/session/index";
@@ -16,12 +18,24 @@ interface PostCard {
   id: string;
   imageGridClass: string;
   images: Array<{ id: string; url: string }>;
+  linkedCatIds: string[];
+  linkedLitterIds: string[];
   meta: string;
   previewUrls: string[];
 }
 
+interface OptionItem {
+  id: string;
+  name: string;
+  selected: boolean;
+}
+
 interface MyPostsData {
   canPublish: boolean;
+  editCatOptions: OptionItem[];
+  editContent: string;
+  editLitterOptions: OptionItem[];
+  editingId: string;
   error: string;
   isLoading: boolean;
   parentInactive: boolean;
@@ -30,6 +44,7 @@ interface MyPostsData {
 
 interface MyPostsPage {
   data: MyPostsData;
+  cancelEdit(): void;
   loadPosts(): Promise<void>;
   setData(data: Partial<MyPostsData>): void;
 }
@@ -43,6 +58,10 @@ interface TapEvent {
 Page({
   data: {
     canPublish: false,
+    editCatOptions: [],
+    editContent: "",
+    editLitterOptions: [],
+    editingId: "",
     error: "",
     isLoading: true,
     parentInactive: false,
@@ -93,10 +112,76 @@ Page({
     wx.navigateTo({ url: "/pages/community-publish/index" });
   },
 
-  openEdit(event: TapEvent) {
+  async openEdit(this: MyPostsPage, event: TapEvent) {
     const id = event.currentTarget.dataset.id;
     if (!id) return;
-    wx.navigateTo({ url: `/pages/community-publish/index?id=${encodeURIComponent(id)}` });
+    const post = this.data.posts.find((item) => item.id === id);
+    if (!post?.canEdit) return;
+    try {
+      const options = await getCommunityPostOptions();
+      this.setData({
+        editCatOptions: options.cats.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          selected: post.linkedCatIds.includes(cat.id),
+        })),
+        editContent: post.content,
+        editLitterOptions: options.litters.map((litter) => ({
+          id: litter.id,
+          name: litter.name,
+          selected: post.linkedLitterIds.includes(litter.id),
+        })),
+        editingId: id,
+      });
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
+  },
+
+  cancelEdit(this: MyPostsPage) {
+    this.setData({
+      editCatOptions: [],
+      editContent: "",
+      editLitterOptions: [],
+      editingId: "",
+    });
+  },
+
+  onEditContentInput(this: MyPostsPage, event: { detail: { value: string } }) {
+    this.setData({ editContent: event.detail.value });
+  },
+
+  toggleEditCat(this: MyPostsPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    this.setData({ editCatOptions: toggleOption(this.data.editCatOptions, id) });
+  },
+
+  toggleEditLitter(this: MyPostsPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    this.setData({ editLitterOptions: toggleOption(this.data.editLitterOptions, id) });
+  },
+
+  async saveEdit(this: MyPostsPage) {
+    const id = this.data.editingId;
+    const content = this.data.editContent.trim();
+    if (!id || !content) {
+      showToast("内容不能为空");
+      return;
+    }
+    try {
+      await updateCommunityPost(id, {
+        content,
+        catIds: this.data.editCatOptions.filter((item) => item.selected).map((item) => item.id),
+        litterIds: this.data.editLitterOptions
+          .filter((item) => item.selected)
+          .map((item) => item.id),
+      });
+      showToast("已保存");
+      this.cancelEdit();
+      await this.loadPosts();
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
   },
 
   async deletePost(this: MyPostsPage, event: TapEvent) {
@@ -164,6 +249,8 @@ function toPostCard(post: CommunityPostData): PostCard {
     id: post.id,
     imageGridClass: imageGridClass(images.length),
     images,
+    linkedCatIds: post.cats.map((cat) => cat.id),
+    linkedLitterIds: post.litters.map((litter) => litter.id),
     meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
     previewUrls: images.map((image) => image.url),
   };
@@ -173,6 +260,11 @@ function imageGridClass(count: number) {
   if (count <= 1) return "post-images single-image-grid";
   if (count === 2 || count === 4) return "post-images two-image-grid";
   return "post-images three-image-grid";
+}
+
+function toggleOption(items: OptionItem[], id = "") {
+  if (!id) return items;
+  return items.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item));
 }
 
 function categoryLabel(value: string) {

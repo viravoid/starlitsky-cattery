@@ -43,6 +43,48 @@
           <button class="action-button" disabled="{{!item.canEdit}}" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
           <button class="action-button danger" disabled="{{!item.canDelete}}" data-id="{{item.id}}" bindtap="deletePost">删除</button>
         </view>
+        <view wx:if="{{editingId === item.id}}" class="edit-panel">
+          <textarea
+            class="edit-content"
+            value="{{editContent}}"
+            maxlength="2000"
+            bindinput="onEditContentInput"
+          />
+          <view class="edit-section">
+            <text class="edit-label">关联猫咪</text>
+            <view wx:if="{{!editCatOptions.length}}" class="edit-empty">暂无可关联猫咪</view>
+            <view wx:else class="edit-options">
+              <button
+                wx:for="{{editCatOptions}}"
+                wx:key="id"
+                class="{{item.selected ? 'edit-option active' : 'edit-option'}}"
+                data-id="{{item.id}}"
+                catchtap="toggleEditCat"
+              >
+                {{item.name}}
+              </button>
+            </view>
+          </view>
+          <view class="edit-section">
+            <text class="edit-label">关联窝次</text>
+            <view wx:if="{{!editLitterOptions.length}}" class="edit-empty">暂无可关联窝次</view>
+            <view wx:else class="edit-options">
+              <button
+                wx:for="{{editLitterOptions}}"
+                wx:key="id"
+                class="{{item.selected ? 'edit-option active' : 'edit-option'}}"
+                data-id="{{item.id}}"
+                catchtap="toggleEditLitter"
+              >
+                {{item.name}}
+              </button>
+            </view>
+          </view>
+          <view class="edit-actions">
+            <button class="edit-action" catchtap="cancelEdit">取消</button>
+            <button class="edit-action primary" catchtap="saveEdit">保存</button>
+          </view>
+        </view>
       </view>
     </view>
   </view>

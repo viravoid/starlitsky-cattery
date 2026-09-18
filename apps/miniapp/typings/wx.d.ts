@@ -12,8 +12,16 @@ declare const wx: {
     method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
     data?: unknown;
     header?: Record<string, string>;
+    responseType?: "arraybuffer" | "text";
     success(response: { statusCode: number; data: unknown }): void;
     fail(error: { errMsg?: string }): void;
+  }): void;
+  openDocument(options: {
+    filePath: string;
+    fileType?: string;
+    showMenu?: boolean;
+    success?(): void;
+    fail?(error: { errMsg?: string }): void;
   }): void;
   chooseMedia(options: {
     count: number;
@@ -34,6 +42,15 @@ declare const wx: {
       success(response: { data: ArrayBuffer }): void;
       fail(error: { errMsg?: string }): void;
     }): void;
+    writeFile(options: {
+      filePath: string;
+      data: string | ArrayBuffer;
+      success(): void;
+      fail(error: { errMsg?: string }): void;
+    }): void;
+  };
+  env: {
+    USER_DATA_PATH: string;
   };
   showModal(options: {
     title: string;

@@ -183,6 +183,92 @@
 
 .retry-button::after,
 .text-link::after,
-.action-button::after {
+.action-button::after,
+.edit-option::after,
+.edit-action::after {
   border: 0;
+}
+
+.edit-panel {
+  margin: 0 28rpx 28rpx;
+  padding: 24rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 28rpx;
+  background: rgba(255, 253, 248, 0.72);
+}
+
+.edit-content {
+  width: 100%;
+  min-height: 220rpx;
+  box-sizing: border-box;
+  padding: 22rpx 26rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 24rpx;
+  background: var(--xy-color-background);
+  color: var(--xy-color-text);
+  font-size: 26rpx;
+  line-height: 1.65;
+}
+
+.edit-section {
+  margin-top: 22rpx;
+}
+
+.edit-label {
+  display: block;
+  margin-bottom: 12rpx;
+  color: var(--xy-color-heading);
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.edit-empty {
+  color: var(--xy-color-muted);
+  font-size: 23rpx;
+}
+
+.edit-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.edit-option {
+  padding: 8rpx 20rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: var(--xy-color-background);
+  color: #6b8db3;
+  font-size: 23rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.edit-option.active {
+  border-color: var(--xy-color-accent);
+  background: #f9f0d4;
+  color: var(--xy-color-accent-text);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.edit-action {
+  flex: 1;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: var(--xy-color-background);
+  color: var(--xy-color-muted);
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 68rpx;
+}
+
+.edit-action.primary {
+  border-color: var(--xy-color-violet);
+  background: var(--xy-color-violet);
+  color: #ffffff;
 }

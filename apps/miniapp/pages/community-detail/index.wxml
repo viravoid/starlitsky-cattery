@@ -35,7 +35,14 @@
     <view wx:if="{{linkedLitters.length || linkedCats.length}}" class="links">
       <text class="links-title">关联信息</text>
       <view wx:if="{{linkedCats.length}}" class="link-group">
-        <view wx:for="{{linkedCats}}" wx:key="id" class="cat-link">
+        <view
+          wx:for="{{linkedCats}}"
+          wx:key="id"
+          class="cat-link"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          catchtap="openCatTimeline"
+        >
           <view class="cat-avatar">
             <image class="cat-avatar-icon" src="../../assets/illustrations/cat-icon.png" mode="aspectFit" />
           </view>
@@ -43,7 +50,14 @@
         </view>
       </view>
       <view wx:if="{{linkedLitters.length}}" class="link-group">
-        <text wx:for="{{linkedLitters}}" wx:key="id" class="link-pill litter">{{item.name}}</text>
+        <text
+          wx:for="{{linkedLitters}}"
+          wx:key="id"
+          class="link-pill litter"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          catchtap="openLitterTimeline"
+        >{{item.name}}</text>
       </view>
     </view>
 

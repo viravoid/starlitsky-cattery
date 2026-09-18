@@ -1,5 +1,6 @@
 import type { CatData } from "@starlitsky/shared";
 import { getPublicCat } from "../../utils/public-content/index";
+import { resolveCatDetailFrames, type ImageFrameMode } from "../../utils/cat-presentation";
 
 interface DetailOptions {
   id?: string;
@@ -12,6 +13,9 @@ interface InfoItem {
 
 interface GalleryItem {
   id: string;
+  imageClass: string;
+  mode: ImageFrameMode;
+  style: string;
   label: string;
   url: string;
 }
@@ -138,20 +142,18 @@ Page({
 });
 
 function toDetailView(cat: CatData) {
-  const galleryItems = cat.mediaAssets
-    .filter((item) => item.kind === "image")
-    .sort((left, right) => left.sortOrder - right.sortOrder)
-    .map((item, index) => {
-      const url = item.sourceUrl || item.thumbnailUrl || "";
-      return url
-        ? {
-            id: item.id,
-            label: item.altText || item.title || `猫咪图片 ${index + 1}`,
-            url,
-          }
-        : null;
-    })
-    .filter((item): item is GalleryItem => Boolean(item));
+  const mediaById = new Map(cat.mediaAssets.map((item) => [item.id, item]));
+  const galleryItems = resolveCatDetailFrames(cat).map((frame, index) => {
+    const media = mediaById.get(frame.id);
+    return {
+      id: frame.id,
+      imageClass: frame.mode === "scaleToFill" ? "hero-image manual-crop-image" : "hero-image",
+      label: media?.altText || media?.title || `猫咪图片 ${index + 1}`,
+      mode: frame.mode,
+      style: frame.style,
+      url: frame.url,
+    };
+  });
   const gallery = galleryItems.map((item) => item.url);
   const commonInfo: InfoItem[] = [
     { label: "颜色", value: cat.color || "待补充" },

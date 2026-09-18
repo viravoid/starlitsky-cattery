@@ -97,7 +97,75 @@ Page({
       url: `/pages/cat-detail/index?id=${encodeURIComponent(id)}&kind=studs`,
     });
   },
+
+  async openAftercareContract(this: FixedPageInstance) {
+    if (!this.data.aftercareContractUrl) return;
+    try {
+      const tempFilePath = await downloadTempFile(
+        this.data.aftercareContractUrl,
+        this.data.aftercareContractExtension,
+      );
+      wx.openDocument({
+        filePath: tempFilePath,
+        fileType: this.data.aftercareContractExtension || undefined,
+        showMenu: true,
+        fail(error) {
+          wx.showToast({ icon: "none", title: error.errMsg || "合同打开失败" });
+        },
+      });
+    } catch (error) {
+      wx.showToast({ icon: "none", title: getErrorMessage(error) });
+    }
+  },
+
+  async downloadAftercareContract(this: FixedPageInstance) {
+    if (!this.data.aftercareContractUrl) return;
+    try {
+      await downloadTempFile(
+        this.data.aftercareContractUrl,
+        this.data.aftercareContractExtension,
+      );
+      wx.showToast({ icon: "success", title: "合同已下载" });
+    } catch (error) {
+      wx.showToast({ icon: "none", title: getErrorMessage(error) });
+    }
+  },
 });
+
+function downloadTempFile(url: string, extension: string) {
+  return new Promise<string>((resolve, reject) => {
+    wx.request({
+      url,
+      method: "GET",
+      responseType: "arraybuffer",
+      success(response) {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          reject(new Error("合同下载失败"));
+          return;
+        }
+        if (!(response.data instanceof ArrayBuffer)) {
+          reject(new Error("合同文件格式异常"));
+          return;
+        }
+        const suffix = extension || "pdf";
+        const filePath = `${wx.env.USER_DATA_PATH}/aftercare-contract-${Date.now()}.${suffix}`;
+        wx.getFileSystemManager().writeFile({
+          filePath,
+          data: response.data,
+          success() {
+            resolve(filePath);
+          },
+          fail(error) {
+            reject(new Error(error.errMsg || "合同写入失败"));
+          },
+        });
+      },
+      fail(error) {
+        reject(new Error(error.errMsg || "合同下载失败"));
+      },
+    });
+  });
+}
 
 function normalizeSlug(value: unknown) {
   const slug = typeof value === "string" ? decodeURIComponent(value) : "about";

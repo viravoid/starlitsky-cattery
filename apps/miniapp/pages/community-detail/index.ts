@@ -192,6 +192,24 @@ Page({
     wx.navigateTo({ url: `/pages/community-publish/index?id=${encodeURIComponent(this.data.id)}` });
   },
 
+  openCatTimeline(event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    const name = event.currentTarget.dataset.name || "TA";
+    if (!id) return;
+    wx.navigateTo({
+      url: `/pages/community-linked/index?catId=${encodeURIComponent(id)}&title=${encodeURIComponent(`${name}的猫友圈动态`)}`,
+    });
+  },
+
+  openLitterTimeline(event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    const name = event.currentTarget.dataset.name || "所属窝次";
+    if (!id) return;
+    wx.navigateTo({
+      url: `/pages/community-linked/index?litterId=${encodeURIComponent(id)}&title=${encodeURIComponent(`${name}的动态`)}`,
+    });
+  },
+
   async deletePost(this: CommunityDetailPage) {
     if (!this.data.canDelete || !this.data.id) return;
     const confirmed = await confirm("确定删除这条动态吗？");

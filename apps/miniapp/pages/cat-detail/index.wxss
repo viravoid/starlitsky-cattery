@@ -39,6 +39,7 @@
 }
 
 .gallery {
+  position: relative;
   width: 100%;
   aspect-ratio: 4 / 5;
   height: auto;
@@ -49,9 +50,20 @@
 }
 
 .hero-image,
-.hero-empty {
+.hero-empty,
+.hero-frame {
   width: 100%;
   height: 100%;
+}
+
+.hero-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.manual-crop-image {
+  position: absolute;
+  max-width: none;
 }
 
 .title-row {

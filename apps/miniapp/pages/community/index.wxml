@@ -111,13 +111,27 @@
       </view>
 
       <view wx:if="{{item.linkedLitters.length || item.linkedCats.length}}" class="links">
-        <view wx:for="{{item.linkedCats}}" wx:key="id" class="cat-link-pill">
+        <view
+          wx:for="{{item.linkedCats}}"
+          wx:key="id"
+          class="cat-link-pill"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          catchtap="openCatTimeline"
+        >
           <view class="cat-avatar">
             <image class="cat-avatar-icon" src="../../assets/illustrations/cat-icon.png" mode="aspectFit" />
           </view>
           <text>{{item.name}}</text>
         </view>
-        <text wx:for="{{item.linkedLitters}}" wx:key="id" class="link-pill litter">{{item.name}}</text>
+        <text
+          wx:for="{{item.linkedLitters}}"
+          wx:key="id"
+          class="link-pill litter"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          catchtap="openLitterTimeline"
+        >{{item.name}}</text>
       </view>
 
       <view class="post-foot">

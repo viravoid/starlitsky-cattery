@@ -1,7 +1,8 @@
 import type { SelectionApplicationAnswers } from "@starlitsky/shared";
-import { submitSelectionApplication } from "../../utils/public-content/index";
+import { getFixedPage, submitSelectionApplication } from "../../utils/public-content/index";
 import {
   DEFAULT_QUESTIONNAIRE_CONTENT,
+  normalizeQuestionnaireContent,
   type QuestionnaireChoiceOption,
   type QuestionnaireChoiceQuestion,
   type QuestionnaireContent,
@@ -48,6 +49,7 @@ interface QuestionnaireData {
 
 interface QuestionnairePage {
   data: QuestionnaireData;
+  loadQuestionnaireContent(): Promise<void>;
   retrySubmit(): Promise<void>;
   setData(data: Partial<QuestionnaireData>): void;
 }
@@ -83,6 +85,27 @@ Page({
     successTitle: CONTENT.successTitle,
     values: createBlankValues(),
   } as QuestionnaireData,
+
+  async onLoad(this: QuestionnairePage) {
+    await this.loadQuestionnaireContent();
+  },
+
+  async loadQuestionnaireContent(this: QuestionnairePage) {
+    try {
+      const page = await getFixedPage("questionnaire");
+      const content = normalizeQuestionnaireContent(page.contentJson);
+      this.setData({
+        groups: createGroups(content),
+        intro: content.intro,
+        privacyNotice: content.privacyNotice,
+        ps: content.ps,
+        successBody: content.successBody,
+        successTitle: content.successTitle,
+      });
+    } catch {
+      this.setData({ error: "" });
+    }
+  },
 
   onInput(this: QuestionnairePage, event: InputEvent) {
     const key = event.currentTarget.dataset.key as FieldKey;

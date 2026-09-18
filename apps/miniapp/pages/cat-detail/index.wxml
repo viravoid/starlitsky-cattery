@@ -13,13 +13,16 @@
       indicator-active-color="#e7c15d"
     >
       <swiper-item wx:for="{{galleryItems}}" wx:key="id">
-        <image
-          class="hero-image"
-          src="{{item.url}}"
-          mode="aspectFill"
-          data-url="{{item.url}}"
-          bindtap="previewImage"
-        />
+        <view class="hero-frame">
+          <image
+            class="{{item.imageClass}}"
+            src="{{item.url}}"
+            mode="{{item.mode}}"
+            style="{{item.style}}"
+            data-url="{{item.url}}"
+            bindtap="previewImage"
+          />
+        </view>
       </swiper-item>
       <swiper-item wx:if="{{!galleryItems.length}}">
         <view class="hero-empty xy-soft-placeholder">

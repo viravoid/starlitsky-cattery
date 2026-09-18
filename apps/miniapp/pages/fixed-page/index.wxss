@@ -43,6 +43,7 @@
 .environment-card::after,
 .feeding-image-button::after,
 .copy-row::after,
+.contract-action::after,
 .stud-card::after {
   border: 0;
 }
@@ -755,6 +756,29 @@
   background: var(--xy-color-background);
 }
 
+.contract-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.contract-action {
+  flex: 1;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: var(--xy-color-background);
+  color: var(--xy-color-heading);
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 70rpx;
+}
+
+.contract-action.primary {
+  border-color: var(--xy-color-primary);
+  background: var(--xy-color-primary);
+  color: #ffffff;
+}
+
 .contact-hero-section {
   display: flex;
   flex-direction: column;
@@ -958,12 +982,23 @@
   text-align: center;
 }
 
+.stud-image-frame,
 .stud-image {
   display: block;
   width: 100%;
   height: 196rpx;
   border-radius: 24rpx;
   background: var(--xy-gradient-cream);
+}
+
+.stud-image-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.manual-crop-image {
+  position: absolute;
+  max-width: none;
 }
 
 .stud-placeholder {
