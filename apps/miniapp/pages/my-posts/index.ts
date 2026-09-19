@@ -1,12 +1,19 @@
 import type { CommunityPostData } from "@starlitsky/shared";
 import {
   deleteCommunityPost,
+  deleteCommunityPostImage,
   getCommunityPostOptions,
   listMyCommunityPosts,
   updateCommunityPost,
 } from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 import { getSessionState } from "../../store/session/index";
+import {
+  inferPostImageMimeType,
+  uploadPostImage,
+  type ExistingPostImage,
+  type SelectedPostImage,
+} from "../../utils/community-post-images";
 
 interface PostCard {
   author: string;
@@ -34,7 +41,9 @@ interface MyPostsData {
   canPublish: boolean;
   editCatOptions: OptionItem[];
   editContent: string;
+  editExistingImages: ExistingPostImage[];
   editLitterOptions: OptionItem[];
+  editSelectedImages: SelectedPostImage[];
   editingId: string;
   error: string;
   isLoading: boolean;
@@ -60,7 +69,9 @@ Page({
     canPublish: false,
     editCatOptions: [],
     editContent: "",
+    editExistingImages: [],
     editLitterOptions: [],
+    editSelectedImages: [],
     editingId: "",
     error: "",
     isLoading: true,
@@ -126,11 +137,17 @@ Page({
           selected: post.linkedCatIds.includes(cat.id),
         })),
         editContent: post.content,
+        editExistingImages: post.images.map((image) => ({
+          id: image.id,
+          removed: false,
+          url: image.url,
+        })),
         editLitterOptions: options.litters.map((litter) => ({
           id: litter.id,
           name: litter.name,
           selected: post.linkedLitterIds.includes(litter.id),
         })),
+        editSelectedImages: [],
         editingId: id,
       });
     } catch (error) {
@@ -142,7 +159,9 @@ Page({
     this.setData({
       editCatOptions: [],
       editContent: "",
+      editExistingImages: [],
       editLitterOptions: [],
+      editSelectedImages: [],
       editingId: "",
     });
   },
@@ -161,6 +180,65 @@ Page({
     this.setData({ editLitterOptions: toggleOption(this.data.editLitterOptions, id) });
   },
 
+  chooseEditImages(this: MyPostsPage) {
+    const keptExistingCount = this.data.editExistingImages.filter((image) => !image.removed).length;
+    const remaining = Math.max(0, 9 - keptExistingCount - this.data.editSelectedImages.length);
+    if (remaining === 0) {
+      showToast("最多 9 张图片");
+      return;
+    }
+    wx.chooseMedia({
+      count: remaining,
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      success: (response) => {
+        const images = response.tempFiles.map((file) => ({
+          fileName: file.tempFilePath.split(/[\\/]/).pop() || "post-image.jpg",
+          mimeType: inferPostImageMimeType(file.tempFilePath),
+          sizeBytes: file.size,
+          tempFilePath: file.tempFilePath,
+        }));
+        this.setData({ editSelectedImages: [...this.data.editSelectedImages, ...images] });
+      },
+      fail: (error) => {
+        if (!error.errMsg?.includes("cancel")) showToast(error.errMsg || "选择图片失败");
+      },
+    });
+  },
+
+  removeEditSelectedImage(this: MyPostsPage, event: TapEvent) {
+    const index = Number(event.currentTarget.dataset.index);
+    if (!Number.isInteger(index)) return;
+    this.setData({
+      editSelectedImages: this.data.editSelectedImages.filter((_, itemIndex) => itemIndex !== index),
+    });
+  },
+
+  removeEditExistingImage(this: MyPostsPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    this.setData({
+      editExistingImages: this.data.editExistingImages.map((image) =>
+        image.id === id ? { ...image, removed: true } : image,
+      ),
+    });
+  },
+
+  restoreEditExistingImage(this: MyPostsPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    const keptExistingCount = this.data.editExistingImages.filter((image) => !image.removed).length;
+    if (keptExistingCount + this.data.editSelectedImages.length >= 9) {
+      showToast("最多 9 张图片");
+      return;
+    }
+    this.setData({
+      editExistingImages: this.data.editExistingImages.map((image) =>
+        image.id === id ? { ...image, removed: false } : image,
+      ),
+    });
+  },
+
   async saveEdit(this: MyPostsPage) {
     const id = this.data.editingId;
     const content = this.data.editContent.trim();
@@ -169,13 +247,27 @@ Page({
       return;
     }
     try {
-      await updateCommunityPost(id, {
+      const post = await updateCommunityPost(id, {
         content,
         catIds: this.data.editCatOptions.filter((item) => item.selected).map((item) => item.id),
         litterIds: this.data.editLitterOptions
           .filter((item) => item.selected)
           .map((item) => item.id),
       });
+      try {
+        const removedImages = this.data.editExistingImages.filter((image) => image.removed);
+        for (const image of removedImages) {
+          await deleteCommunityPostImage(post.id, image.id);
+        }
+        const keptExistingCount = this.data.editExistingImages.filter((image) => !image.removed).length;
+        for (let index = 0; index < this.data.editSelectedImages.length; index += 1) {
+          await uploadPostImage(post.id, this.data.editSelectedImages[index], keptExistingCount + index);
+        }
+      } catch (imageError) {
+        showToast(`动态已保存，图片更新失败：${getErrorMessage(imageError)}`);
+        await this.loadPosts();
+        return;
+      }
       showToast("已保存");
       this.cancelEdit();
       await this.loadPosts();

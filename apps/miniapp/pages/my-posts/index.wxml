@@ -80,6 +80,43 @@
               </button>
             </view>
           </view>
+          <view class="edit-section">
+            <text class="edit-label">ç…§ç‰‡</text>
+            <view class="edit-image-grid">
+              <view
+                wx:for="{{editExistingImages}}"
+                wx:key="id"
+                class="{{item.removed ? 'edit-image-wrap edit-image-removed' : 'edit-image-wrap'}}"
+              >
+                <image class="edit-image-tile" src="{{item.url}}" mode="aspectFill" />
+                <button
+                  wx:if="{{item.removed}}"
+                  class="edit-restore-image"
+                  data-id="{{item.id}}"
+                  catchtap="restoreEditExistingImage"
+                >
+                  æ¢å¤
+                </button>
+                <button
+                  wx:else
+                  class="edit-remove-image"
+                  data-id="{{item.id}}"
+                  catchtap="removeEditExistingImage"
+                >
+                  <image class="edit-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
+                </button>
+              </view>
+              <view wx:for="{{editSelectedImages}}" wx:key="tempFilePath" wx:for-index="index" class="edit-image-wrap">
+                <image class="edit-image-tile" src="{{item.tempFilePath}}" mode="aspectFill" />
+                <button class="edit-remove-image" data-index="{{index}}" catchtap="removeEditSelectedImage">
+                  <image class="edit-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
+                </button>
+              </view>
+              <button class="edit-add-image" catchtap="chooseEditImages">
+                <image class="edit-add-image-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+              </button>
+            </view>
+          </view>
           <view class="edit-actions">
             <button class="edit-action" catchtap="cancelEdit">取消</button>
             <button class="edit-action primary" catchtap="saveEdit">保存</button>

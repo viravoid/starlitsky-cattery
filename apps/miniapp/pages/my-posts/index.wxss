@@ -185,7 +185,10 @@
 .text-link::after,
 .action-button::after,
 .edit-option::after,
-.edit-action::after {
+.edit-action::after,
+.edit-add-image::after,
+.edit-remove-image::after,
+.edit-restore-image::after {
   border: 0;
 }
 
@@ -248,6 +251,78 @@
   border-color: var(--xy-color-accent);
   background: #f9f0d4;
   color: var(--xy-color-accent-text);
+}
+
+.edit-image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.edit-image-wrap {
+  position: relative;
+}
+
+.edit-image-removed .edit-image-tile {
+  opacity: 0.34;
+}
+
+.edit-image-tile,
+.edit-add-image {
+  width: 100%;
+  height: 180rpx;
+  border-radius: 24rpx;
+}
+
+.edit-image-tile {
+  background: var(--xy-gradient-cream);
+}
+
+.edit-add-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed var(--xy-color-border);
+  background: #ffffff;
+  line-height: 180rpx;
+}
+
+.edit-add-image-icon {
+  width: 42rpx;
+  height: 42rpx;
+}
+
+.edit-remove-image {
+  position: absolute;
+  right: 8rpx;
+  top: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 999rpx;
+  background: rgba(65, 84, 108, 0.82);
+  line-height: 40rpx;
+}
+
+.edit-image-icon {
+  width: 22rpx;
+  height: 22rpx;
+}
+
+.edit-restore-image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  min-width: 82rpx;
+  height: 44rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--xy-color-heading);
+  font-size: 23rpx;
+  line-height: 44rpx;
+  transform: translate(-50%, -50%);
 }
 
 .edit-actions {

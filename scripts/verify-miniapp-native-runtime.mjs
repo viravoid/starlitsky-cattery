@@ -227,12 +227,16 @@ function verifyVisualQaMutationGuards() {
   const publicContentPath = join(miniappRoot, "utils/public-content/index.ts");
   const fixturePath = join(miniappRoot, "utils/visual-qa/fixtures.ts");
   const publishPath = join(miniappRoot, "pages/community-publish/index.ts");
+  const communityPostImagesPath = join(miniappRoot, "utils/community-post-images.ts");
   if (![requestPath, publicContentPath, fixturePath, publishPath].every(existsSync)) return;
 
   const requestText = readFileSync(requestPath, "utf8");
   const publicContentText = readFileSync(publicContentPath, "utf8");
   const fixtureText = readFileSync(fixturePath, "utf8");
   const publishText = readFileSync(publishPath, "utf8");
+  const communityPostImagesText = existsSync(communityPostImagesPath)
+    ? readFileSync(communityPostImagesPath, "utf8")
+    : "";
 
   if (!/method\s*!==\s*"GET"\s*&&\s*isVisualQaModeEnabled\(\)/.test(requestText)) {
     failures.push("Visual QA mode must block non-GET requests in the shared miniapp request wrapper.");
@@ -267,7 +271,14 @@ function verifyVisualQaMutationGuards() {
     }
   }
 
-  if (!/function\s+uploadPostImage\b[\s\S]*?isVisualQaModeEnabled\(\)[\s\S]*?return;/.test(publishText)) {
+  if (
+    !/function\s+uploadPostImage\b[\s\S]*?isVisualQaModeEnabled\(\)[\s\S]*?return;/.test(
+      publishText,
+    ) &&
+    !/function\s+uploadPostImage\b[\s\S]*?isVisualQaModeEnabled\(\)[\s\S]*?return;/.test(
+      communityPostImagesText,
+    )
+  ) {
     failures.push("Community post image upload must skip direct wx.request PUT in Visual QA mode.");
   }
 }
