@@ -1,7 +1,22 @@
 import { prisma } from "../db/prisma.mjs";
-import { forbidden, notFound } from "../utils/errors.mjs";
+import { badRequest, forbidden, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
 import { resolveMediaSourceUrl, resolveMediaThumbnailUrl } from "./media-delivery-service.mjs";
+
+const MY_CAT_CREATE_FIELDS = [
+  "name",
+  "gender",
+  "color",
+  "birthday",
+  "personality",
+  "relationship",
+  "relationshipStartedAt",
+  "note",
+];
+const MY_CAT_UPDATE_FIELDS = MY_CAT_CREATE_FIELDS;
+const GENDER_VALUES = new Set(["male", "female"]);
+const RELATIONSHIP_VALUES = new Set(["owner", "co_owner", "caregiver"]);
+const OVERLAY_PREFIX = "parent-cat-profile:v1:";
 
 export async function listMyCats(searchParams, user) {
   const parentProfileId = requireActiveParentProfileId(user);
@@ -45,6 +60,97 @@ export async function getMyCat(id, user) {
   return toMyCatDto(link, mediaByCatId, timelinePosts);
 }
 
+export async function createMyCat(input, user) {
+  const parentProfileId = requireActiveParentProfileId(user);
+  const data = normalizeMyCatInput(input, {
+    allowedFields: MY_CAT_CREATE_FIELDS,
+    requireName: true,
+  });
+  const overlay = buildOverlay(data);
+
+  const link = await prisma.$transaction(async (tx) => {
+    const cat = await tx.cat.create({
+      data: {
+        name: data.name,
+        gender: data.gender,
+        color: data.color,
+        birthday: parseOptionalDate(data.birthday, "birthday"),
+        lifecycle_status: "adopted",
+        personality: data.personality,
+        story_json: { parentCreated: true },
+        visibility: "hidden",
+      },
+    });
+
+    return tx.parentCatLink.create({
+      data: {
+        parent_profile_id: parentProfileId,
+        cat_id: cat.id,
+        relationship: data.relationship,
+        status: "active",
+        started_at: parseOptionalDate(data.relationshipStartedAt, "relationshipStartedAt"),
+        note: encodeOverlay(overlay),
+        created_by: user.id,
+      },
+      include: MY_CAT_LINK_INCLUDE,
+    });
+  });
+
+  const mediaByCatId = await listVisibleCatMedia([link.cat_id]);
+  return toMyCatDto(link, mediaByCatId, []);
+}
+
+export async function updateMyCat(id, input, user) {
+  const parentProfileId = requireActiveParentProfileId(user);
+  const data = normalizeMyCatInput(input, {
+    allowedFields: MY_CAT_UPDATE_FIELDS,
+    requireName: false,
+  });
+  if (Object.keys(data).length === 0) throw badRequest("At least one my cat field must be provided");
+
+  const existing = await findOwnedCatLink(parentProfileId, id);
+  const overlay = {
+    ...decodeOverlay(existing.note),
+    ...buildOverlay(data),
+  };
+  const updateData = {
+    note: encodeOverlay(overlay),
+  };
+
+  if (Object.hasOwn(data, "relationship")) updateData.relationship = data.relationship;
+  if (Object.hasOwn(data, "relationshipStartedAt")) {
+    updateData.started_at = parseOptionalDate(data.relationshipStartedAt, "relationshipStartedAt");
+  }
+
+  const updated = await prisma.parentCatLink.update({
+    where: { id: existing.id },
+    data: updateData,
+    include: MY_CAT_LINK_INCLUDE,
+  });
+  const [mediaByCatId, timelinePosts] = await Promise.all([
+    listVisibleCatMedia([updated.cat_id]),
+    listCatTimelinePosts(updated.cat_id, user),
+  ]);
+
+  return toMyCatDto(updated, mediaByCatId, timelinePosts);
+}
+
+export async function deleteMyCat(id, user) {
+  const parentProfileId = requireActiveParentProfileId(user);
+  const existing = await findOwnedCatLink(parentProfileId, id);
+  const deleted = await prisma.parentCatLink.update({
+    where: { id: existing.id },
+    data: {
+      status: "inactive",
+      ended_at: new Date(),
+      deleted_at: new Date(),
+    },
+    include: MY_CAT_LINK_INCLUDE,
+  });
+  const mediaByCatId = await listVisibleCatMedia([deleted.cat_id]);
+  return toMyCatDto(deleted, mediaByCatId, []);
+}
+
 function requireActiveParentProfileId(user) {
   if (!user?.roles?.includes("parent") || user.parentProfile?.status !== "active") {
     throw forbidden("Active parent profile is required");
@@ -61,6 +167,19 @@ function buildActiveParentCatLinkWhere(parentProfileId) {
       deleted_at: null,
     },
   };
+}
+
+async function findOwnedCatLink(parentProfileId, catId) {
+  const link = await prisma.parentCatLink.findFirst({
+    where: {
+      ...buildActiveParentCatLinkWhere(parentProfileId),
+      cat_id: catId,
+    },
+    include: MY_CAT_LINK_INCLUDE,
+  });
+
+  if (!link) throw notFound("My cat not found");
+  return link;
 }
 
 async function listVisibleCatMedia(catIds) {
@@ -218,18 +337,20 @@ async function listVisiblePostMedia(postIds) {
 
 function toMyCatDto(link, mediaByCatId, timelinePosts = []) {
   const cat = link.cat;
+  const overlay = decodeOverlay(link.note);
   return {
     id: cat.id,
-    name: cat.name,
-    gender: cat.gender,
-    color: cat.color,
-    birthday: toIsoString(cat.birthday),
+    name: overlay.name ?? cat.name,
+    gender: overlay.gender ?? cat.gender,
+    color: overlay.color ?? cat.color,
+    birthday: overlay.birthday ?? toIsoString(cat.birthday),
     lifecycleStatus: cat.lifecycle_status,
-    personality: cat.personality,
+    personality: overlay.personality ?? cat.personality,
     visibility: cat.visibility,
     mediaAssets: mediaByCatId.get(cat.id) ?? [],
     relationship: link.relationship,
     relationshipStartedAt: toIsoString(link.started_at),
+    note: overlay.note ?? null,
     litter: cat.kitten_profile?.litter ? toLitterDto(cat.kitten_profile.litter) : null,
     timelinePosts,
     createdAt: toIsoString(cat.created_at),
@@ -296,6 +417,9 @@ function toMediaDto(media, binding) {
     thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
+    mimeType: media.mime_type,
+    width: media.width,
+    height: media.height,
     usage: binding.usage,
     sortOrder: binding.sort_order,
   };
@@ -312,6 +436,104 @@ function canManagePost(user, post) {
 
 function toIsoString(value) {
   return value ? value.toISOString() : null;
+}
+
+function normalizeMyCatInput(input, { allowedFields, requireName }) {
+  requireObject(input);
+  rejectUnsupportedFields(input, allowedFields);
+  const data = {};
+
+  if (Object.hasOwn(input, "name") || requireName) {
+    data.name = requiredString(input.name, "name", 80);
+  }
+  copyOptionalString(data, input, "gender", 16);
+  if (Object.hasOwn(data, "gender") && data.gender && !GENDER_VALUES.has(data.gender)) {
+    throw badRequest("gender must be male or female");
+  }
+  copyOptionalString(data, input, "color", 80);
+  copyOptionalString(data, input, "birthday", 32);
+  if (Object.hasOwn(data, "birthday")) parseOptionalDate(data.birthday, "birthday");
+  copyOptionalString(data, input, "personality", 500);
+  copyOptionalString(data, input, "relationshipStartedAt", 32);
+  if (Object.hasOwn(data, "relationshipStartedAt")) {
+    parseOptionalDate(data.relationshipStartedAt, "relationshipStartedAt");
+  }
+  copyOptionalString(data, input, "note", 500);
+
+  if (Object.hasOwn(input, "relationship")) {
+    data.relationship = requiredString(input.relationship, "relationship", 32);
+    if (!RELATIONSHIP_VALUES.has(data.relationship)) {
+      throw badRequest("relationship must be owner, co_owner, or caregiver");
+    }
+  } else if (requireName) {
+    data.relationship = "owner";
+  }
+
+  return data;
+}
+
+function buildOverlay(data) {
+  const overlay = {};
+  for (const key of ["name", "gender", "color", "birthday", "personality", "note"]) {
+    if (Object.hasOwn(data, key)) overlay[key] = data[key];
+  }
+  return overlay;
+}
+
+function encodeOverlay(overlay) {
+  return `${OVERLAY_PREFIX}${JSON.stringify(overlay)}`;
+}
+
+function decodeOverlay(note) {
+  if (!note || !note.startsWith(OVERLAY_PREFIX)) return {};
+  try {
+    const value = JSON.parse(note.slice(OVERLAY_PREFIX.length));
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function requireObject(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw badRequest("Request body must be a JSON object");
+  }
+}
+
+function rejectUnsupportedFields(input, allowedFields) {
+  const unsupported = Object.keys(input).filter((key) => !allowedFields.includes(key));
+  if (unsupported.length > 0) {
+    throw badRequest("Request body contains unsupported fields", { fields: unsupported });
+  }
+}
+
+function requiredString(value, fieldName, maxLength) {
+  if (typeof value !== "string") throw badRequest(`${fieldName} must be a string`);
+  const trimmed = value.trim();
+  if (!trimmed) throw badRequest(`${fieldName} is required`);
+  if (trimmed.length > maxLength) throw badRequest(`${fieldName} is too long`);
+  return trimmed;
+}
+
+function copyOptionalString(data, input, fieldName, maxLength) {
+  if (!Object.hasOwn(input, fieldName)) return;
+  const value = input[fieldName];
+  if (value === null || value === undefined || value === "") {
+    data[fieldName] = null;
+    return;
+  }
+  if (typeof value !== "string") throw badRequest(`${fieldName} must be a string`);
+  const trimmed = value.trim();
+  if (trimmed.length > maxLength) throw badRequest(`${fieldName} is too long`);
+  data[fieldName] = trimmed || null;
+}
+
+function parseOptionalDate(value, fieldName) {
+  if (!value) return null;
+  if (typeof value !== "string") throw badRequest(`${fieldName} must be an ISO date string`);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw badRequest(`${fieldName} must be a valid ISO date string`);
+  return date;
 }
 
 const MY_CAT_LINK_INCLUDE = {

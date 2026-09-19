@@ -7,19 +7,20 @@
 
   <view wx:else class="post">
     <view class="post-head">
-      <view>
-        <text class="author">{{author}}</text>
+      <view class="author-block">
+        <view class="author-row">
+          <text class="author">{{author}}</text>
+          <text wx:if="{{authorRole}}" class="{{authorRoleClass}}">{{authorRole}}</text>
+          <text wx:if="{{pinned}}" class="pin">置顶</text>
+          <text class="category-dot">· {{category}}</text>
+        </view>
         <text class="date">{{date}}</text>
-      </view>
-      <view class="tag-row">
-        <text wx:if="{{pinned}}" class="pin">置顶</text>
-        <text class="category">{{category}}</text>
       </view>
     </view>
 
     <text class="content">{{content}}</text>
 
-    <view wx:if="{{images.length}}" class="gallery">
+    <view wx:if="{{images.length}}" class="{{imageGridClass}}">
       <image
         wx:for="{{images}}"
         wx:key="id"
@@ -32,36 +33,62 @@
     </view>
 
     <view wx:if="{{linkedLitters.length || linkedCats.length}}" class="links">
-      <view wx:if="{{linkedLitters.length}}" class="link-group">
-        <text class="link-label">相关窝次</text>
-        <text wx:for="{{linkedLitters}}" wx:key="*this" class="link-pill">{{item}}</text>
-      </view>
+      <text class="links-title">关联信息</text>
       <view wx:if="{{linkedCats.length}}" class="link-group">
-        <text class="link-label">相关猫咪</text>
-        <text wx:for="{{linkedCats}}" wx:key="*this" class="link-pill">{{item}}</text>
+        <view
+          wx:for="{{linkedCats}}"
+          wx:key="id"
+          class="cat-link"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          catchtap="openCatTimeline"
+        >
+          <view class="cat-avatar">
+            <image class="cat-avatar-icon" src="../../assets/illustrations/cat-icon.png" mode="aspectFit" />
+          </view>
+          <text class="cat-link-name">{{item.name}}</text>
+        </view>
+      </view>
+      <view wx:if="{{linkedLitters.length}}" class="link-group">
+        <text
+          wx:for="{{linkedLitters}}"
+          wx:key="id"
+          class="link-pill litter"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          catchtap="openLitterTimeline"
+        >{{item.name}}</text>
       </view>
     </view>
 
-    <view class="meta-row">
-      <text>{{meta}}</text>
+    <view class="post-foot">
+      <button class="{{likedByMe ? 'like-button liked' : 'like-button'}}" bindtap="toggleLike">
+        <image
+          class="like-icon"
+          src="{{likedByMe ? '../../assets/illustrations/paw-like-active.png' : '../../assets/illustrations/paw-like.png'}}"
+          mode="aspectFit"
+        />
+        <text>{{likeActionLabel}}</text>
+      </button>
+      <button class="comment-action" bindtap="scrollToComments">{{commentActionLabel}}</button>
     </view>
 
-    <view class="action-row">
-      <button class="{{likedByMe ? 'like-button liked' : 'like-button'}}" bindtap="toggleLike">
-        {{likedByMe ? '已喜欢' : '喜欢'}}
-      </button>
+    <view wx:if="{{canEdit || canDelete}}" class="action-row">
       <button wx:if="{{canEdit}}" class="secondary-button" bindtap="openEdit">编辑</button>
       <button wx:if="{{canDelete}}" class="danger-button" bindtap="deletePost">删除</button>
     </view>
 
-    <view class="comments">
+    <view id="comments-section" class="comments">
       <text class="comments-title">评论</text>
-      <view wx:if="{{!comments.length}}" class="empty-comments">还没有评论</view>
+      <view wx:if="{{!comments.length}}" class="empty-comments">还没有人评论，来说点什么吧～</view>
       <view wx:for="{{comments}}" wx:key="id" class="comment-row">
         <view class="comment-main">
-          <text class="comment-author">{{item.author}}</text>
+          <view class="comment-meta-row">
+            <text class="comment-author">{{item.author}}</text>
+            <text wx:if="{{item.authorRole}}" class="{{item.authorRoleClass}}">{{item.authorRole}}</text>
+            <text class="comment-date">· {{item.date}}</text>
+          </view>
           <text class="comment-content">{{item.content}}</text>
-          <text class="comment-date">{{item.date}}</text>
         </view>
         <button
           wx:if="{{item.canDelete}}"
@@ -72,15 +99,16 @@
           删除
         </button>
       </view>
-      <view class="comment-form">
-        <input
-          class="comment-input"
-          placeholder="写一条评论"
-          value="{{commentText}}"
-          bindinput="onCommentInput"
-        />
-        <button class="comment-submit" bindtap="submitComment">发送</button>
-      </view>
     </view>
+  </view>
+
+  <view wx:if="{{!isLoading && !error}}" class="comment-form">
+    <input
+      class="comment-input"
+      placeholder="留下你的评论…"
+      value="{{commentText}}"
+      bindinput="onCommentInput"
+    />
+    <button class="comment-submit" bindtap="submitComment">发送</button>
   </view>
 </view>

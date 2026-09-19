@@ -1,10 +1,71 @@
-:root {
+page {
   --xy-color-background: #fffaf1;
   --xy-color-surface: #fffdf8;
+  --xy-color-muted-surface: #fff8e8;
   --xy-color-text: #58616c;
   --xy-color-muted: #8c929a;
+  --xy-color-heading: #7a9ac0;
   --xy-color-primary: #7a9ac0;
+  --xy-color-secondary: #86a6d2;
   --xy-color-accent: #e7c15d;
+  --xy-color-accent-text: #b48725;
+  --xy-color-violet: #9aa3cf;
+  --xy-color-lilac: #aab4e7;
+  --xy-color-danger: #c46a6a;
   --xy-color-border: #e9ddbf;
-  --xy-radius-card: 16rpx;
+  --xy-radius-card: 32rpx;
+  --xy-gradient-cream: linear-gradient(180deg, #fffdf8 0%, #fff7df 48%, #fff2d0 100%);
+  --xy-gradient-soft: linear-gradient(180deg, rgba(255, 253, 248, 0.82) 0%, rgba(255, 248, 232, 0.42) 100%);
+  --xy-shadow-card: 0 8rpx 24rpx rgba(88, 97, 108, 0.05), 0 2rpx 8rpx rgba(180, 135, 37, 0.05);
+}
+
+.xy-card {
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: var(--xy-radius-card);
+  background: var(--xy-color-surface);
+  box-shadow: var(--xy-shadow-card);
+}
+
+.xy-section-title {
+  color: var(--xy-color-heading);
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.xy-eyebrow {
+  color: var(--xy-color-accent-text);
+  font-family: "Songti SC", "PingFang SC", serif;
+  font-size: 21rpx;
+  letter-spacing: 5rpx;
+  text-transform: uppercase;
+}
+
+.xy-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: #f9f0d4;
+  color: var(--xy-color-accent-text);
+  font-size: 21rpx;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.xy-soft-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16rpx;
+  background: var(--xy-gradient-cream);
+  color: var(--xy-color-accent-text);
+}
+
+.xy-placeholder-cat {
+  width: 136rpx;
+  height: 136rpx;
+  opacity: 0.38;
 }

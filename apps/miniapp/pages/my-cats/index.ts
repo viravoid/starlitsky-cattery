@@ -1,15 +1,17 @@
 import type { MyCatData } from "@starlitsky/shared";
-import { listMyCats } from "../../utils/public-content/index";
+import { deleteMyCat, listMyCats } from "../../utils/public-content/index";
 import { refreshCurrentUser } from "../../utils/session/auth";
 
 interface MyCatCard {
   color: string;
+  gender: string;
+  genderClass: string;
   id: string;
   imageUrl: string;
-  lineOne: string;
-  lineTwo: string;
+  litterName: string;
   name: string;
   relationship: string;
+  status: string;
 }
 
 interface MyCatsData {
@@ -90,18 +92,51 @@ Page({
     if (!id) return;
     wx.navigateTo({ url: `/pages/my-cat-detail/index?id=${encodeURIComponent(id)}` });
   },
+
+  openNewCat() {
+    wx.navigateTo({ url: "/pages/my-cat-edit/index?id=new" });
+  },
+
+  openCatEdit(event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    wx.navigateTo({ url: `/pages/my-cat-edit/index?id=${encodeURIComponent(id)}` });
+  },
+
+  async deleteCat(this: MyCatsPage, event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    wx.showModal({
+      title: "删除猫咪",
+      content: "删除后会从我的猫咪列表移除，已有关联动态不会被删除。",
+      confirmText: "删除",
+      cancelText: "取消",
+      success: async (result) => {
+        if (!result.confirm) return;
+        try {
+          await deleteMyCat(id);
+          wx.showToast({ icon: "success", title: "已删除" });
+          await this.loadCats();
+        } catch (error) {
+          wx.showToast({ icon: "none", title: getErrorMessage(error) });
+        }
+      },
+    });
+  },
 });
 
 function toCard(cat: MyCatData): MyCatCard {
   const image = cat.mediaAssets.find((item) => item.usage === "cover") ?? cat.mediaAssets[0];
   return {
     color: cat.color || "颜色待补充",
+    gender: genderLabel(cat.gender),
+    genderClass: cat.gender === "female" ? "gender-pill female" : "gender-pill male",
     id: cat.id,
     imageUrl: image?.thumbnailUrl || image?.sourceUrl || "",
-    lineOne: `${genderLabel(cat.gender)} · ${cat.color || "颜色待补充"}`,
-    lineTwo: cat.litter ? `${cat.litter.name} · ${statusLabel(cat.lifecycleStatus)}` : statusLabel(cat.lifecycleStatus),
+    litterName: cat.litter?.name || "暂无窝次信息",
     name: cat.name,
     relationship: relationshipLabel(cat.relationship),
+    status: statusLabel(cat.lifecycleStatus),
   };
 }
 

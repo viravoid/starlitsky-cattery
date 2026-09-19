@@ -7,13 +7,23 @@ interface DetailOptions {
 }
 
 interface TimelineCard {
+  author: string;
   category: string;
+  commentCount: number;
   content: string;
   date: string;
-  firstImageUrl: string;
+  footerCommentLabel: string;
+  footerLikeLabel: string;
   id: string;
-  imageCount: number;
-  meta: string;
+  imageGridClass: string;
+  images: Array<{ id: string; url: string }>;
+  isPinned: boolean;
+  likedByMe: boolean;
+  linkedCats: Array<{ id: string; name: string }>;
+  linkedLitters: Array<{ id: string; name: string }>;
+  previewUrls: string[];
+  roleLabel: string;
+  roleClass: string;
 }
 
 interface MyCatDetailData {
@@ -21,6 +31,7 @@ interface MyCatDetailData {
   color: string;
   error: string;
   gender: string;
+  genderClass: string;
   id: string;
   imageUrl: string;
   isLoading: boolean;
@@ -30,6 +41,7 @@ interface MyCatDetailData {
   personality: string;
   relationship: string;
   relationshipStartedAt: string;
+  secondaryMeta: string;
   status: string;
   timelinePosts: TimelineCard[];
 }
@@ -53,6 +65,7 @@ Page({
     color: "",
     error: "",
     gender: "",
+    genderClass: "",
     id: "",
     imageUrl: "",
     isLoading: true,
@@ -62,6 +75,7 @@ Page({
     personality: "",
     relationship: "",
     relationshipStartedAt: "",
+    secondaryMeta: "",
     status: "",
     timelinePosts: [],
   } as MyCatDetailData,
@@ -112,6 +126,18 @@ Page({
     if (!id) return;
     wx.navigateTo({ url: `/pages/community-detail/index?id=${encodeURIComponent(id)}` });
   },
+
+  previewPostImage(this: MyCatDetailPage, event: TapEvent) {
+    const postIndex = Number(event.currentTarget.dataset.postIndex || 0);
+    const imageIndex = Number(event.currentTarget.dataset.imageIndex || 0);
+    const post = this.data.timelinePosts[postIndex];
+    if (!post || post.previewUrls.length === 0) return;
+    wx.previewImage({ current: post.previewUrls[imageIndex] || post.previewUrls[0], urls: post.previewUrls });
+  },
+
+  openPublicCats() {
+    wx.switchTab({ url: "/pages/cats/index" });
+  },
 });
 
 function toDetailView(cat: MyCatData): Partial<MyCatDetailData> {
@@ -120,12 +146,14 @@ function toDetailView(cat: MyCatData): Partial<MyCatDetailData> {
     birthday: formatDate(cat.birthday),
     color: cat.color || "颜色待补充",
     gender: genderLabel(cat.gender),
+    genderClass: cat.gender === "female" ? "gender-pill female" : "gender-pill male",
     imageUrl: cover?.thumbnailUrl || cover?.sourceUrl || "",
     litterName: cat.litter?.name || "暂无窝次信息",
     name: cat.name,
     personality: cat.personality || "性格记录待补充",
     relationship: relationshipLabel(cat.relationship),
     relationshipStartedAt: formatDate(cat.relationshipStartedAt),
+    secondaryMeta: secondaryMeta(cat),
     status: statusLabel(cat.lifecycleStatus),
     timelinePosts: cat.timelinePosts.map(toTimelineCard),
   };
@@ -134,17 +162,37 @@ function toDetailView(cat: MyCatData): Partial<MyCatDetailData> {
 function toTimelineCard(post: CommunityPostData): TimelineCard {
   const images = post.mediaAssets
     .filter((item) => item.kind === "image")
-    .map((item) => item.thumbnailUrl || item.sourceUrl || "")
-    .filter(Boolean);
+    .slice(0, 9)
+    .map((item) => ({
+      id: item.id,
+      url: item.sourceUrl || item.thumbnailUrl || "",
+    }))
+    .filter((item) => item.url);
   return {
+    author: post.authorName || "星月猫友",
     category: categoryLabel(post.category),
+    commentCount: post.commentCount,
     content: post.content,
     date: formatDate(post.createdAt),
-    firstImageUrl: images[0] ?? "",
+    footerCommentLabel: String(post.commentCount),
+    footerLikeLabel: String(post.likeCount),
     id: post.id,
-    imageCount: images.length,
-    meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
+    imageGridClass: imageGridClass(images.length),
+    images,
+    isPinned: post.pinned,
+    likedByMe: post.likedByMe,
+    linkedCats: post.cats.map((cat) => ({ id: cat.id, name: cat.name })),
+    linkedLitters: post.litters.map((litter) => ({ id: litter.id, name: litter.name })),
+    previewUrls: images.map((image) => image.url),
+    roleClass: roleClass(post.authorRole),
+    roleLabel: roleLabel(post.authorRole),
   };
+}
+
+function imageGridClass(count: number) {
+  if (count <= 1) return "post-images single-image-grid";
+  if (count === 2 || count === 4) return "post-images two-image-grid";
+  return "post-images three-image-grid";
 }
 
 function genderLabel(value: string | null) {
@@ -172,6 +220,25 @@ function categoryLabel(value: string) {
   if (value === "personal_thoughts") return "碎碎念";
   if (value === "parent_share") return "家长分享";
   return value || "动态";
+}
+
+function roleLabel(value: string) {
+  if (value === "keeper" || value === "猫舍主理人") return "猫舍主理人";
+  if (value === "parent" || value === "星月家长") return "星月家长";
+  if (value === "user" || value === "普通用户") return "";
+  return value || "";
+}
+
+function roleClass(value: string) {
+  if (value === "keeper" || value === "猫舍主理人") return "role-pill keeper";
+  if (value === "parent" || value === "星月家长") return "role-pill parent";
+  return "role-pill";
+}
+
+function secondaryMeta(cat: MyCatData) {
+  return [relationshipLabel(cat.relationship), cat.litter?.name, statusLabel(cat.lifecycleStatus)]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function formatDate(value: string | null) {

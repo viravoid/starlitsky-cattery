@@ -1,19 +1,23 @@
 import type {
   CommunityPostCategory,
-  CommunityPostMediaAssetData,
   CommunityPostOptionsData,
   CreateCommunityPostRequest,
 } from "@starlitsky/shared";
 import {
-  completeCommunityPostImageUpload,
   createCommunityPost,
   deleteCommunityPostImage,
   getCommunityPost,
   getCommunityPostOptions,
-  requestCommunityPostImageUpload,
   updateCommunityPost,
 } from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
+import {
+  inferPostImageMimeType,
+  toExistingPostImage,
+  uploadPostImage,
+  type ExistingPostImage,
+  type SelectedPostImage,
+} from "../../utils/community-post-images";
 
 interface PublishOptions {
   id?: string;
@@ -39,19 +43,6 @@ interface OptionItem {
   visibility: string;
 }
 
-interface SelectedImage {
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  tempFilePath: string;
-}
-
-interface ExistingImage {
-  id: string;
-  removed: boolean;
-  url: string;
-}
-
 interface PublishData {
   canSubmit: boolean;
   categories: Array<{ label: string; value: CommunityPostCategory }>;
@@ -59,13 +50,13 @@ interface PublishData {
   cats: OptionItem[];
   content: string;
   error: string;
-  existingImages: ExistingImage[];
+  existingImages: ExistingPostImage[];
   id: string;
   isEditing: boolean;
   isLoading: boolean;
   isSubmitting: boolean;
   litters: OptionItem[];
-  selectedImages: SelectedImage[];
+  selectedImages: SelectedPostImage[];
 }
 
 interface PublishPage {
@@ -119,8 +110,8 @@ Page({
         existingImages:
           post?.mediaAssets
             .filter((item) => item.kind === "image")
-            .map(toExistingImage)
-            .filter((item): item is ExistingImage => Boolean(item)) ?? [],
+            .map(toExistingPostImage)
+            .filter((item): item is ExistingPostImage => Boolean(item)) ?? [],
         isLoading: false,
         litters: toOptionItems(options, "litters", post?.litters.map((litter) => litter.id) ?? []),
       });
@@ -169,7 +160,7 @@ Page({
       success: (response) => {
         const images = response.tempFiles.map((file) => ({
           fileName: file.tempFilePath.split(/[\\/]/).pop() || "post-image.jpg",
-          mimeType: inferMimeType(file.tempFilePath),
+          mimeType: inferPostImageMimeType(file.tempFilePath),
           sizeBytes: file.size,
           tempFilePath: file.tempFilePath,
         }));
@@ -262,11 +253,6 @@ Page({
   },
 });
 
-function toExistingImage(media: CommunityPostMediaAssetData): ExistingImage | null {
-  const url = media.sourceUrl || media.thumbnailUrl || "";
-  return url ? { id: media.id, removed: false, url } : null;
-}
-
 function toOptionItems(
   options: CommunityPostOptionsData,
   key: "cats" | "litters",
@@ -287,69 +273,11 @@ function toggleOption(items: OptionItem[], id = "") {
   return items.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item));
 }
 
-async function uploadPostImage(postId: string, image: SelectedImage, sortOrder: number) {
-  const upload = await requestCommunityPostImageUpload(postId, {
-    fileName: image.fileName,
-    mimeType: image.mimeType,
-    sizeBytes: image.sizeBytes,
-    usage: "gallery",
-    sortOrder,
-  });
-  const data = await readFile(image.tempFilePath);
-  await putUpload(upload.upload.url, upload.upload.headers, data);
-  await completeCommunityPostImageUpload(postId, upload.media.id, { sizeBytes: image.sizeBytes });
-}
-
-function readFile(filePath: string) {
-  return new Promise<ArrayBuffer>((resolve, reject) => {
-    wx.getFileSystemManager().readFile({
-      filePath,
-      success(response) {
-        resolve(response.data);
-      },
-      fail(error) {
-        reject(new Error(error.errMsg || "读取图片失败"));
-      },
-    });
-  });
-}
-
-function putUpload(url: string, headers: Record<string, string>, data: ArrayBuffer) {
-  return new Promise<void>((resolve, reject) => {
-    wx.request({
-      url,
-      method: "PUT",
-      data,
-      header: headers,
-      success(response) {
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          resolve();
-          return;
-        }
-        reject(new Error("图片上传失败"));
-      },
-      fail(error) {
-        reject(new Error(error.errMsg || "图片上传失败"));
-      },
-    });
-  });
-}
-
 async function ensureLoggedIn() {
   const user = await refreshCurrentUser();
   if (user) return user;
   const session = await loginWithWechat();
   return session.user;
-}
-
-function inferMimeType(path: string) {
-  const lower = path.toLowerCase();
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".gif")) return "image/gif";
-  if (lower.endsWith(".heic")) return "image/heic";
-  if (lower.endsWith(".heif")) return "image/heif";
-  return "image/jpeg";
 }
 
 function categoryLabel(value: string) {
