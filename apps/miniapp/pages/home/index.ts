@@ -35,6 +35,7 @@ interface HomeData {
   error: string;
   groups: HomeGroup[];
   hasHeroImages: boolean;
+  currentHeroIndex: number;
   heroSlides: HomeHeroSlide[];
   introBody: string;
   introMeta: string;
@@ -47,14 +48,22 @@ interface HomeData {
 interface HomePage {
   data: HomeData;
   loadHome(): Promise<void>;
+  onHeroChange(event: SwiperChangeEvent): void;
   previewHeroImage(event: TapEvent): void;
   retryLoad(): Promise<void>;
+  setHeroSlide(event: TapEvent): void;
   setData(data: Partial<HomeData>): void;
 }
 
 interface TapEvent {
   currentTarget: {
     dataset: Record<string, string>;
+  };
+}
+
+interface SwiperChangeEvent {
+  detail: {
+    current?: number;
   };
 }
 
@@ -108,6 +117,7 @@ const DEFAULT_HOME = {
     buttonText: "查看小猫与种猫",
   },
   hasHeroImages: false,
+  currentHeroIndex: 0,
   heroSlides: [
     { id: "hero-1", imageUrl: "", label: "示例图片（首页轮播照片 1，待替换）" },
     { id: "hero-2", imageUrl: "", label: "示例图片（首页轮播照片 2，待替换）" },
@@ -160,6 +170,15 @@ Page({
     wx.previewImage({ current, urls: this.data.previewUrls });
   },
 
+  onHeroChange(this: HomePage, event: SwiperChangeEvent) {
+    this.setData({ currentHeroIndex: event.detail.current ?? 0 });
+  },
+
+  setHeroSlide(this: HomePage, event: TapEvent) {
+    const index = Number(event.currentTarget.dataset.index ?? 0);
+    if (!Number.isNaN(index)) this.setData({ currentHeroIndex: index });
+  },
+
   openEntry(event: TapEvent) {
     const url = event.currentTarget.dataset.url;
     if (url) wx.navigateTo({ url });
@@ -194,7 +213,7 @@ function normalizeHomeContent(value: unknown, mediaAssets: FixedPageMediaAssetDa
     ...DEFAULT_HOME,
     title: stringOr(hero.title, DEFAULT_HOME.title),
     subtitle: stringOr(hero.subtitle, DEFAULT_HOME.subtitle),
-    introMeta: [stringOr(intro.eyebrowPrefix, "Est."), stringOr(intro.fixedMeta, "")]
+    introMeta: [stringOr(intro.eyebrowPrefix, "Est."), stringOr(intro.fixedMeta, "2019 · Xi'an · WCF / CFA 注册")]
       .filter(Boolean)
       .join(" "),
     introBody: stringOr(intro.body, DEFAULT_HOME.introBody),

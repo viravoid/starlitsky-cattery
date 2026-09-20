@@ -6,9 +6,9 @@
       circular="{{heroSlides.length > 1}}"
       interval="3800"
       duration="500"
-      indicator-dots="{{heroSlides.length > 1}}"
-      indicator-color="rgba(255,253,248,0.78)"
-      indicator-active-color="#e7c15d"
+      indicator-dots="{{false}}"
+      current="{{currentHeroIndex}}"
+      bindchange="onHeroChange"
     >
       <swiper-item wx:for="{{heroSlides}}" wx:key="id">
         <view class="hero-slide">
@@ -27,6 +27,16 @@
         </view>
       </swiper-item>
     </swiper>
+    <view wx:if="{{heroSlides.length > 1}}" class="hero-indicator">
+      <button
+        wx:for="{{heroSlides}}"
+        wx:key="id"
+        class="{{index === currentHeroIndex ? 'hero-indicator-dot active' : 'hero-indicator-dot'}}"
+        data-index="{{index}}"
+        bindtap="setHeroSlide"
+        aria-label="切换首页轮播图"
+      ></button>
+    </view>
     <view class="{{hasHeroImages ? 'hero-copy on-image' : 'hero-copy'}}">
       <text class="title">{{title}}</text>
       <text class="subtitle">{{subtitle}}</text>

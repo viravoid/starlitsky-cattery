@@ -37,6 +37,7 @@ interface CatsPage {
     litterFilters: LitterFilter[];
     litterOpen: boolean;
   };
+  getTabBar?(): { setData(data: { selected: number }): void };
   loadCats(): Promise<void>;
   retryLoad(): Promise<void>;
   setData(data: Record<string, unknown>): void;
@@ -73,6 +74,10 @@ Page({
 
   async onLoad(this: CatsPage) {
     await this.loadCats();
+  },
+
+  onShow(this: CatsPage) {
+    this.getTabBar?.()?.setData({ selected: 2 });
   },
 
   async onPullDownRefresh(this: CatsPage) {
