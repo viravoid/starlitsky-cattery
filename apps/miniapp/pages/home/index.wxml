@@ -21,8 +21,10 @@
             bindtap="previewHeroImage"
           />
           <view wx:else class="hero-placeholder xy-soft-placeholder">
-            <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
-            <text class="hero-placeholder-label">{{item.label}}</text>
+            <view class="hero-placeholder-content">
+              <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+              <text class="hero-placeholder-label">{{item.label}}</text>
+            </view>
           </view>
         </view>
       </swiper-item>
