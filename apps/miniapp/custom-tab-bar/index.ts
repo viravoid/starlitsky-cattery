@@ -46,13 +46,13 @@ Component({
 
   lifetimes: {
     attached(this: TabBarInstance) {
-      this.setData({ selected: getSelectedIndex() });
+      syncSelected(this);
     },
   },
 
   pageLifetimes: {
     show(this: TabBarInstance) {
-      this.setData({ selected: getSelectedIndex() });
+      syncSelected(this);
     },
   },
 
@@ -65,6 +65,13 @@ Component({
     },
   },
 });
+
+function syncSelected(tabBar: TabBarInstance) {
+  tabBar.setData({ selected: getSelectedIndex() });
+  Promise.resolve().then(() => {
+    tabBar.setData({ selected: getSelectedIndex() });
+  });
+}
 
 function getSelectedIndex() {
   const pages = getCurrentPages();

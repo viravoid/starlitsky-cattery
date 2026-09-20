@@ -13,14 +13,20 @@
 
 .tab {
   display: flex;
+  width: auto !important;
+  height: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 0;
-  padding: 12rpx 0;
+  justify-self: stretch;
+  margin: 0 !important;
+  padding: 12rpx 0 !important;
   background: transparent;
   color: #8c929a;
   line-height: 1;
+  text-align: center;
 }
 
 .tab.selected {

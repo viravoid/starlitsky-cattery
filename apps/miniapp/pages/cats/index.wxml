@@ -7,11 +7,11 @@
   <view class="sticky-controls">
   <view class="tabs">
     <button class="{{activeTab === 'kittens' ? 'tab active' : 'tab'}}" data-tab="kittens" bindtap="switchTab">
-      小猫
+      <text class="tab-label">小猫</text>
       <text wx:if="{{activeTab === 'kittens'}}" class="tab-line"></text>
     </button>
     <button class="{{activeTab === 'studs' ? 'tab active' : 'tab'}}" data-tab="studs" bindtap="switchTab">
-      种猫
+      <text class="tab-label">种猫</text>
       <text wx:if="{{activeTab === 'studs'}}" class="tab-line"></text>
     </button>
   </view>
