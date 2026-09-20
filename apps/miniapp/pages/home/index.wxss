@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 112rpx 44rpx calc(148rpx + env(safe-area-inset-bottom));
+  padding: 112rpx 0 calc(148rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
 }
 
@@ -9,7 +9,11 @@
   width: 100%;
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  border-radius: 34rpx;
+  border-radius: 0;
+  background: var(--xy-color-background);
+}
+
+.hero-shell.has-image {
   background: var(--xy-gradient-cream);
 }
 
@@ -19,6 +23,10 @@
 .hero-placeholder {
   width: 100%;
   height: 100%;
+}
+
+.hero-placeholder {
+  background: var(--xy-color-background);
 }
 
 .hero-indicator {
@@ -142,7 +150,8 @@
 .intro {
   display: flex;
   flex-direction: column;
-  padding: 36rpx 20rpx 10rpx;
+  margin: 0 36rpx;
+  padding: 36rpx 0 10rpx;
   text-align: center;
 }
 
@@ -167,7 +176,7 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
-  margin: 40rpx 16rpx 0;
+  margin: 40rpx 36rpx 0;
   color: rgba(180, 135, 37, 0.52);
 }
 
@@ -199,12 +208,12 @@
 }
 
 .groups {
-  margin-top: 44rpx;
+  margin: 44rpx 36rpx 0;
 }
 
 .group {
   margin-top: 0;
-  padding: 0 16rpx;
+  padding: 0;
 }
 
 .group + .group {
@@ -352,13 +361,13 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: calc(100% - 32rpx) !important;
+  width: calc(100% - 72rpx) !important;
   max-width: 100%;
-  margin: 56rpx 16rpx 0;
-  padding: 32rpx;
+  margin: 56rpx 36rpx 0;
+  padding: 56rpx 44rpx 58rpx;
   overflow: hidden;
   border: 1rpx solid var(--xy-color-border);
-  border-radius: 36rpx;
+  border-radius: 40rpx;
   background: var(--xy-gradient-cream);
   text-align: left;
   box-shadow: var(--xy-shadow-card);

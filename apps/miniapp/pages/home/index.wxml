@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="hero-shell">
+  <view class="{{hasHeroImages ? 'hero-shell has-image' : 'hero-shell'}}">
     <swiper
       class="hero-swiper"
       autoplay="{{heroSlides.length > 1}}"
