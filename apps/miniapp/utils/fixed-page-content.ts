@@ -1,7 +1,6 @@
 import type { CatData, FixedPageMediaAssetData } from "@starlitsky/shared";
 import { resolveCatFrame, type ImageFrameMode } from "./cat-presentation";
 import { getFixedPageMediaUrl, mapFixedPageMedia } from "./fixed-page-media";
-import { isVisualQaModeEnabled } from "./visual-qa/mode";
 
 export type FixedPageViewKind =
   | "about"
@@ -550,11 +549,7 @@ function normalizeEnvironment(
       : DEFAULT_ENVIRONMENT_SECTIONS;
   const environmentSections = sections
     .map((section, index) => normalizeEnvironmentSection(section, index, mediaAssets))
-    .filter((section) =>
-      isVisualQaModeEnabled()
-        ? true
-        : section?.id !== "environment-zone-common" || section.photoCount > 0,
-    )
+    .filter((section) => section?.id !== "environment-zone-common" || section.photoCount > 0)
     .filter(Boolean) as EnvironmentSectionView[];
 
   return {

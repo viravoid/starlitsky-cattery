@@ -1,9 +1,9 @@
 import { refreshCurrentUser } from "./utils/session/auth";
-import { configureVisualQaMode } from "./utils/visual-qa/mode";
+import { configureVisualQaAdapter } from "./utils/visual-qa/adapter";
 
 App({
   onLaunch(options?: { query?: Record<string, string | undefined> }) {
-    configureVisualQaMode(options?.query);
+    configureVisualQaAdapter(options?.query);
     void refreshCurrentUser();
   },
   globalData: {},

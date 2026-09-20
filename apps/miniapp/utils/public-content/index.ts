@@ -23,33 +23,11 @@ import type {
   UpdateMyCatRequest,
 } from "@starlitsky/shared";
 import { get, post, patch, del } from "../request/index";
-import { isVisualQaModeEnabled } from "../visual-qa/mode";
-import {
-  completeVisualQaCommunityPostImageUpload,
-  createVisualQaCommunityComment,
-  createVisualQaCommunityPost,
-  createVisualQaMyCat,
-  deleteVisualQaCommunityComment,
-  deleteVisualQaCommunityPost,
-  deleteVisualQaCommunityPostImage,
-  deleteVisualQaMyCat,
-  getVisualQaCat,
-  getVisualQaCommunityPost,
-  getVisualQaCommunityPostOptions,
-  getVisualQaFixedPage,
-  getVisualQaMyCat,
-  listVisualQaCats,
-  listVisualQaCommunityPosts,
-  listVisualQaMyCats,
-  requestVisualQaCommunityPostImageUpload,
-  submitVisualQaSelectionApplication,
-  toggleVisualQaCommunityPostLike,
-  updateVisualQaCommunityPost,
-  updateVisualQaMyCat,
-} from "../visual-qa/fixtures";
+import { getPublicContentAdapter } from "./adapter";
 
 export async function getFixedPage(slug: string) {
-  if (isVisualQaModeEnabled()) return getVisualQaFixedPage(slug);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.getFixedPage) return adapter.getFixedPage(slug);
 
   const response = await get<FixedPageData>(`/fixed-pages/${encodeURIComponent(slug)}`);
   if (!response.success) throw new Error(response.message);
@@ -61,7 +39,8 @@ export async function listPublicCats(params: {
   pageSize?: number;
   q?: string;
 }) {
-  if (isVisualQaModeEnabled()) return listVisualQaCats();
+  const adapter = getPublicContentAdapter();
+  if (adapter?.listPublicCats) return adapter.listPublicCats(params);
 
   const response = await get<CatListData>(
     `/cats${toSearch({
@@ -75,7 +54,8 @@ export async function listPublicCats(params: {
 }
 
 export async function getPublicCat(id: string) {
-  if (isVisualQaModeEnabled()) return getVisualQaCat(id);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.getPublicCat) return adapter.getPublicCat(id);
 
   const response = await get<CatData>(`/cats/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
@@ -83,7 +63,8 @@ export async function getPublicCat(id: string) {
 }
 
 export async function listMyCats(params: { pageSize?: number } = {}) {
-  if (isVisualQaModeEnabled()) return listVisualQaMyCats(params);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.listMyCats) return adapter.listMyCats(params);
 
   const response = await get<MyCatListData>(
     `/me/cats${toSearch({
@@ -95,7 +76,8 @@ export async function listMyCats(params: { pageSize?: number } = {}) {
 }
 
 export async function getMyCat(id: string) {
-  if (isVisualQaModeEnabled()) return getVisualQaMyCat(id);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.getMyCat) return adapter.getMyCat(id);
 
   const response = await get<MyCatData>(`/me/cats/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
@@ -103,7 +85,8 @@ export async function getMyCat(id: string) {
 }
 
 export async function createMyCat(data: CreateMyCatRequest) {
-  if (isVisualQaModeEnabled()) return createVisualQaMyCat(data);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.createMyCat) return adapter.createMyCat(data);
 
   const response = await post<MyCatData, CreateMyCatRequest>("/me/cats", data);
   if (!response.success) throw new Error(response.message);
@@ -111,7 +94,8 @@ export async function createMyCat(data: CreateMyCatRequest) {
 }
 
 export async function updateMyCat(id: string, data: UpdateMyCatRequest) {
-  if (isVisualQaModeEnabled()) return updateVisualQaMyCat(id, data);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.updateMyCat) return adapter.updateMyCat(id, data);
 
   const response = await patch<MyCatData, UpdateMyCatRequest>(
     `/me/cats/${encodeURIComponent(id)}`,
@@ -122,7 +106,8 @@ export async function updateMyCat(id: string, data: UpdateMyCatRequest) {
 }
 
 export async function deleteMyCat(id: string) {
-  if (isVisualQaModeEnabled()) return deleteVisualQaMyCat(id);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.deleteMyCat) return adapter.deleteMyCat(id);
 
   const response = await del<MyCatData>(`/me/cats/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
@@ -136,7 +121,8 @@ export async function listCommunityPosts(params: {
   pageSize?: number;
   q?: string;
 } = {}) {
-  if (isVisualQaModeEnabled()) return listVisualQaCommunityPosts(params);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.listCommunityPosts) return adapter.listCommunityPosts(params);
 
   const response = await get<CommunityPostListData>(
     `/community/posts${toSearch({
@@ -152,7 +138,8 @@ export async function listCommunityPosts(params: {
 }
 
 export async function getCommunityPost(id: string) {
-  if (isVisualQaModeEnabled()) return getVisualQaCommunityPost(id);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.getCommunityPost) return adapter.getCommunityPost(id);
 
   const response = await get<CommunityPostData>(`/community/posts/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
@@ -160,6 +147,9 @@ export async function getCommunityPost(id: string) {
 }
 
 export async function listMyCommunityPosts(params: { pageSize?: number } = {}) {
+  const adapter = getPublicContentAdapter();
+  if (adapter?.listMyCommunityPosts) return adapter.listMyCommunityPosts(params);
+
   const response = await get<CommunityPostListData>(
     `/community/posts/mine${toSearch({
       pageSize: String(params.pageSize ?? 50),
@@ -170,7 +160,8 @@ export async function listMyCommunityPosts(params: { pageSize?: number } = {}) {
 }
 
 export async function getCommunityPostOptions() {
-  if (isVisualQaModeEnabled()) return getVisualQaCommunityPostOptions();
+  const adapter = getPublicContentAdapter();
+  if (adapter?.getCommunityPostOptions) return adapter.getCommunityPostOptions();
 
   const response = await get<CommunityPostOptionsData>("/community/post-options");
   if (!response.success) throw new Error(response.message);
@@ -178,7 +169,8 @@ export async function getCommunityPostOptions() {
 }
 
 export async function createCommunityPost(data: CreateCommunityPostRequest) {
-  if (isVisualQaModeEnabled()) return createVisualQaCommunityPost(data);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.createCommunityPost) return adapter.createCommunityPost(data);
 
   const response = await post<CommunityPostData, CreateCommunityPostRequest>(
     "/community/posts",
@@ -189,7 +181,8 @@ export async function createCommunityPost(data: CreateCommunityPostRequest) {
 }
 
 export async function updateCommunityPost(id: string, data: UpdateCommunityPostRequest) {
-  if (isVisualQaModeEnabled()) return updateVisualQaCommunityPost(id, data);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.updateCommunityPost) return adapter.updateCommunityPost(id, data);
 
   const response = await patch<CommunityPostData, UpdateCommunityPostRequest>(
     `/community/posts/${encodeURIComponent(id)}`,
@@ -200,7 +193,8 @@ export async function updateCommunityPost(id: string, data: UpdateCommunityPostR
 }
 
 export async function deleteCommunityPost(id: string) {
-  if (isVisualQaModeEnabled()) return deleteVisualQaCommunityPost(id);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.deleteCommunityPost) return adapter.deleteCommunityPost(id);
 
   const response = await del<CommunityPostData>(`/community/posts/${encodeURIComponent(id)}`);
   if (!response.success) throw new Error(response.message);
@@ -208,7 +202,8 @@ export async function deleteCommunityPost(id: string) {
 }
 
 export async function toggleCommunityPostLike(id: string) {
-  if (isVisualQaModeEnabled()) return toggleVisualQaCommunityPostLike(id);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.toggleCommunityPostLike) return adapter.toggleCommunityPostLike(id);
 
   const response = await post<ToggleCommunityPostLikeData>(
     `/community/posts/${encodeURIComponent(id)}/like`,
@@ -218,7 +213,8 @@ export async function toggleCommunityPostLike(id: string) {
 }
 
 export async function createCommunityComment(id: string, content: string) {
-  if (isVisualQaModeEnabled()) return createVisualQaCommunityComment(id, content);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.createCommunityComment) return adapter.createCommunityComment(id, content);
 
   const response = await post<CommunityCommentData, CreateCommunityCommentRequest>(
     `/community/posts/${encodeURIComponent(id)}/comments`,
@@ -229,7 +225,8 @@ export async function createCommunityComment(id: string, content: string) {
 }
 
 export async function deleteCommunityComment(postId: string, commentId: string) {
-  if (isVisualQaModeEnabled()) return deleteVisualQaCommunityComment(postId, commentId);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.deleteCommunityComment) return adapter.deleteCommunityComment(postId, commentId);
 
   const response = await del<CommunityCommentData>(
     `/community/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
@@ -252,7 +249,10 @@ export async function requestCommunityPostImageUpload(
     sortOrder?: number;
   },
 ) {
-  if (isVisualQaModeEnabled()) return requestVisualQaCommunityPostImageUpload(postId, data);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.requestCommunityPostImageUpload) {
+    return adapter.requestCommunityPostImageUpload(postId, data);
+  }
 
   const response = await post<ImageUploadData, typeof data>(
     `/community/posts/${encodeURIComponent(postId)}/media/uploads`,
@@ -267,7 +267,10 @@ export async function completeCommunityPostImageUpload(
   mediaId: string,
   data: CompleteMediaUploadRequest = {},
 ) {
-  if (isVisualQaModeEnabled()) return completeVisualQaCommunityPostImageUpload(postId, mediaId);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.completeCommunityPostImageUpload) {
+    return adapter.completeCommunityPostImageUpload(postId, mediaId, data);
+  }
 
   const response = await post<MediaAssetData, CompleteMediaUploadRequest>(
     `/community/posts/${encodeURIComponent(postId)}/media/${encodeURIComponent(mediaId)}/upload/complete`,
@@ -278,7 +281,8 @@ export async function completeCommunityPostImageUpload(
 }
 
 export async function deleteCommunityPostImage(postId: string, mediaId: string) {
-  if (isVisualQaModeEnabled()) return deleteVisualQaCommunityPostImage(postId, mediaId);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.deleteCommunityPostImage) return adapter.deleteCommunityPostImage(postId, mediaId);
 
   const response = await del<DeleteCommunityPostMediaData>(
     `/community/posts/${encodeURIComponent(postId)}/media/${encodeURIComponent(mediaId)}`,
@@ -288,7 +292,8 @@ export async function deleteCommunityPostImage(postId: string, mediaId: string) 
 }
 
 export async function submitSelectionApplication(data: SubmitSelectionApplicationRequest) {
-  if (isVisualQaModeEnabled()) return submitVisualQaSelectionApplication(data);
+  const adapter = getPublicContentAdapter();
+  if (adapter?.submitSelectionApplication) return adapter.submitSelectionApplication(data);
 
   const response = await post<SelectionApplicationData, SubmitSelectionApplicationRequest>(
     "/selection-applications",

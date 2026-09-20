@@ -188,17 +188,19 @@ function verifyMobileParityTabBar() {
 }
 
 function verifyVisualQaFixtures() {
+  const adapterPath = join(miniappRoot, "utils/visual-qa/adapter.ts");
   const modePath = join(miniappRoot, "utils/visual-qa/mode.ts");
   const fixturePath = join(miniappRoot, "utils/visual-qa/fixtures.ts");
   const publicContentPath = join(miniappRoot, "utils/public-content/index.ts");
   const appPath = join(miniappRoot, "app.ts");
-  for (const requiredPath of [modePath, fixturePath]) {
+  for (const requiredPath of [adapterPath, modePath, fixturePath]) {
     if (!existsSync(requiredPath)) {
       failures.push(`${relative(repoRoot, requiredPath)} is required for explicit Visual QA fixture mode.`);
     }
   }
-  if (!existsSync(modePath) || !existsSync(publicContentPath)) return;
+  if (!existsSync(adapterPath) || !existsSync(modePath) || !existsSync(publicContentPath)) return;
 
+  const adapterText = readFileSync(adapterPath, "utf8");
   const modeText = readFileSync(modePath, "utf8");
   const publicContentText = readFileSync(publicContentPath, "utf8");
   const appText = readFileSync(appPath, "utf8");
@@ -211,11 +213,14 @@ function verifyVisualQaFixtures() {
   if (!/getMiniProgramEnvVersion\(\)\s*===\s*"develop"/.test(modeText)) {
     failures.push("Visual QA fixture mode must be disabled outside develop.");
   }
-  if (!appText.includes("configureVisualQaMode(options?.query)")) {
-    failures.push("App launch must configure Visual QA mode from the explicit launch query.");
+  if (!appText.includes("configureVisualQaAdapter(options?.query)")) {
+    failures.push("App launch must configure the Visual QA adapter from the explicit launch query.");
   }
-  if (!publicContentText.includes("isVisualQaModeEnabled()")) {
-    failures.push("Public content helpers must gate Visual QA fixtures behind isVisualQaModeEnabled().");
+  if (!adapterText.includes("setPublicContentAdapter")) {
+    failures.push("Visual QA fixtures must enter through the independent public content adapter.");
+  }
+  if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled/.test(publicContentText)) {
+    failures.push("Production public content helpers must not contain Visual QA fixture branches.");
   }
   if (/catch\s*\([^)]*\)\s*\{[^}]*VisualQa/s.test(publicContentText)) {
     failures.push("Visual QA fixtures must not be used as an API failure fallback.");
@@ -225,24 +230,22 @@ function verifyVisualQaFixtures() {
 function verifyVisualQaMutationGuards() {
   const requestPath = join(miniappRoot, "utils/request/index.ts");
   const publicContentPath = join(miniappRoot, "utils/public-content/index.ts");
+  const adapterPath = join(miniappRoot, "utils/visual-qa/adapter.ts");
   const fixturePath = join(miniappRoot, "utils/visual-qa/fixtures.ts");
-  const publishPath = join(miniappRoot, "pages/community-publish/index.ts");
   const communityPostImagesPath = join(miniappRoot, "utils/community-post-images.ts");
-  if (![requestPath, publicContentPath, fixturePath, publishPath].every(existsSync)) return;
+  if (![requestPath, publicContentPath, adapterPath, fixturePath, communityPostImagesPath].every(existsSync)) return;
 
   const requestText = readFileSync(requestPath, "utf8");
   const publicContentText = readFileSync(publicContentPath, "utf8");
+  const adapterText = readFileSync(adapterPath, "utf8");
   const fixtureText = readFileSync(fixturePath, "utf8");
-  const publishText = readFileSync(publishPath, "utf8");
-  const communityPostImagesText = existsSync(communityPostImagesPath)
-    ? readFileSync(communityPostImagesPath, "utf8")
-    : "";
+  const communityPostImagesText = readFileSync(communityPostImagesPath, "utf8");
 
-  if (!/method\s*!==\s*"GET"\s*&&\s*isVisualQaModeEnabled\(\)/.test(requestText)) {
-    failures.push("Visual QA mode must block non-GET requests in the shared miniapp request wrapper.");
+  if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled|VISUAL_QA_MUTATION_BLOCKED/.test(requestText)) {
+    failures.push("Production request wrapper must not contain Visual QA mutation branches.");
   }
-  if (!requestText.includes("VISUAL_QA_MUTATION_BLOCKED")) {
-    failures.push("Visual QA mutation blocking must return an explicit VISUAL_QA_MUTATION_BLOCKED error.");
+  if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled/.test(publicContentText)) {
+    failures.push("Production public content helper must not contain Visual QA mutation branches.");
   }
 
   const guardedMutations = [
@@ -258,12 +261,9 @@ function verifyVisualQaMutationGuards() {
     ["submitSelectionApplication", "submitVisualQaSelectionApplication"],
   ];
   for (const [publicFunction, fixtureFunction] of guardedMutations) {
-    const publicPattern = new RegExp(
-      `function\\s+${publicFunction}\\b[\\s\\S]*?isVisualQaModeEnabled\\(\\)[\\s\\S]*?${fixtureFunction}\\(`,
-    );
-    if (!publicPattern.test(publicContentText)) {
+    if (!new RegExp(`${publicFunction}:\\s*${fixtureFunction}`).test(adapterText)) {
       failures.push(
-        `apps/miniapp/utils/public-content/index.ts must route ${publicFunction} to ${fixtureFunction} when visualQa=1.`,
+        `apps/miniapp/utils/visual-qa/adapter.ts must route ${publicFunction} to ${fixtureFunction}.`,
       );
     }
     if (!new RegExp(`function\\s+${fixtureFunction}\\b`).test(fixtureText)) {
@@ -271,15 +271,11 @@ function verifyVisualQaMutationGuards() {
     }
   }
 
-  if (
-    !/function\s+uploadPostImage\b[\s\S]*?isVisualQaModeEnabled\(\)[\s\S]*?return;/.test(
-      publishText,
-    ) &&
-    !/function\s+uploadPostImage\b[\s\S]*?isVisualQaModeEnabled\(\)[\s\S]*?return;/.test(
-      communityPostImagesText,
-    )
-  ) {
-    failures.push("Community post image upload must skip direct wx.request PUT in Visual QA mode.");
+  if (!adapterText.includes("setPostImageUploadAdapter")) {
+    failures.push("Community post image upload QA behavior must be installed through the Visual QA adapter.");
+  }
+  if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled/.test(communityPostImagesText)) {
+    failures.push("Production community post image upload helper must not contain Visual QA branches.");
   }
 }
 

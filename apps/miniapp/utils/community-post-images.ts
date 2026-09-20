@@ -3,7 +3,7 @@ import {
   completeCommunityPostImageUpload,
   requestCommunityPostImageUpload,
 } from "./public-content/index";
-import { isVisualQaModeEnabled } from "./visual-qa/mode";
+import { getPostImageUploadAdapter } from "./community-post-images-adapter";
 
 export interface SelectedPostImage {
   fileName: string;
@@ -38,6 +38,9 @@ export async function uploadPostImage(
   image: SelectedPostImage,
   sortOrder: number,
 ) {
+  const adapter = getPostImageUploadAdapter();
+  if (adapter?.uploadPostImage) return adapter.uploadPostImage(postId, image, sortOrder);
+
   const upload = await requestCommunityPostImageUpload(postId, {
     fileName: image.fileName,
     mimeType: image.mimeType,
@@ -45,10 +48,6 @@ export async function uploadPostImage(
     usage: "gallery",
     sortOrder,
   });
-  if (isVisualQaModeEnabled()) {
-    await completeCommunityPostImageUpload(postId, upload.media.id, { sizeBytes: image.sizeBytes });
-    return;
-  }
   const data = await readFile(image.tempFilePath);
   await putUpload(upload.upload.url, upload.upload.headers, data);
   await completeCommunityPostImageUpload(postId, upload.media.id, { sizeBytes: image.sizeBytes });

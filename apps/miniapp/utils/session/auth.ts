@@ -6,10 +6,12 @@ import type {
 import { get, post } from "../request/index";
 import { resetSessionState, setSessionState } from "../../store/session/index";
 import { clearToken, getToken, setToken } from "./token-storage";
-import { isVisualQaModeEnabled } from "../visual-qa/mode";
-import { getVisualQaCurrentUser } from "../visual-qa/fixtures";
+import { getSessionAuthAdapter } from "./adapter";
 
 export async function loginWithWechat() {
+  const adapter = getSessionAuthAdapter();
+  if (adapter?.loginWithWechat) return adapter.loginWithWechat();
+
   const code = await getWechatLoginCode();
   const response = await post<AuthSessionData, WechatLoginRequest>("/auth/wechat/login", { code });
 
@@ -31,18 +33,8 @@ export async function loginWithWechat() {
 }
 
 export async function refreshCurrentUser() {
-  if (isVisualQaModeEnabled()) {
-    const user = getVisualQaCurrentUser();
-    setSessionState({
-      token: "visual-qa-token",
-      userId: user.id,
-      currentRole: user.currentRole,
-      roles: user.roles,
-      user,
-      expiresAt: "2099-01-01T00:00:00.000Z",
-    });
-    return user;
-  }
+  const adapter = getSessionAuthAdapter();
+  if (adapter?.refreshCurrentUser) return adapter.refreshCurrentUser();
 
   const token = getToken();
   if (!token) {
@@ -72,6 +64,9 @@ export async function refreshCurrentUser() {
 }
 
 export async function logout() {
+  const adapter = getSessionAuthAdapter();
+  if (adapter?.logout) return adapter.logout();
+
   try {
     await post<null>("/auth/logout");
   } finally {
