@@ -16,9 +16,15 @@ interface CatListItem {
   lineThree: string;
   litterId: string;
   litterName: string;
+  metaItems: CatMetaItem[];
   name: string;
   pill: string;
   statusKey: string;
+}
+
+interface CatMetaItem {
+  label: string;
+  value: string;
 }
 
 interface CatsPage {
@@ -162,8 +168,7 @@ function deriveView(
   const normalizedLitterId = litterFilters.some((item) => item.id === activeLitterId)
     ? activeLitterId
     : "";
-  const activeLitterLabel =
-    litterFilters.find((item) => item.id === normalizedLitterId)?.name || "全部窝次";
+  const activeLitterLabel = litterFilters.find((item) => item.id === normalizedLitterId)?.name || "全部";
   return {
     activeFilter: normalizedFilter,
     activeLitterLabel,
@@ -189,15 +194,25 @@ function toCatListItem(cat: CatData): CatListItem | null {
   };
   if (cat.kittenProfile) {
     const status = saleStatusLabel(cat.kittenProfile.saleStatus);
+    const color = cat.color || "待补充";
+    const birthday = formatBirthday(cat.birthday);
+    const price = cat.kittenProfile.priceText || "沟通确认";
+    const litterName = formatLitterName(cat.kittenProfile.litter?.name || "");
     return {
       id: cat.id,
       ...imageFields,
       kind: "kittens",
-      lineOne: `性别 ${genderLabel(cat.gender)} · 颜色 ${cat.color || "待补充"}`,
-      lineTwo: `生日 ${formatBirthday(cat.birthday)}`,
-      lineThree: `价格 ${cat.kittenProfile.priceText || "沟通确认"}`,
+      lineOne: `性别 ${genderLabel(cat.gender)} · 颜色 ${color}`,
+      lineTwo: `生日 ${birthday}`,
+      lineThree: `价格 ${price}`,
       litterId: cat.kittenProfile.litter?.id || "",
-      litterName: cat.kittenProfile.litter?.name || "",
+      litterName,
+      metaItems: [
+        { label: "性别", value: genderLabel(cat.gender) },
+        { label: "颜色", value: color },
+        { label: "生日", value: birthday },
+        { label: "价格", value: price },
+      ],
       name: cat.name,
       pill: status,
       statusKey: status,
@@ -206,19 +221,29 @@ function toCatListItem(cat: CatData): CatListItem | null {
 
   if (cat.breedingProfile) {
     const category = breedingCategoryLabel(cat.breedingProfile.category);
+    const reproductiveState =
+      cat.breedingProfile.statusLabel ||
+      reproductiveStateLabel(cat.breedingProfile.reproductiveState);
+    const color = cat.color || "颜色待补充";
+    const trait = cat.breedingProfile.trait || cat.breedingProfile.source || "";
+    const metaItems = [
+      { label: "身份", value: reproductiveState && reproductiveState !== category ? `${category} / ${reproductiveState}` : category },
+      { label: "颜色", value: color },
+    ];
+    if (trait) metaItems.push({ label: "特点", value: trait });
+    if (cat.birthday) metaItems.push({ label: "生日", value: formatBirthday(cat.birthday) });
     return {
       id: cat.id,
       ...imageFields,
       kind: "studs",
-      lineOne: `${category} · ${cat.color || "颜色待补充"}`,
-      lineTwo: cat.breedingProfile.trait || cat.breedingProfile.source || "资料待补充",
+      lineOne: `${category} · ${color}`,
+      lineTwo: trait || "资料待补充",
       lineThree: cat.birthday ? `生日 ${formatBirthday(cat.birthday)}` : "",
       litterId: "",
       litterName: "",
+      metaItems,
       name: cat.name,
-      pill:
-        cat.breedingProfile.statusLabel ||
-        reproductiveStateLabel(cat.breedingProfile.reproductiveState),
+      pill: reproductiveState,
       statusKey: category,
     };
   }
@@ -227,7 +252,7 @@ function toCatListItem(cat: CatData): CatListItem | null {
 }
 
 function deriveLitterFilters(items: CatListItem[]) {
-  const filters: LitterFilter[] = [{ id: "", name: "全部窝次" }];
+  const filters: LitterFilter[] = [{ id: "", name: "全部" }];
   const seen = new Set<string>();
   for (const item of items) {
     if (item.kind !== "kittens" || !item.litterId || seen.has(item.litterId)) continue;
@@ -236,6 +261,12 @@ function deriveLitterFilters(items: CatListItem[]) {
     filters.push({ id: item.litterId, name });
   }
   return filters;
+}
+
+function formatLitterName(value: string) {
+  const match = value.match(/([A-Z])\s*窝/i);
+  if (match) return `${match[1].toUpperCase()}窝`;
+  return value;
 }
 
 function formatBirthday(value: string | null) {
