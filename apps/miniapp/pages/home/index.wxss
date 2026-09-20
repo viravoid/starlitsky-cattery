@@ -52,7 +52,7 @@
 .hero-placeholder-label {
   max-width: 440rpx;
   padding: 0 34rpx;
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-size: 22rpx;
   font-weight: 600;
   line-height: 1.7;
