@@ -12,9 +12,9 @@ page {
   --xy-color-violet: #9aa3cf;
   --xy-color-lilac: #aab4e7;
   --xy-color-danger: #c46a6a;
-  --xy-color-border: #e9ddbf;
+  --xy-color-border: #f0e8c8;
   --xy-radius-card: 32rpx;
-  --xy-gradient-cream: linear-gradient(180deg, #fffdf8 0%, #fff7df 48%, #fff2d0 100%);
+  --xy-gradient-cream: linear-gradient(180deg, #fffdf8 0%, #fff8f0 52%, #fff8e8 100%);
   --xy-gradient-soft: linear-gradient(180deg, rgba(255, 253, 248, 0.82) 0%, rgba(255, 248, 232, 0.42) 100%);
   --xy-shadow-card: 0 8rpx 24rpx rgba(88, 97, 108, 0.05), 0 2rpx 8rpx rgba(180, 135, 37, 0.05);
 }

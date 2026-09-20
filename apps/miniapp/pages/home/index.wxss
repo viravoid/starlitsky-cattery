@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 24rpx 24rpx calc(148rpx + env(safe-area-inset-bottom));
+  padding: 24rpx 44rpx calc(148rpx + env(safe-area-inset-bottom));
   background: var(--xy-color-background);
 }
 
@@ -9,7 +9,7 @@
   width: 100%;
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  border-radius: 56rpx;
+  border-radius: 34rpx;
   background: var(--xy-gradient-cream);
 }
 
@@ -50,7 +50,7 @@
 
 .title {
   color: var(--xy-color-heading);
-  font-size: 54rpx;
+  font-size: 48rpx;
   font-weight: 700;
   line-height: 1.12;
   text-shadow: 0 3rpx 12rpx rgba(255, 253, 248, 0.72);
@@ -113,7 +113,7 @@
 .intro {
   display: flex;
   flex-direction: column;
-  padding: 48rpx 20rpx 10rpx;
+  padding: 36rpx 20rpx 10rpx;
   text-align: center;
 }
 
@@ -179,7 +179,7 @@
 }
 
 .group + .group {
-  margin-top: 64rpx;
+  margin-top: 48rpx;
 }
 
 .group-head {
@@ -245,10 +245,15 @@
   display: flex;
   align-items: flex-start;
   gap: 26rpx;
-  width: 100%;
+  width: 100% !important;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
   padding: 26rpx 0;
   background: transparent;
   text-align: left;
+  line-height: normal;
 }
 
 .entry.bordered {
@@ -318,12 +323,13 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: auto;
-  margin: 88rpx 16rpx 0;
-  padding: 46rpx 42rpx;
+  width: calc(100% - 32rpx) !important;
+  max-width: 100%;
+  margin: 56rpx 16rpx 0;
+  padding: 32rpx;
   overflow: hidden;
   border: 1rpx solid var(--xy-color-border);
-  border-radius: 56rpx;
+  border-radius: 36rpx;
   background: var(--xy-gradient-cream);
   text-align: left;
   box-shadow: var(--xy-shadow-card);
