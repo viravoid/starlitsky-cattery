@@ -36,6 +36,8 @@
 .icon {
   width: 40rpx;
   height: 40rpx;
+  transform: scale(1.48);
+  transform-origin: center;
 }
 
 .label {
@@ -44,6 +46,8 @@
   font-size: 20rpx;
   font-weight: 500;
   line-height: 1;
+  transform: scale(1.12);
+  transform-origin: center top;
 }
 
 .tab::after {
