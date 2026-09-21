@@ -342,7 +342,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(160rpx + env(safe-area-inset-bottom));
+  bottom: calc(100rpx + env(safe-area-inset-bottom));
   z-index: 45;
   padding: 20rpx 40rpx;
   border-top: 1rpx solid var(--xy-color-border);
