@@ -40,7 +40,7 @@
 .hero-placeholder .xy-placeholder-cat {
   width: 250rpx;
   height: 250rpx;
-  opacity: 0.7;
+  opacity: 0.38;
 }
 
 .hero-indicator {
@@ -183,7 +183,7 @@
 .intro-text {
   margin-top: 30rpx;
   white-space: pre-line;
-  color: #6f7d8e;
+  color: var(--xy-color-text);
   font-size: 26rpx;
   line-height: 2;
 }
@@ -266,7 +266,7 @@
   display: block;
   margin-top: 8rpx;
   color: var(--xy-color-heading);
-  font-size: 42rpx;
+  font-size: 40rpx;
   font-weight: 700;
   line-height: 1.25;
 }
@@ -276,8 +276,8 @@
   margin-top: 14rpx;
   max-width: 470rpx;
   white-space: pre-line;
-  color: #6f7d8e;
-  font-size: 26rpx;
+  color: var(--xy-color-text);
+  font-size: 25rpx;
   line-height: 1.85;
 }
 
@@ -314,7 +314,7 @@
   box-sizing: border-box;
   margin-left: 0;
   margin-right: 0;
-  padding: 28rpx 0;
+  padding: 26rpx 0;
   background: transparent;
   text-align: left;
   line-height: normal;
@@ -346,7 +346,7 @@
 
 .entry-title {
   color: var(--xy-color-heading);
-  font-size: 32rpx;
+  font-size: 31rpx;
   font-weight: 700;
   line-height: 1.3;
 }
@@ -363,8 +363,8 @@
 .entry-desc {
   display: block;
   margin-top: 8rpx;
-  color: #6f7d8e;
-  font-size: 25rpx;
+  color: var(--xy-color-muted);
+  font-size: 24rpx;
   line-height: 1.8;
 }
 
@@ -405,7 +405,7 @@
   bottom: -18rpx;
   width: 190rpx;
   height: 190rpx;
-  opacity: 0.56;
+  opacity: 1;
 }
 
 .cats-title {
@@ -419,7 +419,7 @@
 .cats-desc {
   max-width: 470rpx;
   margin-top: 22rpx;
-  color: #6f7d8e;
+  color: var(--xy-color-text);
   font-size: 25rpx;
   line-height: 1.9;
 }
