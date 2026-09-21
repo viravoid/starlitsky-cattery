@@ -114,7 +114,7 @@
     </view>
 
     <button class="cats-preview" bindtap="openCats">
-      <image class="cats-art" src="../../assets/illustrations/curled-cat.png" mode="aspectFit" />
+      <image class="cats-art" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
       <text class="eyebrow">{{catsPreview.eyebrow}}</text>
       <text class="cats-title">{{catsPreview.title}}</text>
       <text class="cats-desc">{{catsPreview.description}}</text>
