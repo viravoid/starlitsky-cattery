@@ -183,7 +183,7 @@
 .intro-text {
   margin-top: 30rpx;
   white-space: pre-line;
-  color: var(--xy-color-text);
+  color: #6f7d8e;
   font-size: 26rpx;
   line-height: 2;
 }
@@ -192,6 +192,10 @@
   font-size: 22rpx;
   letter-spacing: 6rpx;
   line-height: 1.1;
+}
+
+.group-en {
+  letter-spacing: 7rpx;
 }
 
 .star-divider {
@@ -272,7 +276,7 @@
   margin-top: 14rpx;
   max-width: 470rpx;
   white-space: pre-line;
-  color: var(--xy-color-text);
+  color: #6f7d8e;
   font-size: 26rpx;
   line-height: 1.85;
 }
@@ -359,7 +363,7 @@
 .entry-desc {
   display: block;
   margin-top: 8rpx;
-  color: var(--xy-color-muted);
+  color: #6f7d8e;
   font-size: 25rpx;
   line-height: 1.8;
 }
@@ -415,7 +419,7 @@
 .cats-desc {
   max-width: 470rpx;
   margin-top: 22rpx;
-  color: var(--xy-color-text);
+  color: #6f7d8e;
   font-size: 25rpx;
   line-height: 1.9;
 }
