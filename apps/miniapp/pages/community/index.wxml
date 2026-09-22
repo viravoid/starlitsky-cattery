@@ -1,26 +1,19 @@
 <view class="page">
   <view class="header">
     <text class="title">猫友圈</text>
-  </view>
-
-  <view class="identity-panel">
-    <view class="identity-row">
-      <text wx:if="{{showLogin}}" class="identity-label">微信登录:</text>
-      <text wx:else class="identity-label">当前身份:</text>
-      <button wx:if="{{showLogin}}" class="identity-action primary" bindtap="login">登录</button>
+    <view class="utility-row">
+      <button wx:if="{{showLogin}}" class="utility-link primary" bindtap="login">登录</button>
       <block wx:else>
-        <text class="identity-chip identity-name">{{identityLabel}}</text>
-        <button class="identity-action" bindtap="logout">退出</button>
+        <text class="utility-name">{{identityLabel}}</text>
+        <button class="utility-link" bindtap="logout">退出</button>
       </block>
-    </view>
-    <view wx:if="{{showUserActions}}" class="identity-actions">
-      <button wx:if="{{showMyCats}}" class="quick-link" bindtap="openMyCats">
+      <button wx:if="{{showMyCats}}" class="utility-link" bindtap="openMyCats">
         <text>我的猫咪</text>
       </button>
-      <button wx:if="{{showMyPosts}}" class="quick-link" bindtap="openMyPosts">
+      <button wx:if="{{showMyPosts}}" class="utility-link" bindtap="openMyPosts">
         <text>我的发布</text>
       </button>
-      <button wx:if="{{showParentOnboard}}" class="quick-link" bindtap="openParentOnboard">
+      <button wx:if="{{showParentOnboard}}" class="utility-link" bindtap="openParentOnboard">
         <text>开通家长</text>
       </button>
     </view>
@@ -89,7 +82,19 @@
           </view>
           <text class="date">{{item.date}}</text>
         </view>
-        <text class="category">{{item.category}}</text>
+        <view class="post-meta-side">
+          <text class="category">{{item.category}}</text>
+          <view wx:if="{{item.linkedLitters.length}}" class="litter-meta">
+            <text
+              wx:for="{{item.linkedLitters}}"
+              wx:key="id"
+              class="link-pill litter"
+              data-id="{{item.id}}"
+              data-name="{{item.name}}"
+              catchtap="openLitterTimeline"
+            >{{item.name}}</text>
+          </view>
+        </view>
       </view>
 
       <text class="content">{{item.content}}</text>
@@ -109,7 +114,7 @@
         />
       </view>
 
-      <view wx:if="{{item.linkedLitters.length || item.linkedCats.length}}" class="links">
+      <view wx:if="{{item.linkedCats.length}}" class="links">
         <view
           wx:for="{{item.linkedCats}}"
           wx:key="id"
@@ -123,14 +128,6 @@
           </view>
           <text>{{item.name}}</text>
         </view>
-        <text
-          wx:for="{{item.linkedLitters}}"
-          wx:key="id"
-          class="link-pill litter"
-          data-id="{{item.id}}"
-          data-name="{{item.name}}"
-          catchtap="openLitterTimeline"
-        >{{item.name}}</text>
       </view>
 
       <view class="post-foot">

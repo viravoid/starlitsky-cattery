@@ -30,7 +30,7 @@
 }
 
 .tab.selected {
-  color: #b48725;
+  color: #7a9ac0;
 }
 
 .icon {
