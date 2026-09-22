@@ -79,7 +79,9 @@
   </view>
 
   <view class="bottom-cta">
-    <image class="questionnaire-icon" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
+    <view class="questionnaire-icon">
+      <image class="questionnaire-icon-art" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
+    </view>
     <button class="questionnaire-button" bindtap="openQuestionnaire">填写选猫问卷</button>
   </view>
 </view>
