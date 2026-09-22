@@ -372,7 +372,8 @@
 
 .links {
   flex-wrap: wrap;
-  gap: 12rpx;
+  align-items: center;
+  gap: 10rpx 18rpx;
   margin-top: 18rpx;
 }
 
@@ -386,14 +387,14 @@
 .cat-link-pill {
   display: inline-flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 14rpx;
   max-width: 100%;
   padding: 0;
   border-radius: 0;
   background: transparent;
   color: #6b8db3;
-  font-size: 25rpx;
-  font-weight: 600;
+  font-size: 24rpx;
+  font-weight: 700;
   line-height: 1.3;
 }
 
@@ -411,21 +412,24 @@
 .cat-avatar-icon {
   width: 34rpx;
   height: 34rpx;
+  transform: scale(1.45);
+  transform-origin: center;
 }
 
 .link-pill.litter {
-  padding: 3rpx 12rpx;
-  background: #f9f0d4;
+  flex-shrink: 0;
+  padding: 4rpx 10rpx;
+  background: #fbf1cf;
   color: var(--xy-color-accent-text);
-  font-size: 21rpx;
+  font-size: 20rpx;
   font-weight: 600;
-  line-height: 1.18;
+  line-height: 1.2;
 }
 
 .post-foot {
   align-items: center;
-  justify-content: flex-start;
-  gap: 40rpx;
+  justify-content: flex-end;
+  gap: 28rpx;
   margin-top: 22rpx;
   color: var(--xy-color-muted);
   font-size: 24rpx;
@@ -438,15 +442,16 @@
   gap: 8rpx;
   width: auto !important;
   min-width: 0;
-  height: 48rpx;
+  height: 44rpx;
   box-sizing: border-box;
   margin: 0 !important;
   padding: 0 !important;
   border-radius: 999rpx;
   background: transparent;
   color: var(--xy-color-secondary);
-  font-size: 32rpx;
-  line-height: 48rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 44rpx;
 }
 
 .comment-count {
@@ -456,7 +461,7 @@
   color: var(--xy-color-secondary);
   font-size: 24rpx;
   font-weight: 600;
-  line-height: 48rpx;
+  line-height: 44rpx;
 }
 
 .like-button.liked {
@@ -465,8 +470,8 @@
 
 .like-icon,
 .comment-icon {
-  width: 32rpx;
-  height: 32rpx;
+  width: 30rpx;
+  height: 30rpx;
 }
 
 .floating-publish {
