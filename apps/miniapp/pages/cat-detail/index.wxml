@@ -31,11 +31,6 @@
       </swiper-item>
     </swiper>
 
-    <view class="timeline-links">
-      <button class="timeline-link" bindtap="openCatTimeline">TA 的猫友圈动态</button>
-      <button wx:if="{{litterId}}" class="timeline-link" bindtap="openLitterTimeline">{{litterName || "所属窝次"}}的动态</button>
-    </view>
-
     <view class="title-row">
       <view class="title-copy">
         <text class="name">{{cat.name}}</text>
@@ -43,10 +38,22 @@
       <text class="pill">{{statusLabel}}</text>
     </view>
 
+    <view class="timeline-links">
+      <button class="timeline-link" bindtap="openCatTimeline">TA 的猫友圈动态</button>
+      <button wx:if="{{litterId}}" class="timeline-link" bindtap="openLitterTimeline">{{litterName || "所属窝次"}}的动态</button>
+    </view>
+
     <view class="info-grid">
       <view wx:for="{{info}}" wx:key="label" class="info-card">
         <text class="info-label">{{item.label}}</text>
         <text class="info-value">{{item.value}}</text>
+      </view>
+    </view>
+
+    <view class="bottom-cta">
+      <view class="questionnaire-button" bindtap="openQuestionnaire">
+        <image class="questionnaire-icon" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
+        <text>选猫问卷</text>
       </view>
     </view>
 
@@ -96,10 +103,5 @@
         <text>星月 · 主理人</text>
       </view>
     </view>
-  </view>
-
-  <view class="bottom-cta">
-    <image class="questionnaire-icon" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
-    <button class="questionnaire-button" bindtap="openQuestionnaire">选猫问卷</button>
   </view>
 </view>

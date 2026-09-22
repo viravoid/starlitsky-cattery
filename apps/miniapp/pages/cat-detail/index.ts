@@ -156,6 +156,7 @@ function toDetailView(cat: CatData) {
   });
   const gallery = galleryItems.map((item) => item.url);
   const commonInfo: InfoItem[] = [
+    { label: "性别", value: genderLabel(cat.gender) },
     { label: "颜色", value: cat.color || "待补充" },
     { label: "生日", value: cat.birthday ? cat.birthday.slice(0, 10) : "待补充" },
   ];
@@ -297,6 +298,12 @@ function saleStatusLabel(value: string) {
   if (value === "reserved") return "找家中";
   if (value === "adopted") return "已有家";
   return value || "待评估";
+}
+
+function genderLabel(value: string | null) {
+  if (value === "male") return "弟弟";
+  if (value === "female") return "妹妹";
+  return value || "未设置";
 }
 
 function breedingCategoryLabel(value: string) {
