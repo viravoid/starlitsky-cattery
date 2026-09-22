@@ -4,8 +4,7 @@
     <view class="utility-row">
       <button wx:if="{{showLogin}}" class="utility-link primary" bindtap="login">登录</button>
       <block wx:else>
-        <text class="utility-name">{{identityLabel}}</text>
-        <button class="utility-link" bindtap="logout">退出</button>
+        <button class="utility-link secondary" bindtap="logout">退出</button>
       </block>
       <button wx:if="{{showMyCats}}" class="utility-link" bindtap="openMyCats">
         <text>我的猫咪</text>

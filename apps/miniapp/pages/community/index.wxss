@@ -24,20 +24,11 @@
   margin-top: 14rpx;
 }
 
-.utility-name,
 .utility-link {
   color: var(--xy-color-muted);
   font-size: 22rpx;
   font-weight: 500;
   line-height: 1.4;
-}
-
-.utility-name {
-  max-width: 300rpx;
-  overflow: hidden;
-  color: #6b8db3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .utility-link {
@@ -57,6 +48,11 @@
 .utility-link.primary {
   color: var(--xy-color-primary);
   font-weight: 600;
+}
+
+.utility-link.secondary {
+  color: rgba(107, 141, 179, 0.62);
+  font-weight: 400;
 }
 
 .notice {
