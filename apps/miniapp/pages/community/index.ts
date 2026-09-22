@@ -57,6 +57,7 @@ interface CommunityData {
 
 interface CommunityPage {
   data: CommunityData;
+  getTabBar?(): { setData(data: { selected: number }): void };
   loadPosts(): Promise<void>;
   openMyCats(): void;
   retryLoad(): Promise<void>;
@@ -101,6 +102,10 @@ Page({
     await refreshCurrentUser();
     this.setData(deriveSessionView());
     await this.loadPosts();
+  },
+
+  onShow(this: CommunityPage) {
+    this.getTabBar?.()?.setData({ selected: 1 });
   },
 
   async onPullDownRefresh(this: CommunityPage) {

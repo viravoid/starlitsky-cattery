@@ -1,31 +1,29 @@
 <view class="page">
   <view class="header">
-    <view>
-      <text class="title">猫友圈</text>
-      <text class="subtitle">猫舍日常、碎碎念和家长分享</text>
-    </view>
-    <view class="identity">
-      <button wx:if="{{showLogin}}" class="identity-action" bindtap="login">登录</button>
-      <view wx:else class="identity-user">
-        <text class="identity-name">{{identityLabel}}</text>
-        <button class="logout-action" bindtap="logout">退出</button>
-      </view>
-    </view>
+    <text class="title">猫友圈</text>
   </view>
 
-  <view wx:if="{{showUserActions}}" class="quick-links">
-    <button wx:if="{{showMyCats}}" class="quick-link" bindtap="openMyCats">
-      <image class="quick-link-icon" src="../../assets/tabbar/cats-active.png" mode="aspectFit" />
-      <text>我的猫咪</text>
-    </button>
-    <button wx:if="{{showMyPosts}}" class="quick-link" bindtap="openMyPosts">
-      <image class="quick-link-icon" src="../../assets/illustrations/paw-like-active.png" mode="aspectFit" />
-      <text>我的发布</text>
-    </button>
-    <button wx:if="{{showParentOnboard}}" class="quick-link" bindtap="openParentOnboard">
-      <image class="quick-link-icon" src="../../assets/illustrations/cat-profile.png" mode="aspectFit" />
-      <text>开通家长</text>
-    </button>
+  <view class="identity-panel">
+    <view class="identity-row">
+      <text wx:if="{{showLogin}}" class="identity-label">微信登录:</text>
+      <text wx:else class="identity-label">当前身份:</text>
+      <button wx:if="{{showLogin}}" class="identity-action primary" bindtap="login">登录</button>
+      <block wx:else>
+        <text class="identity-chip identity-name">{{identityLabel}}</text>
+        <button class="identity-action" bindtap="logout">退出</button>
+      </block>
+    </view>
+    <view wx:if="{{showUserActions}}" class="identity-actions">
+      <button wx:if="{{showMyCats}}" class="quick-link" bindtap="openMyCats">
+        <text>我的猫咪</text>
+      </button>
+      <button wx:if="{{showMyPosts}}" class="quick-link" bindtap="openMyPosts">
+        <text>我的发布</text>
+      </button>
+      <button wx:if="{{showParentOnboard}}" class="quick-link" bindtap="openParentOnboard">
+        <text>开通家长</text>
+      </button>
+    </view>
   </view>
 
   <view wx:if="{{parentInactive}}" class="notice">
@@ -45,7 +43,8 @@
         <text wx:if="{{activeCategory === item.key}}" class="tab-line"></text>
       </button>
       <button class="{{activeLitterId ? 'category-tab active-category' : 'category-tab'}}" bindtap="toggleLitter">
-        窝次{{activeLitterId ? "：" + activeLitterLabel : ""}}
+        <text>窝次</text>
+        <text class="{{litterOpen ? 'litter-chevron open' : 'litter-chevron'}}">⌄</text>
         <text wx:if="{{activeLitterId}}" class="tab-line"></text>
       </button>
     </view>
