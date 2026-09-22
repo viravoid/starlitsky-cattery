@@ -44,7 +44,7 @@
   </view>
   <view wx:elif="{{!visibleItems.length}}" class="state">暂无可展示猫咪</view>
 
-  <view wx:else class="list">
+  <view wx:else class="list {{activeTab === 'kittens' && litterOpen ? 'list-expanded' : ''}}">
     <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
       <view class="card-pills">
         <text class="pill">{{item.pill}}</text>

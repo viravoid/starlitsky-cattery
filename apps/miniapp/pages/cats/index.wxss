@@ -90,7 +90,7 @@
 
 .litter-filters-scroll {
   height: 92rpx;
-  margin-top: 32rpx;
+  margin-top: 16rpx;
 }
 
 .filters-row {
@@ -195,6 +195,10 @@
   margin-top: 32rpx;
 }
 
+.list-expanded {
+  margin-top: 24rpx;
+}
+
 .cat-row {
   display: block;
   width: 100% !important;
@@ -289,7 +293,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 28rpx;
   row-gap: 10rpx;
-  margin-top: 18rpx;
+  margin-top: 30rpx;
 }
 
 .meta-item {
@@ -372,5 +376,5 @@
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 700;
-  line-height: 88rpx;
+  line-height: 96rpx;
 }
