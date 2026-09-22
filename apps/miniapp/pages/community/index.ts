@@ -294,7 +294,7 @@ function toPostCard(post: CommunityPostData): CommunityPostCard {
     linkedLitters: post.litters.map((litter) => ({ id: litter.id, name: litter.name })),
     meta: `${commentCount} 条评论 · ${likeCount} 个喜欢`,
     previewUrls: images.map((image) => image.url),
-    roleLabel: post.authorRole || "星月猫友",
+    roleLabel: authorRoleLabel(post.authorRole),
   };
 }
 
@@ -355,6 +355,12 @@ function categoryLabel(value: string) {
   if (value === "personal_thoughts") return "碎碎念";
   if (value === "parent_share") return "家长分享";
   return value || "动态";
+}
+
+function authorRoleLabel(value: string) {
+  if (value === "keeper") return "猫舍主理人";
+  if (value === "parent") return "家长";
+  return value || "星月猫友";
 }
 
 function formatDate(value: string) {
