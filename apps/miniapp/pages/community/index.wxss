@@ -292,8 +292,8 @@
 
 .pin {
   padding: 4rpx 12rpx;
-  background: #f2ecfb;
-  color: #8f75b8;
+  background: #f6efed;
+  color: #9b7e79;
 }
 
 .category {
@@ -408,9 +408,9 @@
 .link-pill.litter {
   flex-shrink: 0;
   padding: 4rpx 12rpx;
-  border: 1rpx solid #dde6ed;
-  background: #f1f5f9;
-  color: #7f96ad;
+  border: 1rpx solid #e6ded3;
+  background: #f5f2ec;
+  color: #918778;
   font-size: 20rpx;
   font-weight: 600;
   line-height: 1.2;
@@ -455,7 +455,7 @@
 }
 
 .like-button.liked {
-  color: var(--xy-color-violet);
+  color: #6f93bc;
 }
 
 .like-icon,
@@ -478,7 +478,7 @@
   margin: 0 !important;
   padding: 0 !important;
   border-radius: 999rpx;
-  background: #8f9fc6;
+  background: #8394ad;
   line-height: 88rpx;
   box-shadow: 0 16rpx 34rpx rgba(91, 127, 168, 0.18);
 }
