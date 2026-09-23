@@ -408,9 +408,9 @@
 .link-pill.litter {
   flex-shrink: 0;
   padding: 4rpx 12rpx;
-  border: 1rpx solid rgba(198, 174, 126, 0.32);
-  background: #fff8ea;
-  color: #b69a63;
+  border: 1rpx solid #dde6ed;
+  background: #f1f5f9;
+  color: #7f96ad;
   font-size: 20rpx;
   font-weight: 600;
   line-height: 1.2;
@@ -478,7 +478,7 @@
   margin: 0 !important;
   padding: 0 !important;
   border-radius: 999rpx;
-  background: #9aa4d8;
+  background: #8f9fc6;
   line-height: 88rpx;
   box-shadow: 0 16rpx 34rpx rgba(91, 127, 168, 0.18);
 }
