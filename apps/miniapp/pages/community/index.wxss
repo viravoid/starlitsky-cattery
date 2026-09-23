@@ -292,8 +292,8 @@
 
 .pin {
   padding: 4rpx 12rpx;
-  background: #f6efed;
-  color: #9b7e79;
+  background: #fdedec;
+  color: #c97f7a;
 }
 
 .category {
@@ -408,9 +408,9 @@
 .link-pill.litter {
   flex-shrink: 0;
   padding: 4rpx 12rpx;
-  border: 1rpx solid #e6ded3;
-  background: #f5f2ec;
-  color: #918778;
+  border: 1rpx solid #f1d4be;
+  background: #fff2e7;
+  color: #c88d6b;
   font-size: 20rpx;
   font-weight: 600;
   line-height: 1.2;
@@ -478,7 +478,7 @@
   margin: 0 !important;
   padding: 0 !important;
   border-radius: 999rpx;
-  background: #8394ad;
+  background: #dfa19a;
   line-height: 88rpx;
   box-shadow: 0 16rpx 34rpx rgba(91, 127, 168, 0.18);
 }
