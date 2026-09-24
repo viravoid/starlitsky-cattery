@@ -124,7 +124,7 @@
   width: 64rpx;
   height: 6rpx;
   border-radius: 999rpx;
-  background: rgba(122, 154, 192, 0.86);
+  background: #e7c15d;
   transform: translateX(-50%);
 }
 
@@ -292,8 +292,8 @@
 
 .pin {
   padding: 4rpx 12rpx;
-  background: #fdedec;
-  color: #c97f7a;
+  background: #fff1c9;
+  color: #7a9ac0;
 }
 
 .category {
@@ -408,9 +408,9 @@
 .link-pill.litter {
   flex-shrink: 0;
   padding: 4rpx 12rpx;
-  border: 1rpx solid #f1d4be;
-  background: #fff2e7;
-  color: #c88d6b;
+  border: 1rpx solid #eedb9b;
+  background: #fff7dd;
+  color: #6f93bc;
   font-size: 20rpx;
   font-weight: 600;
   line-height: 1.2;
@@ -478,7 +478,7 @@
   margin: 0 !important;
   padding: 0 !important;
   border-radius: 999rpx;
-  background: #dfa19a;
+  background: #839ac0;
   line-height: 88rpx;
   box-shadow: 0 16rpx 34rpx rgba(91, 127, 168, 0.18);
 }
