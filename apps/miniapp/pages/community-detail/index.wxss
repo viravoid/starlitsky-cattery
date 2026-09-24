@@ -113,19 +113,20 @@
 }
 
 .role-pill.keeper {
-  background: rgba(160, 138, 184, 0.18);
-  color: var(--xy-color-violet);
+  background: rgba(134, 166, 210, 0.24);
+  color: #6b8db3;
 }
 
 .pin {
   padding: 4rpx 12rpx;
-  background: #fff0c4;
-  color: var(--xy-color-accent-text);
+  background: #fff1c9;
+  color: #7a9ac0;
 }
 
 .category-dot {
   flex-shrink: 0;
-  color: rgba(180, 135, 37, 0.82);
+  color: #6f93bc;
+  font-weight: 700;
 }
 
 .content {
@@ -185,6 +186,10 @@
   gap: 10rpx;
 }
 
+.litter-group {
+  margin-bottom: 2rpx;
+}
+
 .link-pill {
   max-width: 100%;
   padding: 8rpx 18rpx;
@@ -193,8 +198,12 @@
 }
 
 .link-pill.litter {
-  background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  border: 1rpx solid #eedb9b;
+  background: #fff7dd;
+  color: #6f93bc;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .cat-link {
@@ -235,7 +244,8 @@
 
 .post-foot {
   align-items: center;
-  gap: 40rpx;
+  justify-content: flex-end;
+  gap: 28rpx;
   margin-top: 24rpx;
   padding-top: 22rpx;
   border-top: 1rpx solid rgba(233, 221, 191, 0.72);
@@ -248,9 +258,11 @@
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  width: auto;
+  width: auto !important;
+  min-width: 0;
   height: 48rpx;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
   border-radius: 999rpx;
   background: transparent;
   color: var(--xy-color-secondary);
@@ -260,7 +272,7 @@
 }
 
 .like-button.liked {
-  color: var(--xy-color-violet);
+  color: #6f93bc;
 }
 
 .like-icon {
@@ -269,8 +281,11 @@
 }
 
 .comment-action {
+  width: auto !important;
+  min-width: 0;
   height: 48rpx;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
   background: transparent;
   color: var(--xy-color-secondary);
   font-size: 24rpx;
@@ -296,11 +311,13 @@
 
 .secondary-button,
 .danger-button {
-  min-width: 112rpx;
-  padding: 0 20rpx;
+  width: auto !important;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 18rpx !important;
   border: 1rpx solid var(--xy-color-border);
   background: #ffffff;
-  line-height: 62rpx;
+  line-height: 52rpx;
 }
 
 .secondary-button {
@@ -396,7 +413,7 @@
   gap: 12rpx;
   padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid var(--xy-color-border);
-  background: rgba(255, 253, 248, 0.96);
+  background: var(--xy-color-surface);
 }
 
 .comment-input {
@@ -415,7 +432,7 @@
   flex-shrink: 0;
   min-width: 112rpx;
   padding: 0 22rpx;
-  background: var(--xy-color-violet);
+  background: #839ac0;
   color: #ffffff;
   line-height: 76rpx;
 }

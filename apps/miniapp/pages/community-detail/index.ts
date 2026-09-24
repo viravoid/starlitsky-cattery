@@ -7,9 +7,11 @@ import {
   toggleCommunityPostLike,
 } from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
+import { configureVisualQaAdapter } from "../../utils/visual-qa/adapter";
 
 interface DetailOptions {
   id?: string;
+  visualQa?: string;
 }
 
 interface DetailImage {
@@ -112,6 +114,9 @@ Page({
   } as CommunityDetailData,
 
   async onLoad(this: CommunityDetailPage, options: DetailOptions) {
+    if (typeof options.visualQa === "string") {
+      configureVisualQaAdapter({ visualQa: options.visualQa });
+    }
     const id = typeof options.id === "string" ? decodeURIComponent(options.id) : "";
     this.setData({ id });
     await this.loadPost(id);
@@ -132,7 +137,7 @@ Page({
     try {
       const post = await getCommunityPost(id);
       this.setData({ ...toDetailView(post), error: "", id, isLoading: false });
-      wx.setNavigationBarTitle({ title: categoryLabel(post.category) });
+      wx.setNavigationBarTitle({ title: "动态详情" });
     } catch (error) {
       this.setData({ error: getErrorMessage(error), isLoading: false });
     }
