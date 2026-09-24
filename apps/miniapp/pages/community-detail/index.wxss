@@ -174,7 +174,7 @@
 }
 
 .links-title {
-  color: rgba(180, 135, 37, 0.82);
+  color: #7a9ac0;
   font-size: 22rpx;
   font-weight: 700;
   letter-spacing: 4rpx;
