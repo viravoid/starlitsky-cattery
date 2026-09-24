@@ -429,29 +429,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8rpx;
+  gap: 10rpx;
   width: auto !important;
   min-width: 0;
-  height: 44rpx;
+  height: 52rpx;
   box-sizing: border-box;
   margin: 0 !important;
   padding: 0 !important;
   border-radius: 999rpx;
   background: transparent;
   color: var(--xy-color-secondary);
-  font-size: 24rpx;
+  font-size: 26rpx;
   font-weight: 600;
-  line-height: 44rpx;
+  line-height: 52rpx;
 }
 
 .comment-count {
   display: inline-flex;
   align-items: center;
-  gap: 8rpx;
+  gap: 10rpx;
   color: var(--xy-color-secondary);
-  font-size: 24rpx;
+  font-size: 26rpx;
   font-weight: 600;
-  line-height: 44rpx;
+  line-height: 52rpx;
 }
 
 .like-button.liked {
@@ -460,8 +460,8 @@
 
 .like-icon,
 .comment-icon {
-  width: 30rpx;
-  height: 30rpx;
+  width: 36rpx;
+  height: 36rpx;
 }
 
 .floating-publish {
