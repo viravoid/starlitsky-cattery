@@ -27,7 +27,6 @@ Not implemented yet:
 - Database schema or database connection
 - Cat, community, questionnaire, upload, or admin business features
 - Article system
-- Payment or orders
 
 ## Start Commands
 
