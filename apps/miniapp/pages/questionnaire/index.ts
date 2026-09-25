@@ -18,6 +18,7 @@ interface Option {
 
 interface Question {
   help?: string;
+  inputType?: string;
   key: FieldKey;
   label: string;
   options?: Option[];
@@ -41,6 +42,7 @@ interface QuestionnaireData {
   isSubmitting: boolean;
   privacyNotice: string;
   ps: string;
+  showRetry: boolean;
   submitted: boolean;
   successBody: string;
   successTitle: string;
@@ -50,6 +52,7 @@ interface QuestionnaireData {
 interface QuestionnairePage {
   data: QuestionnaireData;
   loadQuestionnaireContent(): Promise<void>;
+  onSubmit(): Promise<void>;
   retrySubmit(): Promise<void>;
   setData(data: Partial<QuestionnaireData>): void;
 }
@@ -80,6 +83,7 @@ Page({
     isSubmitting: false,
     privacyNotice: CONTENT.privacyNotice,
     ps: CONTENT.ps,
+    showRetry: false,
     submitted: false,
     successBody: CONTENT.successBody,
     successTitle: CONTENT.successTitle,
@@ -110,20 +114,29 @@ Page({
   onInput(this: QuestionnairePage, event: InputEvent) {
     const key = event.currentTarget.dataset.key as FieldKey;
     this.setData({
+      error: this.data.showRetry ? this.data.error : "",
       errors: { ...this.data.errors, [key]: "" },
+      showRetry: this.data.showRetry,
       values: { ...this.data.values, [key]: event.detail.value },
     });
   },
 
   onChoice(this: QuestionnairePage, event: InputEvent) {
     const key = event.currentTarget.dataset.key as FieldKey;
+    const nextErrors = {
+      ...this.data.errors,
+      [key]: "",
+      ...(key === "residents" && event.detail.value !== "yes" ? { residentsNeutered: "" } : {}),
+    };
     const nextValues = {
       ...this.data.values,
       [key]: event.detail.value,
       ...(key === "residents" && event.detail.value !== "yes" ? { residentsNeutered: "" } : {}),
     };
     this.setData({
-      errors: { ...this.data.errors, [key]: "" },
+      error: this.data.showRetry ? this.data.error : "",
+      errors: nextErrors,
+      showRetry: this.data.showRetry,
       values: nextValues,
     });
   },
@@ -131,9 +144,9 @@ Page({
   async onSubmit(this: QuestionnairePage) {
     if (this.data.isSubmitting) return;
 
-    const errors = validateValues(this.data.values);
+    const errors = validateValues(this.data.values, this.data.groups);
     if (Object.keys(errors).length > 0) {
-      this.setData({ errors, error: "请先补充必填信息" });
+      this.setData({ errors, error: getValidationSummary(errors), showRetry: false });
       return;
     }
 
@@ -142,7 +155,7 @@ Page({
 
   async retrySubmit(this: QuestionnairePage) {
     if (this.data.isSubmitting || this.data.submitted) return;
-    await submitCurrent(this);
+    await this.onSubmit();
   },
 
   resetForm(this: QuestionnairePage) {
@@ -150,6 +163,7 @@ Page({
       clientDedupKey: createClientDedupKey(),
       error: "",
       errors: {},
+      showRetry: false,
       submitted: false,
       values: createBlankValues(),
     });
@@ -157,35 +171,54 @@ Page({
 });
 
 async function submitCurrent(page: QuestionnairePage) {
-  page.setData({ error: "", isSubmitting: true });
+  page.setData({ error: "", isSubmitting: true, showRetry: false });
   try {
     await submitSelectionApplication({
       ...page.data.values,
       clientDedupKey: page.data.clientDedupKey,
     });
-    page.setData({ error: "", isSubmitting: false, submitted: true });
+    page.setData({ error: "", isSubmitting: false, showRetry: false, submitted: true });
   } catch (error) {
     page.setData({
       error: getErrorMessage(error),
       isSubmitting: false,
+      showRetry: true,
     });
   }
 }
 
-function validateValues(values: SelectionApplicationAnswers) {
+function validateValues(values: SelectionApplicationAnswers, groups: QuestionGroup[]) {
   const errors: Partial<Record<FieldKey, string>> = {};
+  const questions = groups.flatMap((group) => group.questions);
   for (const key of REQUIRED_FIELDS) {
     if (!values[key]?.trim()) {
-      errors[key] = "必填";
+      const question = questions.find((item) => item.key === key);
+      errors[key] = getRequiredMessage(question);
     }
   }
   if (values.residents === "yes" && !values.residentsNeutered?.trim()) {
-    errors.residentsNeutered = "必填";
+    errors.residentsNeutered = getRequiredMessage(
+      questions.find((question) => question.key === "residentsNeutered"),
+    );
   }
   if (values.phone && !/^1\d{10}$/.test(values.phone)) {
     errors.phone = "请输入正确的 11 位手机号";
   }
   return errors;
+}
+
+function getRequiredMessage(question: Question | undefined) {
+  if (!question) return "必填";
+  if (question.type === "commitment") return "请选择是否接受";
+  return question.type === "text" || question.type === "textarea"
+    ? `请填写${question.label}`
+    : `请选择${question.label}`;
+}
+
+function getValidationSummary(errors: Partial<Record<FieldKey, string>>) {
+  const onlyPhoneInvalid =
+    Object.keys(errors).length === 1 && errors.phone === "请输入正确的 11 位手机号";
+  return onlyPhoneInvalid ? "请检查填写内容" : "请先补充必填信息";
 }
 
 function createBlankValues(): SelectionApplicationAnswers {
@@ -277,7 +310,15 @@ function createGroups(content: QuestionnaireContent): QuestionGroup[] {
 }
 
 function textQuestion(key: FieldKey, question: QuestionnaireTextQuestion): Question {
-  return { key, label: question.label, placeholder: question.placeholder, required: true, type: "text" };
+  const inputType = key === "phone" || key === "age" ? "number" : "text";
+  return {
+    inputType,
+    key,
+    label: question.label,
+    placeholder: question.placeholder,
+    required: true,
+    type: "text",
+  };
 }
 
 function textareaQuestion(

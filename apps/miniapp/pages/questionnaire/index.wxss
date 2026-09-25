@@ -188,7 +188,11 @@
 
 .retry-button,
 .secondary-action {
+  width: auto;
   min-width: 168rpx;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
   padding: 0 24rpx;
   border-radius: 999rpx;
   background: var(--xy-color-primary);
@@ -227,12 +231,17 @@
   justify-content: center;
   gap: 12rpx;
   width: 100%;
+  min-width: 0;
+  height: 88rpx;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 28rpx;
   border-radius: 999rpx;
-  background: var(--xy-color-violet);
+  background: var(--xy-color-primary);
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 700;
-  line-height: 88rpx;
+  line-height: 1;
 }
 
 .submit-icon {
@@ -240,7 +249,7 @@
   height: 38rpx;
 }
 
-.submit[disabled] {
+.submit.disabled {
   background: #c6cbd2;
 }
 
@@ -283,5 +292,8 @@
 }
 
 .secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-top: 34rpx;
 }
