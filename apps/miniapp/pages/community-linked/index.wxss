@@ -4,18 +4,6 @@
   background: var(--xy-color-background);
 }
 
-.header {
-  padding-bottom: 20rpx;
-}
-
-.title {
-  display: block;
-  color: var(--xy-color-heading);
-  font-size: 40rpx;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
 .state,
 .empty-card {
   padding: 96rpx 20rpx;
@@ -57,6 +45,7 @@
   display: flex;
   flex-direction: column;
   gap: 24rpx;
+  padding-top: 28rpx;
 }
 
 .post-card {
@@ -83,6 +72,7 @@
 }
 
 .author-block {
+  flex: 1;
   min-width: 0;
 }
 
@@ -132,13 +122,24 @@
 
 .pin {
   padding: 4rpx 12rpx;
-  background: #fff0c4;
-  color: var(--xy-color-accent-text);
+  background: #fff1c9;
+  color: #7a9ac0;
 }
 
 .category {
   flex-shrink: 0;
-  color: rgba(180, 135, 37, 0.82);
+  color: #6f93bc;
+  font-size: 21rpx;
+  font-weight: 700;
+}
+
+.post-meta-side {
+  display: flex;
+  max-width: 232rpx;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8rpx;
 }
 
 .content {
@@ -170,8 +171,13 @@
 .post-image {
   width: 100%;
   aspect-ratio: 1 / 1;
+  margin-top: 22rpx;
   border-radius: 24rpx;
   background: var(--xy-gradient-cream);
+}
+
+.post-images .post-image {
+  margin-top: 0;
 }
 
 .single-image-grid .post-image {
@@ -180,19 +186,30 @@
 }
 
 .links {
+  align-items: center;
   flex-wrap: wrap;
-  gap: 12rpx;
+  gap: 10rpx 18rpx;
   margin-top: 18rpx;
 }
 
-.cat-link {
+.litter-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8rpx;
+}
+
+.cat-link-pill {
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6rpx;
-  color: var(--xy-color-heading);
-  font-size: 23rpx;
-  font-weight: 700;
+  gap: 14rpx;
+  max-width: 100%;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #6b8db3;
+  font-size: 24rpx;
+  font-weight: 500;
   line-height: 1.3;
 }
 
@@ -208,45 +225,67 @@
 }
 
 .cat-avatar-icon {
-  width: 34rpx;
-  height: 34rpx;
+  width: 32rpx;
+  height: 32rpx;
 }
 
 .link-pill {
   max-width: 100%;
   padding: 8rpx 18rpx;
-  background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  background: rgba(255, 253, 248, 0.72);
+  color: var(--xy-color-heading);
+}
+
+.link-pill.litter {
+  flex-shrink: 0;
+  padding: 4rpx 12rpx;
+  border: 1rpx solid #eedb9b;
+  background: #fff7dd;
+  color: #6f93bc;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .post-foot {
   align-items: center;
-  gap: 24rpx;
+  justify-content: flex-end;
+  gap: 28rpx;
   margin-top: 22rpx;
+  color: var(--xy-color-muted);
+  font-size: 24rpx;
 }
 
 .like-button,
 .comment-count {
   align-items: center;
-  gap: 8rpx;
+  gap: 10rpx;
   color: var(--xy-color-secondary);
-  font-size: 24rpx;
+  font-size: 26rpx;
   font-weight: 600;
-  line-height: 48rpx;
+  line-height: 52rpx;
 }
 
 .like-button {
-  padding: 0;
+  justify-content: center;
+  width: auto !important;
+  min-width: 0;
+  height: 52rpx;
+  box-sizing: border-box;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 999rpx;
   background: transparent;
 }
 
 .like-button.liked {
-  color: var(--xy-color-violet);
+  color: #6f93bc;
 }
 
-.foot-icon {
-  width: 32rpx;
-  height: 32rpx;
+.like-icon,
+.comment-icon {
+  width: 36rpx;
+  height: 36rpx;
 }
 
 .retry-button::after,

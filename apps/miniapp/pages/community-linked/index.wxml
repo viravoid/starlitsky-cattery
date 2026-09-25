@@ -1,14 +1,10 @@
 <view class="page">
-  <view class="header">
-    <text class="title">{{title}}</text>
-  </view>
-
   <view wx:if="{{isLoading}}" class="state">正在加载动态...</view>
   <view wx:elif="{{error}}" class="state error-state">
     <text class="error">{{error}}</text>
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
-  <view wx:elif="{{!posts.length}}" class="empty-card">当前还没有关联动态。</view>
+  <view wx:elif="{{!posts.length}}" class="empty-card">{{emptyText}}</view>
 
   <view wx:else class="feed">
     <view
@@ -28,7 +24,17 @@
           </view>
           <text class="date">{{item.date}}</text>
         </view>
-        <text class="category">{{item.category}}</text>
+        <view class="post-meta-side">
+          <text class="category">{{item.category}}</text>
+          <view wx:if="{{item.linkedLitters.length}}" class="litter-meta">
+            <text
+              wx:for="{{item.linkedLitters}}"
+              wx:key="id"
+              class="link-pill litter"
+              catchtap="stopLitterTap"
+            >{{item.name}}</text>
+          </view>
+        </view>
       </view>
 
       <text class="content">{{item.content}}</text>
@@ -48,23 +54,29 @@
         />
       </view>
 
-      <view wx:if="{{item.linkedLitters.length || item.linkedCats.length}}" class="links">
-        <view wx:for="{{item.linkedCats}}" wx:key="id" class="cat-link">
+      <view wx:if="{{item.linkedCats.length}}" class="links">
+        <view
+          wx:for="{{item.linkedCats}}"
+          wx:key="id"
+          class="cat-link-pill"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          catchtap="openCatTimeline"
+        >
           <view class="cat-avatar">
             <image class="cat-avatar-icon" src="../../assets/illustrations/cat-icon.png" mode="aspectFit" />
           </view>
           <text>{{item.name}}</text>
         </view>
-        <text wx:for="{{item.linkedLitters}}" wx:key="id" class="link-pill litter">{{item.name}}</text>
       </view>
 
       <view class="post-foot">
         <button class="{{item.likedByMe ? 'like-button liked' : 'like-button'}}" data-id="{{item.id}}" catchtap="toggleLike">
-          <image class="foot-icon" src="{{item.likedByMe ? '../../assets/illustrations/paw-like-active.png' : '../../assets/illustrations/paw-like.png'}}" mode="aspectFit" />
+          <image class="like-icon" src="{{item.likedByMe ? '../../assets/illustrations/paw-like-active.png' : '../../assets/illustrations/paw-like.png'}}" mode="aspectFit" />
           <text>{{item.footerLikeLabel}}</text>
         </button>
         <view class="comment-count">
-          <image class="foot-icon" src="../../assets/illustrations/chat-bubble-icon.png" mode="aspectFit" />
+          <image class="comment-icon" src="../../assets/illustrations/chat-bubble-icon.png" mode="aspectFit" />
           <text>{{item.footerCommentLabel}}</text>
         </view>
       </view>

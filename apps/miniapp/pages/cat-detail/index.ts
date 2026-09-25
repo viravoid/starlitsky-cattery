@@ -128,15 +128,9 @@ Page({
 
   openCatTimeline(this: CatDetailPage) {
     if (!this.data.id) return;
+    const name = this.data.cat?.name || "TA";
     wx.navigateTo({
-      url: `/pages/community-linked/index?catId=${encodeURIComponent(this.data.id)}&title=${encodeURIComponent("TA 的猫友圈动态")}`,
-    });
-  },
-
-  openLitterTimeline(this: CatDetailPage) {
-    if (!this.data.litterId) return;
-    wx.navigateTo({
-      url: `/pages/community-linked/index?litterId=${encodeURIComponent(this.data.litterId)}&title=${encodeURIComponent(`${this.data.litterName || "所属窝次"}的动态`)}`,
+      url: `/pages/community-linked/index?catId=${encodeURIComponent(this.data.id)}&title=${encodeURIComponent(`${name}的动态`)}`,
     });
   },
 });

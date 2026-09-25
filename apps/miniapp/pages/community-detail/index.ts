@@ -202,16 +202,7 @@ Page({
     const name = event.currentTarget.dataset.name || "TA";
     if (!id) return;
     wx.navigateTo({
-      url: `/pages/community-linked/index?catId=${encodeURIComponent(id)}&title=${encodeURIComponent(`${name}的猫友圈动态`)}`,
-    });
-  },
-
-  openLitterTimeline(event: TapEvent) {
-    const id = event.currentTarget.dataset.id;
-    const name = event.currentTarget.dataset.name || "所属窝次";
-    if (!id) return;
-    wx.navigateTo({
-      url: `/pages/community-linked/index?litterId=${encodeURIComponent(id)}&title=${encodeURIComponent(`${name}的动态`)}`,
+      url: `/pages/community-linked/index?catId=${encodeURIComponent(id)}&title=${encodeURIComponent(`${name}的动态`)}`,
     });
   },
 

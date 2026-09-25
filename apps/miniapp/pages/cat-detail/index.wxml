@@ -39,8 +39,7 @@
     </view>
 
     <view class="timeline-links">
-      <button class="timeline-link" bindtap="openCatTimeline">TA 的猫友圈动态</button>
-      <button wx:if="{{litterId}}" class="timeline-link" bindtap="openLitterTimeline">{{litterName || "所属窝次"}}的动态</button>
+      <button class="timeline-link" bindtap="openCatTimeline">TA 的动态</button>
     </view>
 
     <view class="info-grid">

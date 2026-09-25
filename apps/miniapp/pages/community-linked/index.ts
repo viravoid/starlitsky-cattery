@@ -28,6 +28,7 @@ interface PostCard {
 
 interface LinkedData {
   catId: string;
+  emptyText: string;
   error: string;
   isLoading: boolean;
   litterId: string;
@@ -50,6 +51,7 @@ interface TapEvent {
 Page({
   data: {
     catId: "",
+    emptyText: "这只猫还没有动态。",
     error: "",
     isLoading: true,
     litterId: "",
@@ -58,10 +60,13 @@ Page({
   } as LinkedData,
 
   async onLoad(this: LinkedPage, options: LinkedOptions) {
-    const title = options.title ? decodeURIComponent(options.title) : "猫友圈动态";
+    const catId = options.catId ? decodeURIComponent(options.catId) : "";
+    const litterId = options.litterId ? decodeURIComponent(options.litterId) : "";
+    const title = normalizeTitle(options.title, catId);
     this.setData({
-      catId: options.catId ? decodeURIComponent(options.catId) : "",
-      litterId: options.litterId ? decodeURIComponent(options.litterId) : "",
+      catId,
+      emptyText: catId ? "这只猫还没有动态。" : "当前还没有关联动态。",
+      litterId,
       title,
     });
     wx.setNavigationBarTitle({ title });
@@ -97,6 +102,17 @@ Page({
     wx.navigateTo({ url: `/pages/community-detail/index?id=${encodeURIComponent(id)}` });
   },
 
+  openCatTimeline(event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    const name = event.currentTarget.dataset.name || "TA";
+    if (!id) return;
+    wx.navigateTo({
+      url: `/pages/community-linked/index?catId=${encodeURIComponent(id)}&title=${encodeURIComponent(`${name}的动态`)}`,
+    });
+  },
+
+  stopLitterTap() {},
+
   async toggleLike(this: LinkedPage, event: TapEvent) {
     const id = event.currentTarget.dataset.id;
     if (!id) return;
@@ -129,8 +145,8 @@ function toPostCard(post: CommunityPostData): PostCard {
     category: categoryLabel(post.category),
     content: post.content,
     date: formatDate(post.createdAt),
-    footerCommentLabel: `${post.commentCount} 条评论`,
-    footerLikeLabel: `${post.likeCount} 个爪印`,
+    footerCommentLabel: String(post.commentCount),
+    footerLikeLabel: String(post.likeCount),
     id: post.id,
     imageGridClass: imageGridClass(images.length),
     images,
@@ -141,6 +157,11 @@ function toPostCard(post: CommunityPostData): PostCard {
     previewUrls: images.map((image) => image.url),
     roleLabel: roleLabel(post.authorRole),
   };
+}
+
+function normalizeTitle(value: string | undefined, catId: string) {
+  if (value) return decodeURIComponent(value).replace("的猫友圈动态", "的动态");
+  return catId ? "猫咪动态" : "猫友圈动态";
 }
 
 function imageGridClass(count: number) {

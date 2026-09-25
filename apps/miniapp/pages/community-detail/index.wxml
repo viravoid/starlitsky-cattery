@@ -39,9 +39,6 @@
           wx:for="{{linkedLitters}}"
           wx:key="id"
           class="link-pill litter"
-          data-id="{{item.id}}"
-          data-name="{{item.name}}"
-          catchtap="openLitterTimeline"
         >{{item.name}}</text>
       </view>
       <view wx:if="{{linkedCats.length}}" class="link-group cat-group">

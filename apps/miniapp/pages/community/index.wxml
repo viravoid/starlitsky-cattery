@@ -88,9 +88,7 @@
               wx:for="{{item.linkedLitters}}"
               wx:key="id"
               class="link-pill litter"
-              data-id="{{item.id}}"
-              data-name="{{item.name}}"
-              catchtap="openLitterTimeline"
+              catchtap="stopLitterTap"
             >{{item.name}}</text>
           </view>
         </view>
