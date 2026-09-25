@@ -186,7 +186,7 @@ function categoryLabel(value: string) {
 
 function roleLabel(value: string) {
   if (value === "keeper") return "猫舍主理人";
-  if (value === "parent") return "星月家长";
+  if (value === "parent") return "家长";
   return value || "星月猫友";
 }
 
