@@ -12,21 +12,6 @@
     </view>
 
     <view class="section">
-      <text class="label">分类</text>
-      <view class="option-row">
-        <button
-          wx:for="{{categories}}"
-          wx:key="value"
-          class="{{category === item.value ? 'option active' : 'option'}}"
-          data-value="{{item.value}}"
-          bindtap="setCategory"
-        >
-          {{item.label}}
-        </button>
-      </view>
-    </view>
-
-    <view class="section">
       <text class="label">正文</text>
       <textarea
         class="content-input"
@@ -35,38 +20,6 @@
         value="{{content}}"
         bindinput="onContentInput"
       />
-    </view>
-
-    <view class="section">
-      <text class="label">关联猫咪</text>
-      <view wx:if="{{!cats.length}}" class="empty-box">暂无可关联猫咪</view>
-      <view wx:else class="option-row">
-        <button
-          wx:for="{{cats}}"
-          wx:key="id"
-          class="{{item.selected ? 'option active' : 'option'}}"
-          data-id="{{item.id}}"
-          bindtap="toggleCat"
-        >
-          {{item.name}}
-        </button>
-      </view>
-    </view>
-
-    <view class="section">
-      <text class="label">关联窝次</text>
-      <view wx:if="{{!litters.length}}" class="empty-box">暂无可关联窝次</view>
-      <view wx:else class="option-row">
-        <button
-          wx:for="{{litters}}"
-          wx:key="id"
-          class="{{item.selected ? 'option active' : 'option'}}"
-          data-id="{{item.id}}"
-          bindtap="toggleLitter"
-        >
-          {{item.name}}
-        </button>
-      </view>
     </view>
 
     <view class="section">
@@ -101,11 +54,58 @@
             <image class="remove-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
           </button>
         </view>
-        <button class="add-image" bindtap="chooseImages">
-          <image class="add-image-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+        <button wx:if="{{canAddImages}}" class="add-image" bindtap="chooseImages">
+          <text class="add-image-symbol">+</text>
         </button>
       </view>
-      <text class="image-hint">实际接入微信小程序后可从相册选择</text>
+      <text class="image-hint">最多可添加 9 张图片</text>
+    </view>
+
+    <view class="section">
+      <text class="label">分类</text>
+      <view class="option-row">
+        <button
+          wx:for="{{categories}}"
+          wx:key="value"
+          class="{{category === item.value ? 'option active' : 'option'}}"
+          data-value="{{item.value}}"
+          bindtap="setCategory"
+        >
+          {{item.label}}
+        </button>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="label">关联猫咪</text>
+      <view wx:if="{{!cats.length}}" class="empty-box">暂无可关联猫咪</view>
+      <view wx:else class="option-row">
+        <button
+          wx:for="{{cats}}"
+          wx:key="id"
+          class="{{item.selected ? 'option active' : 'option'}}"
+          data-id="{{item.id}}"
+          bindtap="toggleCat"
+        >
+          {{item.name}}
+        </button>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="label">关联窝次</text>
+      <view wx:if="{{!litters.length}}" class="empty-box">暂无可关联窝次</view>
+      <view wx:else class="option-row">
+        <button
+          wx:for="{{litters}}"
+          wx:key="id"
+          class="{{item.selected ? 'option active' : 'option'}}"
+          data-id="{{item.id}}"
+          bindtap="toggleLitter"
+        >
+          {{item.name}}
+        </button>
+      </view>
     </view>
 
     <view class="notice">
