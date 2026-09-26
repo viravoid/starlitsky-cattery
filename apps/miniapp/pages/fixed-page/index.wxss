@@ -192,13 +192,8 @@
 }
 
 .about-fact-icon-aftercare {
-  opacity: 1;
-  transform: scale(1.3);
-}
-
-.about-fact-icon-screening {
-  opacity: 0.74;
-  transform: scale(1.28);
+  opacity: 0.9;
+  transform: scale(1.15);
 }
 
 .about-fact-text {

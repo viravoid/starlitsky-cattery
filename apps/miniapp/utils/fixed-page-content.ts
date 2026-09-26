@@ -181,7 +181,6 @@ const IMAGE_ASSETS = {
   chevronRight: "../../assets/illustrations/chevron-right-icon.png",
   cottage: "../../assets/illustrations/cottage.png",
   curledCat: "../../assets/illustrations/curled-cat.png",
-  curledCatBlue: "../../assets/illustrations/curled-cat-blue.png",
   dnaHelix: "../../assets/illustrations/dna-helix.png",
   gift: "../../assets/illustrations/gift-icon.png",
   heart: "../../assets/illustrations/heart-icon.png",
@@ -260,8 +259,8 @@ const ABOUT_FACT_ORDER = [
   ["location", "cottage"],
   ["registration", "rosette"],
   ["socialization", "heartPaw"],
-  ["aftercare", "curledCatBlue"],
-  ["screening", "dnaHelix"],
+  ["aftercare", "curledCat"],
+  ["screening", "heartPaw"],
 ] as const;
 const AFTERCARE_PROMISE_ICONS = ["paw", "heart", "cat", "check"];
 const PRICE_TONES = ["tone-sky", "tone-creamblue", "tone-sunny"];
