@@ -1,22 +1,28 @@
 import type {
   CommunityPostCategory,
-  CommunityPostMediaAssetData,
   CommunityPostOptionsData,
   CreateCommunityPostRequest,
 } from "@starlitsky/shared";
 import {
-  completeCommunityPostImageUpload,
   createCommunityPost,
   deleteCommunityPostImage,
   getCommunityPost,
   getCommunityPostOptions,
-  requestCommunityPostImageUpload,
   updateCommunityPost,
 } from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
+import {
+  inferPostImageMimeType,
+  toExistingPostImage,
+  uploadPostImage,
+  type ExistingPostImage,
+  type SelectedPostImage,
+} from "../../utils/community-post-images";
+import { configureVisualQaAdapter } from "../../utils/visual-qa/adapter";
 
 interface PublishOptions {
   id?: string;
+  visualQa?: string;
 }
 
 interface InputEvent {
@@ -39,33 +45,21 @@ interface OptionItem {
   visibility: string;
 }
 
-interface SelectedImage {
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  tempFilePath: string;
-}
-
-interface ExistingImage {
-  id: string;
-  removed: boolean;
-  url: string;
-}
-
 interface PublishData {
+  canAddImages: boolean;
   canSubmit: boolean;
   categories: Array<{ label: string; value: CommunityPostCategory }>;
   category: CommunityPostCategory | "";
   cats: OptionItem[];
   content: string;
   error: string;
-  existingImages: ExistingImage[];
+  existingImages: ExistingPostImage[];
   id: string;
   isEditing: boolean;
   isLoading: boolean;
   isSubmitting: boolean;
   litters: OptionItem[];
-  selectedImages: SelectedImage[];
+  selectedImages: SelectedPostImage[];
 }
 
 interface PublishPage {
@@ -77,6 +71,7 @@ interface PublishPage {
 
 Page({
   data: {
+    canAddImages: true,
     canSubmit: false,
     categories: [],
     category: "",
@@ -93,6 +88,9 @@ Page({
   } as PublishData,
 
   async onLoad(this: PublishPage, options: PublishOptions) {
+    if (typeof options.visualQa === "string") {
+      configureVisualQaAdapter({ visualQa: options.visualQa });
+    }
     const id = typeof options.id === "string" ? decodeURIComponent(options.id) : "";
     await this.loadPage(id);
   },
@@ -110,17 +108,20 @@ Page({
 
       const categories = options.categories.map((value) => ({ value, label: categoryLabel(value) }));
       const category = post?.category || categories[0]?.value || "";
+      const content = post?.content ?? "";
+      const existingImages =
+        post?.mediaAssets
+          .filter((item) => item.kind === "image")
+          .map(toExistingPostImage)
+          .filter((item): item is ExistingPostImage => Boolean(item)) ?? [];
       this.setData({
-        canSubmit: categories.length > 0,
+        canAddImages: canAddImages(existingImages, []),
+        canSubmit: canSubmit(category, content, categories.length),
         categories,
         category: category as CommunityPostCategory | "",
         cats: toOptionItems(options, "cats", post?.cats.map((cat) => cat.id) ?? []),
-        content: post?.content ?? "",
-        existingImages:
-          post?.mediaAssets
-            .filter((item) => item.kind === "image")
-            .map(toExistingImage)
-            .filter((item): item is ExistingImage => Boolean(item)) ?? [],
+        content,
+        existingImages,
         isLoading: false,
         litters: toOptionItems(options, "litters", post?.litters.map((litter) => litter.id) ?? []),
       });
@@ -135,13 +136,20 @@ Page({
   },
 
   onContentInput(this: PublishPage, event: InputEvent) {
-    this.setData({ content: event.detail.value });
+    const content = event.detail.value;
+    this.setData({
+      canSubmit: canSubmit(this.data.category, content, this.data.categories.length),
+      content,
+    });
   },
 
   setCategory(this: PublishPage, event: TapEvent) {
     const value = event.currentTarget.dataset.value as CommunityPostCategory;
     if (!value) return;
-    this.setData({ category: value });
+    this.setData({
+      canSubmit: canSubmit(value, this.data.content, this.data.categories.length),
+      category: value,
+    });
   },
 
   toggleCat(this: PublishPage, event: TapEvent) {
@@ -169,11 +177,15 @@ Page({
       success: (response) => {
         const images = response.tempFiles.map((file) => ({
           fileName: file.tempFilePath.split(/[\\/]/).pop() || "post-image.jpg",
-          mimeType: inferMimeType(file.tempFilePath),
+          mimeType: inferPostImageMimeType(file.tempFilePath),
           sizeBytes: file.size,
           tempFilePath: file.tempFilePath,
         }));
-        this.setData({ selectedImages: [...this.data.selectedImages, ...images] });
+        const selectedImages = [...this.data.selectedImages, ...images];
+        this.setData({
+          canAddImages: canAddImages(this.data.existingImages, selectedImages),
+          selectedImages,
+        });
       },
       fail: (error) => {
         if (!error.errMsg?.includes("cancel")) showToast(error.errMsg || "选择图片失败");
@@ -184,18 +196,22 @@ Page({
   removeSelectedImage(this: PublishPage, event: TapEvent) {
     const index = Number(event.currentTarget.dataset.index);
     if (!Number.isInteger(index)) return;
+    const selectedImages = this.data.selectedImages.filter((_, itemIndex) => itemIndex !== index);
     this.setData({
-      selectedImages: this.data.selectedImages.filter((_, itemIndex) => itemIndex !== index),
+      canAddImages: canAddImages(this.data.existingImages, selectedImages),
+      selectedImages,
     });
   },
 
   removeExistingImage(this: PublishPage, event: TapEvent) {
     const id = event.currentTarget.dataset.id;
     if (!id) return;
+    const existingImages = this.data.existingImages.map((image) =>
+      image.id === id ? { ...image, removed: true } : image,
+    );
     this.setData({
-      existingImages: this.data.existingImages.map((image) =>
-        image.id === id ? { ...image, removed: true } : image,
-      ),
+      canAddImages: canAddImages(existingImages, this.data.selectedImages),
+      existingImages,
     });
   },
 
@@ -207,10 +223,12 @@ Page({
       showToast("最多 9 张图片");
       return;
     }
+    const existingImages = this.data.existingImages.map((image) =>
+      image.id === id ? { ...image, removed: false } : image,
+    );
     this.setData({
-      existingImages: this.data.existingImages.map((image) =>
-        image.id === id ? { ...image, removed: false } : image,
-      ),
+      canAddImages: canAddImages(existingImages, this.data.selectedImages),
+      existingImages,
     });
   },
 
@@ -262,11 +280,6 @@ Page({
   },
 });
 
-function toExistingImage(media: CommunityPostMediaAssetData): ExistingImage | null {
-  const url = media.sourceUrl || media.thumbnailUrl || "";
-  return url ? { id: media.id, removed: false, url } : null;
-}
-
 function toOptionItems(
   options: CommunityPostOptionsData,
   key: "cats" | "litters",
@@ -287,52 +300,13 @@ function toggleOption(items: OptionItem[], id = "") {
   return items.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item));
 }
 
-async function uploadPostImage(postId: string, image: SelectedImage, sortOrder: number) {
-  const upload = await requestCommunityPostImageUpload(postId, {
-    fileName: image.fileName,
-    mimeType: image.mimeType,
-    sizeBytes: image.sizeBytes,
-    usage: "gallery",
-    sortOrder,
-  });
-  const data = await readFile(image.tempFilePath);
-  await putUpload(upload.upload.url, upload.upload.headers, data);
-  await completeCommunityPostImageUpload(postId, upload.media.id, { sizeBytes: image.sizeBytes });
+function canSubmit(category: string, content: string, categoryCount: number) {
+  return categoryCount > 0 && Boolean(category) && content.trim().length > 0;
 }
 
-function readFile(filePath: string) {
-  return new Promise<ArrayBuffer>((resolve, reject) => {
-    wx.getFileSystemManager().readFile({
-      filePath,
-      success(response) {
-        resolve(response.data);
-      },
-      fail(error) {
-        reject(new Error(error.errMsg || "读取图片失败"));
-      },
-    });
-  });
-}
-
-function putUpload(url: string, headers: Record<string, string>, data: ArrayBuffer) {
-  return new Promise<void>((resolve, reject) => {
-    wx.request({
-      url,
-      method: "PUT",
-      data,
-      header: headers,
-      success(response) {
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          resolve();
-          return;
-        }
-        reject(new Error("图片上传失败"));
-      },
-      fail(error) {
-        reject(new Error(error.errMsg || "图片上传失败"));
-      },
-    });
-  });
+function canAddImages(existingImages: ExistingPostImage[], selectedImages: SelectedPostImage[]) {
+  const keptExistingCount = existingImages.filter((image) => !image.removed).length;
+  return keptExistingCount + selectedImages.length < 9;
 }
 
 async function ensureLoggedIn() {
@@ -340,16 +314,6 @@ async function ensureLoggedIn() {
   if (user) return user;
   const session = await loginWithWechat();
   return session.user;
-}
-
-function inferMimeType(path: string) {
-  const lower = path.toLowerCase();
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".gif")) return "image/gif";
-  if (lower.endsWith(".heic")) return "image/heic";
-  if (lower.endsWith(".heif")) return "image/heif";
-  return "image/jpeg";
 }
 
 function categoryLabel(value: string) {

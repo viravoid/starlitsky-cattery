@@ -1,0 +1,128 @@
+<view class="page">
+  <view wx:if="{{isLoading}}" class="state">正在加载我的发布...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+  <view wx:else>
+    <view wx:if="{{parentInactive}}" class="notice">
+      当前家长身份已停用。历史动态仍会保留，但暂时不能继续编辑或发布新内容。
+    </view>
+    <view wx:if="{{!posts.length}}" class="empty-card">
+      <text>还没有发布过内容～</text>
+      <button wx:if="{{canPublish}}" class="text-link" bindtap="openPublish">去写第一条动态</button>
+    </view>
+    <view wx:else class="feed">
+      <view wx:for="{{posts}}" wx:key="id" wx:for-index="postIndex" class="post-card">
+        <view class="post-main" data-id="{{item.id}}" bindtap="openPost">
+          <view class="post-head">
+            <view>
+              <text class="author">{{item.author}}</text>
+              <text class="date">{{item.date}}</text>
+            </view>
+            <text class="category">{{item.category}}</text>
+          </view>
+          <text class="content">{{item.content}}</text>
+          <view wx:if="{{item.images.length}}" class="{{item.imageGridClass}}">
+            <image
+              wx:for="{{item.images}}"
+              wx:for-item="image"
+              wx:for-index="imageIndex"
+              wx:key="id"
+              class="post-image"
+              src="{{image.url}}"
+              mode="aspectFill"
+              data-post-index="{{postIndex}}"
+              data-image-index="{{imageIndex}}"
+              catchtap="previewImage"
+            />
+          </view>
+          <view class="meta">{{item.meta}}</view>
+        </view>
+        <view class="actions">
+          <button class="action-button" disabled="{{!item.canEdit}}" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
+          <button class="action-button danger" disabled="{{!item.canDelete}}" data-id="{{item.id}}" bindtap="deletePost">删除</button>
+        </view>
+        <view wx:if="{{editingId === item.id}}" class="edit-panel">
+          <textarea
+            class="edit-content"
+            value="{{editContent}}"
+            maxlength="2000"
+            bindinput="onEditContentInput"
+          />
+          <view class="edit-section">
+            <text class="edit-label">关联猫咪</text>
+            <view wx:if="{{!editCatOptions.length}}" class="edit-empty">暂无可关联猫咪</view>
+            <view wx:else class="edit-options">
+              <button
+                wx:for="{{editCatOptions}}"
+                wx:key="id"
+                class="{{item.selected ? 'edit-option active' : 'edit-option'}}"
+                data-id="{{item.id}}"
+                catchtap="toggleEditCat"
+              >
+                {{item.name}}
+              </button>
+            </view>
+          </view>
+          <view class="edit-section">
+            <text class="edit-label">关联窝次</text>
+            <view wx:if="{{!editLitterOptions.length}}" class="edit-empty">暂无可关联窝次</view>
+            <view wx:else class="edit-options">
+              <button
+                wx:for="{{editLitterOptions}}"
+                wx:key="id"
+                class="{{item.selected ? 'edit-option active' : 'edit-option'}}"
+                data-id="{{item.id}}"
+                catchtap="toggleEditLitter"
+              >
+                {{item.name}}
+              </button>
+            </view>
+          </view>
+          <view class="edit-section">
+            <text class="edit-label">ç…§ç‰‡</text>
+            <view class="edit-image-grid">
+              <view
+                wx:for="{{editExistingImages}}"
+                wx:key="id"
+                class="{{item.removed ? 'edit-image-wrap edit-image-removed' : 'edit-image-wrap'}}"
+              >
+                <image class="edit-image-tile" src="{{item.url}}" mode="aspectFill" />
+                <button
+                  wx:if="{{item.removed}}"
+                  class="edit-restore-image"
+                  data-id="{{item.id}}"
+                  catchtap="restoreEditExistingImage"
+                >
+                  æ¢å¤
+                </button>
+                <button
+                  wx:else
+                  class="edit-remove-image"
+                  data-id="{{item.id}}"
+                  catchtap="removeEditExistingImage"
+                >
+                  <image class="edit-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
+                </button>
+              </view>
+              <view wx:for="{{editSelectedImages}}" wx:key="tempFilePath" wx:for-index="index" class="edit-image-wrap">
+                <image class="edit-image-tile" src="{{item.tempFilePath}}" mode="aspectFill" />
+                <button class="edit-remove-image" data-index="{{index}}" catchtap="removeEditSelectedImage">
+                  <image class="edit-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
+                </button>
+              </view>
+              <button class="edit-add-image" catchtap="chooseEditImages">
+                <image class="edit-add-image-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+              </button>
+            </view>
+          </view>
+          <view class="edit-actions">
+            <button class="edit-action" catchtap="cancelEdit">取消</button>
+            <button class="edit-action primary" catchtap="saveEdit">保存</button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

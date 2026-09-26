@@ -1,0 +1,19 @@
+<view class="page">
+  <view wx:if="{{isActiveParent}}" class="success">
+    <image class="success-icon" src="../../assets/illustrations/paw-like-active.png" mode="aspectFit" />
+    <text class="title">你已开通家长身份</text>
+    <text class="body">现在可以管理自己的猫咪，并在猫友圈发布家长分享。</text>
+    <button class="primary" bindtap="openMyCats">我的猫咪</button>
+  </view>
+
+  <view wx:else class="panel">
+    <text class="title">星月家长身份</text>
+    <text wx:if="{{parentInactive}}" class="notice">
+      当前家长身份已停用。你仍可查看历史内容，但需要重新提交有效的邀请码申请，审核通过后才能继续编辑和发布家长内容。
+    </text>
+    <text class="body">接猫成功的家长可通过猫舍提供的邀请码提交认证申请。审核通过后，可以添加并管理自己的猫咪、发布家长分享、关联小猫成长动态。</text>
+    <input class="field-control" placeholder="请输入猫舍邀请码" value="{{inviteCode}}" bindinput="onInviteCodeInput" />
+    <button class="primary" bindtap="openParentAuth">继续开通家长身份</button>
+    <button class="secondary" bindtap="openContact">还没有邀请码</button>
+  </view>
+</view>

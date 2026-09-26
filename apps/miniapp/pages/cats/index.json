@@ -1,4 +1,4 @@
 {
-  "navigationBarTitleText": "我们的猫",
+  "navigationStyle": "custom",
   "enablePullDownRefresh": true
 }

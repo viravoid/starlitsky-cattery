@@ -6,27 +6,40 @@
   </view>
 
   <view wx:elif="{{cat}}">
-    <view class="gallery">
-      <block wx:if="{{gallery.length}}">
-        <image
-          wx:for="{{gallery}}"
-          wx:key="*this"
-          class="hero-image"
-          src="{{item}}"
-          mode="aspectFill"
-          data-url="{{item}}"
-          bindtap="previewImage"
-        />
-      </block>
-      <view wx:else class="hero-empty">星月缅因猫舍</view>
-    </view>
+    <swiper
+      class="gallery"
+      indicator-dots="{{galleryItems.length > 1}}"
+      indicator-color="rgba(255,253,248,0.78)"
+      indicator-active-color="#e7c15d"
+    >
+      <swiper-item wx:for="{{galleryItems}}" wx:key="id">
+        <view class="hero-frame">
+          <image
+            class="{{item.imageClass}}"
+            src="{{item.url}}"
+            mode="{{item.mode}}"
+            style="{{item.style}}"
+            data-url="{{item.url}}"
+            bindtap="previewImage"
+          />
+        </view>
+      </swiper-item>
+      <swiper-item wx:if="{{!galleryItems.length}}">
+        <view class="hero-empty xy-soft-placeholder">
+          <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+        </view>
+      </swiper-item>
+    </swiper>
 
     <view class="title-row">
-      <view>
-        <text class="eyebrow">{{kindLabel}}</text>
+      <view class="title-copy">
         <text class="name">{{cat.name}}</text>
       </view>
       <text class="pill">{{statusLabel}}</text>
+    </view>
+
+    <view class="timeline-links">
+      <button class="timeline-link" bindtap="openCatTimeline">TA 的动态</button>
     </view>
 
     <view class="info-grid">
@@ -36,9 +49,58 @@
       </view>
     </view>
 
+    <view class="bottom-cta">
+      <view class="questionnaire-button" bindtap="openQuestionnaire">
+        <image class="questionnaire-icon" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
+        <text>选猫问卷</text>
+      </view>
+    </view>
+
+    <view wx:if="{{showStructureRating}}" class="structure">
+      <view class="section-heading">
+        <text class="section-title">结构评分</text>
+        <text class="section-en">Structure Review</text>
+      </view>
+      <view class="structure-card">
+        <view wx:for="{{ratingGroups}}" wx:key="title" class="rating-group">
+          <text class="rating-title">{{item.title}}</text>
+          <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="label" class="rating-row">
+            <text>{{row.label}}</text>
+            <view class="stars">
+              <view
+                wx:for="{{row.stars}}"
+                wx:for-item="star"
+                wx:key="*this"
+                class="star"
+              >
+                <image
+                  class="star-icon"
+                  src="{{star.active ? (star.highlight ? '../../assets/illustrations/star-rating-highlight.png' : '../../assets/illustrations/star-rating-active.png') : '../../assets/illustrations/star-rating-inactive.png'}}"
+                  mode="aspectFit"
+                />
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <text class="rating-note">由猫舍主理人根据实际观察给出的专业评价，仅供参考。</text>
+    </view>
+
     <view class="note">
-      <text class="note-title">主理人手记</text>
-      <text class="note-body">{{note}}</text>
+      <view class="about-divider">
+        <view class="about-line"></view>
+        <text>About</text>
+        <view class="about-line"></view>
+      </view>
+      <text class="note-title">关于{{cat.name}}</text>
+      <text class="note-subtitle">主理人手记 · Keeper's Note</text>
+      <view class="note-body-wrap">
+        <text wx:for="{{noteParagraphs}}" wx:key="id" class="note-body">{{item.prefix}}{{item.text}}{{item.suffix}}</text>
+      </view>
+      <view class="signature">
+        <view class="signature-line"></view>
+        <text>星月 · 主理人</text>
+      </view>
     </view>
   </view>
 </view>

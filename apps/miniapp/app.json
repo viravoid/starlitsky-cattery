@@ -2,12 +2,17 @@
   "pages": [
     "pages/home/index",
     "pages/fixed-page/index",
+    "pages/environment-detail/index",
     "pages/questionnaire/index",
     "pages/community/index",
+    "pages/community-linked/index",
     "pages/community-detail/index",
     "pages/community-publish/index",
+    "pages/my-posts/index",
     "pages/my-cats/index",
     "pages/my-cat-detail/index",
+    "pages/my-cat-edit/index",
+    "pages/parent-onboard/index",
     "pages/cats/index",
     "pages/cat-detail/index",
     "pages/admin-auth/index",
@@ -20,26 +25,29 @@
     "backgroundColor": "#fffaf1"
   },
   "tabBar": {
+    "custom": true,
     "color": "#8c929a",
-    "selectedColor": "#7a9ac0",
+    "selectedColor": "#b48725",
     "backgroundColor": "#fffaf1",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
       },
       {
         "pagePath": "pages/community/index",
-        "text": "猫友圈"
-      },
-      {
-        "pagePath": "pages/my-cats/index",
-        "text": "我的猫咪"
+        "text": "猫友圈",
+        "iconPath": "assets/tabbar/community.png",
+        "selectedIconPath": "assets/tabbar/community-active.png"
       },
       {
         "pagePath": "pages/cats/index",
-        "text": "我们的猫"
+        "text": "我们的猫",
+        "iconPath": "assets/tabbar/cats.png",
+        "selectedIconPath": "assets/tabbar/cats-active.png"
       }
     ]
   },

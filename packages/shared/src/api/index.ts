@@ -115,6 +115,10 @@ export interface CatData {
   lifecycleStatus: string;
   personality: string | null;
   storyJson: unknown;
+  entryCoverSelections?: unknown;
+  coverPresentations?: unknown;
+  detailImagePresentations?: unknown;
+  detailCarouselPresentations?: unknown;
   visibility: string;
   breedingProfile: BreedingCatProfileData | null;
   kittenProfile:
@@ -135,6 +139,9 @@ export interface CatMediaAssetData {
   thumbnailUrl: string | null;
   title: string | null;
   altText: string | null;
+  mimeType?: string | null;
+  width?: number | null;
+  height?: number | null;
   usage: string;
   sortOrder: number;
 }
@@ -563,6 +570,9 @@ export interface CommunityPostMediaAssetData {
   thumbnailUrl: string | null;
   title: string | null;
   altText: string | null;
+  mimeType?: string | null;
+  width?: number | null;
+  height?: number | null;
   usage: string;
   sortOrder: number;
 }
@@ -639,6 +649,7 @@ export interface MyCatData {
   mediaAssets: CatMediaAssetData[];
   relationship: string;
   relationshipStartedAt: string | null;
+  note: string | null;
   litter: CommunityPostRelatedLitterData | null;
   timelinePosts: CommunityPostData[];
   createdAt: string;
@@ -646,6 +657,19 @@ export interface MyCatData {
 }
 
 export type MyCatListData = PaginatedResponse<MyCatData>;
+
+export interface CreateMyCatRequest {
+  name: string;
+  gender?: string | null;
+  color?: string | null;
+  birthday?: string | null;
+  personality?: string | null;
+  relationship?: string;
+  relationshipStartedAt?: string | null;
+  note?: string | null;
+}
+
+export type UpdateMyCatRequest = Partial<CreateMyCatRequest>;
 
 export interface CommunityPostOptionsData {
   categories: CommunityPostCategory[];
@@ -852,6 +876,10 @@ export interface FixedPageMediaAssetData {
   thumbnailUrl: string | null;
   title: string | null;
   altText: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  width?: number | null;
+  height?: number | null;
   usage: string;
   sortOrder: number;
 }

@@ -546,6 +546,7 @@ export async function deleteCommunityPostMedia(postId, mediaId, user) {
 
 function buildPostWhere(searchParams) {
   const category = searchParams.get("category");
+  const catId = searchParams.get("catId");
   const litterId = searchParams.get("litterId");
   const query = searchParams.get("q");
   const where = {
@@ -556,6 +557,17 @@ function buildPostWhere(searchParams) {
   if (category) {
     if (!CATEGORY_VALUES.has(category)) throw badRequest("category contains an unsupported value");
     where.category = category;
+  }
+  if (catId) {
+    where.post_cats = {
+      some: {
+        cat_id: catId,
+        cat: {
+          deleted_at: null,
+          visibility: "visible",
+        },
+      },
+    };
   }
   if (litterId) {
     where.post_litters = {
@@ -818,6 +830,9 @@ function toPostMediaDto(media, binding) {
     thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
+    mimeType: media.mime_type,
+    width: media.width,
+    height: media.height,
     usage: binding.usage,
     sortOrder: binding.sort_order,
   };

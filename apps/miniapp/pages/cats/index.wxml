@@ -4,15 +4,37 @@
     <text class="title">我们的猫</text>
   </view>
 
+  <view class="sticky-controls">
   <view class="tabs">
-    <button class="{{activeTab === 'kittens' ? 'tab active' : 'tab'}}" data-tab="kittens" bindtap="switchTab">小猫</button>
-    <button class="{{activeTab === 'studs' ? 'tab active' : 'tab'}}" data-tab="studs" bindtap="switchTab">种猫</button>
+    <button class="{{activeTab === 'kittens' ? 'tab active' : 'tab'}}" data-tab="kittens" bindtap="switchTab">
+      <text class="tab-label">小猫</text>
+      <text wx:if="{{activeTab === 'kittens'}}" class="tab-line"></text>
+    </button>
+    <button class="{{activeTab === 'studs' ? 'tab active' : 'tab'}}" data-tab="studs" bindtap="switchTab">
+      <text class="tab-label">种猫</text>
+      <text wx:if="{{activeTab === 'studs'}}" class="tab-line"></text>
+    </button>
   </view>
 
-  <scroll-view class="filters" scroll-x enable-flex>
-    <button wx:for="{{filters}}" wx:key="*this" class="{{activeFilter === item ? 'filter active-filter' : 'filter'}}" data-filter="{{item}}" bindtap="setFilter">
-      {{item}}
-    </button>
+  <scroll-view class="filters-scroll" scroll-x enable-flex>
+    <view class="filters-row">
+      <button wx:for="{{filters}}" wx:key="*this" class="{{activeFilter === item ? 'filter active-filter' : 'filter'}}" data-filter="{{item}}" bindtap="setFilter">
+        {{item}}
+      </button>
+      <button wx:if="{{activeTab === 'kittens'}}" class="{{activeLitterId ? 'filter active-filter litter-toggle' : 'filter litter-toggle'}}" bindtap="toggleLitter">
+        窝次{{activeLitterId ? "：" + activeLitterLabel : ""}}
+        <text class="{{litterOpen ? 'litter-chevron open' : 'litter-chevron'}}">⌄</text>
+      </button>
+    </view>
+  </scroll-view>
+  </view>
+
+  <scroll-view wx:if="{{activeTab === 'kittens' && litterOpen}}" class="litter-filters-scroll" scroll-x enable-flex>
+    <view class="litter-filters">
+      <button wx:for="{{litterFilters}}" wx:key="id" class="{{activeLitterId === item.id ? 'filter active-filter' : 'filter'}}" data-id="{{item.id}}" bindtap="setLitter">
+        {{item.name}}
+      </button>
+    </view>
   </scroll-view>
 
   <view wx:if="{{isLoading}}" class="state">正在加载猫咪资料...</view>
@@ -22,21 +44,44 @@
   </view>
   <view wx:elif="{{!visibleItems.length}}" class="state">暂无可展示猫咪</view>
 
-  <view wx:else class="list">
+  <view wx:else class="list {{activeTab === 'kittens' && litterOpen ? 'list-expanded' : ''}}">
     <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
+      <view class="card-pills">
+        <text class="pill">{{item.pill}}</text>
+        <text wx:if="{{item.litterName}}" class="pill litter-pill">{{item.litterName}}</text>
+      </view>
       <view class="thumb">
-        <image wx:if="{{item.imageUrl}}" src="{{item.imageUrl}}" mode="aspectFill" />
-        <view wx:else class="thumb-empty">星月</view>
+        <image
+          wx:if="{{item.imageUrl}}"
+          class="{{item.imageClass}}"
+          src="{{item.imageUrl}}"
+          mode="{{item.imageMode}}"
+          style="{{item.imageStyle}}"
+        />
+        <view wx:else class="thumb-empty xy-soft-placeholder">
+          <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+        </view>
       </view>
       <view class="info">
-        <view class="pill-row">
-          <text class="pill">{{item.pill}}</text>
-        </view>
         <text class="name">{{item.name}}</text>
-        <text class="meta">{{item.lineOne}}</text>
-        <text class="meta">{{item.lineTwo}}</text>
-        <text class="detail">了解详情 ›</text>
+        <view class="meta-grid">
+          <view wx:for="{{item.metaItems}}" wx:key="label" class="meta-item">
+            <text class="meta-label">{{item.label}}</text>
+            <text class="meta-value">{{item.value}}</text>
+          </view>
+        </view>
+        <view class="detail">
+          <text>了解详情</text>
+          <text class="detail-arrow">›</text>
+        </view>
       </view>
     </button>
+  </view>
+
+  <view class="bottom-cta">
+    <view class="questionnaire-icon">
+      <image class="questionnaire-icon-art" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
+    </view>
+    <button class="questionnaire-button" bindtap="openQuestionnaire">填写选猫问卷</button>
   </view>
 </view>

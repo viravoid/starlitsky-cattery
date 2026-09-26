@@ -1,33 +1,59 @@
 <view class="page">
   <view class="header">
-    <text class="eyebrow">Community</text>
     <text class="title">猫友圈</text>
-    <text class="subtitle">猫舍日常、碎碎念和家长分享</text>
-    <button wx:if="{{canPublish}}" class="publish-button" bindtap="openPublish">发布动态</button>
+    <view class="utility-row">
+      <button wx:if="{{showLogin}}" class="utility-link primary" bindtap="login">登录</button>
+      <block wx:else>
+        <button class="utility-link secondary" bindtap="logout">退出</button>
+      </block>
+      <button wx:if="{{showMyCats}}" class="utility-link" bindtap="openMyCats">
+        <text>我的猫咪</text>
+      </button>
+      <button wx:if="{{showMyPosts}}" class="utility-link" bindtap="openMyPosts">
+        <text>我的发布</text>
+      </button>
+      <button wx:if="{{showParentOnboard}}" class="utility-link" bindtap="openParentOnboard">
+        <text>开通家长</text>
+      </button>
+    </view>
   </view>
 
-  <scroll-view class="category-tabs" scroll-x enable-flex>
-    <button
-      wx:for="{{categoryTabs}}"
-      wx:key="key"
-      class="{{activeCategory === item.key ? 'category-tab active-category' : 'category-tab'}}"
-      data-key="{{item.key}}"
-      bindtap="setCategory"
-    >
-      {{item.label}}
-    </button>
+  <view wx:if="{{parentInactive}}" class="notice">
+    当前家长身份已停用。历史猫咪和历史动态仍保留，但暂时不能继续发布、编辑或新增家长内容。
+  </view>
+
+  <scroll-view class="category-tabs-scroll" scroll-x enable-flex>
+    <view class="category-tab-row">
+      <button
+        wx:for="{{categoryTabs}}"
+        wx:key="key"
+        class="{{activeCategory === item.key ? 'category-tab active-category' : 'category-tab'}}"
+        data-key="{{item.key}}"
+        bindtap="setCategory"
+      >
+        {{item.label}}
+        <text wx:if="{{activeCategory === item.key}}" class="tab-line"></text>
+      </button>
+      <button class="{{activeLitterId ? 'category-tab active-category' : 'category-tab'}}" bindtap="toggleLitter">
+        <text>窝次</text>
+        <text class="{{litterOpen ? 'litter-chevron open' : 'litter-chevron'}}">⌄</text>
+        <text wx:if="{{activeLitterId}}" class="tab-line"></text>
+      </button>
+    </view>
   </scroll-view>
 
-  <scroll-view wx:if="{{litterFilters.length > 1}}" class="litter-tabs" scroll-x enable-flex>
-    <button
-      wx:for="{{litterFilters}}"
-      wx:key="id"
-      class="{{activeLitterId === item.id ? 'litter-tab active-litter' : 'litter-tab'}}"
-      data-id="{{item.id}}"
-      bindtap="setLitter"
-    >
-      {{item.name}}
-    </button>
+  <scroll-view wx:if="{{litterOpen}}" class="litter-tabs-scroll" scroll-x enable-flex>
+    <view class="litter-tabs">
+      <button
+        wx:for="{{litterFilters}}"
+        wx:key="id"
+        class="{{activeLitterId === item.id ? 'litter-tab active-litter' : 'litter-tab'}}"
+        data-id="{{item.id}}"
+        bindtap="setLitter"
+      >
+        {{item.name}}
+      </button>
+    </view>
   </scroll-view>
 
   <view wx:if="{{isLoading}}" class="state">正在加载猫友圈...</view>
@@ -35,7 +61,7 @@
     <text class="error">{{error}}</text>
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
-  <view wx:elif="{{!posts.length}}" class="state">暂无可展示动态</view>
+  <view wx:elif="{{!posts.length}}" class="empty-card">当前筛选下还没有动态。</view>
 
   <view wx:else class="feed">
     <view
@@ -48,29 +74,57 @@
     >
       <view class="post-head">
         <view class="author-block">
-          <text class="author">{{item.author}}</text>
+          <view class="author-row">
+            <text class="author">{{item.author}}</text>
+            <text class="role-pill">{{item.roleLabel}}</text>
+            <text wx:if="{{item.isPinned}}" class="pin">置顶</text>
+          </view>
           <text class="date">{{item.date}}</text>
         </view>
-        <view class="tag-row">
-          <text wx:if="{{item.isPinned}}" class="pin">置顶</text>
+        <view class="post-meta-side">
           <text class="category">{{item.category}}</text>
+          <view wx:if="{{item.linkedLitters.length}}" class="litter-meta">
+            <text
+              wx:for="{{item.linkedLitters}}"
+              wx:key="id"
+              class="link-pill litter"
+              catchtap="stopLitterTap"
+            >{{item.name}}</text>
+          </view>
         </view>
       </view>
 
-      <image
-        wx:if="{{item.firstImageUrl}}"
-        class="post-image"
-        src="{{item.firstImageUrl}}"
-        mode="aspectFill"
-        data-index="{{index}}"
-        catchtap="previewImage"
-      />
-
       <text class="content">{{item.content}}</text>
 
-      <view wx:if="{{item.linkedLitters || item.linkedCats}}" class="links">
-        <text wx:if="{{item.linkedLitters}}">窝次：{{item.linkedLitters}}</text>
-        <text wx:if="{{item.linkedCats}}">猫咪：{{item.linkedCats}}</text>
+      <view wx:if="{{item.images.length}}" class="{{item.imageGridClass}}">
+        <image
+          wx:for="{{item.images}}"
+          wx:for-item="image"
+          wx:for-index="imageIndex"
+          wx:key="id"
+          class="post-image"
+          src="{{image.url}}"
+          mode="aspectFill"
+          data-post-index="{{index}}"
+          data-image-index="{{imageIndex}}"
+          catchtap="previewImage"
+        />
+      </view>
+
+      <view wx:if="{{item.linkedCats.length}}" class="links">
+        <view
+          wx:for="{{item.linkedCats}}"
+          wx:key="id"
+          class="cat-link-pill"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          catchtap="openCatTimeline"
+        >
+          <view class="cat-avatar">
+            <image class="cat-avatar-icon" src="../../assets/illustrations/cat-icon.png" mode="aspectFit" />
+          </view>
+          <text>{{item.name}}</text>
+        </view>
       </view>
 
       <view class="post-foot">
@@ -79,12 +133,22 @@
           data-id="{{item.id}}"
           catchtap="toggleLike"
         >
-          {{item.likedByMe ? '已喜欢' : '喜欢'}}
+          <image
+            class="like-icon"
+            src="{{item.likedByMe ? '../../assets/illustrations/paw-like-active.png' : '../../assets/illustrations/paw-like.png'}}"
+            mode="aspectFit"
+          />
+          <text>{{item.footerLikeLabel}}</text>
         </button>
-        <text>{{item.meta}}</text>
-        <text wx:if="{{item.imageCount > 1}}">{{item.imageCount}} 张图片</text>
-        <text class="read-more">查看详情 ›</text>
+        <view class="comment-count">
+          <image class="comment-icon" src="../../assets/illustrations/chat-bubble-icon.png" mode="aspectFit" />
+          <text>{{item.footerCommentLabel}}</text>
+        </view>
       </view>
     </view>
   </view>
+
+  <button wx:if="{{canPublish}}" class="floating-publish" bindtap="openPublish">
+    <image class="publish-icon" src="../../assets/illustrations/plus-icon.png" mode="aspectFit" />
+  </button>
 </view>

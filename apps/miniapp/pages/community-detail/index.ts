@@ -7,9 +7,11 @@ import {
   toggleCommunityPostLike,
 } from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
+import { configureVisualQaAdapter } from "../../utils/visual-qa/adapter";
 
 interface DetailOptions {
   id?: string;
+  visualQa?: string;
 }
 
 interface DetailImage {
@@ -21,20 +23,25 @@ interface DetailImage {
 
 interface CommunityDetailData {
   author: string;
+  authorRole: string;
+  authorRoleClass: string;
   canDelete: boolean;
   canEdit: boolean;
   category: string;
+  commentActionLabel: string;
   commentText: string;
   comments: CommentView[];
   content: string;
   date: string;
   error: string;
   id: string;
+  imageGridClass: string;
   images: DetailImage[];
   isLoading: boolean;
-  linkedCats: string[];
-  linkedLitters: string[];
+  linkedCats: LinkedCatView[];
+  linkedLitters: LinkedLitterView[];
   likedByMe: boolean;
+  likeActionLabel: string;
   meta: string;
   pinned: boolean;
   previewUrls: string[];
@@ -61,35 +68,55 @@ interface InputEvent {
 
 interface CommentView {
   author: string;
+  authorRole: string;
+  authorRoleClass: string;
   canDelete: boolean;
   content: string;
   date: string;
   id: string;
 }
 
+interface LinkedCatView {
+  id: string;
+  name: string;
+}
+
+interface LinkedLitterView {
+  id: string;
+  name: string;
+}
+
 Page({
   data: {
     author: "",
+    authorRole: "",
+    authorRoleClass: "",
     canDelete: false,
     canEdit: false,
     category: "",
+    commentActionLabel: "",
     commentText: "",
     comments: [],
     content: "",
     date: "",
     error: "",
     id: "",
+    imageGridClass: "",
     images: [],
     isLoading: true,
     linkedCats: [],
     linkedLitters: [],
     likedByMe: false,
+    likeActionLabel: "",
     meta: "",
     pinned: false,
     previewUrls: [],
   } as CommunityDetailData,
 
   async onLoad(this: CommunityDetailPage, options: DetailOptions) {
+    if (typeof options.visualQa === "string") {
+      configureVisualQaAdapter({ visualQa: options.visualQa });
+    }
     const id = typeof options.id === "string" ? decodeURIComponent(options.id) : "";
     this.setData({ id });
     await this.loadPost(id);
@@ -110,7 +137,7 @@ Page({
     try {
       const post = await getCommunityPost(id);
       this.setData({ ...toDetailView(post), error: "", id, isLoading: false });
-      wx.setNavigationBarTitle({ title: categoryLabel(post.category) });
+      wx.setNavigationBarTitle({ title: "动态详情" });
     } catch (error) {
       this.setData({ error: getErrorMessage(error), isLoading: false });
     }
@@ -124,6 +151,13 @@ Page({
     const url = event.currentTarget.dataset.url;
     if (!url || this.data.previewUrls.length === 0) return;
     wx.previewImage({ current: url, urls: this.data.previewUrls });
+  },
+
+  scrollToComments() {
+    const scrollApi = wx as unknown as {
+      pageScrollTo(options: { duration?: number; selector: string }): void;
+    };
+    scrollApi.pageScrollTo({ selector: "#comments-section", duration: 240 });
   },
 
   onCommentInput(this: CommunityDetailPage, event: InputEvent) {
@@ -161,6 +195,15 @@ Page({
   openEdit(this: CommunityDetailPage) {
     if (!this.data.canEdit || !this.data.id) return;
     wx.navigateTo({ url: `/pages/community-publish/index?id=${encodeURIComponent(this.data.id)}` });
+  },
+
+  openCatTimeline(event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    const name = event.currentTarget.dataset.name || "TA";
+    if (!id) return;
+    wx.navigateTo({
+      url: `/pages/community-linked/index?catId=${encodeURIComponent(id)}&title=${encodeURIComponent(`${name}的动态`)}`,
+    });
   },
 
   async deletePost(this: CommunityDetailPage) {
@@ -209,16 +252,21 @@ function toDetailView(post: CommunityPostData) {
 
   return {
     author: post.authorName || "星月猫友",
+    authorRole: roleLabel(post.authorRole),
+    authorRoleClass: roleClass(post.authorRole),
     canDelete: post.canDelete,
     canEdit: post.canEdit,
     category: categoryLabel(post.category),
+    commentActionLabel: `${post.commentCount} 条评论`,
     comments: post.comments.map(toCommentView),
     content: post.content,
     date: formatDate(post.createdAt),
+    imageGridClass: imageGridClass(images.length),
     images,
-    linkedCats: post.cats.map((cat) => cat.name),
-    linkedLitters: post.litters.map((litter) => litter.name),
+    linkedCats: post.cats.map((cat) => ({ id: cat.id, name: cat.name })),
+    linkedLitters: post.litters.map((litter) => ({ id: litter.id, name: litter.name })),
     likedByMe: post.likedByMe,
+    likeActionLabel: `${post.likeCount} 个爪印`,
     meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
     pinned: post.pinned,
     previewUrls: images.map((item) => item.url),
@@ -228,11 +276,32 @@ function toDetailView(post: CommunityPostData) {
 function toCommentView(comment: CommunityCommentData): CommentView {
   return {
     author: comment.authorName || "星月猫友",
+    authorRole: roleLabel(comment.authorRole),
+    authorRoleClass: roleClass(comment.authorRole),
     canDelete: comment.canDelete,
     content: comment.content,
     date: formatDate(comment.createdAt),
     id: comment.id,
   };
+}
+
+function imageGridClass(count: number) {
+  if (count <= 1) return "gallery single-image-grid";
+  if (count === 2 || count === 4) return "gallery two-image-grid";
+  return "gallery three-image-grid";
+}
+
+function roleLabel(value: string) {
+  if (value === "keeper" || value === "猫舍主理人") return "猫舍主理人";
+  if (value === "parent" || value === "星月家长") return "星月家长";
+  if (value === "user" || value === "普通用户") return "";
+  return value || "";
+}
+
+function roleClass(value: string) {
+  if (value === "keeper" || value === "猫舍主理人") return "role-pill keeper";
+  if (value === "parent" || value === "星月家长") return "role-pill parent";
+  return "role-pill";
 }
 
 function categoryLabel(value: string) {

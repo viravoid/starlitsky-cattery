@@ -18,7 +18,11 @@ const typeOnlyImports = [];
 verifyProjectConfig();
 verifyProductionEnvGuards();
 verifyPageRegistrations();
+verifyMobileParityTabBar();
+verifyVisualQaFixtures();
+verifyVisualQaMutationGuards();
 verifyRuntimeImports();
+verifyWxssCompatibility();
 
 if (failures.length > 0) {
   for (const failure of failures) {
@@ -123,6 +127,158 @@ function verifyPageRegistrations() {
   }
 }
 
+function verifyMobileParityTabBar() {
+  const appJson = readJson(appJsonPath);
+  const expectedTabs = [
+    ["pages/home/index", "首页", "assets/tabbar/home.png", "assets/tabbar/home-active.png"],
+    [
+      "pages/community/index",
+      "猫友圈",
+      "assets/tabbar/community.png",
+      "assets/tabbar/community-active.png",
+    ],
+    ["pages/cats/index", "我们的猫", "assets/tabbar/cats.png", "assets/tabbar/cats-active.png"],
+  ];
+  const tabs = appJson.tabBar?.list;
+  if (!Array.isArray(tabs) || tabs.length !== expectedTabs.length) {
+    failures.push("apps/miniapp/app.json tabBar must match the 3-item React PhoneFrame navigation.");
+    return;
+  }
+
+  for (const [index, [pagePath, text, iconPath, selectedIconPath]] of expectedTabs.entries()) {
+    const tab = tabs[index];
+    if (
+      tab?.pagePath !== pagePath ||
+      tab?.text !== text ||
+      tab?.iconPath !== iconPath ||
+      tab?.selectedIconPath !== selectedIconPath
+    ) {
+      failures.push(
+        `apps/miniapp/app.json tabBar item ${index + 1} must be ${pagePath} / ${text} with local icon assets.`,
+      );
+    }
+    for (const asset of [iconPath, selectedIconPath]) {
+      if (!existsSync(join(miniappRoot, asset))) {
+        failures.push(`Missing miniapp tabBar icon asset: apps/miniapp/${asset}.`);
+      }
+    }
+  }
+
+  const homeWxmlPath = join(miniappRoot, "pages/home/index.wxml");
+  const homeWxml = readFileSync(homeWxmlPath, "utf8");
+  for (const forbidden of ["⌁", "●", "✦", "☾"]) {
+    if (homeWxml.includes(forbidden)) {
+      failures.push(
+        `apps/miniapp/pages/home/index.wxml must use migrated visual assets instead of decorative character "${forbidden}".`,
+      );
+    }
+  }
+
+  const characterIconSubstitutes = ["⌁", "●", "○", "✦", "☾", "＋", "×"];
+  for (const wxmlPath of listTextFiles(miniappRoot).filter((path) => path.endsWith(".wxml"))) {
+    const source = readFileSync(wxmlPath, "utf8");
+    for (const forbidden of characterIconSubstitutes) {
+      if (source.includes(forbidden)) {
+        failures.push(
+          `${relative(repoRoot, wxmlPath)} must use local visual assets instead of character icon substitute "${forbidden}".`,
+        );
+      }
+    }
+  }
+}
+
+function verifyVisualQaFixtures() {
+  const adapterPath = join(miniappRoot, "utils/visual-qa/adapter.ts");
+  const modePath = join(miniappRoot, "utils/visual-qa/mode.ts");
+  const fixturePath = join(miniappRoot, "utils/visual-qa/fixtures.ts");
+  const publicContentPath = join(miniappRoot, "utils/public-content/index.ts");
+  const appPath = join(miniappRoot, "app.ts");
+  for (const requiredPath of [adapterPath, modePath, fixturePath]) {
+    if (!existsSync(requiredPath)) {
+      failures.push(`${relative(repoRoot, requiredPath)} is required for explicit Visual QA fixture mode.`);
+    }
+  }
+  if (!existsSync(adapterPath) || !existsSync(modePath) || !existsSync(publicContentPath)) return;
+
+  const adapterText = readFileSync(adapterPath, "utf8");
+  const modeText = readFileSync(modePath, "utf8");
+  const publicContentText = readFileSync(publicContentPath, "utf8");
+  const appText = readFileSync(appPath, "utf8");
+  if (!modeText.includes('VISUAL_QA_QUERY_KEY = "visualQa"')) {
+    failures.push("Visual QA fixture mode must use the explicit visualQa query key.");
+  }
+  if (!/query\[VISUAL_QA_QUERY_KEY\]\s*===\s*"1"/.test(modeText)) {
+    failures.push("Visual QA fixture mode must require visualQa=1.");
+  }
+  if (!/getMiniProgramEnvVersion\(\)\s*===\s*"develop"/.test(modeText)) {
+    failures.push("Visual QA fixture mode must be disabled outside develop.");
+  }
+  if (!appText.includes("configureVisualQaAdapter(options?.query)")) {
+    failures.push("App launch must configure the Visual QA adapter from the explicit launch query.");
+  }
+  if (!adapterText.includes("setPublicContentAdapter")) {
+    failures.push("Visual QA fixtures must enter through the independent public content adapter.");
+  }
+  if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled/.test(publicContentText)) {
+    failures.push("Production public content helpers must not contain Visual QA fixture branches.");
+  }
+  if (/catch\s*\([^)]*\)\s*\{[^}]*VisualQa/s.test(publicContentText)) {
+    failures.push("Visual QA fixtures must not be used as an API failure fallback.");
+  }
+}
+
+function verifyVisualQaMutationGuards() {
+  const requestPath = join(miniappRoot, "utils/request/index.ts");
+  const publicContentPath = join(miniappRoot, "utils/public-content/index.ts");
+  const adapterPath = join(miniappRoot, "utils/visual-qa/adapter.ts");
+  const fixturePath = join(miniappRoot, "utils/visual-qa/fixtures.ts");
+  const communityPostImagesPath = join(miniappRoot, "utils/community-post-images.ts");
+  if (![requestPath, publicContentPath, adapterPath, fixturePath, communityPostImagesPath].every(existsSync)) return;
+
+  const requestText = readFileSync(requestPath, "utf8");
+  const publicContentText = readFileSync(publicContentPath, "utf8");
+  const adapterText = readFileSync(adapterPath, "utf8");
+  const fixtureText = readFileSync(fixturePath, "utf8");
+  const communityPostImagesText = readFileSync(communityPostImagesPath, "utf8");
+
+  if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled|VISUAL_QA_MUTATION_BLOCKED/.test(requestText)) {
+    failures.push("Production request wrapper must not contain Visual QA mutation branches.");
+  }
+  if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled/.test(publicContentText)) {
+    failures.push("Production public content helper must not contain Visual QA mutation branches.");
+  }
+
+  const guardedMutations = [
+    ["createCommunityPost", "createVisualQaCommunityPost"],
+    ["updateCommunityPost", "updateVisualQaCommunityPost"],
+    ["deleteCommunityPost", "deleteVisualQaCommunityPost"],
+    ["toggleCommunityPostLike", "toggleVisualQaCommunityPostLike"],
+    ["createCommunityComment", "createVisualQaCommunityComment"],
+    ["deleteCommunityComment", "deleteVisualQaCommunityComment"],
+    ["requestCommunityPostImageUpload", "requestVisualQaCommunityPostImageUpload"],
+    ["completeCommunityPostImageUpload", "completeVisualQaCommunityPostImageUpload"],
+    ["deleteCommunityPostImage", "deleteVisualQaCommunityPostImage"],
+    ["submitSelectionApplication", "submitVisualQaSelectionApplication"],
+  ];
+  for (const [publicFunction, fixtureFunction] of guardedMutations) {
+    if (!new RegExp(`${publicFunction}:\\s*${fixtureFunction}`).test(adapterText)) {
+      failures.push(
+        `apps/miniapp/utils/visual-qa/adapter.ts must route ${publicFunction} to ${fixtureFunction}.`,
+      );
+    }
+    if (!new RegExp(`function\\s+${fixtureFunction}\\b`).test(fixtureText)) {
+      failures.push(`Missing Visual QA fixture mutation helper: ${fixtureFunction}.`);
+    }
+  }
+
+  if (!adapterText.includes("setPostImageUploadAdapter")) {
+    failures.push("Community post image upload QA behavior must be installed through the Visual QA adapter.");
+  }
+  if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled/.test(communityPostImagesText)) {
+    failures.push("Production community post image upload helper must not contain Visual QA branches.");
+  }
+}
+
 function verifyRuntimeImports() {
   const tsFiles = listTextFiles(miniappRoot).filter(
     (path) => path.endsWith(".ts") && !path.endsWith(".d.ts"),
@@ -167,6 +323,51 @@ function verifyRuntimeImports() {
         );
       }
     });
+  }
+}
+
+function verifyWxssCompatibility() {
+  const wxssFiles = listTextFiles(miniappRoot).filter((path) => path.endsWith(".wxss"));
+  const unsupportedPatterns = [
+    [/:root\b/, 'Use "page" instead of ":root" for miniapp WXSS custom properties.'],
+    [/\bwidth\s*:\s*fit-content\b/, 'Avoid "width: fit-content"; use intrinsic inline/flex sizing.'],
+    [/\bmix-blend-mode\s*:/, 'Avoid "mix-blend-mode"; it is not reliable in native miniapp WXSS.'],
+    [/@supports\b/, 'Avoid "@supports"; it is not part of the safe native WXSS subset.'],
+    [/@layer\b/, 'Avoid "@layer"; it is not part of the safe native WXSS subset.'],
+    [/:has\s*\(/, 'Avoid ":has(...)"; it is not part of the safe native WXSS subset.'],
+  ];
+  const pageComponentTagSelector =
+    /(^|[\s>+~,])(?:view|text|image|button|input|textarea|swiper|swiper-item|scroll-view)(?=$|[\s.#:[>+~,])/;
+
+  for (const filePath of wxssFiles) {
+    const text = readFileSync(filePath, "utf8");
+    const relativePath = toRepoPath(filePath);
+
+    for (const [pattern, message] of unsupportedPatterns) {
+      const match = pattern.exec(text);
+      if (match) {
+        failures.push(`${relativePath}:${lineForIndex(text, match.index)}: ${message}`);
+      }
+    }
+
+    if (!relativePath.startsWith("apps/miniapp/pages/")) {
+      continue;
+    }
+
+    for (const block of text.matchAll(/([^{}]+)\{/g)) {
+      const selector = block[1].trim();
+      const match = pageComponentTagSelector.exec(selector);
+      if (match) {
+        failures.push(
+          `${relativePath}:${lineForIndex(text, block.index)}: Page WXSS must use class selectors instead of native tag selector "${match[0].trim()}".`,
+        );
+      }
+      if (selector.includes("~")) {
+        failures.push(
+          `${relativePath}:${lineForIndex(text, block.index)}: Page WXSS must avoid the "~" sibling combinator; wcsc rejects it in native miniapp styles.`,
+        );
+      }
+    }
   }
 }
 
@@ -245,4 +446,8 @@ function readJson(path) {
 
 function toRepoPath(path) {
   return relative(repoRoot, path).split(sep).join("/");
+}
+
+function lineForIndex(text, index) {
+  return text.slice(0, index).split("\n").length;
 }
