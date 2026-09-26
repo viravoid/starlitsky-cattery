@@ -27,6 +27,7 @@ export interface TextItem {
 
 export interface FactItem {
   icon: string;
+  iconClass: string;
   id: string;
   text: string;
 }
@@ -180,6 +181,7 @@ const IMAGE_ASSETS = {
   chevronRight: "../../assets/illustrations/chevron-right-icon.png",
   cottage: "../../assets/illustrations/cottage.png",
   curledCat: "../../assets/illustrations/curled-cat.png",
+  curledCatBlue: "../../assets/illustrations/curled-cat-blue.png",
   dnaHelix: "../../assets/illustrations/dna-helix.png",
   gift: "../../assets/illustrations/gift-icon.png",
   heart: "../../assets/illustrations/heart-icon.png",
@@ -258,7 +260,7 @@ const ABOUT_FACT_ORDER = [
   ["location", "cottage"],
   ["registration", "rosette"],
   ["socialization", "heartPaw"],
-  ["aftercare", "curledCat"],
+  ["aftercare", "curledCatBlue"],
   ["screening", "dnaHelix"],
 ] as const;
 const AFTERCARE_PROMISE_ICONS = ["paw", "heart", "cat", "check"];
@@ -491,6 +493,7 @@ function normalizeAbout(
     aboutBodyParagraphs: splitParagraphs(view.body).map(toTextItem("about-body")),
     aboutFacts: ABOUT_FACT_ORDER.map(([key, icon]) => ({
       icon: imageAsset(icon),
+      iconClass: `about-fact-icon-${key}`,
       id: `about-fact-${key}`,
       text: textOr(facts[key], fallbackAboutFact(key)),
     })).filter((item) => item.text),

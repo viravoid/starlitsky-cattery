@@ -37,7 +37,7 @@
       </view>
       <view class="about-facts-grid">
         <view wx:for="{{aboutFacts}}" wx:key="id" class="about-fact xy-card">
-          <image class="about-fact-icon" src="{{item.icon}}" mode="aspectFit" />
+          <image class="about-fact-icon {{item.iconClass}}" src="{{item.icon}}" mode="aspectFit" />
           <text class="about-fact-text">{{item.text}}</text>
         </view>
       </view>
