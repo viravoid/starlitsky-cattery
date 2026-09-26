@@ -568,7 +568,7 @@
   height: 64rpx;
   flex-shrink: 0;
   border-radius: 999rpx;
-  background: var(--xy-color-violet);
+  background: var(--xy-color-primary);
   color: #ffffff;
   font-size: 26rpx;
   font-weight: 600;
@@ -763,14 +763,19 @@
 }
 
 .contract-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 1;
+  min-width: 0;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 999rpx;
   background: var(--xy-color-background);
   color: var(--xy-color-heading);
   font-size: 25rpx;
   font-weight: 700;
-  line-height: 70rpx;
+  min-height: 70rpx;
+  line-height: 1.2;
 }
 
 .contract-action.primary {
@@ -843,7 +848,7 @@
 }
 
 .copy-action {
-  color: var(--xy-color-violet);
+  color: var(--xy-color-primary);
   font-size: 24rpx;
   font-weight: 700;
 }
@@ -975,6 +980,7 @@
 
 .stud-card {
   min-width: 0;
+  box-sizing: border-box;
   padding: 16rpx;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 28rpx;

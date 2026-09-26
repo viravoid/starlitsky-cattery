@@ -27,7 +27,7 @@
         <text class="room-title">{{item.title}}</text>
         <text wx:if="{{showRoomDescriptions && item.description}}" class="room-description">{{item.description}}</text>
         <view wx:if="{{item.imageSlots.length}}" class="room-grid">
-          <button
+          <view
             wx:for="{{item.imageSlots}}"
             wx:for-item="imageSlot"
             wx:key="id"
@@ -44,7 +44,7 @@
             <view wx:else class="room-placeholder xy-soft-placeholder">
               <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
             </view>
-          </button>
+          </view>
         </view>
         <view wx:else class="room-empty">这个房间的照片还没有上传。</view>
       </view>
