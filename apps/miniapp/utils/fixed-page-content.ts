@@ -125,6 +125,8 @@ export interface FixedPageViewData {
   aboutFacts: FactItem[];
   aboutHeroHeight: number;
   aboutHeroSlides: PageImageSlot[];
+  aboutOwnerBody: string;
+  aboutOwnerTitle: string;
   accounts: ProcessSimpleCardView[];
   aftercareContractBadge: string;
   aftercareContractExtension: string;
@@ -202,6 +204,8 @@ const EMPTY_VIEW: FixedPageViewData = {
   aboutFacts: [],
   aboutHeroHeight: 419,
   aboutHeroSlides: [],
+  aboutOwnerBody: "两位主理人全职经营猫舍，持续陪伴小猫成长，也在不断学习和完善繁育与行为学知识。",
+  aboutOwnerTitle: "主理人 · 星下 & 月七",
   accounts: [],
   aftercareContractBadge: "",
   aftercareContractExtension: "",
@@ -431,13 +435,13 @@ export function normalizeFixedPageView(
   const common = {
     ...base,
     ...pageImages,
-    body: stringOr(input.body, base.body),
-    footerNotice: stringOr(input.footerNotice, base.footerNotice),
+    body: textOr(input.body, base.body),
+    footerNotice: textOr(input.footerNotice, base.footerNotice),
     genericFacts: normalizeFactStrings(input.facts, base.genericFacts),
     genericSections: normalizeGenericSections(input.sections, base.genericSections),
     isLoading: false,
     slug,
-    title: title || base.title,
+    title: decodePlainTextEntities(title || base.title),
     viewKind: viewKindForSlug(slug),
   };
 
@@ -482,16 +486,18 @@ function normalizeAbout(
 
   return {
     ...view,
+    aboutOwnerBody: textOr(input.ownerBody, view.aboutOwnerBody),
+    aboutOwnerTitle: textOr(input.ownerTitle, view.aboutOwnerTitle),
     aboutBodyParagraphs: splitParagraphs(view.body).map(toTextItem("about-body")),
     aboutFacts: ABOUT_FACT_ORDER.map(([key, icon]) => ({
       icon: imageAsset(icon),
       id: `about-fact-${key}`,
-      text: stringOr(facts[key], fallbackAboutFact(key)),
+      text: textOr(facts[key], fallbackAboutFact(key)),
     })).filter((item) => item.text),
     aboutHeroHeight: ratioHeight(aspect, 670, 419),
     aboutHeroSlides: slides.map((slide, index) => {
       const item = isRecord(slide) ? slide : {};
-      const label = stringOr(item.label, `猫舍介绍主图 ${index + 1}`);
+      const label = textOr(item.label, `猫舍介绍主图 ${index + 1}`);
       return {
         id: stringOr(item.id, `about-hero-${index + 1}`),
         image: resolveImage(stringOr(item.imageId, ""), mediaAssets),
@@ -503,29 +509,29 @@ function normalizeAbout(
 
 function normalizePhilosophy(view: FixedPageViewData, input: Record<string, unknown>) {
   const paragraphSource = [
-    stringOr(input.openingBelief, view.body),
+    textOr(input.openingBelief, view.body),
     joinParagraphs([
-      stringOr(input.growthEffortParagraph, ""),
-      stringOr(input.growthCommunityParagraph, ""),
-      stringOr(input.growthFuturePlanParagraph, ""),
+      textOr(input.growthEffortParagraph, ""),
+      textOr(input.growthCommunityParagraph, ""),
+      textOr(input.growthFuturePlanParagraph, ""),
     ]),
     joinParagraphs([
       milestoneSentence(input.milestones),
-      stringOr(input.stageNewHomeParagraph, ""),
-      stringOr(input.stageClearGoalParagraph, ""),
+      textOr(input.stageNewHomeParagraph, ""),
+      textOr(input.stageClearGoalParagraph, ""),
     ]),
     joinParagraphs([
-      stringOr(input.styleBloodlineParagraph, ""),
-      stringOr(input.styleBeyondLabelsParagraph, ""),
-      `${stringOr(input.highlightLineOne, "")}${stringOr(input.highlightLineTwo, "")}`,
-      stringOr(input.directionGlobalBreedersParagraph, ""),
-      stringOr(input.directionGoalParagraph, ""),
+      textOr(input.styleBloodlineParagraph, ""),
+      textOr(input.styleBeyondLabelsParagraph, ""),
+      `${textOr(input.highlightLineOne, "")}${textOr(input.highlightLineTwo, "")}`,
+      textOr(input.directionGlobalBreedersParagraph, ""),
+      textOr(input.directionGoalParagraph, ""),
     ]),
     joinParagraphs([
-      stringOr(input.closingLifeParagraph, ""),
-      stringOr(input.closingCareerParagraph, ""),
-      stringOr(input.closingParentParagraph, ""),
-      stringOr(input.closingAftercareParagraph, ""),
+      textOr(input.closingLifeParagraph, ""),
+      textOr(input.closingCareerParagraph, ""),
+      textOr(input.closingParentParagraph, ""),
+      textOr(input.closingAftercareParagraph, ""),
     ]),
   ].filter((item) => item.trim());
 
@@ -554,7 +560,7 @@ function normalizeEnvironment(
 
   return {
     ...view,
-    environmentIntro: stringOr(input.intro, view.body),
+    environmentIntro: textOr(input.intro, view.body),
     environmentSections,
     environmentTags: FIXED_TAGS.map(toTextItem("environment-tag")),
   };
@@ -578,7 +584,7 @@ function normalizeFeeding(
 
   return {
     ...view,
-    feedingIntro: stringOr(input.intro, view.body),
+    feedingIntro: textOr(input.intro, view.body),
     feedingModules: modules
       .map((module, index) => normalizeFeedingModule(module, index, mediaAssets))
       .filter((module) => module.title || module.body),
@@ -607,15 +613,15 @@ function normalizeProcess(view: FixedPageViewData, input: Record<string, unknown
   return {
     ...view,
     priceCards,
-    pricingIntro: stringOr(input.pricingIntro, view.body),
+    pricingIntro: textOr(input.pricingIntro, view.body),
     processBreedingCards: breedingCards,
-    processBreedingIntro: stringOr(input.breedingIntro, "繁育权仅面向互相了解、熟悉科学饲养和科学繁育的猫舍。"),
-    processContractNotice: stringOr(input.contractNotice, view.footerNotice),
+    processBreedingIntro: textOr(input.breedingIntro, "繁育权仅面向互相了解、熟悉科学饲养和科学繁育的猫舍。"),
+    processContractNotice: textOr(input.contractNotice, view.footerNotice),
     processReturningBenefits: returningBenefits,
-    processReturningIntro: stringOr(input.returningFamiliesIntro, "感谢一路同行的信任与陪伴，星月永远记得每一位老家长。"),
+    processReturningIntro: textOr(input.returningFamiliesIntro, "感谢一路同行的信任与陪伴，星月永远记得每一位老家长。"),
     processSteps: steps,
     welcomeKitItems,
-    welcomeKitNote: stringOr(input.welcomeKitNote, "内容可能偶尔调整，价值差别不大。"),
+    welcomeKitNote: textOr(input.welcomeKitNote, "内容可能偶尔调整，价值差别不大。"),
   };
 }
 
@@ -629,7 +635,7 @@ function normalizeAftercare(
   const contractUrl = contractMedia ? getFixedPageMediaUrl(contractMedia) : "";
   const hasAsset = Boolean(contractUrl);
   const mimeType = stringOr(contractMedia?.mimeType ?? contractFile.mimeType, "");
-  const fileName = stringOr(
+  const fileName = textOr(
     contractFile.fileName ?? contractMedia?.title,
     "后台上传后，这里会显示可查看 / 下载的合同文件。",
   );
@@ -643,7 +649,7 @@ function normalizeAftercare(
         : "待上传",
     aftercareContractExtension: contractExtension(fileName, mimeType),
     aftercareContractFileName: fileName,
-    aftercareContractTitle: stringOr(contractFile.title, "购猫合同"),
+    aftercareContractTitle: textOr(contractFile.title, "购猫合同"),
     aftercareContractUrl: contractUrl,
     aftercareHealthItems: normalizeTextItems(
       input.healthItems,
@@ -659,7 +665,7 @@ function normalizeAftercare(
       icon: imageAsset(AFTERCARE_PROMISE_ICONS[index % AFTERCARE_PROMISE_ICONS.length]),
     })),
     hasAftercareContractAsset: hasAsset,
-    processContractNotice: stringOr(input.contractNotice, view.footerNotice),
+    processContractNotice: textOr(input.contractNotice, view.footerNotice),
   };
 }
 
@@ -669,8 +675,8 @@ function normalizeContact(view: FixedPageViewData, input: Record<string, unknown
     accounts: normalizeSimpleCards(input.accounts, "contact-account", DEFAULT_CONTACT_ACCOUNTS).filter(
       (item) => item.value,
     ),
-    contactFooterNotice: stringOr(input.footerNotice, view.footerNotice),
-    contactIntroduction: stringOr(input.introduction, ""),
+    contactFooterNotice: textOr(input.footerNotice, view.footerNotice),
+    contactIntroduction: textOr(input.introduction, ""),
   };
 }
 
@@ -688,14 +694,14 @@ function normalizeBreedingPlan(
         return [
           normalizePublicCatId(cat.id),
           {
-            color: cat.color || "待补充",
+            color: textOr(cat.color, "待补充"),
             id: cat.id,
             imageClass:
               frame?.mode === "scaleToFill" ? "stud-image manual-crop-image" : "stud-image",
             imageMode: frame?.mode ?? "aspectFill",
             imageStyle: frame?.style ?? "",
             imageUrl: frame?.url || firstCatImageUrl(cat),
-            name: cat.name,
+            name: decodePlainTextEntities(cat.name),
           },
         ];
       }),
@@ -706,10 +712,10 @@ function normalizeBreedingPlan(
     breedingGroups: groups
       .map((group, groupIndex) => normalizeBreedingGroup(group, groupIndex, studMap))
       .filter((group) => group.pairings.length > 0),
-    breedingIntroduction: stringOr(input.introduction, view.body),
-    breedingPeriod: stringOr(input.period, "2026-2027 计划"),
-    colorDisclaimer: stringOr(isRecord(input.disclaimer) ? input.disclaimer.color : "", "花色仅为基于父母基因和历史经验的预估，不能作为最终承诺。"),
-    scheduleDisclaimer: stringOr(isRecord(input.disclaimer) ? input.disclaimer.schedule : "", "配种、怀孕、出生和开放排队时间会根据猫咪状态调整。"),
+    breedingIntroduction: textOr(input.introduction, view.body),
+    breedingPeriod: textOr(input.period, "2026-2027 计划"),
+    colorDisclaimer: textOr(isRecord(input.disclaimer) ? input.disclaimer.color : "", "花色仅为基于父母基因和历史经验的预估，不能作为最终承诺。"),
+    scheduleDisclaimer: textOr(isRecord(input.disclaimer) ? input.disclaimer.schedule : "", "配种、怀孕、出生和开放排队时间会根据猫咪状态调整。"),
   };
 }
 
@@ -719,10 +725,10 @@ function normalizeEnvironmentSection(
   mediaAssets: FixedPageMediaAssetData[],
 ) {
   const section = isRecord(raw) ? raw : {};
-  const title = stringOr(section.title ?? section.name, `环境分区 ${index + 1}`);
+  const title = textOr(section.title ?? section.name, `环境分区 ${index + 1}`);
   const id = stringOr(section.id, `environment-section-${index + 1}`);
   const legacyRoom = {
-    description: stringOr(section.body ?? section.description, ""),
+    description: textOr(section.body ?? section.description, ""),
     id: `${id}-room-default`,
     images: Array.isArray(section.images) ? section.images : [],
     title: title.replace(/[:：].*$/, "") || "环境展示",
@@ -734,11 +740,11 @@ function normalizeEnvironmentSection(
 
   return {
     id,
-    meta: stringOr(section.meta ?? section.area, ""),
+    meta: textOr(section.meta ?? section.area, ""),
     photoCount,
     roomCount: rooms.length,
     rooms,
-    summary: stringOr(section.summary ?? section.body ?? section.description, ""),
+    summary: textOr(section.summary ?? section.body ?? section.description, ""),
     title,
   };
 }
@@ -750,7 +756,7 @@ function normalizeEnvironmentRoom(
   mediaAssets: FixedPageMediaAssetData[],
 ) {
   const room = isRecord(raw) ? raw : {};
-  const roomTitle = stringOr(room.title, `房间 ${index + 1}`);
+  const roomTitle = textOr(room.title, `房间 ${index + 1}`);
   const roomId = stringOr(room.id, `${sectionId}-room-${index + 1}`);
   const rawImages = Array.isArray(room.images) ? room.images : [];
   const imageSlots = rawImages.map((image, imageIndex) => {
@@ -764,7 +770,7 @@ function normalizeEnvironmentRoom(
   });
 
   return {
-    description: stringOr(room.description, ""),
+    description: textOr(room.description, ""),
     id: roomId,
     images: imageSlots.map((item) => item.image).filter(isPageImage),
     imageSlots,
@@ -778,12 +784,12 @@ function normalizeFeedingModule(
   mediaAssets: FixedPageMediaAssetData[],
 ): FeedingModuleView {
   const module = isRecord(raw) ? raw : {};
-  const moduleTitle = stringOr(module.title, `喂养模块 ${index + 1}`);
+  const moduleTitle = textOr(module.title, `喂养模块 ${index + 1}`);
   const moduleId = stringOr(module.id, `feeding-module-${index + 1}`);
   const rawImages = Array.isArray(module.images) ? module.images : [];
 
   return {
-    body: stringOr(module.body ?? module.description, ""),
+    body: textOr(module.body ?? module.description, ""),
     id: moduleId,
     images: rawImages.map((image, imageIndex) => {
       const item = isRecord(image) ? image : {};
@@ -807,14 +813,14 @@ function normalizeBreedingGroup(
   const pairings = Array.isArray(group.pairings) ? group.pairings : [];
 
   return {
-    description: stringOr(group.description, ""),
-    eyebrow: stringOr(group.eyebrow, ""),
+    description: textOr(group.description, ""),
+    eyebrow: textOr(group.eyebrow, ""),
     id: stringOr(group.id, `breeding-plan-group-${index + 1}`),
     pairings: pairings.map((pairing, pairingIndex) =>
       normalizeBreedingPairing(pairing, pairingIndex, studMap),
     ),
     showTrail: index > 0,
-    title: stringOr(group.title, ""),
+    title: textOr(group.title, ""),
   };
 }
 
@@ -829,17 +835,17 @@ function normalizeBreedingPairing(
   const colors = Array.isArray(pairing.possibleColors) ? pairing.possibleColors : [];
 
   return {
-    colorNote: stringOr(pairing.colorPossibilityNote, ""),
+    colorNote: textOr(pairing.colorPossibilityNote, ""),
     colors: colors.map((color, colorIndex) => ({
       id: `color-${index}-${colorIndex}`,
-      text: String(color),
+      text: decodePlainTextEntities(String(color)),
     })).filter((item) => item.text.trim()),
     female: studMap.get(femaleId) ?? null,
     femaleFallbackId: femaleId,
     id: stringOr(pairing.id, `breeding-plan-pairing-${index + 1}`),
     male: studMap.get(maleId) ?? null,
     maleFallbackId: maleId,
-    timeLabel: stringOr(pairing.timeLabel, ""),
+    timeLabel: textOr(pairing.timeLabel, ""),
   };
 }
 
@@ -868,9 +874,9 @@ function toPageImage(media: FixedPageMediaAssetData | null): PageImage | null {
   const url = getFixedPageMediaUrl(media);
   if (!url) return null;
   return {
-    altText: media.altText || media.title || "",
+    altText: decodePlainTextEntities(media.altText || media.title || ""),
     id: `${media.id}:${media.usage}:${media.sortOrder}`,
-    title: media.title || "",
+    title: decodePlainTextEntities(media.title || ""),
     url,
   };
 }
@@ -880,9 +886,9 @@ function normalizeGenericSections(value: unknown, fallback: GenericSection[]) {
   return source.map((item, index) => {
     const input = isRecord(item) ? item : {};
     return {
-      body: stringOr(input.body ?? input.description ?? input.content, ""),
+      body: textOr(input.body ?? input.description ?? input.content, ""),
       id: stringOr(input.id, `section-${index + 1}`),
-      title: stringOr(input.title, ""),
+      title: textOr(input.title, ""),
     };
   }).filter((item) => item.title || item.body);
 }
@@ -890,7 +896,7 @@ function normalizeGenericSections(value: unknown, fallback: GenericSection[]) {
 function normalizeFactStrings(value: unknown, fallback: string[]) {
   if (!isRecord(value)) return fallback;
   return Object.values(value)
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .map((item) => (typeof item === "string" ? decodePlainTextEntities(item).trim() : ""))
     .filter(Boolean);
 }
 
@@ -901,7 +907,7 @@ function normalizeTextItems(value: unknown, prefix: string, fallback: TextItem[]
       const input = isRecord(item) ? item : {};
       return {
         id: stringOr(input.id, `${prefix}-${index + 1}`),
-        text: stringOr(input.text, ""),
+        text: textOr(input.text, ""),
       };
     })
     .filter((item) => item.text.trim());
@@ -914,10 +920,10 @@ function normalizePriceCards(value: unknown, fallback: unknown[] = []) {
       const input = isRecord(item) ? item : {};
       return {
         id: stringOr(input.id, `process-price-${index + 1}`),
-        label: stringOr(input.label, ""),
-        note: stringOr(input.note, ""),
+        label: textOr(input.label, ""),
+        note: textOr(input.note, ""),
         tone: PRICE_TONES[index % PRICE_TONES.length],
-        value: stringOr(input.value, ""),
+        value: textOr(input.value, ""),
       };
     })
     .filter((item) => item.label || item.value || item.note);
@@ -930,8 +936,8 @@ function normalizeSimpleCards(value: unknown, prefix: string, fallback: unknown[
       const input = isRecord(item) ? item : {};
       return {
         id: stringOr(input.id, `${prefix}-${index + 1}`),
-        label: stringOr(input.label, ""),
-        value: stringOr(input.value, ""),
+        label: textOr(input.label, ""),
+        value: textOr(input.value, ""),
       };
     })
     .filter((item) => item.label || item.value);
@@ -943,10 +949,10 @@ function normalizeSteps(value: unknown, fallback: unknown[] = []) {
     .map((item, index) => {
       const input = isRecord(item) ? item : {};
       return {
-        description: stringOr(input.description, ""),
+        description: textOr(input.description, ""),
         id: stringOr(input.id, `process-step-${index + 1}`),
         no: index + 1,
-        title: stringOr(input.title, ""),
+        title: textOr(input.title, ""),
       };
     })
     .filter((item) => item.title || item.description);
@@ -1064,8 +1070,8 @@ function joinParagraphs(parts: string[]) {
 
 function milestoneSentence(value: unknown) {
   if (!isRecord(value)) return "";
-  const founder = isRecord(value.founder) ? stringOr(value.founder.description, "") : "";
-  const yueqi = isRecord(value.yueqi) ? stringOr(value.yueqi.description, "") : "";
+  const founder = isRecord(value.founder) ? textOr(value.founder.description, "") : "";
+  const yueqi = isRecord(value.yueqi) ? textOr(value.yueqi.description, "") : "";
   if (!founder && !yueqi) return "";
   return `今年是${founder}${founder && yueqi ? "，" : ""}${yueqi}。`;
 }
@@ -1114,4 +1120,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringOr(value: unknown, fallback: string) {
   return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function textOr(value: unknown, fallback: string) {
+  return decodePlainTextEntities(stringOr(value, fallback));
+}
+
+function decodePlainTextEntities(value: string) {
+  return value.replace(/&(amp|lt|gt|quot|apos|#39);/g, (match, entity: string) => {
+    switch (entity) {
+      case "amp":
+        return "&";
+      case "lt":
+        return "<";
+      case "gt":
+        return ">";
+      case "quot":
+        return '"';
+      case "apos":
+      case "#39":
+        return "'";
+      default:
+        return match;
+    }
+  });
 }

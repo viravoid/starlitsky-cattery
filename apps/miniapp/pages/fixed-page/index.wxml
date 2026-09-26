@@ -45,8 +45,8 @@
 
     <view class="section about-owner-section">
       <view class="owner-card xy-card">
-        <text class="owner-title">主理人 · 星下 &amp; 月七</text>
-        <text class="owner-body">两位主理人全职经营猫舍，持续陪伴小猫成长，也在不断学习和完善繁育与行为学知识。</text>
+        <text class="owner-title">{{aboutOwnerTitle}}</text>
+        <text class="owner-body">{{aboutOwnerBody}}</text>
       </view>
     </view>
 
