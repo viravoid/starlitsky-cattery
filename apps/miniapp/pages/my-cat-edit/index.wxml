@@ -16,8 +16,8 @@
     <view class="field">
       <text class="label">性别</text>
       <view class="pill-row">
-        <button class="{{gender === 'male' ? 'choice active' : 'choice'}}" data-gender="male" bindtap="setGender">弟弟</button>
-        <button class="{{gender === 'female' ? 'choice active' : 'choice'}}" data-gender="female" bindtap="setGender">妹妹</button>
+        <button class="{{gender === 'male' ? 'choice active' : 'choice'}}" style="width: auto;" data-gender="male" bindtap="setGender">弟弟</button>
+        <button class="{{gender === 'female' ? 'choice active' : 'choice'}}" style="width: auto;" data-gender="female" bindtap="setGender">妹妹</button>
       </view>
     </view>
 
@@ -40,9 +40,9 @@
     <view class="field">
       <text class="label">关系</text>
       <view class="pill-row">
-        <button class="{{relationship === 'owner' ? 'choice active' : 'choice'}}" data-relationship="owner" bindtap="setRelationship">家长</button>
-        <button class="{{relationship === 'co_owner' ? 'choice active' : 'choice'}}" data-relationship="co_owner" bindtap="setRelationship">共同家长</button>
-        <button class="{{relationship === 'caregiver' ? 'choice active' : 'choice'}}" data-relationship="caregiver" bindtap="setRelationship">照护人</button>
+        <button class="{{relationship === 'owner' ? 'choice active' : 'choice'}}" style="width: auto;" data-relationship="owner" bindtap="setRelationship">家长</button>
+        <button class="{{relationship === 'co_owner' ? 'choice active' : 'choice'}}" style="width: auto;" data-relationship="co_owner" bindtap="setRelationship">共同家长</button>
+        <button class="{{relationship === 'caregiver' ? 'choice active' : 'choice'}}" style="width: auto;" data-relationship="caregiver" bindtap="setRelationship">照护人</button>
       </view>
     </view>
 
@@ -56,6 +56,6 @@
       <textarea class="textarea small" value="{{note}}" placeholder="例如：希望你健康快乐地陪我们很久很久。" data-key="note" bindinput="onInput" />
     </view>
 
-    <button class="save-button" loading="{{isSubmitting}}" disabled="{{isSubmitting}}" bindtap="save">保存</button>
+    <button class="save-button" style="width: 100%;" loading="{{isSubmitting}}" disabled="{{isSubmitting}}" bindtap="save">保存</button>
   </view>
 </view>

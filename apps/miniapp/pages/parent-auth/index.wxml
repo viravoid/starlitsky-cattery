@@ -18,7 +18,7 @@
       <text>短邀请码</text>
       <input class="field-control" placeholder="请输入主理人提供的邀请码" value="{{inviteCode}}" bindinput="onInviteCodeInput" />
     </view>
-    <button class="secondary" loading="{{isVerifying}}" bindtap="onVerifyCode">验证邀请码</button>
+    <button class="secondary" style="width: 100%;" loading="{{isVerifying}}" bindtap="onVerifyCode">验证邀请码</button>
     <text wx:if="{{inviteMessage}}" class="hint">{{inviteMessage}}</text>
   </view>
 
@@ -49,8 +49,8 @@
   <view class="panel">
     <text class="section-title">我的猫</text>
     <view class="switch-row">
-      <button class="{{catMode === 'existing' ? 'active' : 'secondary'}}" bindtap="useExistingCat">猫库选择</button>
-      <button class="{{catMode === 'new' ? 'active' : 'secondary'}}" bindtap="useNewCat">填写新猫</button>
+      <button class="{{catMode === 'existing' ? 'active' : 'secondary'}}" style="width: 100%;" bindtap="useExistingCat">猫库选择</button>
+      <button class="{{catMode === 'new' ? 'active' : 'secondary'}}" style="width: 100%;" bindtap="useNewCat">填写新猫</button>
     </view>
 
     <view wx:if="{{catMode === 'existing'}}">
@@ -58,12 +58,13 @@
         <text>搜索猫咪</text>
         <input class="field-control" placeholder="输入猫咪名字或颜色" value="{{catQuery}}" bindinput="onCatQueryInput" />
       </view>
-      <button class="secondary" loading="{{isSearchingCats}}" bindtap="onSearchCats">搜索</button>
+      <button class="secondary" style="width: 100%;" loading="{{isSearchingCats}}" bindtap="onSearchCats">搜索</button>
       <view class="cat-list">
         <button
           wx:for="{{cats}}"
           wx:key="id"
           class="{{existingCatId === item.id ? 'cat-row selected' : 'cat-row'}}"
+          style="width: 100%;"
           data-cat-id="{{item.id}}"
           data-cat-name="{{item.name}}"
           bindtap="onSelectExistingCat"
@@ -105,5 +106,5 @@
     </view>
   </view>
 
-  <button class="submit" loading="{{isSubmitting}}" bindtap="onSubmit">提交家长申请</button>
+  <button class="submit" style="width: 100%;" loading="{{isSubmitting}}" bindtap="onSubmit">提交家长申请</button>
 </view>

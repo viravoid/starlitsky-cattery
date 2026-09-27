@@ -14,7 +14,7 @@
     <text class="section-title">确认登录</text>
     <text class="muted">请求时间：{{challenge.requestedAt}}</text>
     <text class="muted">过期时间：{{challenge.expiresAt}}</text>
-    <button class="submit" loading="{{isApproving}}" bindtap="onApprove">确认登录</button>
+    <button class="submit" style="width: 100%;" loading="{{isApproving}}" bindtap="onApprove">确认登录</button>
   </view>
 
   <view wx:elif="{{state === 'confirmed'}}" class="panel success-panel">
@@ -37,7 +37,7 @@
     <text class="muted">{{message}}</text>
   </view>
 
-  <text wx:if="{{message && state !== 'confirmed' && state !== 'forbidden' && state !== 'expired'}}" class="hint">
+  <text wx:if="{{message && state !== 'error' && state !== 'confirmed' && state !== 'forbidden' && state !== 'expired'}}" class="hint">
     {{message}}
   </text>
 </view>

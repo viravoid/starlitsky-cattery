@@ -60,19 +60,25 @@
 
 .input,
 .textarea {
+  display: flex;
+  align-items: center;
   width: 100%;
   box-sizing: border-box;
-  padding: 20rpx 28rpx;
+  min-height: 88rpx;
+  padding: 0 28rpx;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 32rpx;
   background: var(--xy-color-surface);
   color: var(--xy-color-text);
   font-size: 28rpx;
-  line-height: 1.45;
+  line-height: 88rpx;
 }
 
 .textarea {
+  display: block;
   min-height: 144rpx;
+  padding: 22rpx 28rpx;
+  line-height: 1.6;
 }
 
 .textarea.small {
@@ -92,32 +98,42 @@
 }
 
 .choice {
-  padding: 12rpx 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 104rpx;
+  min-height: 64rpx;
+  padding: 0 28rpx;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 999rpx;
-  background: var(--xy-color-surface);
-  color: var(--xy-color-muted);
+  background: rgba(255, 253, 248, 0.82);
+  color: var(--xy-color-accent-text);
   font-size: 26rpx;
   font-weight: 700;
   line-height: 1.35;
 }
 
 .choice.active {
-  border-color: var(--xy-color-primary);
-  background: var(--xy-color-primary);
-  color: #ffffff;
+  border-color: rgba(231, 193, 93, 0.78);
+  background: #f9f0d4;
+  color: var(--xy-color-accent-text);
   box-shadow: var(--xy-shadow-card);
 }
 
 .save-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
+  min-height: 88rpx;
   margin-top: 4rpx;
   border-radius: 999rpx;
-  background: var(--xy-color-primary);
+  background: var(--xy-color-accent);
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 700;
-  line-height: 88rpx;
+  line-height: 1.35;
   box-shadow: var(--xy-shadow-card);
 }
 

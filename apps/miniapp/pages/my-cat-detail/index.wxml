@@ -2,13 +2,13 @@
   <view wx:if="{{isLoading}}" class="state">正在加载猫咪详情...</view>
   <view wx:elif="{{error}}" class="state error-state">
     <text class="error">{{error}}</text>
-    <button class="retry-button" bindtap="retryLoad">重试</button>
+    <button class="retry-button" style="width: auto;" bindtap="retryLoad">重试</button>
   </view>
   <view wx:elif="{{needsParentAuth}}" class="state auth-state">
     <image class="auth-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
     <text class="auth-title">尚未完成家长认证</text>
     <text class="auth-copy">完成家长认证后，才能查看自己的猫咪详情。</text>
-    <button class="auth-button" bindtap="openParentAuth">去家长认证</button>
+    <button class="auth-button" style="width: auto;" bindtap="openParentAuth">去家长认证</button>
   </view>
 
   <view wx:else>

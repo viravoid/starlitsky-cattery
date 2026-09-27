@@ -49,6 +49,8 @@
 }
 
 .field-control {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 82rpx;
   padding: 0 24rpx;
   border: 1rpx solid var(--xy-color-border);
@@ -60,23 +62,28 @@
 
 .primary,
 .secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
+  min-height: 84rpx;
   margin: 0;
+  padding: 0 28rpx;
   border-radius: 999rpx;
   font-size: 27rpx;
   font-weight: 700;
-  line-height: 84rpx;
+  line-height: 1.35;
 }
 
 .primary {
-  background: var(--xy-color-violet);
+  background: var(--xy-color-accent);
   color: #ffffff;
 }
 
 .secondary {
   border: 1rpx solid var(--xy-color-border);
-  background: #ffffff;
-  color: #6b8db3;
+  background: rgba(255, 253, 248, 0.82);
+  color: var(--xy-color-accent-text);
 }
 
 .primary::after,

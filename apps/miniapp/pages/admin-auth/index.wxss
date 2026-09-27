@@ -65,14 +65,19 @@
 }
 
 .submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-height: 84rpx;
   margin-top: 10rpx;
+  padding: 0 28rpx;
   border-radius: 999rpx;
-  background: var(--xy-color-violet);
+  background: var(--xy-color-accent);
   color: #ffffff;
   font-size: 28rpx;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 .submit::after {

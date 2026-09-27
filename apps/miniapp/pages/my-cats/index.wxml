@@ -2,19 +2,19 @@
   <view wx:if="{{isLoading}}" class="state">正在加载我的猫咪...</view>
   <view wx:elif="{{error}}" class="state error-state">
     <text class="error">{{error}}</text>
-    <button class="retry-button" bindtap="retryLoad">重试</button>
+    <button class="retry-button" style="width: auto;" bindtap="retryLoad">重试</button>
   </view>
   <view wx:elif="{{needsParentAuth}}" class="state auth-state">
     <image class="auth-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
     <text class="auth-title">尚未完成家长认证</text>
     <text class="auth-copy">完成家长认证后，可以在这里查看自己的猫咪资料和时光轴。</text>
-    <button class="auth-button" bindtap="openParentAuth">去家长认证</button>
+    <button class="auth-button" style="width: auto;" bindtap="openParentAuth">去家长认证</button>
   </view>
   <view wx:elif="{{isEmpty}}" class="state auth-state">
     <image class="auth-art" src="../../assets/placeholder-cat.png" mode="aspectFit" />
     <text class="auth-title">暂时没有已关联猫咪</text>
     <text class="auth-copy">可以先添加自家猫咪，之后在发布动态时关联它。</text>
-    <button class="auth-button" bindtap="openNewCat">添加猫咪</button>
+    <button class="auth-button" style="width: auto;" bindtap="openNewCat">添加猫咪</button>
   </view>
 
   <view wx:else class="list">
