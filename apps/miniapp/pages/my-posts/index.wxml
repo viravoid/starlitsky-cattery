@@ -81,7 +81,7 @@
             </view>
           </view>
           <view class="edit-section">
-            <text class="edit-label">ç…§ç‰‡</text>
+            <text class="edit-label">照片</text>
             <view class="edit-image-grid">
               <view
                 wx:for="{{editExistingImages}}"
@@ -95,7 +95,7 @@
                   data-id="{{item.id}}"
                   catchtap="restoreEditExistingImage"
                 >
-                  æ¢å¤
+                  恢复
                 </button>
                 <button
                   wx:else
