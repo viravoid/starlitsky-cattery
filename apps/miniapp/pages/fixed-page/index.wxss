@@ -191,11 +191,6 @@
   opacity: 0.58;
 }
 
-.about-fact-icon-aftercare {
-  opacity: 0.9;
-  transform: scale(1.15);
-}
-
 .about-fact-text {
   color: var(--xy-color-text);
   font-size: 24rpx;

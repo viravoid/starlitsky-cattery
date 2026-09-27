@@ -182,6 +182,9 @@ const IMAGE_ASSETS = {
   cottage: "../../assets/illustrations/cottage.png",
   curledCat: "../../assets/illustrations/curled-cat.png",
   dnaHelix: "../../assets/illustrations/dna-helix.png",
+  factAftercareCyclePaw: "../../assets/illustrations/fact-aftercare-cycle-paw.png",
+  factDnaUpright: "../../assets/illustrations/fact-dna-upright.png",
+  factSocialCatSparkle: "../../assets/illustrations/fact-social-cat-sparkle.png",
   gift: "../../assets/illustrations/gift-icon.png",
   heart: "../../assets/illustrations/heart-icon.png",
   heartLine: "../../assets/illustrations/heart-line-icon.png",
@@ -258,9 +261,9 @@ const ABOUT_FACT_ORDER = [
   ["founded", "moonStars"],
   ["location", "cottage"],
   ["registration", "rosette"],
-  ["socialization", "heartPaw"],
-  ["aftercare", "curledCat"],
-  ["screening", "heartPaw"],
+  ["socialization", "factSocialCatSparkle"],
+  ["aftercare", "factAftercareCyclePaw"],
+  ["screening", "factDnaUpright"],
 ] as const;
 const AFTERCARE_PROMISE_ICONS = ["paw", "heart", "cat", "check"];
 const PRICE_TONES = ["tone-sky", "tone-creamblue", "tone-sunny"];
