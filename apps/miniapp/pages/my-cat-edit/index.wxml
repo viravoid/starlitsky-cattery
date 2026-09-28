@@ -5,7 +5,7 @@
   <view wx:else class="form">
     <view class="cover-placeholder xy-soft-placeholder">
       <image class="cover-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
-      <text class="cover-copy">示例图片（图片上传待接入安全家长接口）</text>
+      <text class="cover-copy">暂未添加猫咪照片</text>
     </view>
 
     <view class="field">

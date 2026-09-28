@@ -19,9 +19,9 @@
 
   <view wx:else class="list">
     <text class="intro">添加你的猫咪，可以在发布动态时关联它，也能生成一条专属的成长时光轴。</text>
-    <button class="add-card" bindtap="openNewCat">+ 添加猫咪</button>
+    <button class="add-card" style="width: 100%;" bindtap="openNewCat">+ 添加猫咪</button>
     <view wx:for="{{items}}" wx:key="id" class="cat-card">
-      <button class="cat-main" data-id="{{item.id}}" bindtap="openCat">
+      <button class="cat-main" style="width: 100%;" data-id="{{item.id}}" bindtap="openCat">
         <view class="thumb">
           <image wx:if="{{item.imageUrl}}" class="thumb-image" src="{{item.imageUrl}}" mode="aspectFill" />
           <view wx:else class="thumb-empty xy-soft-placeholder">
@@ -38,9 +38,9 @@
         </view>
       </button>
       <view class="action-row">
-        <button class="card-action" data-id="{{item.id}}" catchtap="openCatEdit">编辑</button>
-        <button class="card-action primary" data-id="{{item.id}}" catchtap="openCat">查看时光轴</button>
-        <button class="card-action danger" data-id="{{item.id}}" catchtap="deleteCat">删除</button>
+        <button class="card-action" style="width: auto;" data-id="{{item.id}}" catchtap="openCatEdit">编辑</button>
+        <button class="card-action primary" style="width: auto;" data-id="{{item.id}}" catchtap="openCat">查看时光轴</button>
+        <button class="card-action danger" style="width: auto;" data-id="{{item.id}}" catchtap="deleteCat">删除</button>
       </view>
     </view>
   </view>

@@ -7,7 +7,7 @@
 
   <view wx:if="{{application}}" class="status-panel">
     <text class="section-title">我的申请状态</text>
-    <text class="status {{application.status}}">{{application.status}}</text>
+    <text class="status {{applicationStatusClass}}">{{applicationStatusLabel}}</text>
     <text class="muted">提交时间：{{application.createdAt}}</text>
     <text wx:if="{{application.adminNote}}" class="muted">审核备注：{{application.adminNote}}</text>
   </view>
@@ -85,7 +85,11 @@
       </view>
       <view class="field">
         <text>性别</text>
-        <input class="field-control" placeholder="male / female / unknown，可选" value="{{newCatGender}}" bindinput="onNewCatGenderInput" />
+        <view class="gender-row">
+          <button class="{{newCatGender === 'male' ? 'gender-choice active' : 'gender-choice'}}" style="width: auto;" data-gender="male" bindtap="setNewCatGender">弟弟</button>
+          <button class="{{newCatGender === 'female' ? 'gender-choice active' : 'gender-choice'}}" style="width: auto;" data-gender="female" bindtap="setNewCatGender">妹妹</button>
+          <button class="{{newCatGender === 'unknown' ? 'gender-choice active' : 'gender-choice'}}" style="width: auto;" data-gender="unknown" bindtap="setNewCatGender">暂不确定</button>
+        </view>
       </view>
       <view class="field">
         <text>颜色</text>

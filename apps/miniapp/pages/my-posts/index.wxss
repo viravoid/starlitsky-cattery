@@ -32,7 +32,8 @@
 .empty-card {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  align-items: center;
+  gap: 22rpx;
   border-radius: 44rpx;
 }
 
@@ -68,13 +69,15 @@
   align-items: center;
   justify-content: center;
   width: auto !important;
-  min-width: 0;
+  min-width: 176rpx;
+  min-height: 72rpx;
   margin: 0 !important;
-  padding: 0;
-  background: transparent;
-  color: var(--xy-color-accent-text);
-  font-weight: 600;
-  line-height: 1.5;
+  padding: 0 32rpx;
+  border-radius: 999rpx;
+  background: var(--xy-color-accent);
+  color: #ffffff;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .feed {

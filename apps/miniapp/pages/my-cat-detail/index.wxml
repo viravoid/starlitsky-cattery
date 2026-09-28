@@ -98,6 +98,6 @@
       </view>
     </view>
 
-    <button class="more-link" style="width: 100%;" bindtap="openPublicCats">想看更多？前往我们的猫查看猫舍现猫资料。</button>
+    <button class="more-link" bindtap="openPublicCats">想看更多？前往我们的猫查看猫舍现猫资料。</button>
   </view>
 </view>

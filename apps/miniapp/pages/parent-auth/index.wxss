@@ -132,6 +132,35 @@
   gap: 12rpx;
 }
 
+.gender-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.gender-choice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  min-width: 104rpx;
+  min-height: 64rpx;
+  box-sizing: border-box;
+  margin: 0 !important;
+  padding: 0 24rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: rgba(255, 253, 248, 0.82);
+  color: var(--xy-color-accent-text);
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.gender-choice::after {
+  border: 0;
+}
+
 .cat-list {
   display: flex;
   flex-direction: column;

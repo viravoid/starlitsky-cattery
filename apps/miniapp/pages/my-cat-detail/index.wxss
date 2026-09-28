@@ -385,14 +385,21 @@
 }
 
 .more-link {
-  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  min-height: 64rpx;
   box-sizing: border-box;
-  margin: 14rpx 0 0;
-  padding: 18rpx 16rpx 0;
-  background: transparent;
-  color: var(--xy-color-secondary);
-  font-size: 23rpx;
-  line-height: 1.6;
+  margin: 18rpx auto 0;
+  padding: 0 26rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: rgba(255, 253, 248, 0.78);
+  color: #6f93bc;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 1.35;
   text-align: center;
 }
 

@@ -208,6 +208,13 @@
 }
 
 .card-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0 !important;
   padding: 8rpx 18rpx;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 999rpx;
@@ -219,8 +226,9 @@
 }
 
 .card-action.primary {
-  border-color: rgba(91, 127, 168, 0.24);
-  color: var(--xy-color-primary);
+  border-color: rgba(122, 154, 192, 0.42);
+  background: #edf6ff;
+  color: #6f93bc;
 }
 
 .card-action.danger {

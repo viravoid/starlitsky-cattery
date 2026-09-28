@@ -45,6 +45,8 @@ interface InviteCredential {
 
 interface ParentAuthData {
   application: ParentApplicationData | null;
+  applicationStatusClass: string;
+  applicationStatusLabel: string;
   cats: ParentClaimCatCandidateData[];
   catMode: "existing" | "new";
   catQuery: string;
@@ -74,6 +76,8 @@ interface ParentAuthData {
 
 const DEFAULT_DATA: ParentAuthData = {
   application: null,
+  applicationStatusClass: "",
+  applicationStatusLabel: "",
   cats: [],
   catMode: "existing",
   catQuery: "",
@@ -123,9 +127,17 @@ Page({
   async loadMyApplication(this: ParentAuthPage) {
     try {
       const application = await getMyParentApplication();
-      this.setData({ application });
+      if (!application) {
+        this.setData({ application: null, applicationStatusClass: "", applicationStatusLabel: "" });
+        return;
+      }
+      this.setData({
+        application,
+        applicationStatusClass: statusClass(application.status),
+        applicationStatusLabel: statusLabel(application.status),
+      });
     } catch {
-      this.setData({ application: null });
+      this.setData({ application: null, applicationStatusClass: "", applicationStatusLabel: "" });
     }
   },
 
@@ -199,7 +211,12 @@ Page({
     try {
       await loginWithWechat();
       const application = await submitParentApplication(payload);
-      this.setData({ application, isSubmitting: false });
+      this.setData({
+        application,
+        applicationStatusClass: statusClass(application.status),
+        applicationStatusLabel: statusLabel(application.status),
+        isSubmitting: false,
+      });
       showToast("申请已提交，等待审核");
     } catch (error) {
       this.setData({ isSubmitting: false });
@@ -239,8 +256,9 @@ Page({
   onNewCatNameInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ newCatName: event.detail.value });
   },
-  onNewCatGenderInput(this: ParentAuthPage, event: InputEvent) {
-    this.setData({ newCatGender: event.detail.value });
+  setNewCatGender(this: ParentAuthPage, event: TapEvent) {
+    const gender = event.currentTarget.dataset.gender || "";
+    this.setData({ newCatGender: gender });
   },
   onNewCatColorInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ newCatColor: event.detail.value });
@@ -332,6 +350,18 @@ function getCredentialFromData(data: ParentAuthData): InviteCredential {
 function emptyToNull(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function statusLabel(status: string) {
+  if (status === "pending") return "待审核";
+  if (status === "approved") return "已通过";
+  if (status === "rejected") return "未通过";
+  return status || "";
+}
+
+function statusClass(status: string) {
+  if (status === "pending" || status === "approved" || status === "rejected") return status;
+  return "";
 }
 
 function showToast(title: string) {
