@@ -33,10 +33,6 @@
       <input class="field-control" placeholder="便于后台核验，可选" value="{{realName}}" bindinput="onRealNameInput" />
     </view>
     <view class="field">
-      <text>手机号</text>
-      <input class="field-control" placeholder="可选" value="{{contactPhone}}" bindinput="onContactPhoneInput" />
-    </view>
-    <view class="field">
       <text>微信号</text>
       <input class="field-control" placeholder="可选" value="{{contactWechat}}" bindinput="onContactWechatInput" />
     </view>

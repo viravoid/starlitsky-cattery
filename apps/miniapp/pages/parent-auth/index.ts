@@ -51,7 +51,6 @@ interface ParentAuthData {
   catMode: "existing" | "new";
   catQuery: string;
   city: string;
-  contactPhone: string;
   contactWechat: string;
   displayName: string;
   existingCatId: string;
@@ -82,7 +81,6 @@ const DEFAULT_DATA: ParentAuthData = {
   catMode: "existing",
   catQuery: "",
   city: "",
-  contactPhone: "",
   contactWechat: "",
   displayName: "",
   existingCatId: "",
@@ -238,9 +236,6 @@ Page({
   onRealNameInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ realName: event.detail.value });
   },
-  onContactPhoneInput(this: ParentAuthPage, event: InputEvent) {
-    this.setData({ contactPhone: event.detail.value });
-  },
   onContactWechatInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ contactWechat: event.detail.value });
   },
@@ -302,7 +297,7 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
   const payload: SubmitParentApplicationRequest = {
     displayName: data.displayName.trim(),
     realName: emptyToNull(data.realName),
-    contactPhone: emptyToNull(data.contactPhone),
+    contactPhone: null,
     contactWechat: emptyToNull(data.contactWechat),
     city: emptyToNull(data.city),
     ...getCredentialFromData(data),
