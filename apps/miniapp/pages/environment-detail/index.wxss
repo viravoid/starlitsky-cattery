@@ -67,7 +67,7 @@
 }
 
 .section-en {
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 22rpx;
   letter-spacing: 5rpx;

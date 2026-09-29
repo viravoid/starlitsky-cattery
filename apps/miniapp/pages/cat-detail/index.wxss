@@ -104,7 +104,7 @@
 .section-en,
 .rating-title {
   display: block;
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
   letter-spacing: 5rpx;
@@ -125,7 +125,7 @@
   padding: 8rpx 18rpx;
   border-radius: 999rpx;
   background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-primary);
   font-size: 23rpx;
   font-weight: 700;
 }

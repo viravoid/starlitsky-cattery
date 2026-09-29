@@ -101,7 +101,7 @@
 .breeding-eyebrow,
 .group-eyebrow {
   display: block;
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 22rpx;
   letter-spacing: 5rpx;
@@ -360,7 +360,7 @@
 .module-no {
   width: 44rpx;
   flex-shrink: 0;
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-size: 26rpx;
   font-weight: 600;
   line-height: 1.2;
@@ -649,7 +649,7 @@
   padding: 24rpx;
   border-radius: 28rpx;
   background: rgba(255, 232, 166, 0.4);
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-text);
   font-size: 24rpx;
   line-height: 1.65;
 }
@@ -744,7 +744,7 @@
   padding: 8rpx 20rpx;
   border-radius: 999rpx;
   background: rgba(255, 232, 166, 0.45);
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-primary);
   font-size: 22rpx;
   font-weight: 600;
 }
@@ -1130,7 +1130,7 @@
 }
 
 .generic-eyebrow {
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
   letter-spacing: 5rpx;

@@ -36,7 +36,7 @@
 }
 
 .eyebrow {
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
   letter-spacing: 5rpx;

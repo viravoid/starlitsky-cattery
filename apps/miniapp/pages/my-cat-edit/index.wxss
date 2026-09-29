@@ -48,7 +48,7 @@
 .cover-copy {
   display: block;
   margin-top: 16rpx;
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-weight: 600;
 }
 
@@ -114,7 +114,7 @@
   border: 1rpx solid var(--xy-color-border);
   border-radius: 999rpx;
   background: rgba(255, 253, 248, 0.82);
-  color: var(--xy-color-accent-text);
+  color: #6b8db3;
   font-size: 26rpx;
   font-weight: 700;
   line-height: 1.35;
@@ -122,8 +122,8 @@
 
 .choice.active {
   border-color: rgba(231, 193, 93, 0.78);
-  background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  background: var(--xy-color-accent);
+  color: #ffffff;
   box-shadow: var(--xy-shadow-card);
 }
 

@@ -203,7 +203,7 @@
   align-items: center;
   gap: 16rpx;
   margin: 40rpx 36rpx 0;
-  color: rgba(180, 135, 37, 0.52);
+  color: var(--xy-color-border);
 }
 
 .star-divider .line {
@@ -355,7 +355,7 @@
   padding: 2rpx 12rpx;
   border-radius: 999rpx;
   background: rgba(249, 240, 212, 0.72);
-  color: #9b7927;
+  color: var(--xy-color-primary);
   font-size: 20rpx;
   font-weight: 700;
 }

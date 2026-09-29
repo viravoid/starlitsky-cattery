@@ -159,8 +159,8 @@
 }
 
 .choice.selected {
-  border-color: var(--xy-color-primary);
-  background: var(--xy-color-primary);
+  border-color: var(--xy-color-accent);
+  background: var(--xy-color-accent);
   color: #ffffff;
   box-shadow: var(--xy-shadow-card);
 }

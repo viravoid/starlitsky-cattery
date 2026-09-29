@@ -38,7 +38,8 @@
 .tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-bottom: 1rpx solid rgba(233, 221, 191, 0.86);
+  gap: 12rpx;
+  border-bottom: 0;
 }
 
 .tab {
@@ -51,8 +52,10 @@
   justify-content: center;
   justify-self: stretch;
   margin: 0 !important;
-  padding: 20rpx 0 !important;
-  background: transparent;
+  padding: 18rpx 0 !important;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 999rpx;
+  background: var(--xy-color-surface);
   color: var(--xy-color-muted);
   font-size: 30rpx;
   font-weight: 600;
@@ -66,18 +69,13 @@
 }
 
 .tab.active {
-  color: var(--xy-color-primary);
+  border-color: var(--xy-color-accent);
+  background: var(--xy-color-accent);
+  color: #ffffff;
 }
 
 .tab-line {
-  position: absolute;
-  left: 50%;
-  bottom: -1rpx;
-  width: 64rpx;
-  height: 6rpx;
-  border-radius: 999rpx;
-  background: var(--xy-color-accent);
-  transform: translateX(-50%);
+  display: none;
 }
 
 .filters-scroll,
@@ -148,8 +146,8 @@
 
 .active-filter {
   border-color: var(--xy-color-accent);
-  background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  background: var(--xy-color-accent);
+  color: #ffffff;
 }
 
 .state {
@@ -267,7 +265,7 @@
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
   background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-primary);
   font-size: 21rpx;
   font-weight: 700;
   line-height: 1.25;

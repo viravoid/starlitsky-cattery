@@ -83,7 +83,7 @@
 .secondary {
   border: 1rpx solid var(--xy-color-border);
   background: rgba(255, 253, 248, 0.82);
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-primary);
 }
 
 .primary::after,

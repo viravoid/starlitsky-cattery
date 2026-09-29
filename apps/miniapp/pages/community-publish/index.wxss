@@ -107,9 +107,9 @@
 }
 
 .option.active {
-  border-color: #eedb9b;
-  background: #fff7dd;
-  color: #6f93bc;
+  border-color: var(--xy-color-accent);
+  background: var(--xy-color-accent);
+  color: #ffffff;
 }
 
 .content-input {

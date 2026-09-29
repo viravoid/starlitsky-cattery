@@ -61,7 +61,7 @@
           bindchange="onChoice"
         >
           <label wx:for="{{question.options}}" wx:for-item="option" wx:key="value" class="{{values[question.key] === option.value ? 'choice selected' : 'choice'}}">
-            <radio class="native-radio" value="{{option.value}}" checked="{{values[question.key] === option.value}}" color="#7a9ac0" />
+            <radio class="native-radio" value="{{option.value}}" checked="{{values[question.key] === option.value}}" color="#e7c15d" />
             <text>{{option.label}}</text>
           </label>
         </radio-group>

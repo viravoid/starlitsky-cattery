@@ -265,8 +265,8 @@
 
 .edit-option.active {
   border-color: var(--xy-color-accent);
-  background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  background: var(--xy-color-accent);
+  color: #ffffff;
 }
 
 .edit-image-grid {

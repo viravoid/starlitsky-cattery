@@ -8,7 +8,6 @@ page {
   --xy-color-primary: #7a9ac0;
   --xy-color-secondary: #86a6d2;
   --xy-color-accent: #e7c15d;
-  --xy-color-accent-text: #b48725;
   --xy-color-violet: #9aa3cf;
   --xy-color-lilac: #aab4e7;
   --xy-color-danger: #c46a6a;
@@ -34,7 +33,7 @@ page {
 }
 
 .xy-eyebrow {
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
   letter-spacing: 5rpx;
@@ -48,7 +47,7 @@ page {
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
   background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-primary);
   font-size: 21rpx;
   font-weight: 700;
   line-height: 1.25;
@@ -61,7 +60,7 @@ page {
   flex-direction: column;
   gap: 16rpx;
   background: var(--xy-gradient-cream);
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-muted);
 }
 
 .xy-placeholder-cat {

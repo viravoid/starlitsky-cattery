@@ -32,7 +32,7 @@
 }
 
 .eyebrow {
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
   letter-spacing: 5rpx;
@@ -117,13 +117,13 @@
 .secondary {
   border: 1rpx solid var(--xy-color-border);
   background: rgba(255, 253, 248, 0.82);
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-primary);
 }
 
 .active {
   border: 1rpx solid rgba(231, 193, 93, 0.78);
-  background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  background: var(--xy-color-accent);
+  color: #ffffff;
 }
 
 .switch-row {
@@ -151,7 +151,7 @@
   border: 1rpx solid var(--xy-color-border);
   border-radius: 999rpx;
   background: rgba(255, 253, 248, 0.82);
-  color: var(--xy-color-accent-text);
+  color: #6b8db3;
   font-size: 25rpx;
   font-weight: 700;
   line-height: 1.35;
@@ -159,6 +159,12 @@
 
 .gender-choice::after {
   border: 0;
+}
+
+.gender-choice.active {
+  border-color: rgba(231, 193, 93, 0.78);
+  background: var(--xy-color-accent);
+  color: #ffffff;
 }
 
 .cat-list {
@@ -178,8 +184,8 @@
 
 .selected {
   border-color: var(--xy-color-accent);
-  background: #f9f0d4;
-  color: var(--xy-color-accent-text);
+  background: var(--xy-color-accent);
+  color: #ffffff;
 }
 
 .status {
@@ -197,8 +203,8 @@
 }
 
 .pending {
-  background: #fff4d6;
-  color: var(--xy-color-accent-text);
+  background: #fff7dd;
+  color: #6b8db3;
 }
 
 .approved {

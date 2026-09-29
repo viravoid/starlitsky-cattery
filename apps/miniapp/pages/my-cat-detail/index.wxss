@@ -138,7 +138,7 @@
 
 .gender-pill.female {
   background: rgba(255, 232, 166, 0.45);
-  color: var(--xy-color-accent-text);
+  color: var(--xy-color-primary);
 }
 
 .meta {
