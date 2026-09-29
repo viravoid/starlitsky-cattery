@@ -42,11 +42,14 @@
 
 .retry-button,
 .submit-button {
-  border-radius: 999rpx;
-  background: var(--xy-color-primary);
-  color: #ffffff;
+  border-radius: var(--xy-primary-cta-radius);
   font-size: 26rpx;
   font-weight: 700;
+}
+
+.retry-button {
+  background: var(--xy-color-primary);
+  color: #ffffff;
 }
 
 .retry-button {
@@ -262,8 +265,19 @@
 }
 
 .submit-button {
-  width: 100%;
-  line-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100% !important;
+  height: var(--xy-primary-cta-height);
+  box-sizing: border-box;
+  margin: 0 !important;
+  padding: 0 28rpx;
+  background: var(--xy-primary-cta-background);
+  color: var(--xy-primary-cta-color);
+  font-size: 30rpx;
+  line-height: 1.35;
+  box-shadow: var(--xy-primary-cta-shadow);
 }
 
 .submit-button[disabled] {

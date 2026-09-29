@@ -232,21 +232,22 @@
   gap: 12rpx;
   width: 100%;
   min-width: 0;
-  height: 88rpx;
+  height: var(--xy-primary-cta-height);
   box-sizing: border-box;
   margin: 0;
   padding: 0 28rpx;
-  border-radius: 999rpx;
-  background: var(--xy-color-primary);
-  color: #ffffff;
+  border-radius: var(--xy-primary-cta-radius);
+  background: var(--xy-primary-cta-background);
+  color: var(--xy-primary-cta-color);
   font-size: 30rpx;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.35;
+  box-shadow: var(--xy-primary-cta-shadow);
 }
 
 .submit-icon {
-  width: 38rpx;
-  height: 38rpx;
+  width: 32rpx;
+  height: 32rpx;
 }
 
 .submit.disabled {

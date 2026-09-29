@@ -132,15 +132,15 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 88rpx;
+  height: var(--xy-primary-cta-height);
   margin-top: 4rpx;
-  border-radius: 999rpx;
-  background: var(--xy-color-accent);
-  color: #ffffff;
+  border-radius: var(--xy-primary-cta-radius);
+  background: var(--xy-primary-cta-background);
+  color: var(--xy-primary-cta-color);
   font-size: 30rpx;
   font-weight: 700;
   line-height: 1.35;
-  box-shadow: var(--xy-shadow-card);
+  box-shadow: var(--xy-primary-cta-shadow);
 }
 
 .choice::after,

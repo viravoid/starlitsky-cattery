@@ -220,5 +220,9 @@
 .submit {
   width: 100%;
   margin: 8rpx 0 40rpx;
-  min-height: 88rpx;
+  height: var(--xy-primary-cta-height);
+  border-radius: var(--xy-primary-cta-radius);
+  background: var(--xy-primary-cta-background);
+  color: var(--xy-primary-cta-color);
+  box-shadow: var(--xy-primary-cta-shadow);
 }

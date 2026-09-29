@@ -355,10 +355,10 @@
 .questionnaire-icon {
   position: absolute;
   left: calc(50% - 142rpx);
-  top: 44rpx;
+  top: 48rpx;
   z-index: 1;
-  width: 40rpx;
-  height: 40rpx;
+  width: 32rpx;
+  height: 32rpx;
   pointer-events: none;
 }
 
@@ -374,12 +374,14 @@
   align-items: center;
   justify-content: center;
   width: 100% !important;
+  height: var(--xy-primary-cta-height);
   box-sizing: border-box;
   margin: 0 !important;
-  border-radius: 999rpx;
-  background: var(--xy-color-primary);
-  color: #ffffff;
+  border-radius: var(--xy-primary-cta-radius);
+  background: var(--xy-primary-cta-background);
+  color: var(--xy-primary-cta-color);
   font-size: 30rpx;
   font-weight: 700;
-  line-height: 96rpx;
+  line-height: 1.35;
+  box-shadow: var(--xy-primary-cta-shadow);
 }

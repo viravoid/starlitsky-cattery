@@ -66,18 +66,19 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 84rpx;
+  height: var(--xy-primary-cta-height);
   margin: 0;
   padding: 0 28rpx;
-  border-radius: 999rpx;
+  border-radius: var(--xy-primary-cta-radius);
   font-size: 27rpx;
   font-weight: 700;
   line-height: 1.35;
 }
 
 .primary {
-  background: var(--xy-color-accent);
-  color: #ffffff;
+  background: var(--xy-primary-cta-background);
+  color: var(--xy-primary-cta-color);
+  box-shadow: var(--xy-primary-cta-shadow);
 }
 
 .secondary {
