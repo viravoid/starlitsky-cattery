@@ -1,4 +1,10 @@
 <view class="page">
+  <view class="header">
+    <text class="eyebrow">My Cats</text>
+    <text class="title">我的猫咪</text>
+    <text class="header-copy">记录属于你和猫咪的成长片段，也可以在发布动态时快速关联。</text>
+  </view>
+
   <view wx:if="{{isLoading}}" class="state">正在加载我的猫咪...</view>
   <view wx:elif="{{error}}" class="state error-state">
     <text class="error">{{error}}</text>
@@ -19,7 +25,10 @@
 
   <view wx:else class="list">
     <text class="intro">添加你的猫咪，可以在发布动态时关联它，也能生成一条专属的成长时光轴。</text>
-    <button class="add-card" style="width: 100%;" bindtap="openNewCat">+ 添加猫咪</button>
+    <button class="add-card" style="width: 100%;" bindtap="openNewCat">
+      <text class="add-card-label">添加猫咪</text>
+      <text class="add-card-copy">为新成员建立一份柔软的小档案</text>
+    </button>
     <view wx:for="{{items}}" wx:key="id" class="cat-card">
       <button class="cat-main" style="width: 100%;" data-id="{{item.id}}" bindtap="openCat">
         <view class="thumb">

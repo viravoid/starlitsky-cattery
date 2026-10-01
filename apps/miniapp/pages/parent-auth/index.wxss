@@ -15,6 +15,7 @@
 }
 
 .hero {
+  gap: 8rpx;
   padding: 12rpx 4rpx 10rpx;
 }
 
@@ -32,14 +33,17 @@
 }
 
 .eyebrow {
+  display: block;
   color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
   letter-spacing: 5rpx;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
 .title {
+  display: block;
   color: var(--xy-color-heading);
   font-size: 44rpx;
   font-weight: 700;

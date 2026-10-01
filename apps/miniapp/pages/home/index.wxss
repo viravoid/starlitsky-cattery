@@ -177,6 +177,7 @@
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
   letter-spacing: 5rpx;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
@@ -189,13 +190,13 @@
 }
 
 .intro .eyebrow {
-  font-size: 22rpx;
-  letter-spacing: 6rpx;
-  line-height: 1.1;
+  font-size: 21rpx;
+  letter-spacing: 5rpx;
+  line-height: 1.35;
 }
 
 .group-en {
-  letter-spacing: 7rpx;
+  letter-spacing: 5rpx;
 }
 
 .star-divider {

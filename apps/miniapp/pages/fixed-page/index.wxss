@@ -76,7 +76,6 @@
 .section-title-wrap {
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
   margin-bottom: 20rpx;
 }
 
@@ -103,16 +102,16 @@
   display: block;
   color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
-  font-size: 22rpx;
+  font-size: 21rpx;
   letter-spacing: 5rpx;
   line-height: 1.35;
   text-transform: uppercase;
 }
 
 .body-eyebrow {
-  color: var(--xy-color-heading);
-  font-size: 24rpx;
-  letter-spacing: 2rpx;
+  color: var(--xy-color-secondary);
+  font-size: 21rpx;
+  letter-spacing: 5rpx;
 }
 
 .section-icon {
@@ -873,9 +872,9 @@
 }
 
 .breeding-eyebrow {
-  color: var(--xy-color-heading);
-  font-size: 20rpx;
-  letter-spacing: 8rpx;
+  color: var(--xy-color-secondary);
+  font-size: 21rpx;
+  letter-spacing: 5rpx;
 }
 
 .breeding-period {
@@ -1134,11 +1133,12 @@
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
   letter-spacing: 5rpx;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
 .generic-title {
-  margin-top: 10rpx;
+  margin-top: 8rpx;
   color: var(--xy-color-heading);
   font-size: 44rpx;
   font-weight: 700;

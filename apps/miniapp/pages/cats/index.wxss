@@ -13,7 +13,8 @@
   color: var(--xy-color-secondary);
   font-family: "Songti SC", "PingFang SC", serif;
   font-size: 21rpx;
-  letter-spacing: 6rpx;
+  letter-spacing: 5rpx;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
