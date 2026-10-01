@@ -24,7 +24,7 @@
             bindtap="previewPageImage"
           />
           <view wx:else class="placeholder about-placeholder xy-soft-placeholder">
-            <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+            <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
           </view>
         </swiper-item>
       </swiper>
@@ -133,7 +133,7 @@
                 bindtap="previewPageImage"
               />
               <view wx:else class="feeding-placeholder xy-soft-placeholder">
-                <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+                <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
               </view>
             </view>
           </view>
@@ -367,7 +367,7 @@
                 />
               </view>
               <view wx:else class="stud-image-frame stud-placeholder xy-soft-placeholder">
-                <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+                <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
               </view>
               <text class="stud-role">公猫</text>
               <text class="stud-name">{{pairing.male ? pairing.male.name : '资料待补充'}}</text>
@@ -387,7 +387,7 @@
                 />
               </view>
               <view wx:else class="stud-image-frame stud-placeholder xy-soft-placeholder">
-                <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+                <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
               </view>
               <text class="stud-role">母猫</text>
               <text class="stud-name">{{pairing.female ? pairing.female.name : '资料待补充'}}</text>

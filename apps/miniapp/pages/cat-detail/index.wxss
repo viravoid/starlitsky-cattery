@@ -60,6 +60,10 @@
   overflow: hidden;
 }
 
+.hero-empty .xy-placeholder-cat {
+  opacity: 0.82;
+}
+
 .manual-crop-image {
   position: absolute;
   max-width: none;

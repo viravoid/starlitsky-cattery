@@ -42,7 +42,10 @@
     <text class="error">{{error}}</text>
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
-  <view wx:elif="{{!visibleItems.length}}" class="state">暂无可展示猫咪</view>
+  <view wx:elif="{{!visibleItems.length}}" class="empty-card">
+    <image class="empty-art" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
+    <text class="empty-title">暂无可展示猫咪</text>
+  </view>
 
   <view wx:else class="list {{activeTab === 'kittens' && litterOpen ? 'list-expanded' : ''}}">
     <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">

@@ -4,7 +4,10 @@
     <text class="error">{{error}}</text>
     <button class="retry-button" bindtap="retryLoad">重试</button>
   </view>
-  <view wx:elif="{{!posts.length}}" class="empty-card">{{emptyText}}</view>
+  <view wx:elif="{{!posts.length}}" class="empty-card">
+    <image class="empty-art" src="../../assets/illustrations/chat-bubble-icon.png" mode="aspectFit" />
+    <text class="empty-title">{{emptyText}}</text>
+  </view>
 
   <view wx:else class="feed">
     <view

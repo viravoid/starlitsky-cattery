@@ -26,7 +26,7 @@
       </swiper-item>
       <swiper-item wx:if="{{!galleryItems.length}}">
         <view class="hero-empty xy-soft-placeholder">
-          <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+          <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
         </view>
       </swiper-item>
     </swiper>

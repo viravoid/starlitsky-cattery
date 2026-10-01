@@ -9,6 +9,7 @@
       当前家长身份已停用。历史动态仍会保留，但暂时不能继续编辑或发布新内容。
     </view>
     <view wx:if="{{!posts.length}}" class="empty-card">
+      <image class="empty-art" src="../../assets/illustrations/chat-bubble-icon.png" mode="aspectFit" />
       <text>还没有发布过内容～</text>
       <button wx:if="{{canPublish}}" class="text-link" bindtap="openPublish">去写第一条动态</button>
     </view>

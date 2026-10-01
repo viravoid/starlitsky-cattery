@@ -89,6 +89,10 @@
   box-shadow: var(--xy-shadow-card);
 }
 
+.hero-empty .xy-placeholder-cat {
+  opacity: 0.82;
+}
+
 .profile-copy {
   padding: 24rpx 0 0;
 }
@@ -178,12 +182,13 @@
 }
 
 .empty-timeline {
-  padding: 46rpx 24rpx;
+  padding: 50rpx 24rpx;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 40rpx;
   background: var(--xy-color-surface);
-  color: var(--xy-color-muted);
-  font-size: 25rpx;
+  color: var(--xy-color-heading);
+  font-size: 27rpx;
+  font-weight: 700;
   text-align: center;
   box-shadow: var(--xy-shadow-card);
 }

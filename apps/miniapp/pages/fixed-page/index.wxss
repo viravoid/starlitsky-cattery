@@ -60,7 +60,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2rpx dashed var(--xy-color-border);
+  border: 1rpx solid var(--xy-color-border);
+  background: rgba(255, 253, 248, 0.72);
   color: var(--xy-color-muted);
   font-size: 24rpx;
   line-height: 1.65;
@@ -70,7 +71,7 @@
 .xy-placeholder-cat {
   width: 112rpx;
   height: 112rpx;
-  opacity: 0.46;
+  opacity: 0.82;
 }
 
 .section-title-wrap {
@@ -417,6 +418,8 @@
 .dashed-empty {
   min-height: 180rpx;
   border-radius: 32rpx;
+  color: var(--xy-color-heading);
+  font-weight: 600;
 }
 
 .process-stack,

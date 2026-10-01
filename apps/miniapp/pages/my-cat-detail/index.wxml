@@ -15,7 +15,7 @@
     <view class="profile">
       <image wx:if="{{imageUrl}}" class="hero-image" src="{{imageUrl}}" mode="aspectFill" />
       <view wx:else class="hero-empty xy-soft-placeholder">
-        <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+        <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
       </view>
       <view class="profile-copy">
         <view class="name-row">

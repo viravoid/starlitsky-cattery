@@ -158,6 +158,36 @@
   text-align: center;
 }
 
+.empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 34rpx;
+  padding: 56rpx 32rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 40rpx;
+  background: var(--xy-color-surface);
+  box-shadow: var(--xy-shadow-card);
+}
+
+.empty-art {
+  width: 120rpx;
+  height: 120rpx;
+  padding: 20rpx;
+  border: 1rpx solid rgba(231, 193, 93, 0.28);
+  border-radius: 999rpx;
+  background: #fff4d6;
+  opacity: 0.72;
+}
+
+.empty-title {
+  color: var(--xy-color-heading);
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .error {
   color: #b42318;
 }

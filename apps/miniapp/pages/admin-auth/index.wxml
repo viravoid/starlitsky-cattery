@@ -18,21 +18,25 @@
   </view>
 
   <view wx:elif="{{state === 'confirmed'}}" class="panel success-panel">
+    <image class="status-art" src="../../assets/illustrations/check-icon.png" mode="aspectFit" />
     <text class="section-title">已确认</text>
     <text class="muted">已确认，请回到电脑浏览器。</text>
   </view>
 
   <view wx:elif="{{state === 'forbidden'}}" class="panel danger-panel">
+    <image class="status-art" src="../../assets/illustrations/moon-line-icon.png" mode="aspectFit" />
     <text class="section-title">无后台权限</text>
     <text class="muted">当前账号无后台权限。</text>
   </view>
 
   <view wx:elif="{{state === 'expired'}}" class="panel danger-panel">
+    <image class="status-art" src="../../assets/illustrations/moon-line-icon.png" mode="aspectFit" />
     <text class="section-title">二维码已失效</text>
     <text class="muted">二维码已失效，请回电脑刷新。</text>
   </view>
 
   <view wx:else class="panel danger-panel">
+    <image class="status-art" src="../../assets/illustrations/moon-line-icon.png" mode="aspectFit" />
     <text class="section-title">无法确认登录</text>
     <text class="muted">{{message}}</text>
   </view>
