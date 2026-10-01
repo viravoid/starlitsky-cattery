@@ -67,27 +67,29 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
-  color: var(--xy-color-heading);
-  font-size: 24rpx;
-  font-weight: 700;
+  gap: 12rpx;
+  color: var(--xy-color-secondary);
+  font-size: 25rpx;
+  font-weight: 600;
+  line-height: 1.55;
 }
 
 .field-control {
   box-sizing: border-box;
   width: 100%;
-  min-height: 78rpx;
-  padding: 0 24rpx;
+  min-height: 86rpx;
+  padding: 0 28rpx;
   border: 1rpx solid var(--xy-color-border);
-  border-radius: 28rpx;
-  background: var(--xy-color-background);
+  border-radius: 32rpx;
+  background: rgba(255, 253, 248, 0.86);
   color: var(--xy-color-text);
   font-size: 27rpx;
 }
 
 .textarea-control {
-  min-height: 160rpx;
-  padding-top: 20rpx;
+  min-height: 172rpx;
+  padding-top: 24rpx;
+  padding-bottom: 24rpx;
   line-height: 1.65;
 }
 

@@ -75,13 +75,13 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 14rpx;
-  margin-bottom: 32rpx;
+  gap: 12rpx;
+  margin-bottom: 30rpx;
 }
 
 .label {
-  color: var(--xy-color-heading);
-  font-size: 26rpx;
+  color: var(--xy-color-secondary);
+  font-size: 25rpx;
   font-weight: 600;
   line-height: 1.55;
 }
@@ -114,10 +114,9 @@
   box-sizing: border-box;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 32rpx;
-  background: var(--xy-color-surface);
+  background: rgba(255, 253, 248, 0.86);
   color: var(--xy-color-text);
-  font-size: 28rpx;
-  box-shadow: var(--xy-shadow-card);
+  font-size: 27rpx;
 }
 
 .control {

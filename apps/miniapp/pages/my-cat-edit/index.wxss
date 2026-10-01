@@ -59,7 +59,7 @@
 
 .label {
   margin-bottom: 12rpx;
-  color: var(--xy-color-heading);
+  color: var(--xy-color-secondary);
   font-size: 25rpx;
   font-weight: 600;
 }
@@ -74,7 +74,7 @@
   padding: 0 28rpx;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 32rpx;
-  background: var(--xy-color-surface);
+  background: rgba(255, 253, 248, 0.86);
   color: var(--xy-color-text);
   font-size: 28rpx;
   line-height: 88rpx;

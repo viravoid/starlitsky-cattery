@@ -213,10 +213,10 @@
   width: 100%;
   min-height: 220rpx;
   box-sizing: border-box;
-  padding: 22rpx 26rpx;
+  padding: 24rpx 28rpx;
   border: 1rpx solid var(--xy-color-border);
-  border-radius: 24rpx;
-  background: var(--xy-color-background);
+  border-radius: 32rpx;
+  background: rgba(255, 253, 248, 0.86);
   color: var(--xy-color-text);
   font-size: 26rpx;
   line-height: 1.65;
@@ -229,9 +229,9 @@
 .edit-label {
   display: block;
   margin-bottom: 12rpx;
-  color: var(--xy-color-heading);
-  font-size: 24rpx;
-  font-weight: 700;
+  color: var(--xy-color-secondary);
+  font-size: 25rpx;
+  font-weight: 600;
 }
 
 .edit-empty {
@@ -305,9 +305,11 @@
   line-height: 180rpx;
 }
 
-.edit-add-image-icon {
-  width: 42rpx;
-  height: 42rpx;
+.edit-add-image-symbol {
+  color: var(--xy-color-secondary);
+  font-size: 42rpx;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .edit-remove-image {

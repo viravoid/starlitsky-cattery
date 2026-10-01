@@ -113,7 +113,7 @@
                 </button>
               </view>
               <button class="edit-add-image" catchtap="chooseEditImages">
-                <image class="edit-add-image-icon" src="../../assets/illustrations/plus-icon-warm.png" mode="aspectFit" />
+                <text class="edit-add-image-symbol">+</text>
               </button>
             </view>
           </view>
