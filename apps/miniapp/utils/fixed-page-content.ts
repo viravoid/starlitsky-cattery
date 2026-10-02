@@ -560,7 +560,6 @@ function normalizeEnvironment(
       : DEFAULT_ENVIRONMENT_SECTIONS;
   const environmentSections = sections
     .map((section, index) => normalizeEnvironmentSection(section, index, mediaAssets))
-    .filter((section) => section?.id !== "environment-zone-common" || section.photoCount > 0)
     .filter(Boolean) as EnvironmentSectionView[];
 
   return {

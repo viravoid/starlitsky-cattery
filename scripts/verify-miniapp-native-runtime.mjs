@@ -3,7 +3,9 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import ts from "typescript";
+import { WEB_DEMO_PUBLIC_CONTENT_MANIFEST } from "../services/api/src/content/web-demo-content-transformer.mjs";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 const miniappRoot = join(repoRoot, "apps/miniapp");
@@ -21,6 +23,7 @@ verifyPageRegistrations();
 verifyMobileParityTabBar();
 verifyVisualQaFixtures();
 verifyVisualQaMutationGuards();
+verifyFixedPageNormalization();
 verifyRuntimeImports();
 verifyWxssCompatibility();
 
@@ -277,6 +280,89 @@ function verifyVisualQaMutationGuards() {
   if (/VisualQa|visualQa|visual-qa|isVisualQaModeEnabled/.test(communityPostImagesText)) {
     failures.push("Production community post image upload helper must not contain Visual QA branches.");
   }
+}
+
+function verifyFixedPageNormalization() {
+  const fixedPageContentPath = join(miniappRoot, "utils/fixed-page-content.ts");
+  if (!existsSync(fixedPageContentPath)) {
+    failures.push("apps/miniapp/utils/fixed-page-content.ts is required.");
+    return;
+  }
+
+  const fixedPageContentText = readFileSync(fixedPageContentPath, "utf8");
+  const environmentPage = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPages.find(
+    (page) => page.slug === "environment",
+  );
+  if (!environmentPage) {
+    failures.push("Web Demo public content manifest must include the environment fixed page.");
+    return;
+  }
+
+  const normalized = evaluateFixedPageContentModule(fixedPageContentText);
+  const view = normalized.normalizeFixedPageView(
+    "environment",
+    environmentPage.title,
+    environmentPage.contentJson,
+    [],
+  );
+  const expectedSections = environmentPage.contentJson.sections;
+  if (!Array.isArray(expectedSections)) {
+    failures.push("Web Demo environment contentJson.sections must be an array.");
+    return;
+  }
+
+  if (view.environmentSections.length !== expectedSections.length) {
+    failures.push(
+      `Environment normalization must preserve all canonical Web Demo sections; expected ${expectedSections.length}, got ${view.environmentSections.length}.`,
+    );
+  }
+
+  const commonSection = view.environmentSections.find(
+    (section) => section.id === "environment-zone-common",
+  );
+  if (!commonSection) {
+    failures.push(
+      "Environment normalization must keep environment-zone-common even when it has zero media.",
+    );
+    return;
+  }
+  if (commonSection.photoCount !== 0) {
+    failures.push("environment-zone-common fixture should verify the zero-media section path.");
+  }
+  if (!commonSection.summary.includes("公区主要作为人类生活区")) {
+    failures.push("environment-zone-common summary text must survive normalization.");
+  }
+  if (!commonSection.rooms.some((room) => room.title === "客厅活动区")) {
+    failures.push("environment-zone-common room titles must survive normalization.");
+  }
+}
+
+function evaluateFixedPageContentModule(sourceText) {
+  const runtimeSource = sourceText
+    .replace(/^import[^\n]*\n/gm, "")
+    .replace(/^export\s+/gm, "");
+  const compiled = ts.transpileModule(
+    `${runtimeSource}
+module.exports = { normalizeFixedPageView };`,
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+      fileName: "fixed-page-content.ts",
+    },
+  ).outputText;
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    resolveCatFrame: () => null,
+    getFixedPageMediaUrl: () => "",
+    mapFixedPageMedia: () => ({ coverMedia: null, galleryMedia: [], previewMedia: [] }),
+  };
+  sandbox.exports = sandbox.module.exports;
+  vm.runInNewContext(compiled, sandbox, { filename: "fixed-page-content.ts" });
+  return sandbox.module.exports;
 }
 
 function verifyRuntimeImports() {
