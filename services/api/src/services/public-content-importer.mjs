@@ -159,18 +159,21 @@ export function validatePublicContentManifest(
     items: manifest.breedingCats,
     label: "breedingCats.importId",
     keyOf: (item) => item.importId,
+    allowEmpty: true,
   });
   validateUniqueCollection({
     errors,
     items: manifest.breedingCats,
     label: "breedingCats.cat.id",
     keyOf: (item) => item.cat?.id,
+    allowEmpty: true,
   });
   validateUniqueCollection({
     errors,
     items: manifest.breedingCats,
     label: "breedingCats.cat.name",
     keyOf: (item) => item.cat?.name,
+    allowEmpty: true,
   });
   for (const entry of arrayOrEmpty(manifest.breedingCats)) {
     requiredString(entry.importId, "breedingCat.importId", errors);
@@ -224,21 +227,26 @@ export async function createPublicContentImportPlan({
   if (!client) throw new PublicContentImportError("A Prisma client is required.");
   validatePublicContentManifest(manifest);
 
+  const breedingCats = manifest.breedingCats;
   const [fixedPages, cats, profiles, beforeCounts] = await Promise.all([
     client.fixedPage.findMany({
       where: { slug: { in: manifest.fixedPages.map((page) => page.slug) } },
     }),
-    client.cat.findMany({
-      where: {
-        OR: [
-          { id: { in: manifest.breedingCats.map((entry) => entry.cat.id) } },
-          { name: { in: manifest.breedingCats.map((entry) => entry.cat.name) } },
-        ],
-      },
-    }),
-    client.breedingCatProfile.findMany({
-      where: { cat_id: { in: manifest.breedingCats.map((entry) => entry.cat.id) } },
-    }),
+    breedingCats.length
+      ? client.cat.findMany({
+          where: {
+            OR: [
+              { id: { in: breedingCats.map((entry) => entry.cat.id) } },
+              { name: { in: breedingCats.map((entry) => entry.cat.name) } },
+            ],
+          },
+        })
+      : [],
+    breedingCats.length
+      ? client.breedingCatProfile.findMany({
+          where: { cat_id: { in: breedingCats.map((entry) => entry.cat.id) } },
+        })
+      : [],
     countTables(client),
   ]);
 
@@ -401,16 +409,35 @@ export async function runPublicContentImport({
 
 export async function countTables(client) {
   const entries = await Promise.all([
-    ["fixedPage", client.fixedPage.count()],
-    ["cat", client.cat.count()],
-    ["breedingCatProfile", client.breedingCatProfile.count()],
-    ["kittenProfile", client.kittenProfile.count()],
-    ["litter", client.litter.count()],
-    ...DISALLOWED_COUNT_MODELS.map((model) => [model, client[model].count()]),
+    ["fixedPage", countRequiredModel(client, "fixedPage")],
+    ["cat", countRequiredModel(client, "cat")],
+    ["breedingCatProfile", countRequiredModel(client, "breedingCatProfile")],
+    ["kittenProfile", countOptionalModel(client, "kittenProfile")],
+    ["litter", countOptionalModel(client, "litter")],
+    ...DISALLOWED_COUNT_MODELS.map((model) => [model, countOptionalModel(client, model)]),
   ]);
   return Object.fromEntries(
     await Promise.all(entries.map(async ([name, value]) => [name, await value])),
   );
+}
+
+async function countRequiredModel(client, model) {
+  const delegate = client[model];
+  if (!delegate || typeof delegate.count !== "function") {
+    throw new PublicContentImportError(`Prisma client is missing required model delegate: ${model}`);
+  }
+  return delegate.count();
+}
+
+async function countOptionalModel(client, model) {
+  const delegate = client[model];
+  if (!delegate || typeof delegate.count !== "function") return 0;
+  try {
+    return await delegate.count();
+  } catch (error) {
+    if (error && typeof error === "object" && error.code === "P2021") return 0;
+    throw error;
+  }
 }
 
 function toFixedPageData(page, existing) {
@@ -524,8 +551,12 @@ function diffFields(existing, next, fields) {
   return changes;
 }
 
-function validateUniqueCollection({ errors, items, keyOf, label }) {
-  if (!Array.isArray(items) || items.length === 0) {
+function validateUniqueCollection({ errors, items, keyOf, label, allowEmpty = false }) {
+  if (!Array.isArray(items)) {
+    errors.push(`${label} must be an array`);
+    return;
+  }
+  if (!allowEmpty && items.length === 0) {
     errors.push(`${label} must be a non-empty array`);
     return;
   }

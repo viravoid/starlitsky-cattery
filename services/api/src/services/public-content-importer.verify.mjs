@@ -3,13 +3,21 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:f
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-process.env.DATABASE_URL = "file:public-content-import-verify.db";
+const VERIFY_DATABASE_URL = `file:${resolve(process.cwd(), "public-content-import-verify.db")}`;
+
+process.env.DATABASE_URL = VERIFY_DATABASE_URL;
 
 rmLocalSqlite(process.env.DATABASE_URL);
 await ensureLocalSqliteSchema(process.env.DATABASE_URL);
 
 const { prisma } = await import("../db/prisma.mjs");
 const { PUBLIC_CONTENT_MANIFEST } = await import("../content/public-content-manifest.mjs");
+const { loadPublicContentManifest } = await import("../content/public-content-manifest-selector.mjs");
+const {
+  WEB_DEMO_FIXED_PAGE_MAPPING,
+  WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
+  WEB_DEMO_SOURCE_CONTENT,
+} = await import("../content/web-demo-content-transformer.mjs");
 const { getCat, listCats } = await import("./cat-service.mjs");
 const { getFixedPage } = await import("./fixed-page-service.mjs");
 const { getBreedingProfile } = await import("./profile-service.mjs");
@@ -29,6 +37,22 @@ try {
 
   const runtimeContext = assertPublicContentImporterRuntime();
   assert.equal(validatePublicContentManifest(PUBLIC_CONTENT_MANIFEST), true);
+  assert.equal(validatePublicContentManifest(WEB_DEMO_PUBLIC_CONTENT_MANIFEST), true);
+  assert.notEqual(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.manifestId,
+    PUBLIC_CONTENT_MANIFEST.manifestId,
+    "Demo manifest must be independent from the legacy pinned-copy manifest",
+  );
+  assert.equal(
+    (await loadPublicContentManifest("legacy")).manifestId,
+    PUBLIC_CONTENT_MANIFEST.manifestId,
+    "legacy manifest selection must keep using the pinned-copy source",
+  );
+  assert.equal(
+    (await loadPublicContentManifest("demo")).manifestId,
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.manifestId,
+    "demo manifest selection must load the Web Demo source",
+  );
   assert.throws(
     () =>
       validatePublicContentManifest({
@@ -101,8 +125,9 @@ try {
     PublicContentImportError,
     "normal apply entrypoint must reject forged runtime context",
   );
-  process.env.DATABASE_URL = "file:public-content-import-verify.db";
+  process.env.DATABASE_URL = VERIFY_DATABASE_URL;
 
+  await assertWebDemoManifestMapping();
   await assertCatIdentityConflicts();
 
   const existingEntry = PUBLIC_CONTENT_MANIFEST.breedingCats.find(
@@ -383,7 +408,7 @@ try {
   console.info("Public content import verification passed");
 } finally {
   await prisma.$disconnect();
-  rmLocalSqlite("file:public-content-import-verify.db");
+  rmLocalSqlite(VERIFY_DATABASE_URL);
 }
 
 async function assertApplyRuntimeRejects(databaseUrl, message) {
@@ -475,6 +500,115 @@ async function assertCatIdentityConflicts() {
   await prisma.cat.delete({ where: { id: "verify-conflicting-cat" } });
 }
 
+async function assertWebDemoManifestMapping() {
+  const demoPagesBySlug = new Map(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPages.map((page) => [page.slug, page]),
+  );
+
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPages.length,
+    WEB_DEMO_FIXED_PAGE_MAPPING.length,
+    "Demo fixed-page manifest must include every requested page",
+  );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.length,
+    0,
+    "Demo manifest must not import breeding-plan or breeding cats yet",
+  );
+
+  for (const { slug } of WEB_DEMO_FIXED_PAGE_MAPPING) {
+    const page = demoPagesBySlug.get(slug);
+    assert.ok(page, `Demo manifest must include ${slug}`);
+    assert.equal(page.status, "published", `${slug} must be publishable`);
+    assert.deepEqual(
+      page.contentJson,
+      WEB_DEMO_SOURCE_CONTENT[slug],
+      `${slug} content JSON must match Web Demo source verbatim`,
+    );
+  }
+
+  const philosophy = demoPagesBySlug.get("philosophy").contentJson;
+  assert.deepEqual(
+    philosophy,
+    WEB_DEMO_SOURCE_CONTENT.philosophy,
+    "philosophy full structured copy must survive",
+  );
+  assert.ok(
+    Object.keys(philosophy).includes("closingAftercareParagraph"),
+    "philosophy closing structured copy must not be dropped",
+  );
+
+  const environment = demoPagesBySlug.get("environment").contentJson;
+  const environmentRoomCount = environment.sections.flatMap((section) => section.rooms).length;
+  assert.equal(
+    environmentRoomCount,
+    WEB_DEMO_SOURCE_CONTENT.environment.sections.flatMap((section) => section.rooms).length,
+    "environment rooms must survive",
+  );
+  assert.ok(environmentRoomCount > 0, "environment must contain rooms");
+
+  const feeding = demoPagesBySlug.get("feeding").contentJson;
+  assert.deepEqual(
+    feeding.modules,
+    WEB_DEMO_SOURCE_CONTENT.feeding.modules,
+    "feeding modules must survive",
+  );
+  assert.ok(feeding.modules.length > 0, "feeding must contain modules");
+
+  const process = demoPagesBySlug.get("process").contentJson;
+  assert.deepEqual(
+    {
+      priceCards: process.priceCards,
+      breedingCards: process.breedingCards,
+      returningBenefits: process.returningBenefits,
+      steps: process.steps,
+      welcomeKitItems: process.welcomeKitItems,
+    },
+    {
+      priceCards: WEB_DEMO_SOURCE_CONTENT.process.priceCards,
+      breedingCards: WEB_DEMO_SOURCE_CONTENT.process.breedingCards,
+      returningBenefits: WEB_DEMO_SOURCE_CONTENT.process.returningBenefits,
+      steps: WEB_DEMO_SOURCE_CONTENT.process.steps,
+      welcomeKitItems: WEB_DEMO_SOURCE_CONTENT.process.welcomeKitItems,
+    },
+    "process cards, steps, and kit items must survive",
+  );
+
+  const aftercare = demoPagesBySlug.get("aftercare").contentJson;
+  assert.deepEqual(
+    {
+      promises: aftercare.promises,
+      healthItems: aftercare.healthItems,
+      contractNotice: aftercare.contractNotice,
+      contractFile: aftercare.contractFile,
+    },
+    {
+      promises: WEB_DEMO_SOURCE_CONTENT.aftercare.promises,
+      healthItems: WEB_DEMO_SOURCE_CONTENT.aftercare.healthItems,
+      contractNotice: WEB_DEMO_SOURCE_CONTENT.aftercare.contractNotice,
+      contractFile: WEB_DEMO_SOURCE_CONTENT.aftercare.contractFile,
+    },
+    "aftercare structured content must survive",
+  );
+
+  const contact = demoPagesBySlug.get("contact").contentJson;
+  assert.equal(
+    contact.introduction,
+    WEB_DEMO_SOURCE_CONTENT.contact.introduction,
+    "contact introduction must survive",
+  );
+
+  const beforeDryRun = await countTables(prisma);
+  const dryRunPlan = await runPublicContentImport({
+    client: prisma,
+    manifest: WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
+  });
+  assert.equal(dryRunPlan.mode, "dry-run", "Demo import must dry-run by default");
+  assert.equal(dryRunPlan.fixedPages.length, WEB_DEMO_FIXED_PAGE_MAPPING.length);
+  assert.equal(dryRunPlan.breedingCats.length, 0);
+  assert.deepEqual(await countTables(prisma), beforeDryRun, "Demo dry-run must not mutate the DB");
+}
+
 async function ensureLocalSqliteSchema(databaseUrl) {
   if (!databaseUrl.startsWith("file:")) return;
 
@@ -513,6 +647,5 @@ function resolveSqlitePath(rawPath) {
   const normalized = rawPath.trim().replace(/^"|"$/g, "");
   if (isAbsolute(normalized) || /^[A-Za-z]:[\\/]/.test(normalized)) return normalized;
 
-  const prismaDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../prisma");
-  return resolve(prismaDir, normalized);
+  return resolve(process.cwd(), normalized);
 }
