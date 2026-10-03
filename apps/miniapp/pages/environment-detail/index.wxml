@@ -1,0 +1,53 @@
+<view class="page">
+  <view wx:if="{{isLoading}}" class="state">正在加载内容...</view>
+  <view wx:elif="{{error}}" class="state error-state">
+    <text class="error">{{error}}</text>
+    <button class="retry-button" bindtap="retryLoad">重试</button>
+  </view>
+
+  <view wx:elif="{{section}}">
+    <view class="section intro-section">
+      <view class="intro-card xy-card">
+        <view class="title-icon-row">
+          <image class="section-icon" src="../../assets/illustrations/leaf-icon.png" mode="aspectFit" />
+          <text class="section-en">Environment</text>
+        </view>
+        <text class="detail-title">{{section.title}}</text>
+        <view class="pill-row">
+          <text class="xy-pill">{{section.roomCount}} 个房间 / 子区域</text>
+          <text class="xy-pill">{{section.photoCount}} 张照片</text>
+          <text wx:if="{{section.meta}}" class="xy-pill">{{section.meta}}</text>
+        </view>
+        <text wx:if="{{section.summary}}" class="summary">{{section.summary}}</text>
+      </view>
+    </view>
+
+    <view class="section room-stack">
+      <view wx:for="{{section.rooms}}" wx:key="id" class="room-card xy-card">
+        <text class="room-title">{{item.title}}</text>
+        <text wx:if="{{showRoomDescriptions && item.description}}" class="room-description">{{item.description}}</text>
+        <view wx:if="{{item.imageSlots.length}}" class="room-grid">
+          <view
+            wx:for="{{item.imageSlots}}"
+            wx:for-item="imageSlot"
+            wx:key="id"
+            class="room-image-button"
+          >
+            <image
+              wx:if="{{imageSlot.image}}"
+              class="room-image"
+              src="{{imageSlot.image.url}}"
+              mode="aspectFill"
+              data-url="{{imageSlot.image.url}}"
+              bindtap="previewImage"
+            />
+            <view wx:else class="room-placeholder xy-soft-placeholder">
+              <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+            </view>
+          </view>
+        </view>
+        <view wx:else class="room-empty">这个房间的照片还没有上传。</view>
+      </view>
+    </view>
+  </view>
+</view>

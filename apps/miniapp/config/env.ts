@@ -25,7 +25,7 @@ export function getApiBaseUrl() {
   throw new Error(`Miniapp API base URL is not configured for ${envVersion}`);
 }
 
-function getMiniProgramEnvVersion(): MiniProgramEnvVersion {
+export function getMiniProgramEnvVersion(): MiniProgramEnvVersion {
   try {
     const envVersion = wx.getAccountInfoSync?.().miniProgram.envVersion;
     if (envVersion === "trial" || envVersion === "release") return envVersion;

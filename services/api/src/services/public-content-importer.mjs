@@ -1,5 +1,8 @@
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, extname, isAbsolute, resolve } from "node:path";
 import { PUBLIC_CONTENT_MANIFEST } from "../content/public-content-manifest.mjs";
 import { FIXED_PAGE_SLUGS } from "../content/fixed-page-definitions.mjs";
+import { createPresignedPutUpload, headObject } from "./object-storage-service.mjs";
 
 const FIXED_PAGE_OWNED_FIELDS = [
   "title",
@@ -35,6 +38,7 @@ const IMPORTER_SOURCE_KEYS = [
 const UNSAFE_JSON_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 const PUBLIC_CONTENT_IMPORT_RUNTIME_VALIDATED = Symbol("publicContentImportRuntimeValidated");
 const ALLOWED_FIXED_PAGE_STATUS = new Set(["draft", "published", "hidden"]);
+const ALLOWED_FIXED_PAGE_CONTENT_JSON_MODES = new Set(["merge", "replace"]);
 const ALLOWED_CAT_VISIBILITY = new Set(["visible", "hidden", "archived"]);
 const ALLOWED_GENDER = new Set(["male", "female", "unknown"]);
 const ALLOWED_BREEDING_ROLE = new Set(["king", "queen", "candidate"]);
@@ -63,6 +67,9 @@ const DISALLOWED_COUNT_MODELS = [
   "mediaAsset",
   "mediaBinding",
 ];
+const FIXED_PAGE_MEDIA_IMPORTER_NAME = "public-content-web-demo-fixed-page-media";
+const FIXED_PAGE_MEDIA_METADATA_KEY = "publicContentFixedPageMedia";
+const ALLOWED_MEDIA_KINDS = new Set(["image", "document"]);
 
 export class PublicContentImportError extends Error {
   constructor(message, details = {}) {
@@ -115,6 +122,16 @@ export function validatePublicContentManifest(
   requiredString(manifest.manifestId, "manifest.manifestId", errors);
   requiredString(manifest.manifestDate, "manifest.manifestDate", errors);
   requiredString(manifest.source?.fileName, "manifest.source.fileName", errors);
+  if (
+    Object.hasOwn(manifest, "fixedPageContentJsonMode") &&
+    !ALLOWED_FIXED_PAGE_CONTENT_JSON_MODES.has(manifest.fixedPageContentJsonMode)
+  ) {
+    errors.push(
+      `manifest.fixedPageContentJsonMode must be one of: ${[
+        ...ALLOWED_FIXED_PAGE_CONTENT_JSON_MODES,
+      ].join(", ")}`,
+    );
+  }
 
   validateUniqueCollection({
     errors,
@@ -156,21 +173,75 @@ export function validatePublicContentManifest(
 
   validateUniqueCollection({
     errors,
+    items: arrayOrEmpty(manifest.fixedPageMedia),
+    label: "fixedPageMedia.id",
+    keyOf: (item) => item.id,
+    allowEmpty: true,
+  });
+  for (const item of arrayOrEmpty(manifest.fixedPageMedia)) {
+    requiredString(item.id, "fixedPageMedia.id", errors);
+    requiredString(item.slug, `fixedPageMedia ${item.id}.slug`, errors);
+    if (!allowedFixedPageSlugs.has(item.slug)) {
+      errors.push(`fixedPageMedia slug is not supported by current product: ${item.slug}`);
+    }
+    if (item.ownerType !== "fixed_page") {
+      errors.push(`fixedPageMedia ${item.id}.ownerType must be fixed_page`);
+    }
+    if (item.ownerId !== `fixed-page-${item.slug}`) {
+      errors.push(`fixedPageMedia ${item.id}.ownerId must be fixed-page-${item.slug}`);
+    }
+    if (!ALLOWED_MEDIA_KINDS.has(item.kind)) {
+      errors.push(`fixedPageMedia ${item.id}.kind is unsupported: ${item.kind}`);
+    }
+    requiredString(item.usage, `fixedPageMedia ${item.id}.usage`, errors);
+    requiredString(item.sourceLocalPath, `fixedPageMedia ${item.id}.sourceLocalPath`, errors);
+    requiredString(item.sourcePublicPath, `fixedPageMedia ${item.id}.sourcePublicPath`, errors);
+    requiredString(item.checksum, `fixedPageMedia ${item.id}.checksum`, errors);
+    if (item.checksum && !/^[a-f0-9]{64}$/.test(String(item.checksum))) {
+      errors.push(`fixedPageMedia ${item.id}.checksum must be a lowercase SHA256 hex digest`);
+    }
+    if (!Number.isInteger(item.sortOrder) || item.sortOrder < 0) {
+      errors.push(`fixedPageMedia ${item.id}.sortOrder must be a non-negative integer`);
+    }
+    if (!Number.isInteger(item.sizeBytes) || item.sizeBytes <= 0) {
+      errors.push(`fixedPageMedia ${item.id}.sizeBytes must be a positive integer`);
+    }
+    if (item.kind === "image") {
+      if (!String(item.mimeType ?? "").startsWith("image/")) {
+        errors.push(`fixedPageMedia ${item.id}.mimeType must be an image MIME type`);
+      }
+      if (!Number.isInteger(item.width) || item.width <= 0) {
+        errors.push(`fixedPageMedia ${item.id}.width must be a positive integer`);
+      }
+      if (!Number.isInteger(item.height) || item.height <= 0) {
+        errors.push(`fixedPageMedia ${item.id}.height must be a positive integer`);
+      }
+    }
+    if (item.missingReason) {
+      errors.push(`fixedPageMedia ${item.id} is unresolved: ${item.missingReason}`);
+    }
+  }
+
+  validateUniqueCollection({
+    errors,
     items: manifest.breedingCats,
     label: "breedingCats.importId",
     keyOf: (item) => item.importId,
+    allowEmpty: true,
   });
   validateUniqueCollection({
     errors,
     items: manifest.breedingCats,
     label: "breedingCats.cat.id",
     keyOf: (item) => item.cat?.id,
+    allowEmpty: true,
   });
   validateUniqueCollection({
     errors,
     items: manifest.breedingCats,
     label: "breedingCats.cat.name",
     keyOf: (item) => item.cat?.name,
+    allowEmpty: true,
   });
   for (const entry of arrayOrEmpty(manifest.breedingCats)) {
     requiredString(entry.importId, "breedingCat.importId", errors);
@@ -224,21 +295,26 @@ export async function createPublicContentImportPlan({
   if (!client) throw new PublicContentImportError("A Prisma client is required.");
   validatePublicContentManifest(manifest);
 
+  const breedingCats = manifest.breedingCats;
   const [fixedPages, cats, profiles, beforeCounts] = await Promise.all([
     client.fixedPage.findMany({
       where: { slug: { in: manifest.fixedPages.map((page) => page.slug) } },
     }),
-    client.cat.findMany({
-      where: {
-        OR: [
-          { id: { in: manifest.breedingCats.map((entry) => entry.cat.id) } },
-          { name: { in: manifest.breedingCats.map((entry) => entry.cat.name) } },
-        ],
-      },
-    }),
-    client.breedingCatProfile.findMany({
-      where: { cat_id: { in: manifest.breedingCats.map((entry) => entry.cat.id) } },
-    }),
+    breedingCats.length
+      ? client.cat.findMany({
+          where: {
+            OR: [
+              { id: { in: breedingCats.map((entry) => entry.cat.id) } },
+              { name: { in: breedingCats.map((entry) => entry.cat.name) } },
+            ],
+          },
+        })
+      : [],
+    breedingCats.length
+      ? client.breedingCatProfile.findMany({
+          where: { cat_id: { in: breedingCats.map((entry) => entry.cat.id) } },
+        })
+      : [],
     countTables(client),
   ]);
 
@@ -252,10 +328,12 @@ export async function createPublicContentImportPlan({
     fixedPages: [],
     breedingCats: [],
     skippedSections: manifest.skippedSections.map((section) => ({ ...section })),
+    fixedPageMedia: [],
     conflicts: [],
     beforeCounts,
   };
 
+  const fixedPageContentJsonMode = getFixedPageContentJsonMode(manifest);
   for (const page of manifest.fixedPages) {
     const existing = fixedPagesBySlug.get(page.slug);
     if (existing?.deleted_at) {
@@ -266,7 +344,7 @@ export async function createPublicContentImportPlan({
       });
       continue;
     }
-    const data = toFixedPageData(page, existing);
+    const data = toFixedPageData(page, existing, fixedPageContentJsonMode);
     const ownedFields = getFixedPageOwnedFields(page);
     plan.fixedPages.push({
       importId: page.importId,
@@ -337,6 +415,10 @@ export async function createPublicContentImportPlan({
     });
   }
 
+  const mediaPlan = await createFixedPageMediaPlan({ client, manifest });
+  plan.fixedPageMedia = mediaPlan.items;
+  plan.conflicts.push(...mediaPlan.conflicts);
+
   return plan;
 }
 
@@ -344,9 +426,10 @@ export async function runPublicContentImport({
   apply = false,
   client,
   manifest = PUBLIC_CONTENT_MANIFEST,
+  putObject = putPresignedObject,
   runtimeContext,
 } = {}) {
-  if (apply) assertPublicContentApplyRuntime(runtimeContext);
+  const applyRuntimeContext = apply ? assertPublicContentApplyRuntime(runtimeContext) : null;
   const plan = await createPublicContentImportPlan({ client, manifest });
   plan.mode = apply ? "apply" : "dry-run";
   if (plan.conflicts.length > 0) {
@@ -356,10 +439,12 @@ export async function runPublicContentImport({
   }
   if (!apply) return plan;
 
+  const productionBackupPath = createProductionSqliteBackup(applyRuntimeContext);
   await client.$transaction(async (transaction) => {
+    const fixedPageContentJsonMode = getFixedPageContentJsonMode(manifest);
     for (const page of manifest.fixedPages) {
       const existing = await transaction.fixedPage.findUnique({ where: { slug: page.slug } });
-      const data = toFixedPageData(page, existing);
+      const data = toFixedPageData(page, existing, fixedPageContentJsonMode);
       await transaction.fixedPage.upsert({
         where: { slug: page.slug },
         create: {
@@ -393,33 +478,447 @@ export async function runPublicContentImport({
     }
   });
 
+  const mediaApplyResult = await applyFixedPageMediaPlan({
+    client,
+    manifest,
+    plan,
+    putObject,
+  });
+
   return {
     ...plan,
+    applyResult: {
+      fixedPageMedia: mediaApplyResult,
+      productionBackupPath,
+    },
     afterCounts: await countTables(client),
   };
 }
 
+async function createFixedPageMediaPlan({ client, manifest }) {
+  const mediaItems = arrayOrEmpty(manifest.fixedPageMedia);
+  if (mediaItems.length === 0) return { items: [], conflicts: [] };
+
+  const existingMedia = await client.mediaAsset.findMany({
+    where: { id: { in: mediaItems.map((item) => item.id) } },
+    include: {
+      bindings: {
+        where: { deleted_at: null },
+        orderBy: [{ sort_order: "asc" }, { created_at: "asc" }, { id: "asc" }],
+      },
+    },
+  });
+  const mediaById = new Map(existingMedia.map((media) => [media.id, media]));
+  const items = [];
+  const conflicts = [];
+
+  for (const sourceItem of mediaItems) {
+    const itemConflicts = validateFixedPageMediaSourceFile(sourceItem);
+    const media = mediaById.get(sourceItem.id) ?? null;
+    const base = toFixedPageMediaPlanItem(sourceItem, { action: "upload" });
+
+    if (itemConflicts.length > 0) {
+      conflicts.push(...itemConflicts);
+      items.push({ ...base, action: "conflict" });
+      continue;
+    }
+    if (!media) {
+      items.push(base);
+      continue;
+    }
+    if (media.deleted_at || media.status !== "active") {
+      conflicts.push({
+        kind: "fixed-page-media-existing-inactive",
+        mediaId: sourceItem.id,
+        status: media.status,
+      });
+      items.push({ ...base, action: "conflict", mediaId: media.id });
+      continue;
+    }
+    if (!fixedPageMediaIdentityMatches(media, sourceItem, manifest)) {
+      conflicts.push({
+        kind: "fixed-page-media-identity-conflict",
+        mediaId: sourceItem.id,
+        message:
+          "A MediaAsset already exists for this canonical content id without matching importer provenance/checksum.",
+      });
+      items.push({ ...base, action: "conflict", mediaId: media.id });
+      continue;
+    }
+
+    const bindingState = classifyFixedPageMediaBinding(media, sourceItem);
+    if (bindingState.conflict) {
+      conflicts.push(bindingState.conflict);
+      items.push({ ...base, action: "conflict", mediaId: media.id });
+      continue;
+    }
+    items.push(
+      toFixedPageMediaPlanItem(sourceItem, {
+        action: bindingState.needsBinding ? "bind" : "noop",
+        bindingId: bindingState.binding?.id ?? null,
+        mediaId: media.id,
+      }),
+    );
+  }
+
+  return { items, conflicts };
+}
+
+async function applyFixedPageMediaPlan({ client, manifest, plan, putObject }) {
+  const sourceItemsById = new Map(arrayOrEmpty(manifest.fixedPageMedia).map((item) => [item.id, item]));
+  const result = {
+    uploadedCount: 0,
+    createdBindingCount: 0,
+    reusedCount: 0,
+    objectsUploaded: 0,
+  };
+
+  for (const itemPlan of plan.fixedPageMedia) {
+    const sourceItem = sourceItemsById.get(itemPlan.id);
+    if (!sourceItem) {
+      throw new PublicContentImportError(`Missing fixed-page media source item: ${itemPlan.id}`);
+    }
+
+    if (itemPlan.action === "upload") {
+      const upload = await uploadFixedPageMediaSource({ putObject, sourceItem });
+      await client.$transaction(async (transaction) => {
+        await transaction.mediaAsset.create({
+          data: toFixedPageMediaAssetCreateData(sourceItem, manifest, upload),
+        });
+        await transaction.mediaBinding.create({
+          data: toFixedPageMediaBindingCreateData(sourceItem),
+        });
+      });
+      result.uploadedCount += 1;
+      result.createdBindingCount += 1;
+      result.objectsUploaded += 1;
+      continue;
+    }
+
+    if (itemPlan.action === "bind") {
+      await client.mediaBinding.create({
+        data: toFixedPageMediaBindingCreateData(sourceItem),
+      });
+      result.createdBindingCount += 1;
+      result.reusedCount += 1;
+      continue;
+    }
+
+    if (itemPlan.action === "noop") {
+      await verifyExistingFixedPageMediaObject(sourceItem);
+      result.reusedCount += 1;
+    }
+  }
+
+  return result;
+}
+
+async function uploadFixedPageMediaSource({ putObject, sourceItem }) {
+  const objectKey = buildFixedPageMediaObjectKey(sourceItem);
+  const storageUpload = createPresignedPutUpload({
+    objectKey,
+    mimeType: sourceItem.mimeType,
+  });
+  await putObject({
+    filePath: sourceItem.sourceLocalPath,
+    mimeType: sourceItem.mimeType,
+    upload: storageUpload.upload,
+  });
+
+  const metadata = await headObject({ objectKey });
+  if (!metadata.exists) {
+    throw new PublicContentImportError("Uploaded fixed-page media object was not found.", {
+      id: sourceItem.id,
+      objectKey,
+    });
+  }
+  if (metadata.contentLength !== sourceItem.sizeBytes) {
+    throw new PublicContentImportError("Uploaded fixed-page media object size mismatch.", {
+      id: sourceItem.id,
+      objectKey,
+    });
+  }
+
+  return {
+    bucket: storageUpload.bucket,
+    objectKey,
+    provider: storageUpload.provider,
+    publicUrl: storageUpload.publicUrl,
+    verifiedAt: new Date().toISOString(),
+    verifiedContentType: normalizeContentType(metadata.contentType) || sourceItem.mimeType,
+    verifiedEtag: metadata.etag ?? null,
+    verifiedLastModified: metadata.lastModified ?? null,
+  };
+}
+
+async function putPresignedObject({ filePath, mimeType, upload }) {
+  const response = await fetch(upload.url, {
+    body: readFileSync(filePath),
+    headers: upload.headers ?? { "content-type": mimeType },
+    method: upload.method,
+  });
+  if (!response.ok) {
+    throw new PublicContentImportError("Fixed-page media object storage PUT failed.", {
+      statusCode: response.status,
+    });
+  }
+}
+
+function toFixedPageMediaAssetCreateData(sourceItem, manifest, upload) {
+  return {
+    id: sourceItem.id,
+    kind: sourceItem.kind,
+    source_url: upload.publicUrl,
+    title: sourceItem.title ?? null,
+    alt_text: sourceItem.altText ?? null,
+    mime_type: sourceItem.mimeType ?? null,
+    size_bytes: sourceItem.sizeBytes,
+    width: sourceItem.width ?? null,
+    height: sourceItem.height ?? null,
+    checksum: sourceItem.checksum,
+    status: "active",
+    metadata_json: {
+      upload: {
+        bucket: upload.bucket,
+        completedAt: upload.verifiedAt,
+        objectKey: upload.objectKey,
+        originalFileName: sourceItem.sourcePublicPath?.split("/").pop() ?? sourceItem.id,
+        provider: upload.provider,
+        requestedMimeType: sourceItem.mimeType,
+        requestedSizeBytes: sourceItem.sizeBytes,
+        verifiedAt: upload.verifiedAt,
+        verifiedEtag: upload.verifiedEtag,
+        verifiedLastModified: upload.verifiedLastModified,
+        verifiedMimeType: upload.verifiedContentType,
+        verifiedSizeBytes: sourceItem.sizeBytes,
+      },
+      [FIXED_PAGE_MEDIA_METADATA_KEY]: toFixedPageMediaMetadata(sourceItem, manifest),
+    },
+  };
+}
+
+function toFixedPageMediaBindingCreateData(sourceItem) {
+  return {
+    id: fixedPageMediaBindingId(sourceItem),
+    media_id: sourceItem.id,
+    owner_type: sourceItem.ownerType,
+    owner_id: sourceItem.ownerId,
+    usage: sourceItem.usage,
+    sort_order: sourceItem.sortOrder,
+    visibility: "visible",
+  };
+}
+
+function toFixedPageMediaMetadata(sourceItem, manifest) {
+  return {
+    canonicalPath: sourceItem.canonicalPath,
+    checksum: sourceItem.checksum,
+    id: sourceItem.id,
+    importer: FIXED_PAGE_MEDIA_IMPORTER_NAME,
+    manifestId: manifest.manifestId,
+    sourcePublicPath: sourceItem.sourcePublicPath,
+    sourceRelativePath: sourceItem.sourceRelativePath ?? null,
+  };
+}
+
+function toFixedPageMediaPlanItem(sourceItem, { action, bindingId = null, mediaId = null }) {
+  return {
+    action,
+    altText: sourceItem.altText ?? null,
+    bindingId,
+    canonicalPath: sourceItem.canonicalPath,
+    id: sourceItem.id,
+    kind: sourceItem.kind,
+    mediaId,
+    ownerId: sourceItem.ownerId,
+    ownerType: sourceItem.ownerType,
+    requiresCosUpload: action === "upload",
+    slug: sourceItem.slug,
+    sortOrder: sourceItem.sortOrder,
+    sourceLocalPath: sourceItem.sourceLocalPath,
+    sourcePublicPath: sourceItem.sourcePublicPath,
+    targetMediaAssetId: sourceItem.id,
+    targetMediaBindingId: fixedPageMediaBindingId(sourceItem),
+    title: sourceItem.title ?? null,
+    usage: sourceItem.usage,
+  };
+}
+
+function validateFixedPageMediaSourceFile(sourceItem) {
+  const conflicts = [];
+  if (!existsSync(sourceItem.sourceLocalPath)) {
+    conflicts.push({
+      kind: "fixed-page-media-source-missing",
+      mediaId: sourceItem.id,
+      sourceLocalPath: sourceItem.sourceLocalPath,
+    });
+  }
+  return conflicts;
+}
+
+function fixedPageMediaIdentityMatches(media, sourceItem, manifest) {
+  const metadata = readFixedPageMediaMetadata(media);
+  return (
+    metadata?.importer === FIXED_PAGE_MEDIA_IMPORTER_NAME &&
+    metadata?.manifestId === manifest.manifestId &&
+    metadata?.id === sourceItem.id &&
+    metadata?.checksum === sourceItem.checksum &&
+    media.checksum === sourceItem.checksum
+  );
+}
+
+function classifyFixedPageMediaBinding(media, sourceItem) {
+  const matchingOwnerBindings = media.bindings.filter(
+    (binding) =>
+      binding.owner_type === sourceItem.ownerType &&
+      binding.owner_id === sourceItem.ownerId &&
+      binding.deleted_at == null,
+  );
+  if (matchingOwnerBindings.length > 1) {
+    return {
+      conflict: {
+        kind: "fixed-page-media-ambiguous-binding",
+        mediaId: sourceItem.id,
+        bindingIds: matchingOwnerBindings.map((binding) => binding.id),
+      },
+    };
+  }
+  if (matchingOwnerBindings.length === 0) return { needsBinding: true };
+
+  const binding = matchingOwnerBindings[0];
+  if (
+    binding.id !== fixedPageMediaBindingId(sourceItem) ||
+    binding.usage !== sourceItem.usage ||
+    binding.sort_order !== sourceItem.sortOrder ||
+    binding.visibility !== "visible"
+  ) {
+    return {
+      conflict: {
+        kind: "fixed-page-media-binding-conflict",
+        mediaId: sourceItem.id,
+        bindingId: binding.id,
+      },
+    };
+  }
+  return { binding, needsBinding: false };
+}
+
+function fixedPageMediaBindingId(sourceItem) {
+  return `fixed-page-media-binding:${sourceItem.ownerId}:${sourceItem.id}`;
+}
+
+async function verifyExistingFixedPageMediaObject(sourceItem) {
+  const objectKey = buildFixedPageMediaObjectKey(sourceItem);
+  const metadata = await headObject({ objectKey });
+  if (!metadata.exists) {
+    throw new PublicContentImportError("Existing fixed-page media object is missing.", {
+      id: sourceItem.id,
+      objectKey,
+    });
+  }
+  if (metadata.contentLength !== sourceItem.sizeBytes) {
+    throw new PublicContentImportError("Existing fixed-page media object size mismatch.", {
+      id: sourceItem.id,
+      objectKey,
+    });
+  }
+}
+
+function readFixedPageMediaMetadata(media) {
+  const metadata = media?.metadata_json;
+  if (!isPlainObject(metadata)) return null;
+  const importerMetadata = metadata[FIXED_PAGE_MEDIA_METADATA_KEY];
+  return isPlainObject(importerMetadata) ? importerMetadata : null;
+}
+
+function buildFixedPageMediaObjectKey(sourceItem) {
+  const extension =
+    extname(sourceItem.sourcePublicPath || sourceItem.sourceLocalPath || ".bin")
+      .replace(/^\./, "")
+      .toLowerCase() || "bin";
+  const safeId = sourceItem.id
+    .replace(/^static:/, "")
+    .replace(/[^a-zA-Z0-9/_-]+/g, "-")
+    .replace(/^\/+|\/+$/g, "");
+  return [
+    "public-content",
+    "web-demo",
+    "fixed-pages",
+    safeId,
+    `${sourceItem.checksum.slice(0, 16)}.${extension}`,
+  ].join("/");
+}
+
+function createProductionSqliteBackup(runtimeContext) {
+  if (!runtimeContext?.isProductionTarget) return null;
+  const sqlitePath = resolveSqlitePath(runtimeContext.databaseUrl);
+  if (!existsSync(sqlitePath)) {
+    throw new PublicContentImportError("Production database backup source does not exist.", {
+      databaseUrl: redactedDatabaseUrl(runtimeContext.databaseUrl),
+    });
+  }
+  const backupPath = `${sqlitePath}.backup-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+  mkdirSync(dirname(backupPath), { recursive: true });
+  copyFileSync(sqlitePath, backupPath);
+  return backupPath;
+}
+
+function resolveSqlitePath(databaseUrl) {
+  if (!databaseUrl?.startsWith("file:")) return "";
+  const rawPath = databaseUrl.slice("file:".length).trim().replace(/^"|"$/g, "");
+  if (isAbsolute(rawPath) || /^[A-Za-z]:[\\/]/.test(rawPath)) return rawPath;
+  return resolve(process.cwd(), rawPath);
+}
+
 export async function countTables(client) {
   const entries = await Promise.all([
-    ["fixedPage", client.fixedPage.count()],
-    ["cat", client.cat.count()],
-    ["breedingCatProfile", client.breedingCatProfile.count()],
-    ["kittenProfile", client.kittenProfile.count()],
-    ["litter", client.litter.count()],
-    ...DISALLOWED_COUNT_MODELS.map((model) => [model, client[model].count()]),
+    ["fixedPage", countRequiredModel(client, "fixedPage")],
+    ["cat", countRequiredModel(client, "cat")],
+    ["breedingCatProfile", countRequiredModel(client, "breedingCatProfile")],
+    ["kittenProfile", countOptionalModel(client, "kittenProfile")],
+    ["litter", countOptionalModel(client, "litter")],
+    ...DISALLOWED_COUNT_MODELS.map((model) => [model, countOptionalModel(client, model)]),
   ]);
   return Object.fromEntries(
     await Promise.all(entries.map(async ([name, value]) => [name, await value])),
   );
 }
 
-function toFixedPageData(page, existing) {
+async function countRequiredModel(client, model) {
+  const delegate = client[model];
+  if (!delegate || typeof delegate.count !== "function") {
+    throw new PublicContentImportError(`Prisma client is missing required model delegate: ${model}`);
+  }
+  return delegate.count();
+}
+
+async function countOptionalModel(client, model) {
+  const delegate = client[model];
+  if (!delegate || typeof delegate.count !== "function") return 0;
+  try {
+    return await delegate.count();
+  } catch (error) {
+    if (error && typeof error === "object" && error.code === "P2021") return 0;
+    throw error;
+  }
+}
+
+function toFixedPageData(page, existing, contentJsonMode = "merge") {
   const data = {
     title: page.title,
     status: page.status,
     content_schema_version: page.contentSchemaVersion,
-    content_json: mergeFixedPageContentJson(existing?.content_json, page.contentJson),
-    published_at: page.status === "published" ? new Date() : null,
+    content_json: resolveFixedPageContentJson(
+      existing?.content_json,
+      page.contentJson,
+      contentJsonMode,
+    ),
+    published_at:
+      page.status === "published"
+        ? existing?.status === "published" && existing.published_at
+          ? existing.published_at
+          : new Date()
+        : null,
   };
   for (const [inputField, dataField] of Object.entries(OPTIONAL_FIXED_PAGE_FIELD_MAP)) {
     if (Object.hasOwn(page, inputField)) data[dataField] = page[inputField];
@@ -463,7 +962,12 @@ function readPublicContentImportId(cat) {
   return typeof importId === "string" && importId.trim() ? importId : null;
 }
 
-function mergeFixedPageContentJson(existing, manifestContentJson) {
+function getFixedPageContentJsonMode(manifest) {
+  return manifest.fixedPageContentJsonMode ?? "merge";
+}
+
+function resolveFixedPageContentJson(existing, manifestContentJson, mode) {
+  if (mode === "replace") return mergePlainJsonObjects(null, manifestContentJson);
   return mergePlainJsonObjects(existing, manifestContentJson);
 }
 
@@ -524,8 +1028,12 @@ function diffFields(existing, next, fields) {
   return changes;
 }
 
-function validateUniqueCollection({ errors, items, keyOf, label }) {
-  if (!Array.isArray(items) || items.length === 0) {
+function validateUniqueCollection({ errors, items, keyOf, label, allowEmpty = false }) {
+  if (!Array.isArray(items)) {
+    errors.push(`${label} must be an array`);
+    return;
+  }
+  if (!allowEmpty && items.length === 0) {
     errors.push(`${label} must be a non-empty array`);
     return;
   }
@@ -593,4 +1101,9 @@ function redactedDatabaseUrl(databaseUrl) {
   if (!databaseUrl) return "";
   if (databaseUrl.startsWith("file:")) return databaseUrl;
   return "<non-sqlite-database-url>";
+}
+
+function normalizeContentType(value) {
+  if (typeof value !== "string") return "";
+  return value.split(";")[0].trim().toLowerCase();
 }

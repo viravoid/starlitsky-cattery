@@ -6,6 +6,61 @@
   </view>
 
   <view wx:else class="form">
+    <view class="header">
+      <text class="title">{{isEditing ? '编辑动态' : '发布动态'}}</text>
+      <text class="subtitle">记录今天想分享的猫咪时刻</text>
+    </view>
+
+    <view class="section">
+      <text class="label">正文</text>
+      <textarea
+        class="content-input"
+        maxlength="2000"
+        placeholder="记录今天想分享的猫咪时刻"
+        value="{{content}}"
+        bindinput="onContentInput"
+      />
+    </view>
+
+    <view class="section">
+      <text class="label">图片</text>
+      <view class="image-grid">
+        <view
+          wx:for="{{existingImages}}"
+          wx:key="id"
+          class="{{item.removed ? 'image-wrap image-removed' : 'image-wrap'}}"
+        >
+          <image class="image-tile" src="{{item.url}}" mode="aspectFill" />
+          <button
+            wx:if="{{item.removed}}"
+            class="restore-image"
+            data-id="{{item.id}}"
+            bindtap="restoreExistingImage"
+          >
+            恢复
+          </button>
+          <button
+            wx:else
+            class="remove-image"
+            data-id="{{item.id}}"
+            bindtap="removeExistingImage"
+          >
+            <image class="remove-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
+          </button>
+        </view>
+        <view wx:for="{{selectedImages}}" wx:key="tempFilePath" wx:for-index="index" class="image-wrap">
+          <image class="image-tile" src="{{item.tempFilePath}}" mode="aspectFill" />
+          <button class="remove-image" data-index="{{index}}" bindtap="removeSelectedImage">
+            <image class="remove-image-icon" src="../../assets/illustrations/x-icon-white.png" mode="aspectFit" />
+          </button>
+        </view>
+        <button wx:if="{{canAddImages}}" class="add-image" bindtap="chooseImages">
+          <text class="add-image-symbol">+</text>
+        </button>
+      </view>
+      <text class="image-hint">最多可添加 9 张图片</text>
+    </view>
+
     <view class="section">
       <text class="label">分类</text>
       <view class="option-row">
@@ -19,17 +74,6 @@
           {{item.label}}
         </button>
       </view>
-    </view>
-
-    <view class="section">
-      <text class="label">正文</text>
-      <textarea
-        class="content-input"
-        maxlength="2000"
-        placeholder="记录今天想分享的猫咪时刻"
-        value="{{content}}"
-        bindinput="onContentInput"
-      />
     </view>
 
     <view class="section">
@@ -64,46 +108,19 @@
       </view>
     </view>
 
-    <view class="section">
-      <text class="label">图片</text>
-      <view class="image-grid">
-        <view
-          wx:for="{{existingImages}}"
-          wx:key="id"
-          class="{{item.removed ? 'image-wrap image-removed' : 'image-wrap'}}"
-        >
-          <image class="image-tile" src="{{item.url}}" mode="aspectFill" />
-          <button
-            wx:if="{{item.removed}}"
-            class="restore-image"
-            data-id="{{item.id}}"
-            bindtap="restoreExistingImage"
-          >
-            恢复
-          </button>
-          <button
-            wx:else
-            class="remove-image"
-            data-id="{{item.id}}"
-            bindtap="removeExistingImage"
-          >
-            ×
-          </button>
-        </view>
-        <view wx:for="{{selectedImages}}" wx:key="tempFilePath" wx:for-index="index" class="image-wrap">
-          <image class="image-tile" src="{{item.tempFilePath}}" mode="aspectFill" />
-          <button class="remove-image" data-index="{{index}}" bindtap="removeSelectedImage">×</button>
-        </view>
-        <button class="add-image" bindtap="chooseImages">+</button>
-      </view>
+    <view class="notice">
+      <text class="notice-pill">发布须知</text>
+      <text class="notice-text">请发布与缅因猫、猫舍生活相关的内容。主理人保留隐藏或删除不当内容的权限。</text>
     </view>
 
-    <button
-      class="submit-button"
-      disabled="{{!canSubmit || isSubmitting}}"
-      bindtap="submit"
-    >
-      {{isSubmitting ? '提交中...' : isEditing ? '保存动态' : '发布动态'}}
-    </button>
+    <view class="bottom-cta">
+      <button
+        class="submit-button"
+        disabled="{{!canSubmit || isSubmitting}}"
+        bindtap="submit"
+      >
+        {{isSubmitting ? '提交中...' : isEditing ? '保存动态' : '发布动态'}}
+      </button>
+    </view>
   </view>
 </view>

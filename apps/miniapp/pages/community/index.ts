@@ -1,7 +1,7 @@
 import type { CommunityPostCategory, CommunityPostData } from "@starlitsky/shared";
 import { listCommunityPosts, toggleCommunityPostLike } from "../../utils/public-content/index";
 import { getSessionState } from "../../store/session/index";
-import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
+import { loginWithWechat, logout, refreshCurrentUser } from "../../utils/session/auth";
 
 interface CategoryTab {
   key: "" | CommunityPostCategory;
@@ -17,32 +17,49 @@ interface CommunityPostCard {
   id: string;
   author: string;
   category: string;
+  commentCount: number;
   content: string;
   date: string;
-  firstImageUrl: string;
+  footerCommentLabel: string;
+  footerLikeLabel: string;
   imageCount: number;
+  imageGridClass: string;
+  images: Array<{ id: string; url: string }>;
   isPinned: boolean;
+  likeCount: number;
   likedByMe: boolean;
-  linkedCats: string;
-  linkedLitters: string;
+  linkedCats: Array<{ id: string; name: string }>;
+  linkedLitters: Array<{ id: string; name: string }>;
   meta: string;
   previewUrls: string[];
+  roleLabel: string;
 }
 
 interface CommunityData {
   activeCategory: "" | CommunityPostCategory;
+  activeLitterLabel: string;
   activeLitterId: string;
   canPublish: boolean;
   categoryTabs: CategoryTab[];
   error: string;
+  identityLabel: string;
   isLoading: boolean;
   litterFilters: LitterFilter[];
+  litterOpen: boolean;
+  parentInactive: boolean;
   posts: CommunityPostCard[];
+  showLogin: boolean;
+  showMyCats: boolean;
+  showMyPosts: boolean;
+  showParentOnboard: boolean;
+  showUserActions: boolean;
 }
 
 interface CommunityPage {
   data: CommunityData;
+  getTabBar?(): { setData(data: { selected: number }): void };
   loadPosts(): Promise<void>;
+  openMyCats(): void;
   retryLoad(): Promise<void>;
   setData(data: Partial<CommunityData>): void;
 }
@@ -63,19 +80,32 @@ const CATEGORY_TABS: CategoryTab[] = [
 Page({
   data: {
     activeCategory: "",
+    activeLitterLabel: "全部窝次",
     activeLitterId: "",
     canPublish: false,
     categoryTabs: CATEGORY_TABS,
     error: "",
+    identityLabel: "",
     isLoading: true,
     litterFilters: [{ id: "", name: "全部窝次" }],
+    litterOpen: false,
+    parentInactive: false,
     posts: [],
+    showLogin: true,
+    showMyCats: false,
+    showMyPosts: false,
+    showParentOnboard: false,
+    showUserActions: false,
   } as CommunityData,
 
   async onLoad(this: CommunityPage) {
     await refreshCurrentUser();
-    this.setData({ canPublish: canPublish() });
+    this.setData(deriveSessionView());
     await this.loadPosts();
+  },
+
+  onShow(this: CommunityPage) {
+    this.getTabBar?.()?.setData({ selected: 1 });
   },
 
   async onPullDownRefresh(this: CommunityPage) {
@@ -86,15 +116,22 @@ Page({
   async loadPosts(this: CommunityPage) {
     this.setData({ error: "", isLoading: true });
     try {
-      const data = await listCommunityPosts({
-        category: this.data.activeCategory || undefined,
-        litterId: this.data.activeLitterId || undefined,
-        pageSize: 50,
-      });
+      const [data, filterData] = await Promise.all([
+        listCommunityPosts({
+          category: this.data.activeCategory || undefined,
+          litterId: this.data.activeLitterId || undefined,
+          pageSize: 50,
+        }),
+        listCommunityPosts({
+          category: this.data.activeCategory || undefined,
+          pageSize: 100,
+        }),
+      ]);
       this.setData({
+        activeLitterLabel: deriveActiveLitterLabel(this.data.activeLitterId, filterData.items),
         error: "",
         isLoading: false,
-        litterFilters: deriveLitterFilters(data.items),
+        litterFilters: deriveLitterFilters(filterData.items),
         posts: data.items.map(toPostCard),
       });
     } catch (error) {
@@ -110,17 +147,37 @@ Page({
     await this.loadPosts();
   },
 
+  async login(this: CommunityPage) {
+    try {
+      await loginWithWechat();
+      this.setData(deriveSessionView());
+      await this.loadPosts();
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    }
+  },
+
+  async logout(this: CommunityPage) {
+    await logout();
+    this.setData(deriveSessionView());
+    await this.loadPosts();
+  },
+
   async setCategory(this: CommunityPage, event: TapEvent) {
     const key = event.currentTarget.dataset.key as "" | CommunityPostCategory;
     if (key === this.data.activeCategory) return;
-    this.setData({ activeCategory: key, activeLitterId: "" });
+    this.setData({ activeCategory: key, activeLitterLabel: "全部窝次", activeLitterId: "" });
     await this.loadPosts();
+  },
+
+  toggleLitter(this: CommunityPage) {
+    this.setData({ litterOpen: !this.data.litterOpen });
   },
 
   async setLitter(this: CommunityPage, event: TapEvent) {
     const id = event.currentTarget.dataset.id || "";
-    if (id === this.data.activeLitterId) return;
-    this.setData({ activeLitterId: id });
+    const nextId = id === this.data.activeLitterId ? "" : id;
+    this.setData({ activeLitterId: nextId, litterOpen: false });
     await this.loadPosts();
   },
 
@@ -132,6 +189,29 @@ Page({
 
   openPublish() {
     wx.navigateTo({ url: "/pages/community-publish/index" });
+  },
+
+  openMyCats() {
+    wx.navigateTo({ url: "/pages/my-cats/index" });
+  },
+
+  openMyPosts() {
+    wx.navigateTo({ url: "/pages/my-posts/index" });
+  },
+
+  openCatTimeline(event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    const name = event.currentTarget.dataset.name || "TA";
+    if (!id) return;
+    wx.navigateTo({
+      url: `/pages/community-linked/index?catId=${encodeURIComponent(id)}&title=${encodeURIComponent(`${name}的动态`)}`,
+    });
+  },
+
+  stopLitterTap() {},
+
+  openParentOnboard() {
+    wx.navigateTo({ url: "/pages/parent-onboard/index" });
   },
 
   async toggleLike(this: CommunityPage, event: TapEvent) {
@@ -147,10 +227,11 @@ Page({
   },
 
   previewImage(this: CommunityPage, event: TapEvent) {
-    const index = Number(event.currentTarget.dataset.index || 0);
-    const post = this.data.posts[index];
+    const postIndex = Number(event.currentTarget.dataset.postIndex || 0);
+    const imageIndex = Number(event.currentTarget.dataset.imageIndex || 0);
+    const post = this.data.posts[postIndex];
     if (!post || post.previewUrls.length === 0) return;
-    wx.previewImage({ current: post.firstImageUrl, urls: post.previewUrls });
+    wx.previewImage({ current: post.previewUrls[imageIndex] || post.previewUrls[0], urls: post.previewUrls });
   },
 });
 
@@ -167,26 +248,53 @@ function deriveLitterFilters(posts: CommunityPostData[]) {
   return filters;
 }
 
+function deriveActiveLitterLabel(activeLitterId: string, posts: CommunityPostData[]) {
+  if (!activeLitterId) return "全部窝次";
+  return (
+    posts
+      .flatMap((post) => post.litters)
+      .find((litter) => litter.id === activeLitterId)?.name || "全部窝次"
+  );
+}
+
 function toPostCard(post: CommunityPostData): CommunityPostCard {
   const images = post.mediaAssets
     .filter((item) => item.kind === "image")
-    .map((item) => item.sourceUrl || item.thumbnailUrl || "")
-    .filter(Boolean);
+    .slice(0, 9)
+    .map((item) => ({
+      id: item.id,
+      url: item.sourceUrl || item.thumbnailUrl || "",
+    }))
+    .filter((item) => item.url);
+  const likeCount = post.likeCount;
+  const commentCount = post.commentCount;
   return {
     id: post.id,
     author: post.authorName || "星月猫友",
     category: categoryLabel(post.category),
+    commentCount,
     content: post.content,
     date: formatDate(post.createdAt),
-    firstImageUrl: images[0] ?? "",
+    footerCommentLabel: String(commentCount),
+    footerLikeLabel: String(likeCount),
     imageCount: images.length,
+    imageGridClass: imageGridClass(images.length),
+    images,
     isPinned: post.pinned,
+    likeCount,
     likedByMe: post.likedByMe,
-    linkedCats: post.cats.map((cat) => cat.name).join("、"),
-    linkedLitters: post.litters.map((litter) => litter.name).join("、"),
-    meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
-    previewUrls: images,
+    linkedCats: post.cats.map((cat) => ({ id: cat.id, name: cat.name })),
+    linkedLitters: post.litters.map((litter) => ({ id: litter.id, name: litter.name })),
+    meta: `${commentCount} 条评论 · ${likeCount} 个喜欢`,
+    previewUrls: images.map((image) => image.url),
+    roleLabel: authorRoleLabel(post.authorRole),
   };
+}
+
+function imageGridClass(count: number) {
+  if (count <= 1) return "post-images single-image-grid";
+  if (count === 2 || count === 4) return "post-images two-image-grid";
+  return "post-images three-image-grid";
 }
 
 function canPublish() {
@@ -197,6 +305,31 @@ function canPublish() {
     roles.includes("keeper") ||
     (roles.includes("parent") && session.user?.parentProfile?.status === "active")
   );
+}
+
+function canOpenMyCats() {
+  return getSessionState().roles.includes("parent");
+}
+
+function deriveSessionView() {
+  const session = getSessionState();
+  const roles = session.roles;
+  const isLoggedIn = Boolean(session.user);
+  const parentInactive =
+    roles.includes("parent") &&
+    Boolean(session.user?.parentProfile?.status) &&
+    session.user?.parentProfile?.status !== "active";
+
+  return {
+    canPublish: canPublish(),
+    identityLabel: session.user?.parentProfile?.displayName || session.user?.nickname || "已登录",
+    parentInactive,
+    showLogin: !isLoggedIn,
+    showMyCats: canOpenMyCats(),
+    showMyPosts: isLoggedIn,
+    showParentOnboard: isLoggedIn && !roles.includes("parent"),
+    showUserActions: isLoggedIn,
+  };
 }
 
 async function ensureLoggedIn() {
@@ -215,6 +348,12 @@ function categoryLabel(value: string) {
   if (value === "personal_thoughts") return "碎碎念";
   if (value === "parent_share") return "家长分享";
   return value || "动态";
+}
+
+function authorRoleLabel(value: string) {
+  if (value === "keeper") return "猫舍主理人";
+  if (value === "parent") return "家长";
+  return value || "星月猫友";
 }
 
 function formatDate(value: string) {

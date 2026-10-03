@@ -6,8 +6,12 @@ import type {
 import { get, post } from "../request/index";
 import { resetSessionState, setSessionState } from "../../store/session/index";
 import { clearToken, getToken, setToken } from "./token-storage";
+import { getSessionAuthAdapter } from "./adapter";
 
 export async function loginWithWechat() {
+  const adapter = getSessionAuthAdapter();
+  if (adapter?.loginWithWechat) return adapter.loginWithWechat();
+
   const code = await getWechatLoginCode();
   const response = await post<AuthSessionData, WechatLoginRequest>("/auth/wechat/login", { code });
 
@@ -29,6 +33,9 @@ export async function loginWithWechat() {
 }
 
 export async function refreshCurrentUser() {
+  const adapter = getSessionAuthAdapter();
+  if (adapter?.refreshCurrentUser) return adapter.refreshCurrentUser();
+
   const token = getToken();
   if (!token) {
     resetSessionState();
@@ -57,6 +64,9 @@ export async function refreshCurrentUser() {
 }
 
 export async function logout() {
+  const adapter = getSessionAuthAdapter();
+  if (adapter?.logout) return adapter.logout();
+
   try {
     await post<null>("/auth/logout");
   } finally {

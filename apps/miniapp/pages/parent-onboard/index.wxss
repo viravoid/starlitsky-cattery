@@ -1,0 +1,106 @@
+.page {
+  min-height: 100vh;
+  padding: 54rpx 40rpx calc(80rpx + env(safe-area-inset-bottom));
+  background: var(--xy-color-background);
+}
+
+.panel,
+.success {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  padding: 40rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 40rpx;
+  background: var(--xy-color-surface);
+  box-shadow: var(--xy-shadow-card);
+}
+
+.success {
+  align-items: center;
+  text-align: center;
+}
+
+.success-icon {
+  width: 96rpx;
+  height: 96rpx;
+  margin-bottom: 4rpx;
+}
+
+.eyebrow {
+  display: block;
+  color: var(--xy-color-secondary);
+  font-family: "Songti SC", "PingFang SC", serif;
+  font-size: 21rpx;
+  letter-spacing: 5rpx;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.title {
+  display: block;
+  margin-top: -16rpx;
+  color: var(--xy-color-heading);
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 1.22;
+}
+
+.body,
+.notice {
+  color: var(--xy-color-text);
+  font-size: 26rpx;
+  line-height: 1.85;
+}
+
+.notice {
+  padding: 18rpx 22rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 28rpx;
+  background: rgba(255, 253, 248, 0.68);
+  color: var(--xy-color-muted);
+}
+
+.field-control {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 82rpx;
+  padding: 0 24rpx;
+  border: 1rpx solid var(--xy-color-border);
+  border-radius: 28rpx;
+  background: var(--xy-color-background);
+  color: var(--xy-color-text);
+  font-size: 27rpx;
+}
+
+.primary,
+.secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: var(--xy-primary-cta-height);
+  margin: 0;
+  padding: 0 28rpx;
+  border-radius: var(--xy-primary-cta-radius);
+  font-size: 27rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.primary {
+  background: var(--xy-primary-cta-background);
+  color: var(--xy-primary-cta-color);
+  box-shadow: var(--xy-primary-cta-shadow);
+}
+
+.secondary {
+  border: 1rpx solid var(--xy-color-border);
+  background: rgba(255, 253, 248, 0.82);
+  color: var(--xy-color-primary);
+}
+
+.primary::after,
+.secondary::after {
+  border: 0;
+}
