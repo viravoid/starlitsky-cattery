@@ -515,6 +515,11 @@ async function assertWebDemoManifestMapping() {
     0,
     "Demo manifest must not import breeding-plan or breeding cats yet",
   );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageContentJsonMode,
+    "replace",
+    "Demo manifest must replace fixed-page content JSON",
+  );
 
   for (const { slug } of WEB_DEMO_FIXED_PAGE_MAPPING) {
     const page = demoPagesBySlug.get(slug);
@@ -607,6 +612,91 @@ async function assertWebDemoManifestMapping() {
   assert.equal(dryRunPlan.fixedPages.length, WEB_DEMO_FIXED_PAGE_MAPPING.length);
   assert.equal(dryRunPlan.breedingCats.length, 0);
   assert.deepEqual(await countTables(prisma), beforeDryRun, "Demo dry-run must not mutate the DB");
+
+  await seedWebDemoRowsWithStaleLegacyKeys();
+  const staleKeyPlan = await runPublicContentImport({
+    client: prisma,
+    manifest: WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
+  });
+  assert.equal(
+    staleKeyPlan.fixedPages.every((entry) => entry.action === "update"),
+    true,
+    "stale legacy fixed-page keys must be planned as updates",
+  );
+
+  await runPublicContentImport({
+    apply: true,
+    client: prisma,
+    manifest: WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
+    runtimeContext: assertPublicContentImporterRuntime(),
+  });
+  await assertWebDemoRowsMatchCanonical();
+
+  const afterFirstDemoApplyCounts = await countTables(prisma);
+  const secondDemoApplyPlan = await runPublicContentImport({
+    apply: true,
+    client: prisma,
+    manifest: WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
+    runtimeContext: assertPublicContentImporterRuntime(),
+  });
+  assert.deepEqual(
+    await countTables(prisma),
+    afterFirstDemoApplyCounts,
+    "second Demo apply must not create or delete records",
+  );
+  assert.equal(
+    secondDemoApplyPlan.fixedPages.every((entry) => entry.action === "noop"),
+    true,
+    "second Demo apply must report all fixed pages as noop",
+  );
+  await assertWebDemoRowsMatchCanonical();
+}
+
+async function seedWebDemoRowsWithStaleLegacyKeys() {
+  for (const page of WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPages) {
+    await prisma.fixedPage.upsert({
+      where: { slug: page.slug },
+      create: {
+        id: `fixed-page-${page.slug}`,
+        slug: page.slug,
+        title: page.title,
+        status: "published",
+        content_schema_version: page.contentSchemaVersion,
+        content_json: {
+          ...WEB_DEMO_SOURCE_CONTENT[page.slug],
+          body: "stale legacy body",
+          facts: { stale: true },
+          sections: page.slug === "environment" ? WEB_DEMO_SOURCE_CONTENT.environment.sections : [],
+        },
+        published_at: new Date("2026-10-02T00:00:00.000Z"),
+      },
+      update: {
+        title: page.title,
+        status: "published",
+        content_schema_version: page.contentSchemaVersion,
+        content_json: {
+          ...WEB_DEMO_SOURCE_CONTENT[page.slug],
+          body: "stale legacy body",
+          facts: { stale: true },
+          sections: page.slug === "environment" ? WEB_DEMO_SOURCE_CONTENT.environment.sections : [],
+        },
+        published_at: new Date("2026-10-02T00:00:00.000Z"),
+      },
+    });
+  }
+}
+
+async function assertWebDemoRowsMatchCanonical() {
+  for (const page of WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPages) {
+    const row = await prisma.fixedPage.findUnique({ where: { slug: page.slug } });
+    assert.ok(row, `${page.slug} fixed page must exist`);
+    assert.equal(row.status, "published", `${page.slug} must be published`);
+    assert.deepEqual(
+      row.content_json,
+      WEB_DEMO_SOURCE_CONTENT[page.slug],
+      `${page.slug} content JSON must exactly match Web Demo source`,
+    );
+  }
 }
 
 async function ensureLocalSqliteSchema(databaseUrl) {

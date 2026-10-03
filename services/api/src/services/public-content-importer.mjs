@@ -35,6 +35,7 @@ const IMPORTER_SOURCE_KEYS = [
 const UNSAFE_JSON_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 const PUBLIC_CONTENT_IMPORT_RUNTIME_VALIDATED = Symbol("publicContentImportRuntimeValidated");
 const ALLOWED_FIXED_PAGE_STATUS = new Set(["draft", "published", "hidden"]);
+const ALLOWED_FIXED_PAGE_CONTENT_JSON_MODES = new Set(["merge", "replace"]);
 const ALLOWED_CAT_VISIBILITY = new Set(["visible", "hidden", "archived"]);
 const ALLOWED_GENDER = new Set(["male", "female", "unknown"]);
 const ALLOWED_BREEDING_ROLE = new Set(["king", "queen", "candidate"]);
@@ -115,6 +116,16 @@ export function validatePublicContentManifest(
   requiredString(manifest.manifestId, "manifest.manifestId", errors);
   requiredString(manifest.manifestDate, "manifest.manifestDate", errors);
   requiredString(manifest.source?.fileName, "manifest.source.fileName", errors);
+  if (
+    Object.hasOwn(manifest, "fixedPageContentJsonMode") &&
+    !ALLOWED_FIXED_PAGE_CONTENT_JSON_MODES.has(manifest.fixedPageContentJsonMode)
+  ) {
+    errors.push(
+      `manifest.fixedPageContentJsonMode must be one of: ${[
+        ...ALLOWED_FIXED_PAGE_CONTENT_JSON_MODES,
+      ].join(", ")}`,
+    );
+  }
 
   validateUniqueCollection({
     errors,
@@ -264,6 +275,7 @@ export async function createPublicContentImportPlan({
     beforeCounts,
   };
 
+  const fixedPageContentJsonMode = getFixedPageContentJsonMode(manifest);
   for (const page of manifest.fixedPages) {
     const existing = fixedPagesBySlug.get(page.slug);
     if (existing?.deleted_at) {
@@ -274,7 +286,7 @@ export async function createPublicContentImportPlan({
       });
       continue;
     }
-    const data = toFixedPageData(page, existing);
+    const data = toFixedPageData(page, existing, fixedPageContentJsonMode);
     const ownedFields = getFixedPageOwnedFields(page);
     plan.fixedPages.push({
       importId: page.importId,
@@ -365,9 +377,10 @@ export async function runPublicContentImport({
   if (!apply) return plan;
 
   await client.$transaction(async (transaction) => {
+    const fixedPageContentJsonMode = getFixedPageContentJsonMode(manifest);
     for (const page of manifest.fixedPages) {
       const existing = await transaction.fixedPage.findUnique({ where: { slug: page.slug } });
-      const data = toFixedPageData(page, existing);
+      const data = toFixedPageData(page, existing, fixedPageContentJsonMode);
       await transaction.fixedPage.upsert({
         where: { slug: page.slug },
         create: {
@@ -440,13 +453,22 @@ async function countOptionalModel(client, model) {
   }
 }
 
-function toFixedPageData(page, existing) {
+function toFixedPageData(page, existing, contentJsonMode = "merge") {
   const data = {
     title: page.title,
     status: page.status,
     content_schema_version: page.contentSchemaVersion,
-    content_json: mergeFixedPageContentJson(existing?.content_json, page.contentJson),
-    published_at: page.status === "published" ? new Date() : null,
+    content_json: resolveFixedPageContentJson(
+      existing?.content_json,
+      page.contentJson,
+      contentJsonMode,
+    ),
+    published_at:
+      page.status === "published"
+        ? existing?.status === "published" && existing.published_at
+          ? existing.published_at
+          : new Date()
+        : null,
   };
   for (const [inputField, dataField] of Object.entries(OPTIONAL_FIXED_PAGE_FIELD_MAP)) {
     if (Object.hasOwn(page, inputField)) data[dataField] = page[inputField];
@@ -490,7 +512,12 @@ function readPublicContentImportId(cat) {
   return typeof importId === "string" && importId.trim() ? importId : null;
 }
 
-function mergeFixedPageContentJson(existing, manifestContentJson) {
+function getFixedPageContentJsonMode(manifest) {
+  return manifest.fixedPageContentJsonMode ?? "merge";
+}
+
+function resolveFixedPageContentJson(existing, manifestContentJson, mode) {
+  if (mode === "replace") return mergePlainJsonObjects(null, manifestContentJson);
   return mergePlainJsonObjects(existing, manifestContentJson);
 }
 

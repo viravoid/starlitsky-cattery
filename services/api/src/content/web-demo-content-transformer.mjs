@@ -91,6 +91,7 @@ export function buildWebDemoPublicContentManifest(sourceContent = WEB_DEMO_SOURC
     version: 1,
     manifestId: "public-content-web-demo-2026-10-02",
     manifestDate: "2026-10-02",
+    fixedPageContentJsonMode: "replace",
     source: {
       fileName: SOURCE_FILE_NAME,
       extraction:
