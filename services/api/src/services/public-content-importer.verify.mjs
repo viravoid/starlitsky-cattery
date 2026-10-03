@@ -6,6 +6,13 @@ import { fileURLToPath } from "node:url";
 const VERIFY_DATABASE_URL = `file:${resolve(process.cwd(), "public-content-import-verify.db")}`;
 
 process.env.DATABASE_URL = VERIFY_DATABASE_URL;
+process.env.STORAGE_PROVIDER = "s3";
+process.env.STORAGE_BUCKET = "verify-public-content-media-bucket";
+process.env.STORAGE_REGION = "ap-shanghai";
+process.env.STORAGE_ACCESS_KEY_ID = "verify-access-key";
+process.env.STORAGE_ACCESS_KEY_SECRET = "verify-storage-private-token";
+process.env.STORAGE_PUBLIC_BASE_URL = "https://media.verify.example";
+process.env.STORAGE_KEY_PREFIX = "verify-public-content-media";
 
 rmLocalSqlite(process.env.DATABASE_URL);
 await ensureLocalSqliteSchema(process.env.DATABASE_URL);
@@ -21,6 +28,7 @@ const {
 const { getCat, listCats } = await import("./cat-service.mjs");
 const { getFixedPage } = await import("./fixed-page-service.mjs");
 const { getBreedingProfile } = await import("./profile-service.mjs");
+const { setObjectStorageTestClient } = await import("./object-storage-service.mjs");
 const {
   PublicContentImportError,
   assertPublicContentImporterRuntime,
@@ -30,9 +38,31 @@ const {
   validatePublicContentManifest,
 } = await import("./public-content-importer.mjs");
 
+const objectMetadata = new Map();
+const putObjectKeys = [];
+
 try {
-  globalThis.fetch = () => {
-    throw new Error("public content importer must not perform network operations");
+  setObjectStorageTestClient({
+    headObject({ objectKey }) {
+      return objectMetadata.get(objectKey) ?? { exists: false };
+    },
+  });
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method !== "PUT") {
+      throw new Error("public content importer must only perform mocked object-storage PUT requests");
+    }
+    const uploadUrl = new URL(url);
+    const objectKey = decodeURIComponent(uploadUrl.pathname.replace(/^\/+/, ""));
+    const body = Buffer.from(options.body);
+    putObjectKeys.push(objectKey);
+    objectMetadata.set(objectKey, {
+      contentLength: body.length,
+      contentType: options.headers?.["content-type"] ?? "image/jpeg",
+      etag: `"verify-${body.length}"`,
+      exists: true,
+      lastModified: new Date("2026-10-03T00:00:00.000Z").toUTCString(),
+    });
+    return new Response(null, { status: 200 });
   };
 
   const runtimeContext = assertPublicContentImporterRuntime();
@@ -407,6 +437,7 @@ try {
 
   console.info("Public content import verification passed");
 } finally {
+  setObjectStorageTestClient(null);
   await prisma.$disconnect();
   rmLocalSqlite(VERIFY_DATABASE_URL);
 }
@@ -520,6 +551,31 @@ async function assertWebDemoManifestMapping() {
     "replace",
     "Demo manifest must replace fixed-page content JSON",
   );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.length > 0,
+    true,
+    "Demo manifest must include fixed-page media mappings",
+  );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.some((item) => item.slug === "environment"),
+    true,
+    "Demo manifest must map environment media",
+  );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.some((item) => item.slug === "feeding"),
+    true,
+    "Demo manifest must map feeding media",
+  );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.some((item) => item.slug === "about"),
+    false,
+    "About has no canonical hero imageId in this PR head",
+  );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.some((item) => item.slug === "aftercare"),
+    false,
+    "Aftercare has no canonical contract assetId in this PR head",
+  );
 
   for (const { slug } of WEB_DEMO_FIXED_PAGE_MAPPING) {
     const page = demoPagesBySlug.get(slug);
@@ -611,6 +667,16 @@ async function assertWebDemoManifestMapping() {
   assert.equal(dryRunPlan.mode, "dry-run", "Demo import must dry-run by default");
   assert.equal(dryRunPlan.fixedPages.length, WEB_DEMO_FIXED_PAGE_MAPPING.length);
   assert.equal(dryRunPlan.breedingCats.length, 0);
+  assert.equal(
+    dryRunPlan.fixedPageMedia.length,
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.length,
+    "Demo dry-run must include every fixed-page media item",
+  );
+  assert.equal(
+    dryRunPlan.fixedPageMedia.every((item) => item.action === "upload" && item.requiresCosUpload),
+    true,
+    "Demo dry-run must plan first-time fixed-page media uploads",
+  );
   assert.deepEqual(await countTables(prisma), beforeDryRun, "Demo dry-run must not mutate the DB");
 
   await seedWebDemoRowsWithStaleLegacyKeys();
@@ -624,13 +690,19 @@ async function assertWebDemoManifestMapping() {
     "stale legacy fixed-page keys must be planned as updates",
   );
 
-  await runPublicContentImport({
+  const firstDemoApply = await runPublicContentImport({
     apply: true,
     client: prisma,
     manifest: WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
     runtimeContext: assertPublicContentImporterRuntime(),
   });
+  assert.equal(
+    firstDemoApply.applyResult.fixedPageMedia.uploadedCount,
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.length,
+    "first Demo apply must upload every mapped fixed-page media item",
+  );
   await assertWebDemoRowsMatchCanonical();
+  await assertWebDemoMediaResolves();
 
   const afterFirstDemoApplyCounts = await countTables(prisma);
   const secondDemoApplyPlan = await runPublicContentImport({
@@ -649,7 +721,14 @@ async function assertWebDemoManifestMapping() {
     true,
     "second Demo apply must report all fixed pages as noop",
   );
+  assert.equal(
+    secondDemoApplyPlan.fixedPageMedia.every((entry) => entry.action === "noop"),
+    true,
+    "second Demo apply must report all fixed-page media as noop",
+  );
   await assertWebDemoRowsMatchCanonical();
+  await assertWebDemoMediaResolves();
+  await cleanupWebDemoFixedPageMedia();
 }
 
 async function seedWebDemoRowsWithStaleLegacyKeys() {
@@ -697,6 +776,56 @@ async function assertWebDemoRowsMatchCanonical() {
       `${page.slug} content JSON must exactly match Web Demo source`,
     );
   }
+}
+
+async function assertWebDemoMediaResolves() {
+  const mediaIds = new Set(WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.map((item) => item.id));
+  const environmentPage = await getFixedPage("environment");
+  const feedingPage = await getFixedPage("feeding");
+  assert.equal(environmentPage.status, "published");
+  assert.equal(feedingPage.status, "published");
+  assert.equal(
+    environmentPage.mediaAssets.every((item) => mediaIds.has(item.id) && item.sourceUrl),
+    true,
+    "environment public API must return usable mapped media",
+  );
+  assert.equal(
+    feedingPage.mediaAssets.every((item) => mediaIds.has(item.id) && item.sourceUrl),
+    true,
+    "feeding public API must return usable mapped media",
+  );
+
+  const expectedEnvironmentIds = collectContentIds(WEB_DEMO_SOURCE_CONTENT.environment);
+  const expectedFeedingIds = collectContentIds(WEB_DEMO_SOURCE_CONTENT.feeding);
+  const returnedEnvironmentIds = new Set(environmentPage.mediaAssets.map((item) => item.id));
+  const returnedFeedingIds = new Set(feedingPage.mediaAssets.map((item) => item.id));
+  for (const id of expectedEnvironmentIds) {
+    assert.equal(returnedEnvironmentIds.has(id), true, `environment media must include ${id}`);
+  }
+  for (const id of expectedFeedingIds) {
+    assert.equal(returnedFeedingIds.has(id), true, `feeding media must include ${id}`);
+  }
+}
+
+function collectContentIds(value, ids = new Set()) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectContentIds(item, ids));
+    return ids;
+  }
+  if (!value || typeof value !== "object") return ids;
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if ((key === "imageId" || key === "coverImageId" || key === "assetId") && typeof nestedValue === "string") {
+      ids.add(nestedValue);
+    }
+    collectContentIds(nestedValue, ids);
+  }
+  return ids;
+}
+
+async function cleanupWebDemoFixedPageMedia() {
+  const mediaIds = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.map((item) => item.id);
+  await prisma.mediaBinding.deleteMany({ where: { media_id: { in: mediaIds } } });
+  await prisma.mediaAsset.deleteMany({ where: { id: { in: mediaIds } } });
 }
 
 async function ensureLocalSqliteSchema(databaseUrl) {

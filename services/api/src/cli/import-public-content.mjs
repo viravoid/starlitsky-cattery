@@ -77,8 +77,12 @@ function printHumanPlan(result) {
   console.log(`Public content import ${result.mode}`);
   console.log(`Manifest: ${result.manifestId} v${result.manifestVersion}`);
   console.log(`Fixed pages: ${summarizeActions(result.fixedPages)}`);
+  console.log(`Fixed-page media: ${summarizeActions(result.fixedPageMedia ?? [])}`);
   console.log(`Breeding cats: ${summarizeActions(result.breedingCats)}`);
   console.log(`Skipped sections: ${result.skippedSections.length}`);
+  if (result.applyResult?.productionBackupPath) {
+    console.log(`Production DB backup: ${result.applyResult.productionBackupPath}`);
+  }
   if (result.conflicts.length > 0) {
     console.log(`Conflicts: ${result.conflicts.length}`);
   }
