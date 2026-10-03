@@ -699,6 +699,7 @@ function toFixedPageMediaAssetCreateData(sourceItem, manifest, upload) {
 
 function toFixedPageMediaBindingCreateData(sourceItem) {
   return {
+    id: fixedPageMediaBindingId(sourceItem),
     media_id: sourceItem.id,
     owner_type: sourceItem.ownerType,
     owner_id: sourceItem.ownerId,
@@ -737,6 +738,7 @@ function toFixedPageMediaPlanItem(sourceItem, { action, bindingId = null, mediaI
     sourceLocalPath: sourceItem.sourceLocalPath,
     sourcePublicPath: sourceItem.sourcePublicPath,
     targetMediaAssetId: sourceItem.id,
+    targetMediaBindingId: fixedPageMediaBindingId(sourceItem),
     title: sourceItem.title ?? null,
     usage: sourceItem.usage,
   };
@@ -785,6 +787,7 @@ function classifyFixedPageMediaBinding(media, sourceItem) {
 
   const binding = matchingOwnerBindings[0];
   if (
+    binding.id !== fixedPageMediaBindingId(sourceItem) ||
     binding.usage !== sourceItem.usage ||
     binding.sort_order !== sourceItem.sortOrder ||
     binding.visibility !== "visible"
@@ -798,6 +801,10 @@ function classifyFixedPageMediaBinding(media, sourceItem) {
     };
   }
   return { binding, needsBinding: false };
+}
+
+function fixedPageMediaBindingId(sourceItem) {
+  return `fixed-page-media-binding:${sourceItem.ownerId}:${sourceItem.id}`;
 }
 
 async function verifyExistingFixedPageMediaObject(sourceItem) {
