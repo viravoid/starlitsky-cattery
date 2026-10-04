@@ -1099,7 +1099,20 @@ function normalizePublicCatId(value: string) {
 }
 
 function canonicalPublicCatId(cat: CatData) {
-  return stringOr(cat.publicContentId, normalizePublicCatId(cat.id));
+  return (
+    readPublicContentId(cat.publicContentId) ||
+    readStoryPublicContentId(cat.storyJson) ||
+    normalizePublicCatId(cat.id)
+  );
+}
+
+function readStoryPublicContentId(storyJson: unknown) {
+  if (!isRecord(storyJson) || !isRecord(storyJson.source)) return "";
+  return readPublicContentId(storyJson.source.publicContentId);
+}
+
+function readPublicContentId(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
 function contractExtension(fileName: string, mimeType: string) {

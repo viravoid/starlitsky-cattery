@@ -343,30 +343,11 @@ function verifyFixedPageNormalization() {
     failures.push("Web Demo public content manifest must include the breeding-plan fixed page.");
     return;
   }
-  const breedingCats = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.map((entry) => ({
-    id: entry.cat.id,
-    publicContentId: entry.cat.publicContentId,
-    name: entry.cat.name,
-    color: entry.cat.color,
-    breedingProfile: {
-      catId: entry.cat.id,
-      category: entry.breedingProfile.breedingRole,
-      reproductiveState: entry.breedingProfile.reproductiveState,
-      statusLabel: entry.breedingProfile.statusLabel,
-      trait: entry.breedingProfile.trait,
-      source: entry.breedingProfile.source,
-      sortOrder: entry.breedingProfile.sortOrder,
-    },
-    mediaAssets: WEB_DEMO_PUBLIC_CONTENT_MANIFEST.catMedia
-      .filter((item) => item.ownerId === entry.cat.id)
-      .map((item) => ({
-        id: item.id,
-        sourceUrl: `https://media.verify.example/${item.id}`,
-        thumbnailUrl: "",
-        usage: item.usage,
-        sortOrder: item.sortOrder,
-      })),
-  }));
+  verifyBreedingPlanIdentityResolution(normalized, breedingPage);
+
+  const breedingCats = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.map((entry) =>
+    createBreedingCatApiFixture(entry),
+  );
   const breedingView = normalized.normalizeFixedPageView(
     "breeding-plan",
     breedingPage.title,
@@ -389,6 +370,142 @@ function verifyFixedPageNormalization() {
   } else if (yunyuePairing.female.imageUrl !== "") {
     failures.push("Yunyue must keep the no-image placeholder path when no media is available.");
   }
+
+  const productionShapeBreedingCats = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.map((entry) =>
+    createBreedingCatApiFixture(entry, { currentProductionIdentityShape: true }),
+  );
+  const productionShapeView = normalized.normalizeFixedPageView(
+    "breeding-plan",
+    breedingPage.title,
+    breedingPage.contentJson,
+    [],
+    productionShapeBreedingCats,
+  );
+  const productionShapePairings = productionShapeView.breedingGroups.flatMap((group) => group.pairings);
+  if (productionShapePairings.length !== 10) {
+    failures.push(
+      `Breeding-plan current-production-shape normalization must keep 10 canonical pairings; got ${productionShapePairings.length}.`,
+    );
+  }
+  for (const pairing of productionShapePairings) {
+    if (!pairing.male || !pairing.female) {
+      failures.push(
+        `Breeding-plan pairing ${pairing.id} must resolve both cats when publicContentId only exists in storyJson.source.`,
+      );
+    }
+  }
+}
+
+function verifyBreedingPlanIdentityResolution(normalized, breedingPage) {
+  const identityCases = [
+    createMinimalBreedingCatFixture({
+      id: "legacy-row-for-top-level-case",
+      publicContentId: "top-level-case",
+      storyJson: { source: { publicContentId: "wrong-story-case" } },
+    }),
+    createMinimalBreedingCatFixture({
+      id: "legacy-row-for-story-source-case",
+      storyJson: { source: { publicContentId: "story-source-case" } },
+    }),
+    createMinimalBreedingCatFixture({
+      id: "public-content-cat-db-fallback-case",
+      storyJson: { source: {} },
+    }),
+  ];
+  const identityView = normalized.normalizeFixedPageView(
+    "breeding-plan",
+    breedingPage.title,
+    {
+      groups: [
+        {
+          id: "identity-resolution-cases",
+          pairings: [
+            {
+              id: "identity-top-level-and-story-source",
+              maleStudId: "top-level-case",
+              femaleStudId: "story-source-case",
+            },
+            {
+              id: "identity-db-fallback",
+              maleStudId: "db-fallback-case",
+              femaleStudId: "top-level-case",
+            },
+          ],
+        },
+      ],
+    },
+    [],
+    identityCases,
+  );
+  const pairings = identityView.breedingGroups.flatMap((group) => group.pairings);
+  const topLevelAndStory = pairings.find((pairing) => pairing.id === "identity-top-level-and-story-source");
+  if (
+    topLevelAndStory?.male?.id !== "legacy-row-for-top-level-case" ||
+    topLevelAndStory?.female?.id !== "legacy-row-for-story-source-case"
+  ) {
+    failures.push(
+      "Breeding-plan identity resolution must support top-level publicContentId and storyJson.source.publicContentId.",
+    );
+  }
+  const fallback = pairings.find((pairing) => pairing.id === "identity-db-fallback");
+  if (
+    fallback?.male?.id !== "public-content-cat-db-fallback-case" ||
+    fallback?.female?.id !== "legacy-row-for-top-level-case"
+  ) {
+    failures.push("Breeding-plan identity resolution must keep normalized DB id fallback.");
+  }
+}
+
+function createBreedingCatApiFixture(entry, { currentProductionIdentityShape = false } = {}) {
+  return {
+    id: entry.cat.id,
+    ...(currentProductionIdentityShape ? {} : { publicContentId: entry.cat.publicContentId }),
+    name: entry.cat.name,
+    color: entry.cat.color,
+    storyJson: {
+      source: {
+        publicContentId: entry.cat.publicContentId,
+      },
+    },
+    breedingProfile: {
+      catId: entry.cat.id,
+      category: entry.breedingProfile.breedingRole,
+      reproductiveState: entry.breedingProfile.reproductiveState,
+      statusLabel: entry.breedingProfile.statusLabel,
+      trait: entry.breedingProfile.trait,
+      source: entry.breedingProfile.source,
+      sortOrder: entry.breedingProfile.sortOrder,
+    },
+    mediaAssets: WEB_DEMO_PUBLIC_CONTENT_MANIFEST.catMedia
+      .filter((item) => item.ownerId === entry.cat.id)
+      .map((item) => ({
+        id: item.id,
+        sourceUrl: `https://media.verify.example/${item.id}`,
+        thumbnailUrl: "",
+        usage: item.usage,
+        sortOrder: item.sortOrder,
+      })),
+  };
+}
+
+function createMinimalBreedingCatFixture({ id, publicContentId, storyJson }) {
+  return {
+    id,
+    ...(publicContentId ? { publicContentId } : {}),
+    name: id,
+    color: "verify",
+    storyJson,
+    breedingProfile: {
+      catId: id,
+      category: "king",
+      reproductiveState: "active",
+      statusLabel: "verify",
+      trait: "",
+      source: "",
+      sortOrder: 1,
+    },
+    mediaAssets: [],
+  };
 }
 
 function evaluateFixedPageContentModule(sourceText) {
