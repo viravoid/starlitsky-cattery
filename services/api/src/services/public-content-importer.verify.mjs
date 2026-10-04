@@ -21,7 +21,9 @@ const { prisma } = await import("../db/prisma.mjs");
 const { PUBLIC_CONTENT_MANIFEST } = await import("../content/public-content-manifest.mjs");
 const { loadPublicContentManifest } = await import("../content/public-content-manifest-selector.mjs");
 const {
+  WEB_DEMO_BREEDING_PLAN_STUD_IDS,
   WEB_DEMO_FIXED_PAGE_MAPPING,
+  WEB_DEMO_LEGACY_CAT_ID_ALIASES,
   WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
   WEB_DEMO_SOURCE_CONTENT,
 } = await import("../content/web-demo-content-transformer.mjs");
@@ -543,8 +545,8 @@ async function assertWebDemoManifestMapping() {
   );
   assert.equal(
     WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.length,
-    0,
-    "Demo manifest must not import breeding-plan or breeding cats yet",
+    14,
+    "Demo manifest must import exactly the 14 breeding-plan referenced cats",
   );
   assert.equal(
     WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageContentJsonMode,
@@ -575,6 +577,21 @@ async function assertWebDemoManifestMapping() {
     WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.some((item) => item.slug === "aftercare"),
     false,
     "Aftercare has no canonical contract assetId in this PR head",
+  );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.catMedia.length,
+    40,
+    "Demo manifest must include available referenced stud media and no invented yunyue media",
+  );
+  assert.equal(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.catMedia.some((item) => item.publicContentId === "yunyue"),
+    false,
+    "Yunyue must remain a valid zero-media cat",
+  );
+  assert.deepEqual(
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.map((entry) => entry.cat.publicContentId).sort(),
+    WEB_DEMO_BREEDING_PLAN_STUD_IDS,
+    "Demo breeding cat publicContentIds must exactly match the breeding-plan references",
   );
 
   for (const { slug } of WEB_DEMO_FIXED_PAGE_MAPPING) {
@@ -659,6 +676,8 @@ async function assertWebDemoManifestMapping() {
     "contact introduction must survive",
   );
 
+  await assertWebDemoPublicContentIdConflict();
+
   const beforeDryRun = await countTables(prisma);
   const dryRunPlan = await runPublicContentImport({
     client: prisma,
@@ -666,16 +685,26 @@ async function assertWebDemoManifestMapping() {
   });
   assert.equal(dryRunPlan.mode, "dry-run", "Demo import must dry-run by default");
   assert.equal(dryRunPlan.fixedPages.length, WEB_DEMO_FIXED_PAGE_MAPPING.length);
-  assert.equal(dryRunPlan.breedingCats.length, 0);
+  assert.equal(dryRunPlan.breedingCats.length, 14);
   assert.equal(
     dryRunPlan.fixedPageMedia.length,
     WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.length,
     "Demo dry-run must include every fixed-page media item",
   );
   assert.equal(
+    dryRunPlan.catMedia.length,
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.catMedia.length,
+    "Demo dry-run must include every available stud media item",
+  );
+  assert.equal(
     dryRunPlan.fixedPageMedia.every((item) => item.action === "upload" && item.requiresCosUpload),
     true,
     "Demo dry-run must plan first-time fixed-page media uploads",
+  );
+  assert.equal(
+    dryRunPlan.catMedia.every((item) => item.action === "upload" && item.requiresCosUpload),
+    true,
+    "Demo dry-run must plan first-time cat media uploads",
   );
   assert.deepEqual(await countTables(prisma), beforeDryRun, "Demo dry-run must not mutate the DB");
 
@@ -701,8 +730,14 @@ async function assertWebDemoManifestMapping() {
     WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.length,
     "first Demo apply must upload every mapped fixed-page media item",
   );
+  assert.equal(
+    firstDemoApply.applyResult.catMedia.uploadedCount,
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.catMedia.length,
+    "first Demo apply must upload every mapped cat media item",
+  );
   await assertWebDemoRowsMatchCanonical();
   await assertWebDemoMediaResolves();
+  await assertWebDemoBreedingCatsResolve();
 
   const afterFirstDemoApplyCounts = await countTables(prisma);
   const secondDemoApplyPlan = await runPublicContentImport({
@@ -726,9 +761,65 @@ async function assertWebDemoManifestMapping() {
     true,
     "second Demo apply must report all fixed-page media as noop",
   );
+  assert.equal(
+    secondDemoApplyPlan.breedingCats.every(
+      (entry) =>
+        entry.catChanges.length === 0 &&
+        entry.breedingProfileAction === "noop" &&
+        entry.breedingProfileChanges.length === 0,
+    ),
+    true,
+    "second Demo apply must report all breeding cats as noop",
+  );
+  assert.equal(
+    secondDemoApplyPlan.catMedia.every((entry) => entry.action === "noop"),
+    true,
+    "second Demo apply must report all cat media as noop",
+  );
   await assertWebDemoRowsMatchCanonical();
   await assertWebDemoMediaResolves();
+  await assertWebDemoBreedingCatsResolve();
   await cleanupWebDemoFixedPageMedia();
+  await cleanupWebDemoBreedingContent();
+}
+
+async function assertWebDemoPublicContentIdConflict() {
+  const publicContentId = WEB_DEMO_BREEDING_PLAN_STUD_IDS[0];
+  await prisma.cat.create({
+    data: {
+      id: "verify-duplicate-public-content-id",
+      name: "Duplicate Public Content Identity",
+      lifecycle_status: "breeding",
+      visibility: "hidden",
+      story_json: {
+        source: { publicContentId, publicContentImportId: "verify-unrelated-importer" },
+        story: ["duplicate identity"],
+      },
+    },
+  });
+  const duplicateIdentityPlan = await createPublicContentImportPlan({
+    client: prisma,
+    manifest: WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
+  });
+  assert.equal(
+    duplicateIdentityPlan.conflicts.some(
+      (conflict) => conflict.kind === "breeding-cat-public-content-id-ambiguous",
+    ),
+    true,
+    "duplicate publicContentId must be planned as a conflict",
+  );
+  await assert.rejects(
+    () =>
+      runPublicContentImport({
+        apply: true,
+        client: prisma,
+        manifest: WEB_DEMO_PUBLIC_CONTENT_MANIFEST,
+        runtimeContext: assertPublicContentImporterRuntime(),
+      }),
+    PublicContentImportError,
+    "duplicate publicContentId must fail closed on apply",
+  );
+  await prisma.cat.delete({ where: { id: "verify-duplicate-public-content-id" } });
 }
 
 async function seedWebDemoRowsWithStaleLegacyKeys() {
@@ -807,6 +898,68 @@ async function assertWebDemoMediaResolves() {
   }
 }
 
+async function assertWebDemoBreedingCatsResolve() {
+  const publicCatList = await listCats(new URLSearchParams("pageSize=100"));
+  const expectedPublicContentIds = new Set(WEB_DEMO_BREEDING_PLAN_STUD_IDS);
+  const returnedCanonicalCats = publicCatList.items.filter((cat) =>
+    expectedPublicContentIds.has(cat.publicContentId),
+  );
+  assert.equal(returnedCanonicalCats.length, 14, "public API must expose 14 canonical breeding cats");
+  assert.deepEqual(
+    returnedCanonicalCats.map((cat) => cat.publicContentId).sort(),
+    WEB_DEMO_BREEDING_PLAN_STUD_IDS,
+    "public API must expose unique canonical publicContentIds",
+  );
+
+  for (const [publicContentId, legacySlug] of Object.entries(WEB_DEMO_LEGACY_CAT_ID_ALIASES)) {
+    const cat = returnedCanonicalCats.find((item) => item.publicContentId === publicContentId);
+    assert.ok(cat, `${publicContentId} must resolve through publicContentId`);
+    assert.equal(
+      cat.id,
+      `public-content-cat-${legacySlug}`,
+      `${publicContentId} must adopt the legacy production row id without renaming it`,
+    );
+  }
+
+  const catsByPublicContentId = new Map(
+    returnedCanonicalCats.map((cat) => [cat.publicContentId, cat]),
+  );
+  for (const entry of WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats) {
+    const cat = catsByPublicContentId.get(entry.cat.publicContentId);
+    assert.ok(cat, `${entry.cat.publicContentId} must be returned by the public API`);
+    assert.equal(cat.visibility, "visible", `${entry.cat.publicContentId} must be publishable`);
+    assert.equal(cat.breedingProfile?.trait, entry.breedingProfile.trait);
+    assert.equal(cat.breedingProfile?.source, entry.breedingProfile.source);
+    assert.deepEqual(cat.storyJson.story, entry.cat.storyJson.story);
+  }
+
+  assert.equal(
+    catsByPublicContentId.get("huqing")?.storyJson?.story?.[0],
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.find((entry) => entry.cat.publicContentId === "huqing")
+      ?.cat.storyJson.story[0],
+    "huqing placeholder story must be preserved exactly",
+  );
+  assert.equal(
+    catsByPublicContentId.get("luoyiyi")?.storyJson?.story?.[0],
+    WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.find((entry) => entry.cat.publicContentId === "luoyiyi")
+      ?.cat.storyJson.story[0],
+    "luoyiyi placeholder story must be preserved exactly",
+  );
+  assert.equal(
+    catsByPublicContentId.get("yunyue")?.mediaAssets.length,
+    0,
+    "yunyue must render as a valid zero-media cat",
+  );
+
+  for (const cat of returnedCanonicalCats) {
+    if (cat.publicContentId === "yunyue") continue;
+    assert.ok(
+      cat.mediaAssets.some((item) => item.usage === "cover" && item.sourceUrl),
+      `${cat.publicContentId} must have a cover media binding`,
+    );
+  }
+}
+
 function collectContentIds(value, ids = new Set()) {
   if (Array.isArray(value)) {
     value.forEach((item) => collectContentIds(item, ids));
@@ -826,6 +979,15 @@ async function cleanupWebDemoFixedPageMedia() {
   const mediaIds = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPageMedia.map((item) => item.id);
   await prisma.mediaBinding.deleteMany({ where: { media_id: { in: mediaIds } } });
   await prisma.mediaAsset.deleteMany({ where: { id: { in: mediaIds } } });
+}
+
+async function cleanupWebDemoBreedingContent() {
+  const mediaIds = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.catMedia.map((item) => item.id);
+  await prisma.mediaBinding.deleteMany({ where: { media_id: { in: mediaIds } } });
+  await prisma.mediaAsset.deleteMany({ where: { id: { in: mediaIds } } });
+  const catIds = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.map((entry) => entry.cat.id);
+  await prisma.breedingCatProfile.deleteMany({ where: { cat_id: { in: catIds } } });
+  await prisma.cat.deleteMany({ where: { id: { in: catIds } } });
 }
 
 async function ensureLocalSqliteSchema(databaseUrl) {

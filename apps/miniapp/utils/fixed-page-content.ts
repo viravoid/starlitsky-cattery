@@ -696,7 +696,7 @@ function normalizeBreedingPlan(
       .map((cat) => {
         const frame = resolveCatFrame(cat, "breedingPlanCard");
         return [
-          normalizePublicCatId(cat.id),
+          canonicalPublicCatId(cat),
           {
             color: textOr(cat.color, "待补充"),
             id: cat.id,
@@ -1096,6 +1096,10 @@ function firstCatImageUrl(cat: CatData) {
 
 function normalizePublicCatId(value: string) {
   return value.replace(/^public-content-cat-/, "");
+}
+
+function canonicalPublicCatId(cat: CatData) {
+  return stringOr(cat.publicContentId, normalizePublicCatId(cat.id));
 }
 
 function contractExtension(fileName: string, mimeType: string) {

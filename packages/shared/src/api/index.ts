@@ -108,6 +108,7 @@ export type ApproveAdminLoginChallengeRequest = ResolveAdminLoginChallengeReques
 
 export interface CatData {
   id: string;
+  publicContentId?: string;
   name: string;
   gender: string | null;
   color: string | null;

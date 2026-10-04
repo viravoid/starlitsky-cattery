@@ -335,6 +335,60 @@ function verifyFixedPageNormalization() {
   if (!commonSection.rooms.some((room) => room.title === "客厅活动区")) {
     failures.push("environment-zone-common room titles must survive normalization.");
   }
+
+  const breedingPage = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPages.find(
+    (page) => page.slug === "breeding-plan",
+  );
+  if (!breedingPage) {
+    failures.push("Web Demo public content manifest must include the breeding-plan fixed page.");
+    return;
+  }
+  const breedingCats = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.breedingCats.map((entry) => ({
+    id: entry.cat.id,
+    publicContentId: entry.cat.publicContentId,
+    name: entry.cat.name,
+    color: entry.cat.color,
+    breedingProfile: {
+      catId: entry.cat.id,
+      category: entry.breedingProfile.breedingRole,
+      reproductiveState: entry.breedingProfile.reproductiveState,
+      statusLabel: entry.breedingProfile.statusLabel,
+      trait: entry.breedingProfile.trait,
+      source: entry.breedingProfile.source,
+      sortOrder: entry.breedingProfile.sortOrder,
+    },
+    mediaAssets: WEB_DEMO_PUBLIC_CONTENT_MANIFEST.catMedia
+      .filter((item) => item.ownerId === entry.cat.id)
+      .map((item) => ({
+        id: item.id,
+        sourceUrl: `https://media.verify.example/${item.id}`,
+        thumbnailUrl: "",
+        usage: item.usage,
+        sortOrder: item.sortOrder,
+      })),
+  }));
+  const breedingView = normalized.normalizeFixedPageView(
+    "breeding-plan",
+    breedingPage.title,
+    breedingPage.contentJson,
+    [],
+    breedingCats,
+  );
+  const pairings = breedingView.breedingGroups.flatMap((group) => group.pairings);
+  if (pairings.length !== 10) {
+    failures.push(`Breeding-plan normalization must keep 10 canonical pairings; got ${pairings.length}.`);
+  }
+  for (const pairing of pairings) {
+    if (!pairing.male || !pairing.female) {
+      failures.push(`Breeding-plan pairing ${pairing.id} must resolve both cats by publicContentId.`);
+    }
+  }
+  const yunyuePairing = pairings.find((pairing) => pairing.id === "tianhe-yunyue-2026-h2");
+  if (!yunyuePairing?.female || yunyuePairing.female.id !== "public-content-cat-yunyue") {
+    failures.push("Breeding-plan normalization must resolve yunyue even without media.");
+  } else if (yunyuePairing.female.imageUrl !== "") {
+    failures.push("Yunyue must keep the no-image placeholder path when no media is available.");
+  }
 }
 
 function evaluateFixedPageContentModule(sourceText) {

@@ -228,6 +228,7 @@ async function listVisibleCatMedia(catIds) {
 function toCatDto(cat, mediaByCatId = new Map(), options = {}) {
   return {
     id: cat.id,
+    ...readCatPublicContentFields(cat.story_json),
     name: cat.name,
     gender: cat.gender,
     color: cat.color,
@@ -311,6 +312,16 @@ function toCatMediaDto(media, binding) {
     usage: binding.usage,
     sortOrder: binding.sort_order,
   };
+}
+
+function readCatPublicContentFields(storyJson) {
+  if (!isPlainObject(storyJson)) return {};
+  const source = isPlainObject(storyJson.source) ? storyJson.source : {};
+  const publicContentId =
+    typeof source.publicContentId === "string" && source.publicContentId.trim()
+      ? source.publicContentId.trim()
+      : "";
+  return publicContentId ? { publicContentId } : {};
 }
 
 function readCatPresentationFields(storyJson) {

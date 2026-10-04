@@ -78,6 +78,7 @@ function printHumanPlan(result) {
   console.log(`Manifest: ${result.manifestId} v${result.manifestVersion}`);
   console.log(`Fixed pages: ${summarizeActions(result.fixedPages)}`);
   console.log(`Fixed-page media: ${summarizeActions(result.fixedPageMedia ?? [])}`);
+  console.log(`Cat media: ${summarizeActions(result.catMedia ?? [])}`);
   console.log(`Breeding cats: ${summarizeActions(result.breedingCats)}`);
   console.log(`Skipped sections: ${result.skippedSections.length}`);
   if (result.applyResult?.productionBackupPath) {

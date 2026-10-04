@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, extname, isAbsolute, resolve } from "node:path";
 import { PUBLIC_CONTENT_MANIFEST } from "../content/public-content-manifest.mjs";
@@ -25,12 +26,18 @@ const BREEDING_PROFILE_OWNED_FIELDS = [
   "status_label",
   "sort_order",
 ];
+const OPTIONAL_BREEDING_PROFILE_FIELD_MAP = {
+  trait: "trait",
+  source: "source",
+  healthSummary: "health_summary",
+};
 const OPTIONAL_FIXED_PAGE_FIELD_MAP = {
   seoTitle: "seo_title",
   seoDescription: "seo_description",
 };
 const IMPORTER_SOURCE_KEYS = [
   "fileName",
+  "publicContentId",
   "publicContentImportId",
   "sourceGroup",
   "sourceParagraphs",
@@ -69,6 +76,8 @@ const DISALLOWED_COUNT_MODELS = [
 ];
 const FIXED_PAGE_MEDIA_IMPORTER_NAME = "public-content-web-demo-fixed-page-media";
 const FIXED_PAGE_MEDIA_METADATA_KEY = "publicContentFixedPageMedia";
+const CAT_MEDIA_IMPORTER_NAME = "public-content-web-demo-cat-media";
+const CAT_MEDIA_METADATA_KEY = "publicContentCatMedia";
 const ALLOWED_MEDIA_KINDS = new Set(["image", "document"]);
 
 export class PublicContentImportError extends Error {
@@ -243,11 +252,22 @@ export function validatePublicContentManifest(
     keyOf: (item) => item.cat?.name,
     allowEmpty: true,
   });
+  validateUniqueCollection({
+    errors,
+    items: manifest.breedingCats,
+    label: "breedingCats.cat.publicContentId",
+    keyOf: (item) => item.cat?.publicContentId,
+    allowEmpty: true,
+  });
   for (const entry of arrayOrEmpty(manifest.breedingCats)) {
     requiredString(entry.importId, "breedingCat.importId", errors);
     requiredString(entry.sourceGroup, "breedingCat.sourceGroup", errors);
     requiredString(entry.cat?.id, "breedingCat.cat.id", errors);
     requiredString(entry.cat?.name, "breedingCat.cat.name", errors);
+    const hasPublicContentId = Object.hasOwn(entry.cat ?? {}, "publicContentId");
+    if (hasPublicContentId) {
+      requiredString(entry.cat?.publicContentId, "breedingCat.cat.publicContentId", errors);
+    }
     requiredString(entry.cat?.color, "breedingCat.cat.color", errors);
     if (!ALLOWED_GENDER.has(entry.cat?.gender)) {
       errors.push(`breedingCat ${entry.cat?.name} gender is unsupported: ${entry.cat?.gender}`);
@@ -266,6 +286,9 @@ export function validatePublicContentManifest(
     if (entry.cat?.storyJson?.source?.publicContentImportId !== entry.importId) {
       errors.push(`breedingCat ${entry.cat?.name} storyJson source import id must match importId`);
     }
+    if (hasPublicContentId && entry.cat?.storyJson?.source?.publicContentId !== entry.cat?.publicContentId) {
+      errors.push(`breedingCat ${entry.cat?.name} storyJson source publicContentId must match cat.publicContentId`);
+    }
     if (!ALLOWED_BREEDING_ROLE.has(entry.breedingProfile?.breedingRole)) {
       errors.push(
         `breedingCat ${entry.cat?.name} breedingRole is unsupported: ${entry.breedingProfile?.breedingRole}`,
@@ -276,7 +299,14 @@ export function validatePublicContentManifest(
         `breedingCat ${entry.cat?.name} reproductiveState is unsupported: ${entry.breedingProfile?.reproductiveState}`,
       );
     }
+    for (const inputField of Object.keys(OPTIONAL_BREEDING_PROFILE_FIELD_MAP)) {
+      if (Object.hasOwn(entry.breedingProfile ?? {}, inputField) && typeof entry.breedingProfile[inputField] !== "string") {
+        errors.push(`breedingCat ${entry.cat?.name} breedingProfile.${inputField} must be a string when provided`);
+      }
+    }
   }
+
+  validateCatMediaManifest(manifest, errors);
 
   if (!Array.isArray(manifest.skippedSections) || manifest.skippedSections.length === 0) {
     errors.push("manifest.skippedSections must explicitly record skipped or unmapped source sections");
@@ -288,6 +318,58 @@ export function validatePublicContentManifest(
   return true;
 }
 
+function validateCatMediaManifest(manifest, errors) {
+  const breedingCatIds = new Set(arrayOrEmpty(manifest.breedingCats).map((entry) => entry.cat?.id));
+  validateUniqueCollection({
+    errors,
+    items: arrayOrEmpty(manifest.catMedia),
+    label: "catMedia.id",
+    keyOf: (item) => item.id,
+    allowEmpty: true,
+  });
+  for (const item of arrayOrEmpty(manifest.catMedia)) {
+    requiredString(item.id, "catMedia.id", errors);
+    if (item.ownerType !== "cat") {
+      errors.push(`catMedia ${item.id}.ownerType must be cat`);
+    }
+    requiredString(item.ownerId, `catMedia ${item.id}.ownerId`, errors);
+    if (item.ownerId && !breedingCatIds.has(item.ownerId)) {
+      errors.push(`catMedia ${item.id}.ownerId must reference a manifest breeding cat`);
+    }
+    requiredString(item.publicContentId, `catMedia ${item.id}.publicContentId`, errors);
+    requiredString(item.usage, `catMedia ${item.id}.usage`, errors);
+    requiredString(item.sourceLocalPath, `catMedia ${item.id}.sourceLocalPath`, errors);
+    requiredString(item.sourcePublicPath, `catMedia ${item.id}.sourcePublicPath`, errors);
+    requiredString(item.checksum, `catMedia ${item.id}.checksum`, errors);
+    if (item.checksum && !/^[a-f0-9]{64}$/.test(String(item.checksum))) {
+      errors.push(`catMedia ${item.id}.checksum must be a lowercase SHA256 hex digest`);
+    }
+    if (!Number.isInteger(item.sortOrder) || item.sortOrder < 0) {
+      errors.push(`catMedia ${item.id}.sortOrder must be a non-negative integer`);
+    }
+    if (!Number.isInteger(item.sizeBytes) || item.sizeBytes <= 0) {
+      errors.push(`catMedia ${item.id}.sizeBytes must be a positive integer`);
+    }
+    if (!ALLOWED_MEDIA_KINDS.has(item.kind)) {
+      errors.push(`catMedia ${item.id}.kind is unsupported: ${item.kind}`);
+    }
+    if (item.kind === "image") {
+      if (!String(item.mimeType ?? "").startsWith("image/")) {
+        errors.push(`catMedia ${item.id}.mimeType must be an image MIME type`);
+      }
+      if (!Number.isInteger(item.width) || item.width <= 0) {
+        errors.push(`catMedia ${item.id}.width must be a positive integer`);
+      }
+      if (!Number.isInteger(item.height) || item.height <= 0) {
+        errors.push(`catMedia ${item.id}.height must be a positive integer`);
+      }
+    }
+    if (item.missingReason) {
+      errors.push(`catMedia ${item.id} is unresolved: ${item.missingReason}`);
+    }
+  }
+}
+
 export async function createPublicContentImportPlan({
   client,
   manifest = PUBLIC_CONTENT_MANIFEST,
@@ -296,7 +378,7 @@ export async function createPublicContentImportPlan({
   validatePublicContentManifest(manifest);
 
   const breedingCats = manifest.breedingCats;
-  const [fixedPages, cats, profiles, beforeCounts] = await Promise.all([
+  const [fixedPages, cats, identityCats, profiles, beforeCounts] = await Promise.all([
     client.fixedPage.findMany({
       where: { slug: { in: manifest.fixedPages.map((page) => page.slug) } },
     }),
@@ -311,6 +393,11 @@ export async function createPublicContentImportPlan({
         })
       : [],
     breedingCats.length
+      ? client.cat.findMany({
+          where: { deleted_at: null },
+        })
+      : [],
+    breedingCats.length
       ? client.breedingCatProfile.findMany({
           where: { cat_id: { in: breedingCats.map((entry) => entry.cat.id) } },
         })
@@ -320,6 +407,7 @@ export async function createPublicContentImportPlan({
 
   const fixedPagesBySlug = new Map(fixedPages.map((page) => [page.slug, page]));
   const catsById = new Map(cats.map((cat) => [cat.id, cat]));
+  const catsByPublicContentId = groupCatsByPublicContentId(identityCats);
   const profilesByCatId = new Map(profiles.map((profile) => [profile.cat_id, profile]));
   const plan = {
     manifestId: manifest.manifestId,
@@ -329,6 +417,7 @@ export async function createPublicContentImportPlan({
     breedingCats: [],
     skippedSections: manifest.skippedSections.map((section) => ({ ...section })),
     fixedPageMedia: [],
+    catMedia: [],
     conflicts: [],
     beforeCounts,
   };
@@ -358,6 +447,20 @@ export async function createPublicContentImportPlan({
 
   for (const entry of manifest.breedingCats) {
     const existingById = catsById.get(entry.cat.id);
+    const sameIdentityCats = arrayOrEmpty(catsByPublicContentId.get(entry.cat.publicContentId)).filter(
+      (cat) => cat.id !== entry.cat.id,
+    );
+    if (sameIdentityCats.length > 0) {
+      plan.conflicts.push({
+        kind: "breeding-cat-public-content-id-ambiguous",
+        importId: entry.importId,
+        catId: entry.cat.id,
+        publicContentId: entry.cat.publicContentId,
+        conflictingIds: sameIdentityCats.map((cat) => cat.id),
+        message: "Another cat already has this canonical public content identity.",
+      });
+      continue;
+    }
     const sameNameCats = cats.filter((cat) => cat.name === entry.cat.name && cat.id !== entry.cat.id);
     if (sameNameCats.length > 0) {
       plan.conflicts.push({
@@ -381,7 +484,8 @@ export async function createPublicContentImportPlan({
       continue;
     }
     const existingImportId = readPublicContentImportId(existingById);
-    if (existingById && existingImportId !== entry.importId) {
+    const acceptedImportIds = new Set([entry.importId, ...arrayOrEmpty(entry.legacyImportIds)]);
+    if (existingById && !acceptedImportIds.has(existingImportId)) {
       plan.conflicts.push({
         kind: existingImportId
           ? "breeding-cat-import-id-conflict"
@@ -396,21 +500,41 @@ export async function createPublicContentImportPlan({
       });
       continue;
     }
+    const existingPublicContentId = readPublicContentId(existingById);
+    if (
+      existingById &&
+      entry.cat.publicContentId &&
+      existingPublicContentId &&
+      existingPublicContentId !== entry.cat.publicContentId
+    ) {
+      plan.conflicts.push({
+        kind: "breeding-cat-public-content-id-conflict",
+        importId: entry.importId,
+        catId: entry.cat.id,
+        name: entry.cat.name,
+        existingPublicContentId,
+        publicContentId: entry.cat.publicContentId,
+        message: "The existing cat has a different canonical public content identity.",
+      });
+      continue;
+    }
 
     const catData = toCatData(entry, existingById);
     const profileData = toBreedingProfileData(entry);
     const profile = profilesByCatId.get(entry.cat.id);
+    const breedingProfileOwnedFields = getBreedingProfileOwnedFields(entry);
     plan.breedingCats.push({
       importId: entry.importId,
+      publicContentId: entry.cat.publicContentId,
       sourceGroup: entry.sourceGroup,
       name: entry.cat.name,
       action: existingById ? diffAction(existingById, catData, CAT_OWNED_FIELDS) : "create",
       catOwnedFields: CAT_OWNED_FIELDS,
-      breedingProfileOwnedFields: BREEDING_PROFILE_OWNED_FIELDS,
+      breedingProfileOwnedFields,
       catChanges: existingById ? diffFields(existingById, catData, CAT_OWNED_FIELDS) : catData,
-      breedingProfileAction: profile ? diffAction(profile, profileData, BREEDING_PROFILE_OWNED_FIELDS) : "create",
+      breedingProfileAction: profile ? diffAction(profile, profileData, breedingProfileOwnedFields) : "create",
       breedingProfileChanges: profile
-        ? diffFields(profile, profileData, BREEDING_PROFILE_OWNED_FIELDS)
+        ? diffFields(profile, profileData, breedingProfileOwnedFields)
         : profileData,
     });
   }
@@ -418,6 +542,9 @@ export async function createPublicContentImportPlan({
   const mediaPlan = await createFixedPageMediaPlan({ client, manifest });
   plan.fixedPageMedia = mediaPlan.items;
   plan.conflicts.push(...mediaPlan.conflicts);
+  const catMediaPlan = await createCatMediaPlan({ client, manifest });
+  plan.catMedia = catMediaPlan.items;
+  plan.conflicts.push(...catMediaPlan.conflicts);
 
   return plan;
 }
@@ -484,11 +611,18 @@ export async function runPublicContentImport({
     plan,
     putObject,
   });
+  const catMediaApplyResult = await applyCatMediaPlan({
+    client,
+    manifest,
+    plan,
+    putObject,
+  });
 
   return {
     ...plan,
     applyResult: {
       fixedPageMedia: mediaApplyResult,
+      catMedia: catMediaApplyResult,
       productionBackupPath,
     },
     afterCounts: await countTables(client),
@@ -613,6 +747,124 @@ async function applyFixedPageMediaPlan({ client, manifest, plan, putObject }) {
   return result;
 }
 
+async function createCatMediaPlan({ client, manifest }) {
+  const mediaItems = arrayOrEmpty(manifest.catMedia);
+  if (mediaItems.length === 0) return { items: [], conflicts: [] };
+
+  const existingMedia = await client.mediaAsset.findMany({
+    where: { id: { in: mediaItems.map((item) => item.id) } },
+    include: {
+      bindings: {
+        where: { deleted_at: null },
+        orderBy: [{ sort_order: "asc" }, { created_at: "asc" }, { id: "asc" }],
+      },
+    },
+  });
+  const mediaById = new Map(existingMedia.map((media) => [media.id, media]));
+  const items = [];
+  const conflicts = [];
+
+  for (const sourceItem of mediaItems) {
+    const itemConflicts = validateMediaSourceFile(sourceItem, "cat-media");
+    const media = mediaById.get(sourceItem.id) ?? null;
+    const base = toCatMediaPlanItem(sourceItem, { action: "upload" });
+
+    if (itemConflicts.length > 0) {
+      conflicts.push(...itemConflicts);
+      items.push({ ...base, action: "conflict" });
+      continue;
+    }
+    if (!media) {
+      items.push(base);
+      continue;
+    }
+    if (media.deleted_at || media.status !== "active") {
+      conflicts.push({
+        kind: "cat-media-existing-inactive",
+        mediaId: sourceItem.id,
+        status: media.status,
+      });
+      items.push({ ...base, action: "conflict", mediaId: media.id });
+      continue;
+    }
+    if (!catMediaIdentityMatches(media, sourceItem, manifest)) {
+      conflicts.push({
+        kind: "cat-media-identity-conflict",
+        mediaId: sourceItem.id,
+        message:
+          "A MediaAsset already exists for this canonical cat media id without matching importer provenance/checksum.",
+      });
+      items.push({ ...base, action: "conflict", mediaId: media.id });
+      continue;
+    }
+
+    const bindingState = classifyCatMediaBinding(media, sourceItem);
+    if (bindingState.conflict) {
+      conflicts.push(bindingState.conflict);
+      items.push({ ...base, action: "conflict", mediaId: media.id });
+      continue;
+    }
+    items.push(
+      toCatMediaPlanItem(sourceItem, {
+        action: bindingState.needsBinding ? "bind" : "noop",
+        bindingId: bindingState.binding?.id ?? null,
+        mediaId: media.id,
+      }),
+    );
+  }
+
+  return { items, conflicts };
+}
+
+async function applyCatMediaPlan({ client, manifest, plan, putObject }) {
+  const sourceItemsById = new Map(arrayOrEmpty(manifest.catMedia).map((item) => [item.id, item]));
+  const result = {
+    uploadedCount: 0,
+    createdBindingCount: 0,
+    reusedCount: 0,
+    objectsUploaded: 0,
+  };
+
+  for (const itemPlan of plan.catMedia) {
+    const sourceItem = sourceItemsById.get(itemPlan.id);
+    if (!sourceItem) {
+      throw new PublicContentImportError(`Missing cat media source item: ${itemPlan.id}`);
+    }
+
+    if (itemPlan.action === "upload") {
+      const upload = await uploadCatMediaSource({ putObject, sourceItem });
+      await client.$transaction(async (transaction) => {
+        await transaction.mediaAsset.create({
+          data: toCatMediaAssetCreateData(sourceItem, manifest, upload),
+        });
+        await transaction.mediaBinding.create({
+          data: toCatMediaBindingCreateData(sourceItem),
+        });
+      });
+      result.uploadedCount += 1;
+      result.createdBindingCount += 1;
+      result.objectsUploaded += 1;
+      continue;
+    }
+
+    if (itemPlan.action === "bind") {
+      await client.mediaBinding.create({
+        data: toCatMediaBindingCreateData(sourceItem),
+      });
+      result.createdBindingCount += 1;
+      result.reusedCount += 1;
+      continue;
+    }
+
+    if (itemPlan.action === "noop") {
+      await verifyExistingCatMediaObject(sourceItem);
+      result.reusedCount += 1;
+    }
+  }
+
+  return result;
+}
+
 async function uploadFixedPageMediaSource({ putObject, sourceItem }) {
   const objectKey = buildFixedPageMediaObjectKey(sourceItem);
   const storageUpload = createPresignedPutUpload({
@@ -709,6 +961,89 @@ function toFixedPageMediaBindingCreateData(sourceItem) {
   };
 }
 
+async function uploadCatMediaSource({ putObject, sourceItem }) {
+  const objectKey = buildCatMediaObjectKey(sourceItem);
+  const storageUpload = createPresignedPutUpload({
+    objectKey,
+    mimeType: sourceItem.mimeType,
+  });
+  await putObject({
+    filePath: sourceItem.sourceLocalPath,
+    mimeType: sourceItem.mimeType,
+    upload: storageUpload.upload,
+  });
+
+  const metadata = await headObject({ objectKey });
+  if (!metadata.exists) {
+    throw new PublicContentImportError("Uploaded cat media object was not found.", {
+      id: sourceItem.id,
+      objectKey,
+    });
+  }
+  if (metadata.contentLength !== sourceItem.sizeBytes) {
+    throw new PublicContentImportError("Uploaded cat media object size mismatch.", {
+      id: sourceItem.id,
+      objectKey,
+    });
+  }
+
+  return {
+    bucket: storageUpload.bucket,
+    objectKey,
+    provider: storageUpload.provider,
+    publicUrl: storageUpload.publicUrl,
+    verifiedAt: new Date().toISOString(),
+    verifiedContentType: normalizeContentType(metadata.contentType) || sourceItem.mimeType,
+    verifiedEtag: metadata.etag ?? null,
+    verifiedLastModified: metadata.lastModified ?? null,
+  };
+}
+
+function toCatMediaAssetCreateData(sourceItem, manifest, upload) {
+  return {
+    id: sourceItem.id,
+    kind: sourceItem.kind,
+    source_url: upload.publicUrl,
+    title: sourceItem.title ?? null,
+    alt_text: sourceItem.altText ?? null,
+    mime_type: sourceItem.mimeType ?? null,
+    size_bytes: sourceItem.sizeBytes,
+    width: sourceItem.width ?? null,
+    height: sourceItem.height ?? null,
+    checksum: sourceItem.checksum,
+    status: "active",
+    metadata_json: {
+      upload: {
+        bucket: upload.bucket,
+        completedAt: upload.verifiedAt,
+        objectKey: upload.objectKey,
+        originalFileName: sourceItem.sourcePublicPath?.split("/").pop() ?? sourceItem.id,
+        provider: upload.provider,
+        requestedMimeType: sourceItem.mimeType,
+        requestedSizeBytes: sourceItem.sizeBytes,
+        verifiedAt: upload.verifiedAt,
+        verifiedEtag: upload.verifiedEtag,
+        verifiedLastModified: upload.verifiedLastModified,
+        verifiedMimeType: upload.verifiedContentType,
+        verifiedSizeBytes: sourceItem.sizeBytes,
+      },
+      [CAT_MEDIA_METADATA_KEY]: toCatMediaMetadata(sourceItem, manifest),
+    },
+  };
+}
+
+function toCatMediaBindingCreateData(sourceItem) {
+  return {
+    id: catMediaBindingId(sourceItem),
+    media_id: sourceItem.id,
+    owner_type: sourceItem.ownerType,
+    owner_id: sourceItem.ownerId,
+    usage: sourceItem.usage,
+    sort_order: sourceItem.sortOrder,
+    visibility: "visible",
+  };
+}
+
 function toFixedPageMediaMetadata(sourceItem, manifest) {
   return {
     canonicalPath: sourceItem.canonicalPath,
@@ -716,6 +1051,19 @@ function toFixedPageMediaMetadata(sourceItem, manifest) {
     id: sourceItem.id,
     importer: FIXED_PAGE_MEDIA_IMPORTER_NAME,
     manifestId: manifest.manifestId,
+    sourcePublicPath: sourceItem.sourcePublicPath,
+    sourceRelativePath: sourceItem.sourceRelativePath ?? null,
+  };
+}
+
+function toCatMediaMetadata(sourceItem, manifest) {
+  return {
+    canonicalPath: sourceItem.canonicalPath,
+    checksum: sourceItem.checksum,
+    id: sourceItem.id,
+    importer: CAT_MEDIA_IMPORTER_NAME,
+    manifestId: manifest.manifestId,
+    publicContentId: sourceItem.publicContentId,
     sourcePublicPath: sourceItem.sourcePublicPath,
     sourceRelativePath: sourceItem.sourceRelativePath ?? null,
   };
@@ -744,13 +1092,50 @@ function toFixedPageMediaPlanItem(sourceItem, { action, bindingId = null, mediaI
   };
 }
 
+function toCatMediaPlanItem(sourceItem, { action, bindingId = null, mediaId = null }) {
+  return {
+    action,
+    altText: sourceItem.altText ?? null,
+    bindingId,
+    canonicalPath: sourceItem.canonicalPath,
+    id: sourceItem.id,
+    kind: sourceItem.kind,
+    mediaId,
+    ownerId: sourceItem.ownerId,
+    ownerType: sourceItem.ownerType,
+    publicContentId: sourceItem.publicContentId,
+    requiresCosUpload: action === "upload",
+    sortOrder: sourceItem.sortOrder,
+    sourceLocalPath: sourceItem.sourceLocalPath,
+    sourcePublicPath: sourceItem.sourcePublicPath,
+    targetMediaAssetId: sourceItem.id,
+    targetMediaBindingId: catMediaBindingId(sourceItem),
+    title: sourceItem.title ?? null,
+    usage: sourceItem.usage,
+  };
+}
+
 function validateFixedPageMediaSourceFile(sourceItem) {
+  return validateMediaSourceFile(sourceItem, "fixed-page-media");
+}
+
+function validateMediaSourceFile(sourceItem, kind) {
   const conflicts = [];
   if (!existsSync(sourceItem.sourceLocalPath)) {
     conflicts.push({
-      kind: "fixed-page-media-source-missing",
+      kind: `${kind}-source-missing`,
       mediaId: sourceItem.id,
       sourceLocalPath: sourceItem.sourceLocalPath,
+    });
+    return conflicts;
+  }
+  const checksum = createHash("sha256").update(readFileSync(sourceItem.sourceLocalPath)).digest("hex");
+  if (checksum !== sourceItem.checksum) {
+    conflicts.push({
+      kind: `${kind}-checksum-mismatch`,
+      mediaId: sourceItem.id,
+      expectedChecksum: sourceItem.checksum,
+      actualChecksum: checksum,
     });
   }
   return conflicts;
@@ -763,6 +1148,18 @@ function fixedPageMediaIdentityMatches(media, sourceItem, manifest) {
     metadata?.manifestId === manifest.manifestId &&
     metadata?.id === sourceItem.id &&
     metadata?.checksum === sourceItem.checksum &&
+    media.checksum === sourceItem.checksum
+  );
+}
+
+function catMediaIdentityMatches(media, sourceItem, manifest) {
+  const metadata = readCatMediaMetadata(media);
+  return (
+    metadata?.importer === CAT_MEDIA_IMPORTER_NAME &&
+    metadata?.manifestId === manifest.manifestId &&
+    metadata?.id === sourceItem.id &&
+    metadata?.checksum === sourceItem.checksum &&
+    metadata?.publicContentId === sourceItem.publicContentId &&
     media.checksum === sourceItem.checksum
   );
 }
@@ -803,8 +1200,48 @@ function classifyFixedPageMediaBinding(media, sourceItem) {
   return { binding, needsBinding: false };
 }
 
+function classifyCatMediaBinding(media, sourceItem) {
+  const matchingOwnerBindings = media.bindings.filter(
+    (binding) =>
+      binding.owner_type === sourceItem.ownerType &&
+      binding.owner_id === sourceItem.ownerId &&
+      binding.deleted_at == null,
+  );
+  if (matchingOwnerBindings.length > 1) {
+    return {
+      conflict: {
+        kind: "cat-media-ambiguous-binding",
+        mediaId: sourceItem.id,
+        bindingIds: matchingOwnerBindings.map((binding) => binding.id),
+      },
+    };
+  }
+  if (matchingOwnerBindings.length === 0) return { needsBinding: true };
+
+  const binding = matchingOwnerBindings[0];
+  if (
+    binding.id !== catMediaBindingId(sourceItem) ||
+    binding.usage !== sourceItem.usage ||
+    binding.sort_order !== sourceItem.sortOrder ||
+    binding.visibility !== "visible"
+  ) {
+    return {
+      conflict: {
+        kind: "cat-media-binding-conflict",
+        mediaId: sourceItem.id,
+        bindingId: binding.id,
+      },
+    };
+  }
+  return { binding, needsBinding: false };
+}
+
 function fixedPageMediaBindingId(sourceItem) {
   return `fixed-page-media-binding:${sourceItem.ownerId}:${sourceItem.id}`;
+}
+
+function catMediaBindingId(sourceItem) {
+  return `cat-media-binding:${sourceItem.ownerId}:${sourceItem.id}`;
 }
 
 async function verifyExistingFixedPageMediaObject(sourceItem) {
@@ -824,10 +1261,34 @@ async function verifyExistingFixedPageMediaObject(sourceItem) {
   }
 }
 
+async function verifyExistingCatMediaObject(sourceItem) {
+  const objectKey = buildCatMediaObjectKey(sourceItem);
+  const metadata = await headObject({ objectKey });
+  if (!metadata.exists) {
+    throw new PublicContentImportError("Existing cat media object is missing.", {
+      id: sourceItem.id,
+      objectKey,
+    });
+  }
+  if (metadata.contentLength !== sourceItem.sizeBytes) {
+    throw new PublicContentImportError("Existing cat media object size mismatch.", {
+      id: sourceItem.id,
+      objectKey,
+    });
+  }
+}
+
 function readFixedPageMediaMetadata(media) {
   const metadata = media?.metadata_json;
   if (!isPlainObject(metadata)) return null;
   const importerMetadata = metadata[FIXED_PAGE_MEDIA_METADATA_KEY];
+  return isPlainObject(importerMetadata) ? importerMetadata : null;
+}
+
+function readCatMediaMetadata(media) {
+  const metadata = media?.metadata_json;
+  if (!isPlainObject(metadata)) return null;
+  const importerMetadata = metadata[CAT_MEDIA_METADATA_KEY];
   return isPlainObject(importerMetadata) ? importerMetadata : null;
 }
 
@@ -844,6 +1305,24 @@ function buildFixedPageMediaObjectKey(sourceItem) {
     "public-content",
     "web-demo",
     "fixed-pages",
+    safeId,
+    `${sourceItem.checksum.slice(0, 16)}.${extension}`,
+  ].join("/");
+}
+
+function buildCatMediaObjectKey(sourceItem) {
+  const extension =
+    extname(sourceItem.sourcePublicPath || sourceItem.sourceLocalPath || ".bin")
+      .replace(/^\./, "")
+      .toLowerCase() || "bin";
+  const safeId = sourceItem.id
+    .replace(/^static:/, "")
+    .replace(/[^a-zA-Z0-9/_-]+/g, "-")
+    .replace(/^\/+|\/+$/g, "");
+  return [
+    "public-content",
+    "web-demo",
+    "cats",
     safeId,
     `${sourceItem.checksum.slice(0, 16)}.${extension}`,
   ].join("/");
@@ -938,12 +1417,16 @@ function toCatData(entry, existing) {
 }
 
 function toBreedingProfileData(entry) {
-  return {
+  const data = {
     breeding_role: entry.breedingProfile.breedingRole,
     reproductive_state: entry.breedingProfile.reproductiveState,
     status_label: entry.breedingProfile.statusLabel,
     sort_order: entry.breedingProfile.sortOrder,
   };
+  for (const [inputField, dataField] of Object.entries(OPTIONAL_BREEDING_PROFILE_FIELD_MAP)) {
+    if (Object.hasOwn(entry.breedingProfile, inputField)) data[dataField] = entry.breedingProfile[inputField];
+  }
+  return data;
 }
 
 function getFixedPageOwnedFields(page) {
@@ -960,6 +1443,38 @@ function readPublicContentImportId(cat) {
   if (!isPlainObject(storyJson) || !isPlainObject(storyJson.source)) return null;
   const importId = storyJson.source.publicContentImportId;
   return typeof importId === "string" && importId.trim() ? importId : null;
+}
+
+function readPublicContentId(cat) {
+  if (!cat) return null;
+  const storyJson = cat.story_json;
+  if (!isPlainObject(storyJson)) return null;
+  const source = isPlainObject(storyJson.source) ? storyJson.source : {};
+  const publicContentId =
+    typeof source.publicContentId === "string" && source.publicContentId.trim()
+      ? source.publicContentId
+      : null;
+  return publicContentId ? publicContentId.trim() : null;
+}
+
+function groupCatsByPublicContentId(cats) {
+  const grouped = new Map();
+  for (const cat of arrayOrEmpty(cats)) {
+    const publicContentId = readPublicContentId(cat);
+    if (!publicContentId) continue;
+    const items = grouped.get(publicContentId) ?? [];
+    items.push(cat);
+    grouped.set(publicContentId, items);
+  }
+  return grouped;
+}
+
+function getBreedingProfileOwnedFields(entry) {
+  const fields = [...BREEDING_PROFILE_OWNED_FIELDS];
+  for (const [inputField, dataField] of Object.entries(OPTIONAL_BREEDING_PROFILE_FIELD_MAP)) {
+    if (Object.hasOwn(entry.breedingProfile ?? {}, inputField)) fields.push(dataField);
+  }
+  return fields;
 }
 
 function getFixedPageContentJsonMode(manifest) {
