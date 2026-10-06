@@ -18,6 +18,7 @@
     "pages/admin-auth/index",
     "pages/parent-auth/index"
   ],
+  "lazyCodeLoading": "requiredComponents",
   "window": {
     "navigationBarTitleText": "星月缅因猫舍",
     "navigationBarBackgroundColor": "#fffaf1",
