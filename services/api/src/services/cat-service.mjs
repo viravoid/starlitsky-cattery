@@ -228,6 +228,7 @@ async function listVisibleCatMedia(catIds) {
 function toCatDto(cat, mediaByCatId = new Map(), options = {}) {
   return {
     id: cat.id,
+    ...readCatPublicContentFields(cat.story_json),
     name: cat.name,
     gender: cat.gender,
     color: cat.color,
@@ -235,6 +236,7 @@ function toCatDto(cat, mediaByCatId = new Map(), options = {}) {
     lifecycleStatus: cat.lifecycle_status,
     personality: cat.personality,
     storyJson: cat.story_json,
+    ...readCatPresentationFields(cat.story_json),
     visibility: cat.visibility,
     breedingProfile: cat.breeding_profile ? toBreedingProfileDto(cat.breeding_profile) : null,
     kittenProfile: cat.kitten_profile ? toKittenProfileDto(cat.kitten_profile, options) : null,
@@ -304,9 +306,50 @@ function toCatMediaDto(media, binding) {
     thumbnailUrl: resolveMediaThumbnailUrl(media),
     title: media.title,
     altText: media.alt_text,
+    mimeType: media.mime_type,
+    width: media.width,
+    height: media.height,
     usage: binding.usage,
     sortOrder: binding.sort_order,
   };
+}
+
+function readCatPublicContentFields(storyJson) {
+  if (!isPlainObject(storyJson)) return {};
+  const source = isPlainObject(storyJson.source) ? storyJson.source : {};
+  const publicContentId =
+    typeof source.publicContentId === "string" && source.publicContentId.trim()
+      ? source.publicContentId.trim()
+      : "";
+  return publicContentId ? { publicContentId } : {};
+}
+
+function readCatPresentationFields(storyJson) {
+  if (!storyJson || typeof storyJson !== "object" || Array.isArray(storyJson)) return {};
+  const source = storyJson.imagePresentation &&
+    typeof storyJson.imagePresentation === "object" &&
+    !Array.isArray(storyJson.imagePresentation)
+    ? storyJson.imagePresentation
+    : storyJson;
+
+  return {
+    ...(isPlainObject(source.entryCoverSelections)
+      ? { entryCoverSelections: source.entryCoverSelections }
+      : {}),
+    ...(isPlainObject(source.coverPresentations)
+      ? { coverPresentations: source.coverPresentations }
+      : {}),
+    ...(isPlainObject(source.detailImagePresentations)
+      ? { detailImagePresentations: source.detailImagePresentations }
+      : {}),
+    ...(isPlainObject(source.detailCarouselPresentations)
+      ? { detailCarouselPresentations: source.detailCarouselPresentations }
+      : {}),
+  };
+}
+
+function isPlainObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function assertPlainObject(value) {
