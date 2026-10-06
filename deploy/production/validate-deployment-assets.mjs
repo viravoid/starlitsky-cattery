@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { runHealthCheckBehaviorVerification } from "./scripts/health-check.verify.mjs";
 
 function uncommentedText(text) {
   return text
@@ -83,6 +84,18 @@ const checks = [
     ],
     excludes: ["ssh ", "scp ", "docker"],
   },
+  {
+    path: "deploy/production/scripts/health-check.sh",
+    includes: [
+      "API_HEALTH_URL=\"${API_HEALTH_URL:-http://127.0.0.1:8080/health}\"",
+      "API_HEALTH_MAX_WAIT_SECONDS=\"${API_HEALTH_MAX_WAIT_SECONDS:-30}\"",
+      "CURL_BIN=\"${CURL_BIN:-curl}\"",
+      "\"$CURL_BIN\" --fail --show-error --silent",
+      "status=ok",
+      "sleep",
+    ],
+    excludes: ["while true"],
+  },
 ];
 
 const forbiddenSecretPatterns = [
@@ -140,5 +153,7 @@ if (failures.length > 0) {
   }
   process.exit(1);
 }
+
+runHealthCheckBehaviorVerification();
 
 console.log("Deployment asset verification passed.");
