@@ -1038,7 +1038,9 @@
   color: var(--xy-color-muted);
   font-size: 22rpx;
   line-height: 1.55;
-  word-break: break-all;
+  word-break: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .pairing-join {
