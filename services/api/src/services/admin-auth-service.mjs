@@ -136,13 +136,7 @@ export async function pollAdminLoginChallenge(challengeId, input, config, userAg
   }
 
   const status = resolveStatus(challenge, now);
-  if (status === STATUS_PENDING) {
-    return {
-      status,
-      expiresAt: challenge.expires_at.toISOString(),
-    };
-  }
-  if (status === STATUS_CONSUMED) {
+  if (status === STATUS_PENDING || status === "expired" || status === STATUS_CONSUMED) {
     return {
       status,
       expiresAt: challenge.expires_at.toISOString(),

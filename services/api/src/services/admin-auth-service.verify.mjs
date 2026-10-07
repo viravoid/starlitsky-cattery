@@ -156,9 +156,10 @@ try {
   );
 
   const expired = await createChallenge();
+  const expiredAt = new Date(Date.now() - 1000);
   await prisma.adminLoginChallenge.update({
     where: { id: expired.challenge.id },
-    data: { expires_at: new Date(Date.now() - 1000) },
+    data: { expires_at: expiredAt },
   });
   await assertRouteRejects(
     "expired blocked",
@@ -169,13 +170,27 @@ try {
     { sceneCredential: expired.sceneCredential },
   );
   await assertRouteRejects(
-    "expired reuse blocked",
+    "expired poll credential cannot miniapp approve",
+    `/admin-auth/challenges/${expired.challenge.id}/approve`,
+    admin,
+    401,
+    "POST",
+    { sceneCredential: expired.challenge.pollCredential },
+  );
+  await assertRouteRejects(
+    "expired wrong poll credential blocked",
     `/admin-auth/challenges/${expired.challenge.id}/poll`,
     null,
-    400,
+    401,
     "POST",
-    { pollCredential: expired.challenge.pollCredential },
+    { pollCredential: "wrong" },
   );
+  const expiredPoll = await routeJson(`/admin-auth/challenges/${expired.challenge.id}/poll`, null, "POST", {
+    pollCredential: expired.challenge.pollCredential,
+  });
+  assert.equal(expiredPoll.status, "expired");
+  assert.equal(expiredPoll.expiresAt, expiredAt.toISOString());
+  assert.equal("token" in expiredPoll, false);
 
   console.log("Admin auth verification passed");
 } finally {
