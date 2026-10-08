@@ -36,6 +36,7 @@ interface HomeData {
   groups: HomeGroup[];
   hasHeroImages: boolean;
   currentHeroIndex: number;
+  heroHeightStyle: string;
   heroSlides: HomeHeroSlide[];
   introBody: string;
   introMeta: string;
@@ -49,6 +50,7 @@ interface HomePage {
   data: HomeData;
   loadHome(): Promise<void>;
   onHeroChange(event: SwiperChangeEvent): void;
+  updateHeroLayout(metrics?: WindowMetrics): Promise<void>;
   previewHeroImage(event: TapEvent): void;
   retryLoad(): Promise<void>;
   setHeroSlide(event: TapEvent): void;
@@ -65,6 +67,15 @@ interface SwiperChangeEvent {
   detail: {
     current?: number;
   };
+}
+
+interface ResizeEvent {
+  size?: Partial<WindowMetrics>;
+}
+
+interface WindowMetrics {
+  windowHeight: number;
+  windowWidth: number;
 }
 
 const DEFAULT_HOME = {
@@ -118,6 +129,7 @@ const DEFAULT_HOME = {
   },
   hasHeroImages: false,
   currentHeroIndex: 0,
+  heroHeightStyle: "height: 68vh;",
   heroSlides: [
     { id: "hero-1", imageUrl: "", label: "示例图片（首页轮播照片 1，待替换）" },
     { id: "hero-2", imageUrl: "", label: "示例图片（首页轮播照片 2，待替换）" },
@@ -134,7 +146,20 @@ Page({
   } as HomeData,
 
   async onLoad(this: HomePage) {
+    void this.updateHeroLayout();
     await this.loadHome();
+  },
+
+  onReady(this: HomePage) {
+    void this.updateHeroLayout();
+  },
+
+  onShow(this: HomePage) {
+    void this.updateHeroLayout();
+  },
+
+  onResize(this: HomePage, event: ResizeEvent) {
+    void this.updateHeroLayout(readResizeMetrics(event));
   },
 
   async onPullDownRefresh(this: HomePage) {
@@ -186,6 +211,10 @@ Page({
 
   openCats() {
     wx.switchTab({ url: "/pages/cats/index" });
+  },
+
+  async updateHeroLayout(this: HomePage, metrics?: WindowMetrics) {
+    this.setData({ heroHeightStyle: `height: ${calculateHeroHeightPx(metrics ?? (await getWindowMetrics()))}px;` });
   },
 });
 
@@ -254,6 +283,70 @@ function normalizeHomeImages(heroSlides: HomeHeroSlide[]) {
     heroSlides,
     previewUrls: urls,
   };
+}
+
+function calculateHeroHeightPx(info: WindowMetrics) {
+  const width = Math.max(320, info.windowWidth);
+  const height = Math.max(568, info.windowHeight);
+  const naturalPhotoHeight = width * 1.5;
+  const upperBound = height * 0.68;
+  const lowerBound = Math.min(Math.max(width * 1.18, height * 0.5), upperBound);
+  return Math.round(clamp(naturalPhotoHeight, lowerBound, upperBound));
+}
+
+async function getWindowMetrics(): Promise<WindowMetrics> {
+  const wxApi = wx as any;
+  if (typeof wxApi.getWindowInfo === "function") {
+    try {
+      return normalizeWindowMetrics(wxApi.getWindowInfo());
+    } catch {
+      // Fall through for older or partially mocked runtimes.
+    }
+  }
+  if (typeof wxApi.getSystemInfoSync === "function") {
+    try {
+      return normalizeWindowMetrics(wxApi.getSystemInfoSync());
+    } catch {
+      // Fall through to async system info.
+    }
+  }
+  if (typeof wxApi.getSystemInfo === "function") {
+    return new Promise((resolve) => {
+      wxApi.getSystemInfo({
+        success: (info: unknown) => resolve(normalizeWindowMetrics(info)),
+        fail: () => resolve(defaultWindowMetrics()),
+      });
+    });
+  }
+  return defaultWindowMetrics();
+}
+
+function readResizeMetrics(event: ResizeEvent): WindowMetrics | undefined {
+  return isWindowMetrics(event?.size) ? normalizeWindowMetrics(event.size) : undefined;
+}
+
+function normalizeWindowMetrics(value: unknown): WindowMetrics {
+  const input = isObject(value) ? value : {};
+  return {
+    windowWidth: Number(input.windowWidth) || defaultWindowMetrics().windowWidth,
+    windowHeight: Number(input.windowHeight) || defaultWindowMetrics().windowHeight,
+  };
+}
+
+function defaultWindowMetrics(): WindowMetrics {
+  return {
+    windowWidth: 375,
+    windowHeight: 667,
+  };
+}
+
+function isWindowMetrics(value: unknown): value is WindowMetrics {
+  if (!isObject(value)) return false;
+  return Number(value.windowWidth) > 0 && Number(value.windowHeight) > 0;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function normalizeGroups(groupsInput: any[], entriesInput: Record<string, unknown>): HomeGroup[] {
