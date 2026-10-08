@@ -134,13 +134,13 @@ function verifyMobileParityTabBar() {
   const appJson = readJson(appJsonPath);
   const expectedTabs = [
     ["pages/home/index", "首页", "assets/tabbar/home.png", "assets/tabbar/home-active.png"],
+    ["pages/cats/index", "我们的猫", "assets/tabbar/cats.png", "assets/tabbar/cats-active.png"],
     [
       "pages/community/index",
       "猫友圈",
       "assets/tabbar/community.png",
       "assets/tabbar/community-active.png",
     ],
-    ["pages/cats/index", "我们的猫", "assets/tabbar/cats.png", "assets/tabbar/cats-active.png"],
   ];
   const tabs = appJson.tabBar?.list;
   if (!Array.isArray(tabs) || tabs.length !== expectedTabs.length) {

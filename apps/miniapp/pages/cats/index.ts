@@ -54,12 +54,12 @@ interface TapEvent {
   };
 }
 
-const KITTEN_FILTERS = ["待找家", "找家中", "已有家"];
+const KITTEN_FILTERS = ["找家中", "待找家", "已有家"];
 const STUD_FILTERS = ["现役公猫", "现役母猫", "预备役种猫"];
 
 Page({
   data: {
-    activeFilter: "待找家",
+    activeFilter: "找家中",
     activeLitterLabel: "全部窝次",
     activeLitterId: "",
     activeTab: "kittens" as TabKey,
@@ -77,7 +77,7 @@ Page({
   },
 
   onShow(this: CatsPage) {
-    this.getTabBar?.()?.setData({ selected: 2 });
+    this.getTabBar?.()?.setData({ selected: 1 });
   },
 
   async onPullDownRefresh(this: CatsPage) {

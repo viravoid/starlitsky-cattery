@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prisma as defaultPrisma } from "../db/prisma.mjs";
 import { completeMediaUpload, requestImageUpload } from "./media-upload-service.mjs";
@@ -11,13 +12,16 @@ const IMPORTER_METADATA_KEY = "environmentMediaBatch";
 const RUNTIME_VALIDATED = Symbol("environmentMediaBatchRuntimeValidated");
 const MANIFEST_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../../docs/media-source-manifests/environment-2026-09-05.json",
+  "../../../../docs/media-source-manifests/environment-2026-10-08.json",
 );
 const PAGE_OWNER_TYPE = "fixed_page";
 const ENVIRONMENT_PAGE_ID = "fixed-page-environment";
-const MATERNITY_SLOT = "environment:maternity";
+const SUPPORTED_ENVIRONMENT_SLOTS = new Set([
+  "environment:maternity",
+  "environment:public-area",
+  "environment:medical",
+]);
 const APPEND_MODES = new Set(["append-or-manual-bind"]);
-const REPLACEMENT_MODE = "replace-visible-slot-bindings";
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg"]);
 const DISALLOWED_COUNT_MODELS = [
   "user",
@@ -53,6 +57,9 @@ export function assertEnvironmentMediaBatchRuntime({
   confirmProduction = false,
   databaseUrl = process.env.DATABASE_URL,
   nodeEnv = process.env.NODE_ENV,
+  sqliteBackupCommandArgs = [],
+  sqliteBackupCommand = process.env.SQLITE3_BIN || "sqlite3",
+  sqliteBackupDir = process.env.SQLITE_BACKUP_DIR || process.env.BACKUP_DIR,
 } = {}) {
   if (!databaseUrl || !databaseUrl.trim()) {
     throw new EnvironmentMediaBatchImportError("DATABASE_URL must be set explicitly.");
@@ -75,6 +82,9 @@ export function assertEnvironmentMediaBatchRuntime({
     [RUNTIME_VALIDATED]: true,
     databaseUrl,
     isProductionTarget: productionTarget,
+    sqliteBackupCommandArgs,
+    sqliteBackupCommand,
+    sqliteBackupDir,
   };
 }
 
@@ -106,23 +116,29 @@ export function validateEnvironmentMediaSourceManifest(manifest) {
   if (manifest?.uploadedToCos !== false) {
     errors.push("manifest.uploadedToCos must stay false until a real target apply completes");
   }
-  if (!Array.isArray(manifest?.items) || manifest.items.length !== 5) {
-    errors.push("manifest.items must contain exactly 5 entries");
+  if (!Array.isArray(manifest?.items) || manifest.items.length !== 10) {
+    errors.push("manifest.items must contain exactly 10 entries");
   }
 
   const seenIds = new Set();
   const seenFilenames = new Set();
-  const expectedMaternitySortOrders = [10, 20, 30];
-  const maternityItems = [];
+  const seenContentImageIds = new Set();
   for (const item of Array.isArray(manifest?.items) ? manifest.items : []) {
     requiredString(item.id, "item.id", errors);
     requiredString(item.filename, `item ${item.id}.filename`, errors);
     requiredString(item.sha256, `item ${item.id}.sha256`, errors);
     requiredString(item.businessSlot, `item ${item.id}.businessSlot`, errors);
+    requiredString(item.targetSectionId, `item ${item.id}.targetSectionId`, errors);
+    requiredString(item.targetRoomId, `item ${item.id}.targetRoomId`, errors);
+    requiredString(item.contentImageId, `item ${item.id}.contentImageId`, errors);
     if (seenIds.has(item.id)) errors.push(`duplicate item id: ${item.id}`);
     if (seenFilenames.has(item.filename)) errors.push(`duplicate filename: ${item.filename}`);
+    if (seenContentImageIds.has(item.contentImageId)) {
+      errors.push(`duplicate contentImageId: ${item.contentImageId}`);
+    }
     seenIds.add(item.id);
     seenFilenames.add(item.filename);
+    seenContentImageIds.add(item.contentImageId);
     if (!/^[a-f0-9]{64}$/.test(String(item.sha256))) {
       errors.push(`item ${item.id}.sha256 must be a lowercase SHA256 hex digest`);
     }
@@ -145,34 +161,15 @@ export function validateEnvironmentMediaSourceManifest(manifest) {
       errors.push(`item ${item.id}.uploadedToCos must stay false until a real target apply completes`);
     }
 
-    if (item.businessSlot === MATERNITY_SLOT) {
-      maternityItems.push(item);
-      if (item.replacementSet !== true) {
-        errors.push(`item ${item.id} must be marked as maternity replacementSet`);
-      }
-      if (item.replacementMode !== REPLACEMENT_MODE) {
-        errors.push(`item ${item.id} must use ${REPLACEMENT_MODE}`);
-      }
-    } else {
-      if (!["environment:public-area", "environment:medical"].includes(item.businessSlot)) {
-        errors.push(`item ${item.id}.businessSlot is unsupported: ${item.businessSlot}`);
-      }
-      if (!APPEND_MODES.has(item.replacementMode)) {
-        errors.push(`item ${item.id} must use append-or-manual-bind`);
-      }
-      if (item.replacementSet !== false) {
-        errors.push(`item ${item.id}.replacementSet must be false`);
-      }
-      if (item.sortOrder !== 10) {
-        errors.push(`item ${item.id}.sortOrder must be 10`);
-      }
+    if (!SUPPORTED_ENVIRONMENT_SLOTS.has(item.businessSlot)) {
+      errors.push(`item ${item.id}.businessSlot is unsupported: ${item.businessSlot}`);
     }
-  }
-  if (
-    maternityItems.length !== 3 ||
-    maternityItems.map((item) => item.sortOrder).join(",") !== expectedMaternitySortOrders.join(",")
-  ) {
-    errors.push("maternity replacement entries must be exactly three items sorted 10, 20, 30");
+    if (!APPEND_MODES.has(item.replacementMode)) {
+      errors.push(`item ${item.id} must use append-or-manual-bind`);
+    }
+    if (item.replacementSet !== false) {
+      errors.push(`item ${item.id}.replacementSet must be false`);
+    }
   }
 
   if (errors.length > 0) {
@@ -250,13 +247,25 @@ export async function createEnvironmentMediaBatchPlan({
 } = {}) {
   const validation = validateEnvironmentMediaSourceFiles({ sourceDir, manifest });
   const existingRecords = await loadExistingImporterRecords(client, manifest.sourceBatchId);
+  const environmentPage = await client.fixedPage.findFirst({
+    where: { id: ENVIRONMENT_PAGE_ID, deleted_at: null },
+    select: { content_json: true, id: true, slug: true },
+  });
   const conflicts = [];
   const items = [];
 
+  if (!environmentPage) {
+    conflicts.push({ kind: "missing-environment-fixed-page", ownerId: ENVIRONMENT_PAGE_ID });
+  }
+
   for (const sourceFile of validation.files) {
     const sourceItemConflicts = findIdentityConflicts(existingRecords, sourceFile);
+    const contentState = environmentPage
+      ? classifyExpectedContentImage(environmentPage.content_json, sourceFile, null)
+      : { contentAction: "conflict" };
+    if (contentState.conflict) conflicts.push(contentState.conflict);
     conflicts.push(...sourceItemConflicts);
-    if (sourceItemConflicts.length > 0) {
+    if (sourceItemConflicts.length > 0 || contentState.conflict) {
       items.push(toPlanItem(sourceFile, { action: "conflict" }));
       continue;
     }
@@ -278,6 +287,7 @@ export async function createEnvironmentMediaBatchPlan({
       items.push(
         toPlanItem(sourceFile, {
           action: "upload",
+          contentAction: contentState.contentAction === "present" ? "present" : "append-after-upload",
           plannedBindingVisibility: plannedInitialVisibility(sourceFile),
         }),
       );
@@ -295,6 +305,16 @@ export async function createEnvironmentMediaBatchPlan({
     }
 
     const bindingState = classifyExpectedBinding(media, sourceFile);
+    const existingContentState = classifyExpectedContentImage(
+      environmentPage?.content_json,
+      sourceFile,
+      media.id,
+    );
+    if (existingContentState.conflict) {
+      conflicts.push(existingContentState.conflict);
+      items.push(toPlanItem(sourceFile, { action: "conflict", mediaId: media.id }));
+      continue;
+    }
     if (bindingState.conflict) {
       conflicts.push(bindingState.conflict);
       items.push(toPlanItem(sourceFile, { action: "conflict" }));
@@ -305,16 +325,13 @@ export async function createEnvironmentMediaBatchPlan({
         action: bindingState.needsBinding ? "reuse" : "noop",
         mediaId: media.id,
         bindingId: bindingState.binding?.id ?? null,
+        contentAction: existingContentState.contentAction,
         plannedBindingVisibility: bindingState.plannedBindingVisibility,
       }),
     );
   }
 
   const summary = summarizePlan(items, await countEnvironmentMediaBatchTables(client));
-  summary.bindingsToArchive =
-    conflicts.length === 0 && hasCompleteMaternityPlan(items)
-      ? await countExistingVisibleMaternityBindings(client, items)
-      : 0;
 
   return {
     mode: "dry-run",
@@ -351,6 +368,7 @@ export async function runEnvironmentMediaBatchImport({
   }
   if (!apply) return plan;
 
+  const productionBackupPath = createProductionSqliteBackup(runtimeContext);
   const sourceFilesById = new Map(
     validateEnvironmentMediaSourceFiles({ sourceDir, manifest }).files.map((file) => [file.id, file]),
   );
@@ -401,7 +419,11 @@ export async function runEnvironmentMediaBatchImport({
     }
   }
 
-  await switchMaternityReplacementSet({ client, manifest, itemPlans: plan.items });
+  const contentJsonResult = await appendEnvironmentContentJsonReferences({
+    client,
+    itemPlans: plan.items,
+    sourceFilesById,
+  });
 
   const finalPlan = await createEnvironmentMediaBatchPlan({
     client,
@@ -414,6 +436,9 @@ export async function runEnvironmentMediaBatchImport({
     uploadedCount: completed.length,
     reusedCount: reused.length,
     createdBindingCount: createdBindings.length,
+    contentJsonUpdated: contentJsonResult.updated,
+    contentJsonReferencesAppended: contentJsonResult.appendedCount,
+    productionBackupPath,
     remoteDeletes: 0,
   };
   return finalPlan;
@@ -442,27 +467,62 @@ async function uploadAndCompleteSourceFile({ client, putObject, sourceFile }) {
     data: { metadata_json: metadataJson },
   });
 
-  await putObject({
-    filePath: sourceFile.filePath,
-    mimeType: sourceFile.actual.mimeType,
-    upload: requested.upload,
-  });
+  try {
+    await putObject({
+      filePath: sourceFile.filePath,
+      mimeType: sourceFile.actual.mimeType,
+      upload: requested.upload,
+    });
 
-  const completed = await completeMediaUpload(requested.media.id, {
-    checksum: sourceFile.sha256,
-    height: sourceFile.height,
-    sizeBytes: sourceFile.sizeBytes,
-    width: sourceFile.width,
+    const completed = await completeMediaUpload(requested.media.id, {
+      checksum: sourceFile.sha256,
+      height: sourceFile.height,
+      sizeBytes: sourceFile.sizeBytes,
+      width: sourceFile.width,
+    });
+    return {
+      media: completed,
+      bindingId: completed.bindings.find(
+        (binding) =>
+          binding.ownerId === ENVIRONMENT_PAGE_ID &&
+          binding.ownerType === PAGE_OWNER_TYPE &&
+          binding.usage === sourceFile.businessSlot,
+      )?.id,
+    };
+  } catch (error) {
+    await markFailedPendingUpload({ client, error, mediaId: requested.media.id, sourceFile });
+    throw error;
+  }
+}
+
+async function markFailedPendingUpload({ client, error, mediaId, sourceFile }) {
+  const failedAt = new Date();
+  const media = await client.mediaAsset.findUnique({
+    where: { id: mediaId },
+    select: { metadata_json: true, status: true },
   });
-  return {
-    media: completed,
-    bindingId: completed.bindings.find(
-      (binding) =>
-        binding.ownerId === ENVIRONMENT_PAGE_ID &&
-        binding.ownerType === PAGE_OWNER_TYPE &&
-        binding.usage === sourceFile.businessSlot,
-    )?.id,
+  const metadataJson = isPlainObject(media?.metadata_json) ? { ...media.metadata_json } : {};
+  metadataJson.environmentMediaBatchFailure = {
+    failedAt: failedAt.toISOString(),
+    message: error instanceof Error ? error.message : String(error),
+    sourceItemId: sourceFile.id,
   };
+  await client.$transaction([
+    client.mediaBinding.updateMany({
+      where: { media_id: mediaId, deleted_at: null },
+      data: {
+        deleted_at: failedAt,
+        visibility: "archived",
+      },
+    }),
+    client.mediaAsset.update({
+      where: { id: mediaId },
+      data: {
+        metadata_json: metadataJson,
+        status: "rejected",
+      },
+    }),
+  ]);
 }
 
 async function putPresignedObject({ filePath, mimeType, upload }) {
@@ -478,58 +538,159 @@ async function putPresignedObject({ filePath, mimeType, upload }) {
   }
 }
 
-async function switchMaternityReplacementSet({ client, manifest, itemPlans }) {
-  const maternityItems = manifest.items.filter((item) => item.businessSlot === MATERNITY_SLOT);
-  const newMediaIds = itemPlans
-    .filter((item) => item.slot === MATERNITY_SLOT)
-    .map((item) => item.mediaId)
-    .filter(Boolean);
-  if (maternityItems.length !== 3 || newMediaIds.length !== 3) {
-    throw new EnvironmentMediaBatchImportError(
-      "Maternity replacement set is incomplete; old visible bindings remain untouched.",
-    );
+async function appendEnvironmentContentJsonReferences({ client, itemPlans, sourceFilesById }) {
+  const page = await client.fixedPage.findFirst({
+    where: { id: ENVIRONMENT_PAGE_ID, deleted_at: null },
+    select: { content_json: true, id: true },
+  });
+  if (!page) {
+    throw new EnvironmentMediaBatchImportError("Environment fixed page is missing.", {
+      ownerId: ENVIRONMENT_PAGE_ID,
+    });
   }
 
-  await client.$transaction(async (transaction) => {
-    await transaction.mediaBinding.updateMany({
-      where: {
-        deleted_at: null,
-        media_id: { notIn: newMediaIds },
-        owner_id: ENVIRONMENT_PAGE_ID,
-        owner_type: PAGE_OWNER_TYPE,
-        usage: MATERNITY_SLOT,
-        visibility: "visible",
-      },
-      data: {
-        deleted_at: new Date(),
-        visibility: "archived",
-      },
-    });
-
-    for (const sourceItem of maternityItems) {
-      const mediaId = itemPlans.find((item) => item.sourceItemId === sourceItem.id)?.mediaId;
-      if (!mediaId) throw new EnvironmentMediaBatchImportError(`Missing staged media for ${sourceItem.id}`);
-      const updated = await transaction.mediaBinding.updateMany({
-        where: {
-          deleted_at: null,
-          media_id: mediaId,
-          owner_id: ENVIRONMENT_PAGE_ID,
-          owner_type: PAGE_OWNER_TYPE,
-          usage: MATERNITY_SLOT,
-        },
-        data: {
-          sort_order: sourceItem.sortOrder,
-          visibility: "visible",
-        },
+  let contentJson = cloneJsonObject(page.content_json);
+  let appendedCount = 0;
+  for (const itemPlan of itemPlans) {
+    if (!itemPlan.mediaId) {
+      throw new EnvironmentMediaBatchImportError("Cannot update environment contentJson without media id.", {
+        sourceItemId: itemPlan.sourceItemId,
       });
-      if (updated.count !== 1) {
-        throw new EnvironmentMediaBatchImportError("Maternity staged binding is missing or ambiguous.", {
-          mediaId,
-          sourceItemId: sourceItem.id,
-        });
+    }
+    const sourceFile = sourceFilesById.get(itemPlan.sourceItemId);
+    if (!sourceFile) {
+      throw new EnvironmentMediaBatchImportError("Missing source file metadata for contentJson update.", {
+        sourceItemId: itemPlan.sourceItemId,
+      });
+    }
+    const before = JSON.stringify(contentJson);
+    contentJson = appendEnvironmentRoomImage(contentJson, sourceFile, itemPlan.mediaId);
+    if (JSON.stringify(contentJson) !== before) appendedCount += 1;
+  }
+
+  if (appendedCount > 0) {
+    await client.fixedPage.update({
+      where: { id: ENVIRONMENT_PAGE_ID },
+      data: { content_json: contentJson },
+    });
+  }
+
+  return {
+    appendedCount,
+    updated: appendedCount > 0,
+  };
+}
+
+function appendEnvironmentRoomImage(contentJson, sourceFile, mediaId) {
+  const location = findTargetEnvironmentRoom(contentJson, sourceFile);
+  if (!location.room) {
+    throw new EnvironmentMediaBatchImportError("Target environment room not found in contentJson.", {
+      sourceItemId: sourceFile.id,
+      targetRoomId: sourceFile.targetRoomId,
+      targetSectionId: sourceFile.targetSectionId,
+    });
+  }
+
+  const existingLocation = findImageIdInEnvironmentContent(contentJson, mediaId);
+  if (existingLocation) {
+    if (
+      existingLocation.sectionId !== sourceFile.targetSectionId ||
+      existingLocation.roomId !== sourceFile.targetRoomId
+    ) {
+      throw new EnvironmentMediaBatchImportError("Media id is already referenced in a different environment room.", {
+        mediaId,
+        sourceItemId: sourceFile.id,
+        targetRoomId: sourceFile.targetRoomId,
+        targetSectionId: sourceFile.targetSectionId,
+      });
+    }
+    return contentJson;
+  }
+
+  const images = Array.isArray(location.room.images) ? [...location.room.images] : [];
+  const conflictingContentId = images.find(
+    (image) => isPlainObject(image) && image.id === sourceFile.contentImageId && image.imageId !== mediaId,
+  );
+  if (conflictingContentId) {
+    throw new EnvironmentMediaBatchImportError("contentImageId already exists with a different media id.", {
+      contentImageId: sourceFile.contentImageId,
+      sourceItemId: sourceFile.id,
+    });
+  }
+
+  location.room.images = [
+    ...images,
+    {
+      id: sourceFile.contentImageId,
+      imageId: mediaId,
+    },
+  ];
+  return contentJson;
+}
+
+function classifyExpectedContentImage(contentJson, sourceFile, mediaId) {
+  const location = findTargetEnvironmentRoom(contentJson, sourceFile);
+  if (!location.room) {
+    return {
+      conflict: {
+        kind: "missing-target-room",
+        sourceItemId: sourceFile.id,
+        targetRoomId: sourceFile.targetRoomId,
+        targetSectionId: sourceFile.targetSectionId,
+      },
+    };
+  }
+
+  if (!mediaId) return { contentAction: "append-after-upload" };
+  const existingLocation = findImageIdInEnvironmentContent(contentJson, mediaId);
+  if (!existingLocation) return { contentAction: "append" };
+  if (
+    existingLocation.sectionId !== sourceFile.targetSectionId ||
+    existingLocation.roomId !== sourceFile.targetRoomId
+  ) {
+    return {
+      conflict: {
+        kind: "content-image-in-wrong-room",
+        mediaId,
+        sourceItemId: sourceFile.id,
+        targetRoomId: sourceFile.targetRoomId,
+        targetSectionId: sourceFile.targetSectionId,
+        actualRoomId: existingLocation.roomId,
+        actualSectionId: existingLocation.sectionId,
+      },
+    };
+  }
+  return { contentAction: "present" };
+}
+
+function findTargetEnvironmentRoom(contentJson, sourceFile) {
+  const sections = Array.isArray(contentJson?.sections) ? contentJson.sections : [];
+  for (const section of sections) {
+    if (!isPlainObject(section) || section.id !== sourceFile.targetSectionId) continue;
+    const rooms = Array.isArray(section.rooms) ? section.rooms : [];
+    for (const room of rooms) {
+      if (isPlainObject(room) && room.id === sourceFile.targetRoomId) {
+        return { room, section };
       }
     }
-  });
+  }
+  return { room: null, section: null };
+}
+
+function findImageIdInEnvironmentContent(contentJson, mediaId) {
+  const sections = Array.isArray(contentJson?.sections) ? contentJson.sections : [];
+  for (const section of sections) {
+    if (!isPlainObject(section)) continue;
+    const rooms = Array.isArray(section.rooms) ? section.rooms : [];
+    for (const room of rooms) {
+      if (!isPlainObject(room)) continue;
+      const images = Array.isArray(room.images) ? room.images : [];
+      if (images.some((image) => isPlainObject(image) && image.imageId === mediaId)) {
+        return { roomId: room.id, sectionId: section.id };
+      }
+    }
+  }
+  return null;
 }
 
 async function loadExistingImporterRecords(client, sourceBatchId) {
@@ -606,24 +767,6 @@ function classifyExpectedBinding(media, sourceFile) {
       },
     };
   }
-  if (sourceFile.businessSlot === MATERNITY_SLOT) {
-    if (!["hidden", "visible"].includes(binding.visibility)) {
-      return {
-        conflict: {
-          kind: "importer-binding-visibility-conflict",
-          sourceItemId: sourceFile.id,
-          mediaId: media.id,
-          bindingId: binding.id,
-        },
-      };
-    }
-    return {
-      binding,
-      needsBinding: false,
-      plannedBindingVisibility:
-        binding.visibility === "visible" ? "visible" : "hidden -> visible-after-complete-set",
-    };
-  }
   if (binding.visibility !== "visible") {
     return {
       conflict: {
@@ -667,8 +810,9 @@ function summarizePlan(items, beforeCounts) {
     bindingsToCreate: items.filter(
       (item) => item.action === "upload" || item.action === "reuse",
     ).length,
-    bindingsToUpdate: items.filter(
-      (item) => item.plannedBindingVisibility === "hidden -> visible-after-complete-set",
+    bindingsToUpdate: 0,
+    contentJsonReferencesToAppend: items.filter((item) =>
+      ["append", "append-after-upload"].includes(item.contentAction),
     ).length,
     objectsToUpload: items.filter((item) => item.action === "upload").length,
     remoteDeletes: 0,
@@ -676,35 +820,24 @@ function summarizePlan(items, beforeCounts) {
   };
 }
 
-function hasCompleteMaternityPlan(items) {
-  const maternityItems = items.filter((item) => item.slot === MATERNITY_SLOT);
-  return maternityItems.length === 3 && maternityItems.every((item) => item.action !== "conflict");
-}
-
-async function countExistingVisibleMaternityBindings(client, items) {
-  const newMediaIds = items
-    .filter((item) => item.slot === MATERNITY_SLOT)
-    .map((item) => item.mediaId)
-    .filter(Boolean);
-  return client.mediaBinding.count({
-    where: {
-      deleted_at: null,
-      media_id: newMediaIds.length > 0 ? { notIn: newMediaIds } : undefined,
-      owner_id: ENVIRONMENT_PAGE_ID,
-      owner_type: PAGE_OWNER_TYPE,
-      usage: MATERNITY_SLOT,
-      visibility: "visible",
-    },
-  });
-}
-
 async function countEnvironmentMediaBatchTables(client) {
   const pairs = await Promise.all([
-    ["mediaAsset", client.mediaAsset.count()],
-    ["mediaBinding", client.mediaBinding.count()],
-    ...DISALLOWED_COUNT_MODELS.map((model) => [model, client[model].count()]),
+    ["mediaAsset", countRequiredModel(client, "mediaAsset")],
+    ["mediaBinding", countRequiredModel(client, "mediaBinding")],
+    ...DISALLOWED_COUNT_MODELS.map((model) => [model, countOptionalModel(client, model)]),
   ]);
   return Object.fromEntries(pairs);
+}
+
+async function countRequiredModel(client, model) {
+  if (!client[model]?.count) {
+    throw new EnvironmentMediaBatchImportError(`Required Prisma model is unavailable: ${model}`);
+  }
+  return client[model].count();
+}
+
+async function countOptionalModel(client, model) {
+  return client[model]?.count ? client[model].count() : null;
 }
 
 function toPlanItem(
@@ -712,6 +845,7 @@ function toPlanItem(
   {
     action,
     bindingId = null,
+    contentAction = "unknown",
     mediaId = null,
     plannedBindingVisibility = plannedFinalVisibility(sourceFile),
   } = {},
@@ -719,25 +853,26 @@ function toPlanItem(
   return {
     action,
     bindingId,
+    contentAction,
     filename: sourceFile.filename,
     mediaId,
     plannedBindingVisibility,
-    replacementMembership: sourceFile.replacementSet ? "maternity-replacement-set" : "none",
+    replacementMembership: "append-only",
     sha256Short: sourceFile.sha256.slice(0, 12),
     slot: sourceFile.businessSlot,
     sortOrder: sourceFile.sortOrder,
     sourceItemId: sourceFile.id,
+    targetRoomId: sourceFile.targetRoomId,
+    targetSectionId: sourceFile.targetSectionId,
   };
 }
 
 function plannedInitialVisibility(sourceFile) {
-  return sourceFile.businessSlot === MATERNITY_SLOT ? "hidden" : "visible";
+  return "visible";
 }
 
 function plannedFinalVisibility(sourceFile) {
-  return sourceFile.businessSlot === MATERNITY_SLOT
-    ? "hidden -> visible-after-complete-set"
-    : "visible";
+  return "visible";
 }
 
 function mergeImporterMetadata(value, sourceFile) {
@@ -825,6 +960,133 @@ function resolveExplicitSourceDir(sourceDir) {
     });
   }
   return resolved;
+}
+
+function createProductionSqliteBackup(runtimeContext) {
+  if (!runtimeContext?.isProductionTarget) return null;
+  const sqlitePath = resolveSqlitePath(runtimeContext.databaseUrl);
+  if (!existsSync(sqlitePath)) {
+    throw new EnvironmentMediaBatchImportError("Production database backup source does not exist.", {
+      databaseUrl: redactedDatabaseUrl(runtimeContext.databaseUrl),
+    });
+  }
+  const backupDir =
+    runtimeContext.sqliteBackupDir && runtimeContext.sqliteBackupDir.trim()
+      ? resolve(runtimeContext.sqliteBackupDir)
+      : defaultProductionSqliteBackupDir(sqlitePath);
+  mkdirSync(backupDir, { recursive: true });
+  const backupPath = join(
+    backupDir,
+    `${basename(sqlitePath, ".sqlite")}-environment-media-${new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")}.sqlite`,
+  );
+  const sqliteBackupCommand = runtimeContext.sqliteBackupCommand || "sqlite3";
+  const sqliteBackupCommandArgs = Array.isArray(runtimeContext.sqliteBackupCommandArgs)
+    ? runtimeContext.sqliteBackupCommandArgs
+    : [];
+
+  try {
+    const quotedBackupPath = quoteSqliteDotCommandPath(backupPath, "backupPath");
+    execSqliteCli({
+      args: sqliteBackupCommandArgs,
+      command: sqliteBackupCommand,
+      databasePath: sqlitePath,
+      input: `.timeout 5000\n.backup ${quotedBackupPath}\n`,
+      operation: "create online SQLite backup",
+    });
+    verifySqliteBackupCanBeQueried({
+      args: sqliteBackupCommandArgs,
+      backupPath,
+      command: sqliteBackupCommand,
+    });
+    chmodSync(backupPath, 0o600);
+  } catch (error) {
+    rmSync(backupPath, { force: true });
+    if (error instanceof EnvironmentMediaBatchImportError) throw error;
+    throw new EnvironmentMediaBatchImportError("Production SQLite backup failed before apply.", {
+      cause: error?.message ?? String(error),
+      databaseUrl: redactedDatabaseUrl(runtimeContext.databaseUrl),
+    });
+  }
+  return backupPath;
+}
+
+function defaultProductionSqliteBackupDir(sqlitePath) {
+  return sqlitePath.startsWith("/opt/starlitsky/data/") || sqlitePath.startsWith("\\opt\\starlitsky\\data\\")
+    ? "/opt/starlitsky/backups/sqlite"
+    : dirname(sqlitePath);
+}
+
+function verifySqliteBackupCanBeQueried({ args = [], backupPath, command }) {
+  if (!existsSync(backupPath) || statSync(backupPath).size <= 0) {
+    throw new EnvironmentMediaBatchImportError("Production SQLite backup was not created.", {
+      backupPath,
+    });
+  }
+  const output = execSqliteCli({
+    args,
+    command,
+    databasePath: backupPath,
+    input: ".timeout 5000\nPRAGMA quick_check;\nSELECT count(*) FROM sqlite_master;\n",
+    operation: "verify SQLite backup",
+  });
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines[0] !== "ok" || !/^\d+$/.test(lines[1] ?? "")) {
+    throw new EnvironmentMediaBatchImportError("Production SQLite backup integrity check failed.", {
+      backupPath,
+      output: truncateForDetails(output),
+    });
+  }
+}
+
+function execSqliteCli({ args = [], command, databasePath, input, operation }) {
+  try {
+    return execFileSync(command, [...args, databasePath], {
+      encoding: "utf8",
+      input,
+      maxBuffer: 1024 * 1024,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+  } catch (error) {
+    throw new EnvironmentMediaBatchImportError(`Failed to ${operation}.`, {
+      command: basename(command),
+      cause: error?.message ?? "",
+      databasePath,
+      stderr: truncateForDetails(error?.stderr?.toString?.() ?? ""),
+      stdout: truncateForDetails(error?.stdout?.toString?.() ?? ""),
+      status: error?.status ?? null,
+    });
+  }
+}
+
+function quoteSqliteDotCommandPath(path, label) {
+  if (typeof path !== "string" || path.trim() === "" || /['\r\n]/.test(path)) {
+    throw new EnvironmentMediaBatchImportError(`${label} is not safe for sqlite3 .backup quoting.`, {
+      [label]: path,
+    });
+  }
+  return `'${path}'`;
+}
+
+function truncateForDetails(value) {
+  const text = String(value ?? "");
+  return text.length > 1200 ? `${text.slice(0, 1200)}...` : text;
+}
+
+function resolveSqlitePath(databaseUrl) {
+  if (!databaseUrl?.startsWith("file:")) return "";
+  const rawPath = databaseUrl.slice("file:".length).trim().replace(/^"|"$/g, "");
+  if (isAbsolute(rawPath) || /^[A-Za-z]:[\\/]/.test(rawPath)) return rawPath;
+  return resolve(process.cwd(), rawPath);
+}
+
+function cloneJsonObject(value) {
+  if (!isPlainObject(value)) return {};
+  return JSON.parse(JSON.stringify(value));
 }
 
 function assertEnvironmentMediaBatchApplyRuntime(runtimeContext) {

@@ -105,7 +105,7 @@ Page({
   },
 
   onShow(this: CommunityPage) {
-    this.getTabBar?.()?.setData({ selected: 1 });
+    this.getTabBar?.()?.setData({ selected: 2 });
   },
 
   async onPullDownRefresh(this: CommunityPage) {
