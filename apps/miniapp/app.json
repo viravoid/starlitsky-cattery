@@ -39,16 +39,16 @@
         "selectedIconPath": "assets/tabbar/home-active.png"
       },
       {
-        "pagePath": "pages/community/index",
-        "text": "猫友圈",
-        "iconPath": "assets/tabbar/community.png",
-        "selectedIconPath": "assets/tabbar/community-active.png"
-      },
-      {
         "pagePath": "pages/cats/index",
         "text": "我们的猫",
         "iconPath": "assets/tabbar/cats.png",
         "selectedIconPath": "assets/tabbar/cats-active.png"
+      },
+      {
+        "pagePath": "pages/community/index",
+        "text": "猫友圈",
+        "iconPath": "assets/tabbar/community.png",
+        "selectedIconPath": "assets/tabbar/community-active.png"
       }
     ]
   },

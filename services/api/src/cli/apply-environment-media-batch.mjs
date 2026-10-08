@@ -77,8 +77,10 @@ function printHumanPlan(result) {
         item.filename,
         item.sha256Short,
         item.slot,
+        `${item.targetSectionId}/${item.targetRoomId}`,
         `sort=${item.sortOrder}`,
         `action=${item.action}`,
+        `content=${item.contentAction}`,
         `visibility=${item.plannedBindingVisibility}`,
         `replacement=${item.replacementMembership}`,
       ].join(" | "),
@@ -92,6 +94,7 @@ function printHumanPlan(result) {
       `bindingsToCreate=${result.summary.bindingsToCreate}`,
       `bindingsToUpdate=${result.summary.bindingsToUpdate}`,
       `bindingsToArchive=${result.summary.bindingsToArchive}`,
+      `contentRefsToAppend=${result.summary.contentJsonReferencesToAppend}`,
       `remoteDeletes=${result.summary.remoteDeletes}`,
     ].join(", "),
   );
@@ -104,6 +107,7 @@ function printHumanPlan(result) {
         `uploaded=${result.applyResult.uploadedCount}`,
         `reused=${result.applyResult.reusedCount}`,
         `createdBindings=${result.applyResult.createdBindingCount}`,
+        `contentRefs=${result.applyResult.contentJsonReferencesAppended}`,
         `remoteDeletes=${result.applyResult.remoteDeletes}`,
       ].join(", "),
     );

@@ -25,16 +25,16 @@ const tabs: TabItem[] = [
     activeIcon: "/assets/tabbar/home-active.png",
   },
   {
-    pagePath: "/pages/community/index",
-    text: "猫友圈",
-    icon: "/assets/tabbar/community.png",
-    activeIcon: "/assets/tabbar/community-active.png",
-  },
-  {
     pagePath: "/pages/cats/index",
     text: "我们的猫",
     icon: "/assets/tabbar/cats.png",
     activeIcon: "/assets/tabbar/cats-active.png",
+  },
+  {
+    pagePath: "/pages/community/index",
+    text: "猫友圈",
+    icon: "/assets/tabbar/community.png",
+    activeIcon: "/assets/tabbar/community-active.png",
   },
 ];
 
