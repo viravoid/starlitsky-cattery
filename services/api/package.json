@@ -26,6 +26,7 @@
     "verify:public-content-import": "node src/services/public-content-importer.verify.mjs",
     "verify:environment-media-batch": "node src/services/environment-media-batch-importer.verify.mjs",
     "import:public-content": "node src/cli/import-public-content.mjs",
+    "apply:demo-recovery-update": "node src/cli/apply-demo-recovery-update.mjs",
     "media:apply-environment-batch": "node src/cli/apply-environment-media-batch.mjs"
   },
   "dependencies": {

@@ -49,10 +49,6 @@
 
   <view wx:else class="list {{activeTab === 'kittens' && litterOpen ? 'list-expanded' : ''}}">
     <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
-      <view class="card-pills">
-        <text class="pill">{{item.pill}}</text>
-        <text wx:if="{{item.litterName}}" class="pill litter-pill">{{item.litterName}}</text>
-      </view>
       <view class="thumb">
         <image
           wx:if="{{item.imageUrl}}"
@@ -66,6 +62,10 @@
         </view>
       </view>
       <view class="info">
+        <view class="card-pills">
+          <text class="pill">{{item.pill}}</text>
+          <text wx:if="{{item.litterName}}" class="pill litter-pill">{{item.litterName}}</text>
+        </view>
         <text class="name">{{item.name}}</text>
         <view class="meta-grid">
           <view wx:for="{{item.metaItems}}" wx:key="label" class="meta-item">
