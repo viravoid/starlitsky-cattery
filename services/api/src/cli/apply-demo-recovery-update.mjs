@@ -11,6 +11,7 @@ import { completeMediaUpload, requestImageUpload } from "../services/media-uploa
 const HERO_SHA256 = "89cc5219f73df592c9bfc191b64637c5c0f21e9de523368518ace944b2517d23";
 const HERO_BYTES = 376672;
 const HERO_FILE_NAME = "P01-home-hero.jpg";
+const REQUIRED_HERO_MEDIA_ID = "9de43998-74dc-4b33-8f3a-b81e8e5005b7";
 const HOME_PAGE_ID = "fixed-page-home";
 const YIYI_CAT_ID = "public-content-cat-luoyiyi";
 const YIYI_PUBLIC_CONTENT_ID = "luoyiyi";
@@ -61,7 +62,7 @@ async function buildAudit(hero) {
     prisma.fixedPage.findUnique({ where: { slug: "environment" } }),
     prisma.fixedPage.findUnique({ where: { slug: "breeding-plan" } }),
   ]);
-  const existingHomeHero = await findExistingHeroMedia(hero.sha256);
+  const existingHomeHero = await findRequiredHeroMedia(hero.sha256);
 
   const audit = {
     mode: options.apply ? "apply" : "dry-run",
@@ -81,10 +82,10 @@ async function buildAudit(hero) {
     page: "home",
     productionCurrent: summarizeHome(home),
     recoveredTarget:
-      "Use DEFAULT_HOMEPAGE_CONTENT structure with P01-home-hero.jpg as hero.slides[0].imageId; preserve existing later slides if present.",
+      "Use DEFAULT_HOMEPAGE_CONTENT structure with exactly one hero slide: hero-1 bound to the real P01-home-hero.jpg COS media.",
     proposedAction: existingHomeHero
-      ? `reuse existing media ${existingHomeHero.id} as first hero slide and publish home page`
-      : "upload P01-home-hero.jpg to managed COS media, bind to fixed-page-home, use as first hero slide, publish home page",
+      ? `reuse existing media ${existingHomeHero.id} as the only hero slide and publish home page`
+      : "upload P01-home-hero.jpg to managed COS media, bind to fixed-page-home, use as the only hero slide, publish home page",
     source: "content-update.md + P01-home-hero.jpg manifest sha256",
   });
   audit.pages.push({
@@ -112,8 +113,9 @@ async function buildAudit(hero) {
       story: YIYI_STORY,
       publicContentId: YIYI_PUBLIC_CONTENT_ID,
     },
-    proposedAction:
-      "update existing public-content-cat-luoyiyi record; keep publicContentId=luoyiyi and existing media; do not create duplicate",
+    proposedAction: options.homeOnly
+      ? "No action in --home-only mode."
+      : "update existing public-content-cat-luoyiyi record; keep publicContentId=luoyiyi and existing media; do not create duplicate",
     source: "content-update.md + src/lib/real-photo-manifest.generated.ts luoyiyi image mappings",
   });
   audit.cats.push({
@@ -136,8 +138,9 @@ async function buildAudit(hero) {
   });
 
   if (!hero.valid) audit.blockers.push(hero.error);
-  if (!yiyi) audit.blockers.push(`Missing required existing cat ${YIYI_CAT_ID}`);
-  if (yiyi && readPublicContentId(yiyi) !== YIYI_PUBLIC_CONTENT_ID) {
+  if (!options.homeOnly && !yiyi)
+    audit.blockers.push(`Missing required existing cat ${YIYI_CAT_ID}`);
+  if (!options.homeOnly && yiyi && readPublicContentId(yiyi) !== YIYI_PUBLIC_CONTENT_ID) {
     audit.blockers.push(`Existing ${YIYI_CAT_ID} does not have publicContentId=luoyiyi`);
   }
 
@@ -169,8 +172,11 @@ async function applyUpdate(hero) {
     update: {},
   });
 
-  let heroMedia = await findExistingHeroMedia(hero.sha256);
+  let heroMedia = await findRequiredHeroMedia(hero.sha256);
   if (!heroMedia) {
+    if (options.homeOnly) {
+      throw new Error(`Missing required existing homepage hero media ${REQUIRED_HERO_MEDIA_ID}`);
+    }
     const upload = await requestImageUpload({
       fileName: HERO_FILE_NAME,
       mimeType: "image/jpeg",
@@ -213,6 +219,20 @@ async function applyUpdate(hero) {
       published_at: existingHome?.published_at ?? new Date(),
     },
   });
+
+  if (options.homeOnly) {
+    const quickCheckAfter = await quickCheck();
+    if (quickCheckAfter !== "ok")
+      throw new Error(`Post-apply PRAGMA quick_check failed: ${quickCheckAfter}`);
+
+    return {
+      backupPath,
+      homeHeroMediaId: heroMedia.id,
+      yiyiCatId: null,
+      quickCheckBefore,
+      quickCheckAfter,
+    };
+  }
 
   const existingYiyi = await prisma.cat.findUnique({
     where: { id: YIYI_CAT_ID },
@@ -294,15 +314,6 @@ function buildHomeContent(existing, heroImageId) {
   const base = defaultHomeContent();
   const current = isPlainObject(existing) ? existing : {};
   const currentHero = isPlainObject(current.hero) ? current.hero : {};
-  const currentSlides = Array.isArray(currentHero.slides) ? currentHero.slides : base.hero.slides;
-  const laterSlides = currentSlides
-    .filter((slide) => slide?.id !== "hero-1")
-    .map((slide, index) => ({
-      id: typeof slide?.id === "string" && slide.id ? slide.id : `hero-${index + 2}`,
-      label:
-        typeof slide?.label === "string" && slide.label ? slide.label : `首页轮播照片 ${index + 2}`,
-      ...(typeof slide?.imageId === "string" && slide.imageId ? { imageId: slide.imageId } : {}),
-    }));
 
   return {
     ...base,
@@ -311,7 +322,7 @@ function buildHomeContent(existing, heroImageId) {
     hero: {
       ...base.hero,
       ...currentHero,
-      slides: [{ id: "hero-1", label: "首页首图", imageId: heroImageId }, ...laterSlides],
+      slides: [{ id: "hero-1", label: "首页首图", imageId: heroImageId }],
     },
   };
 }
@@ -322,11 +333,7 @@ function defaultHomeContent() {
     hero: {
       title: "星月缅因猫舍",
       subtitle: "StarlitSky Maine Coon Cattery",
-      slides: [
-        { id: "hero-1", label: "示例图片（首页轮播照片 1，待替换）" },
-        { id: "hero-2", label: "示例图片（首页轮播照片 2，待替换）" },
-        { id: "hero-3", label: "示例图片（首页轮播照片 3，待替换）" },
-      ],
+      slides: [],
     },
     intro: {
       eyebrowPrefix: "Est.",
@@ -464,6 +471,27 @@ async function findExistingHeroMedia(checksum) {
   });
 }
 
+async function findRequiredHeroMedia(checksum) {
+  return prisma.mediaAsset.findFirst({
+    where: {
+      id: REQUIRED_HERO_MEDIA_ID,
+      checksum,
+      status: "active",
+      deleted_at: null,
+      bindings: {
+        some: {
+          owner_type: "fixed_page",
+          owner_id: HOME_PAGE_ID,
+          usage: "hero",
+          visibility: "visible",
+          deleted_at: null,
+        },
+      },
+    },
+    include: { bindings: true },
+  });
+}
+
 async function findCatByNames(names) {
   return prisma.cat.findFirst({
     where: {
@@ -592,12 +620,15 @@ function parseArgs(argv) {
   const parsed = {
     apply: false,
     hero: "",
+    homeOnly: false,
     json: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--apply") {
       parsed.apply = true;
+    } else if (arg === "--home-only") {
+      parsed.homeOnly = true;
     } else if (arg === "--json") {
       parsed.json = true;
     } else if (arg === "--hero") {
