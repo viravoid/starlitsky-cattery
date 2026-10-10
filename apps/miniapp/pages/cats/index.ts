@@ -192,7 +192,7 @@ function toCatListItem(cat: CatData): CatListItem | null {
   const image = cat.mediaAssets.find((item) => item.usage === "cover") ?? cat.mediaAssets[0];
   const frame = resolveCatFrame(cat, "listCard");
   const imageFields = {
-    imageClass: frame?.mode === "scaleToFill" ? "thumb-image manual-crop-image" : "thumb-image",
+    imageClass: frame?.style ? "thumb-image positioned-image" : "thumb-image",
     imageMode: frame?.mode ?? "aspectFill",
     imageStyle: frame?.style ?? "",
     imageUrl: frame?.url || image?.thumbnailUrl || image?.sourceUrl || "",

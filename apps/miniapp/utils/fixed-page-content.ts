@@ -700,8 +700,7 @@ function normalizeBreedingPlan(
           {
             color: textOr(cat.color, "待补充"),
             id: cat.id,
-            imageClass:
-              frame?.mode === "scaleToFill" ? "stud-image manual-crop-image" : "stud-image",
+            imageClass: frame?.style ? "stud-image positioned-image" : "stud-image",
             imageMode: frame?.mode ?? "aspectFill",
             imageStyle: frame?.style ?? "",
             imageUrl: frame?.url || firstCatImageUrl(cat),

@@ -24,6 +24,8 @@ verifyMobileParityTabBar();
 verifyVisualQaFixtures();
 verifyVisualQaMutationGuards();
 verifyFixedPageNormalization();
+verifyCatPhotoRenderingInvariants();
+verifyCatStructureRatingInvariants();
 verifyRuntimeImports();
 verifyWxssCompatibility();
 
@@ -456,6 +458,238 @@ function verifyBreedingPlanIdentityResolution(normalized, breedingPage) {
   }
 }
 
+function verifyCatPhotoRenderingInvariants() {
+  const catPresentationPath = join(miniappRoot, "utils/cat-presentation.ts");
+  const catsPagePath = join(miniappRoot, "pages/cats/index.ts");
+  const catsWxmlPath = join(miniappRoot, "pages/cats/index.wxml");
+  const detailPagePath = join(miniappRoot, "pages/cat-detail/index.ts");
+  const detailWxmlPath = join(miniappRoot, "pages/cat-detail/index.wxml");
+  const fixedPageContentPath = join(miniappRoot, "utils/fixed-page-content.ts");
+  const fixedPageWxmlPath = join(miniappRoot, "pages/fixed-page/index.wxml");
+
+  for (const requiredPath of [
+    catPresentationPath,
+    catsPagePath,
+    catsWxmlPath,
+    detailPagePath,
+    detailWxmlPath,
+    fixedPageContentPath,
+    fixedPageWxmlPath,
+  ]) {
+    if (!existsSync(requiredPath)) {
+      failures.push(`${toRepoPath(requiredPath)} is required for cat photo rendering verification.`);
+      return;
+    }
+  }
+
+  const catPresentationText = readFileSync(catPresentationPath, "utf8");
+  if (/\bscaleToFill\b/.test(catPresentationText)) {
+    failures.push("Cat photo presentation must not resolve core cat thumbnails to scaleToFill.");
+  }
+
+  const catsPageText = readFileSync(catsPagePath, "utf8");
+  const detailPageText = readFileSync(detailPagePath, "utf8");
+  const fixedPageContentText = readFileSync(fixedPageContentPath, "utf8");
+  for (const [path, text] of [
+    [catsPagePath, catsPageText],
+    [detailPagePath, detailPageText],
+    [fixedPageContentPath, fixedPageContentText],
+  ]) {
+    if (/mode\s*={3}\s*"scaleToFill"|mode\s*===\s*"scaleToFill"|manual-crop-image/.test(text)) {
+      failures.push(`${toRepoPath(path)} must not branch cat content photos through scaleToFill.`);
+    }
+  }
+
+  const catsWxml = readFileSync(catsWxmlPath, "utf8");
+  const detailWxml = readFileSync(detailWxmlPath, "utf8");
+  const fixedPageWxml = readFileSync(fixedPageWxmlPath, "utf8");
+  if (!catsWxml.includes('mode="{{item.imageMode}}"')) {
+    failures.push("Our Cats list images must bind the resolved imageMode instead of omitting mode.");
+  }
+  if (!detailWxml.includes('mode="{{item.mode}}"')) {
+    failures.push("Cat detail gallery images must bind the resolved image mode instead of omitting mode.");
+  }
+  for (const requiredBinding of ['mode="{{pairing.male.imageMode}}"', 'mode="{{pairing.female.imageMode}}"']) {
+    if (!fixedPageWxml.includes(requiredBinding)) {
+      failures.push(`Breeding-plan stud cards must bind ${requiredBinding}.`);
+    }
+  }
+
+  const presentation = evaluateCatPresentationModule(catPresentationText);
+  const listAspectRatio = 16 / 10;
+  const mediaCases = [
+    createCatMedia("portrait", 800, 1600),
+    createCatMedia("landscape", 1600, 800),
+    createCatMedia("square", 1200, 1200),
+  ];
+
+  for (const media of mediaCases) {
+    const frame = presentation.resolveCatFrame(createCatFixture({ mediaAssets: [media] }), "listCard");
+    assertPhotoFrame(frame, {
+      aspectRatio: listAspectRatio,
+      description: `listCard ${media.id} fallback cover`,
+      expectedId: media.id,
+      naturalHeight: media.height,
+      naturalWidth: media.width,
+      requirePositionedCover: true,
+    });
+  }
+
+  const cropFrame = presentation.resolveCatFrame(
+    createCatFixture({
+      entryCoverSelections: {
+        listCard: {
+          imageId: "portrait",
+          cropRect: { x: 0.1, y: 0.2, width: 0.5, height: 0.25 },
+        },
+      },
+      mediaAssets: mediaCases,
+    }),
+    "listCard",
+  );
+  assertPhotoFrame(cropFrame, {
+    aspectRatio: listAspectRatio,
+    description: "listCard manual crop",
+    expectedId: "portrait",
+    naturalHeight: 1600,
+    naturalWidth: 800,
+    requirePositionedCover: true,
+  });
+
+  const invalidCropFrame = presentation.resolveCatFrame(
+    createCatFixture({
+      entryCoverSelections: {
+        listCard: {
+          imageId: "landscape",
+          cropRect: { x: 0.2, y: 0.2, width: 0, height: 0.4 },
+        },
+      },
+      mediaAssets: mediaCases,
+    }),
+    "listCard",
+  );
+  assertPhotoFrame(invalidCropFrame, {
+    aspectRatio: listAspectRatio,
+    description: "listCard invalid crop fallback",
+    expectedId: "landscape",
+    naturalHeight: 800,
+    naturalWidth: 1600,
+    requirePositionedCover: true,
+  });
+
+  const missingDimensionsCropFrame = presentation.resolveCatFrame(
+    createCatFixture({
+      entryCoverSelections: {
+        listCard: {
+          imageId: "no-dimensions",
+          cropRect: { x: 0.1, y: 0.1, width: 0.5, height: 0.5 },
+        },
+      },
+      mediaAssets: [createCatMedia("no-dimensions", null, null)],
+    }),
+    "listCard",
+  );
+  assertPhotoFrame(missingDimensionsCropFrame, {
+    aspectRatio: listAspectRatio,
+    description: "listCard crop without dimensions fallback",
+    expectedId: "no-dimensions",
+    requireAspectFillFallback: true,
+  });
+
+  const detailFrames = presentation.resolveCatDetailFrames(
+    createCatFixture({
+      detailImagePresentations: {
+        portrait: {
+          mode: "crop",
+          cropRect: { x: 0.08, y: 0.18, width: 0.7, height: 0.56 },
+        },
+        landscape: {
+          mode: "original",
+        },
+      },
+      mediaAssets: mediaCases,
+    }),
+  );
+  const detailCrop = detailFrames.find((frame) => frame.id === "portrait");
+  assertPhotoFrame(detailCrop, {
+    aspectRatio: 4 / 5,
+    description: "detail gallery manual crop",
+    expectedId: "portrait",
+    naturalHeight: 1600,
+    naturalWidth: 800,
+    requirePositionedCover: true,
+  });
+  const detailOriginal = detailFrames.find((frame) => frame.id === "landscape");
+  if (!detailOriginal || detailOriginal.mode !== "aspectFit" || detailOriginal.style !== "") {
+    failures.push("detail gallery original mode must render as unstretched aspectFit without positioned crop style.");
+  }
+}
+
+function verifyCatStructureRatingInvariants() {
+  const detailPagePath = join(miniappRoot, "pages/cat-detail/index.ts");
+  const detailWxmlPath = join(miniappRoot, "pages/cat-detail/index.wxml");
+  const detailWxssPath = join(miniappRoot, "pages/cat-detail/index.wxss");
+
+  for (const requiredPath of [detailPagePath, detailWxmlPath, detailWxssPath]) {
+    if (!existsSync(requiredPath)) {
+      failures.push(`${toRepoPath(requiredPath)} is required for cat structure rating verification.`);
+      return;
+    }
+  }
+
+  const detailPageText = readFileSync(detailPagePath, "utf8");
+  if (/Array\.from\(\{\s*length:\s*6\s*\}\)/.test(detailPageText)) {
+    failures.push("Cat detail structure ratings must not always render six star slots.");
+  }
+  if (/value\s*={3}\s*6\s*&&\s*index\s*={3}\s*0/.test(detailPageText)) {
+    failures.push("Cat detail bonus structure rating highlight must not target the first star.");
+  }
+
+  const detailWxml = readFileSync(detailWxmlPath, "utf8");
+  if (!detailWxml.includes('class="rating-label"')) {
+    failures.push("Cat detail structure rating labels must have a class so star rows can reserve stable layout space.");
+  }
+
+  const detailWxss = readFileSync(detailWxssPath, "utf8");
+  if (!/\.stars\s*\{[\s\S]*flex-wrap:\s*nowrap;[\s\S]*\}/.test(detailWxss)) {
+    failures.push("Cat detail structure rating stars must stay on one row, including the sixth bonus star.");
+  }
+  if (!/\.star\s*\{[\s\S]*flex:\s*0\s+0\s+23rpx;[\s\S]*\}/.test(detailWxss)) {
+    failures.push("Cat detail structure rating stars must keep a fixed non-shrinking width.");
+  }
+
+  const detail = evaluateCatDetailModule(detailPageText);
+  const groups = detail.normalizeRatingGroups({
+    face: {
+      eyes: 3,
+      ears: 5,
+      muzzle: 6,
+    },
+  });
+  const rows = Object.fromEntries(
+    groups.flatMap((group) => group.rows).map((row) => [row.label, row]),
+  );
+
+  assertRatingRow(rows["眼睛"], {
+    activeCount: 3,
+    description: "3-point structure rating",
+    expectedStarCount: 5,
+    highlightIndexes: [],
+  });
+  assertRatingRow(rows["耳朵"], {
+    activeCount: 5,
+    description: "5-point structure rating",
+    expectedStarCount: 5,
+    highlightIndexes: [],
+  });
+  assertRatingRow(rows["嘴套"], {
+    activeCount: 6,
+    description: "6-point structure rating",
+    expectedStarCount: 6,
+    highlightIndexes: [5],
+  });
+}
+
 function createBreedingCatApiFixture(entry, { currentProductionIdentityShape = false } = {}) {
   return {
     id: entry.cat.id,
@@ -508,6 +742,150 @@ function createMinimalBreedingCatFixture({ id, publicContentId, storyJson }) {
   };
 }
 
+function createCatFixture({
+  detailImagePresentations,
+  entryCoverSelections,
+  mediaAssets,
+} = {}) {
+  return {
+    id: "verify-cat",
+    name: "verify cat",
+    mediaAssets: mediaAssets ?? [],
+    detailImagePresentations,
+    entryCoverSelections,
+  };
+}
+
+function createCatMedia(id, width, height) {
+  return {
+    id,
+    kind: "image",
+    sourceUrl: `https://media.verify.example/${id}.jpg`,
+    thumbnailUrl: null,
+    usage: id === "landscape" ? "gallery" : "cover",
+    sortOrder: id === "portrait" ? 1 : id === "landscape" ? 2 : 3,
+    width,
+    height,
+  };
+}
+
+function assertPhotoFrame(
+  frame,
+  {
+    aspectRatio,
+    description,
+    expectedId,
+    naturalHeight,
+    naturalWidth,
+    requireAspectFillFallback = false,
+    requirePositionedCover = false,
+  },
+) {
+  if (!frame) {
+    failures.push(`${description} must resolve a frame.`);
+    return;
+  }
+  if (frame.id !== expectedId) {
+    failures.push(`${description} must resolve media "${expectedId}", got "${frame.id}".`);
+  }
+  if (frame.mode === "scaleToFill") {
+    failures.push(`${description} must not use scaleToFill.`);
+  }
+  if (!frame.mode) {
+    failures.push(`${description} must set an explicit image mode.`);
+  }
+  if (requireAspectFillFallback) {
+    if (frame.mode !== "aspectFill" || frame.style !== "") {
+      failures.push(`${description} must safely fall back to centered aspectFill when dimensions are missing.`);
+    }
+    return;
+  }
+  if (!requirePositionedCover) return;
+
+  const style = parseInlineStyle(frame.style);
+  const width = styleNumber(style.width);
+  const height = styleNumber(style.height);
+  const left = styleNumber(style.left);
+  const top = styleNumber(style.top);
+  if ([width, height, left, top].some((value) => value == null)) {
+    failures.push(`${description} must provide positioned width, height, left, and top percentages.`);
+    return;
+  }
+  if (frame.mode !== "aspectFit") {
+    failures.push(`${description} must use aspectFit for internally positioned images to avoid stretch.`);
+  }
+  if (width < 99.9 || height < 99.9) {
+    failures.push(`${description} must cover the fixed frame; got ${width}% x ${height}%.`);
+  }
+  if (naturalWidth && naturalHeight) {
+    const renderedRatio = width / (height / aspectRatio);
+    const naturalRatio = naturalWidth / naturalHeight;
+    if (Math.abs(renderedRatio - naturalRatio) > 0.005) {
+      failures.push(
+        `${description} must preserve natural image ratio; got ${renderedRatio.toFixed(4)}, expected ${naturalRatio.toFixed(4)}.`,
+      );
+    }
+  }
+}
+
+function assertRatingRow(
+  row,
+  { activeCount, description, expectedStarCount, highlightIndexes },
+) {
+  if (!row) {
+    failures.push(`${description} must be present in normalized cat detail rating groups.`);
+    return;
+  }
+
+  if (row.stars.length !== expectedStarCount) {
+    failures.push(`${description} must render ${expectedStarCount} star slots, got ${row.stars.length}.`);
+  }
+
+  const actualActiveCount = row.stars.filter((star) => star.active).length;
+  if (actualActiveCount !== activeCount) {
+    failures.push(`${description} must render ${activeCount} active stars, got ${actualActiveCount}.`);
+  }
+
+  const actualHighlightIndexes = row.stars
+    .map((star, index) => (star.highlight ? index : null))
+    .filter((index) => index !== null);
+  if (JSON.stringify(actualHighlightIndexes) !== JSON.stringify(highlightIndexes)) {
+    failures.push(
+      `${description} highlight indexes must be ${JSON.stringify(highlightIndexes)}, got ${JSON.stringify(actualHighlightIndexes)}.`,
+    );
+  }
+
+  row.stars.forEach((star, index) => {
+    const shouldBeActive = index < activeCount;
+    if (star.active !== shouldBeActive) {
+      failures.push(
+        `${description} star ${index + 1} active state must be ${shouldBeActive}, got ${star.active}.`,
+      );
+    }
+  });
+}
+
+function parseInlineStyle(styleText) {
+  return Object.fromEntries(
+    String(styleText || "")
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const colon = part.indexOf(":");
+        return colon >= 0
+          ? [part.slice(0, colon).trim(), part.slice(colon + 1).trim()]
+          : [part, ""];
+      }),
+  );
+}
+
+function styleNumber(value) {
+  if (typeof value !== "string") return null;
+  const parsed = Number(value.replace(/%$/, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function evaluateFixedPageContentModule(sourceText) {
   const runtimeSource = sourceText
     .replace(/^import[^\n]*\n/gm, "")
@@ -533,6 +911,50 @@ module.exports = { normalizeFixedPageView };`,
   };
   sandbox.exports = sandbox.module.exports;
   vm.runInNewContext(compiled, sandbox, { filename: "fixed-page-content.ts" });
+  return sandbox.module.exports;
+}
+
+function evaluateCatDetailModule(sourceText) {
+  const runtimeSource = sourceText
+    .replace(/^import[^\n]*\n/gm, "")
+    .replace(/^export\s+/gm, "");
+  const compiled = ts.transpileModule(
+    `${runtimeSource}
+module.exports = { normalizeRatingGroups };`,
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+      fileName: "cat-detail/index.ts",
+    },
+  ).outputText;
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    Page: () => {},
+  };
+  sandbox.exports = sandbox.module.exports;
+  vm.runInNewContext(compiled, sandbox, { filename: "cat-detail/index.ts" });
+  return sandbox.module.exports;
+}
+
+function evaluateCatPresentationModule(sourceText) {
+  const compiled = ts.transpileModule(sourceText, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+    fileName: "cat-presentation.ts",
+  }).outputText;
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+  };
+  sandbox.exports = sandbox.module.exports;
+  vm.runInNewContext(compiled, sandbox, { filename: "cat-presentation.ts" });
   return sandbox.module.exports;
 }
 

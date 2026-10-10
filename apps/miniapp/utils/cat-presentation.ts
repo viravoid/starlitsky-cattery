@@ -1,7 +1,7 @@
 import type { CatData, CatMediaAssetData } from "@starlitsky/shared";
 
 export type CatPresentationEntry = "listCard" | "breedingPlanCard" | "communityProfile";
-export type ImageFrameMode = "aspectFill" | "aspectFit" | "scaleToFill";
+export type ImageFrameMode = "aspectFill" | "aspectFit";
 
 export interface ImageFrameView {
   aspectRatio: number;
@@ -105,8 +105,10 @@ function toCropFrame(
   aspectRatio: number,
   cropRect: CropRect,
 ): ImageFrameView {
-  const naturalWidth = positiveNumber(media.width) ?? 1;
-  const naturalHeight = positiveNumber(media.height) ?? 1;
+  const naturalWidth = positiveNumber(media.width);
+  const naturalHeight = positiveNumber(media.height);
+  if (!naturalWidth || !naturalHeight) return toCoverFrame(media, aspectRatio);
+
   const cropPixelWidth = cropRect.width * naturalWidth;
   const cropPixelHeight = cropRect.height * naturalHeight;
   const scale = Math.max(100 / cropPixelWidth, 100 / aspectRatio / cropPixelHeight);
@@ -118,7 +120,7 @@ function toCropFrame(
   return {
     aspectRatio,
     id: media.id,
-    mode: "scaleToFill",
+    mode: "aspectFit",
     style: [
       `width:${round(widthPercent)}%`,
       `height:${round(heightPercent)}%`,
@@ -134,15 +136,38 @@ function toLegacyFrame(
   aspectRatio: number,
   legacy: LegacyPresentation,
 ): ImageFrameView {
+  const naturalWidth = positiveNumber(media.width);
+  const naturalHeight = positiveNumber(media.height);
+  if (!naturalWidth || !naturalHeight) return toCoverFrame(media, aspectRatio);
+
+  const frameWidth = 100;
+  const frameHeight = frameWidth / aspectRatio;
+  const scale = Math.max(frameWidth / naturalWidth, frameHeight / naturalHeight) * legacy.zoom;
+  const widthPercent = naturalWidth * scale;
+  const heightPercent = naturalHeight * scale * aspectRatio;
+  const leftPercent = (100 - widthPercent) * (legacy.objectPositionX / 100);
+  const topPercent = (100 - heightPercent) * (legacy.objectPositionY / 100);
+
+  return {
+    aspectRatio,
+    id: media.id,
+    mode: "aspectFit",
+    style: [
+      `width:${round(widthPercent)}%`,
+      `height:${round(heightPercent)}%`,
+      `left:${round(leftPercent)}%`,
+      `top:${round(topPercent)}%`,
+    ].join(";"),
+    url: media.sourceUrl || media.thumbnailUrl || "",
+  };
+}
+
+function toCoverFrame(media: CatMediaAssetData, aspectRatio: number): ImageFrameView {
   return {
     aspectRatio,
     id: media.id,
     mode: "aspectFill",
-    style: [
-      `object-position:${round(legacy.objectPositionX)}% ${round(legacy.objectPositionY)}%`,
-      `transform:scale(${round(legacy.zoom)})`,
-      "transform-origin:center center",
-    ].join(";"),
+    style: "",
     url: media.sourceUrl || media.thumbnailUrl || "",
   };
 }

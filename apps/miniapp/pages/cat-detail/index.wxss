@@ -64,7 +64,7 @@
   opacity: 0.82;
 }
 
-.manual-crop-image {
+.positioned-image {
   position: absolute;
   max-width: none;
 }
@@ -217,14 +217,22 @@
   line-height: 1.35;
 }
 
+.rating-label {
+  flex: 1;
+  min-width: 0;
+}
+
 .stars {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 4rpx;
 }
 
 .star {
   display: inline-flex;
+  flex: 0 0 23rpx;
   width: 23rpx;
   height: 23rpx;
   line-height: 1;
