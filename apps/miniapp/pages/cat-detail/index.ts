@@ -141,7 +141,7 @@ function toDetailView(cat: CatData) {
     const media = mediaById.get(frame.id);
     return {
       id: frame.id,
-      imageClass: frame.mode === "scaleToFill" ? "hero-image manual-crop-image" : "hero-image",
+      imageClass: frame.style ? "hero-image positioned-image" : "hero-image",
       label: media?.altText || media?.title || `猫咪图片 ${index + 1}`,
       mode: frame.mode,
       style: frame.style,
@@ -233,7 +233,7 @@ function toNoteParagraphs(paragraphs: string[]): NoteParagraph[] {
 
 function paragraphsFromStory(value: unknown, fallback: string) {
   if (!value || typeof value !== "object") return [fallback];
-  const input = value as Record<string, any>;
+  const input = value as Record<string, unknown>;
   if (typeof input.note === "string" && input.note.trim()) return splitParagraphs(input.note);
   if (Array.isArray(input.story)) {
     const paragraphs = input.story.filter((item) => typeof item === "string" && item.trim());
@@ -250,9 +250,9 @@ function splitParagraphs(value: string) {
 }
 
 function normalizeRatingGroups(value: unknown): RatingGroup[] {
-  const input = value && typeof value === "object" ? (value as Record<string, any>) : {};
-  const face = input.face && typeof input.face === "object" ? input.face : {};
-  const body = input.body && typeof input.body === "object" ? input.body : {};
+  const input = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const face = input.face && typeof input.face === "object" ? (input.face as Record<string, unknown>) : {};
+  const body = input.body && typeof input.body === "object" ? (input.body as Record<string, unknown>) : {};
   return [
     {
       title: "面部结构",

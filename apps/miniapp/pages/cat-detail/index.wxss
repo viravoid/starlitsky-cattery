@@ -64,7 +64,7 @@
   opacity: 0.82;
 }
 
-.manual-crop-image {
+.positioned-image {
   position: absolute;
   max-width: none;
 }

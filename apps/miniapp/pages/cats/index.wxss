@@ -272,7 +272,7 @@
   min-height: 0;
 }
 
-.manual-crop-image {
+.positioned-image {
   position: absolute;
   max-width: none;
   min-height: 0;
