@@ -25,6 +25,7 @@ verifyVisualQaFixtures();
 verifyVisualQaMutationGuards();
 verifyFixedPageNormalization();
 verifyCatPhotoRenderingInvariants();
+verifyCatStructureRatingInvariants();
 verifyRuntimeImports();
 verifyWxssCompatibility();
 
@@ -624,6 +625,71 @@ function verifyCatPhotoRenderingInvariants() {
   }
 }
 
+function verifyCatStructureRatingInvariants() {
+  const detailPagePath = join(miniappRoot, "pages/cat-detail/index.ts");
+  const detailWxmlPath = join(miniappRoot, "pages/cat-detail/index.wxml");
+  const detailWxssPath = join(miniappRoot, "pages/cat-detail/index.wxss");
+
+  for (const requiredPath of [detailPagePath, detailWxmlPath, detailWxssPath]) {
+    if (!existsSync(requiredPath)) {
+      failures.push(`${toRepoPath(requiredPath)} is required for cat structure rating verification.`);
+      return;
+    }
+  }
+
+  const detailPageText = readFileSync(detailPagePath, "utf8");
+  if (/Array\.from\(\{\s*length:\s*6\s*\}\)/.test(detailPageText)) {
+    failures.push("Cat detail structure ratings must not always render six star slots.");
+  }
+  if (/value\s*={3}\s*6\s*&&\s*index\s*={3}\s*0/.test(detailPageText)) {
+    failures.push("Cat detail bonus structure rating highlight must not target the first star.");
+  }
+
+  const detailWxml = readFileSync(detailWxmlPath, "utf8");
+  if (!detailWxml.includes('class="rating-label"')) {
+    failures.push("Cat detail structure rating labels must have a class so star rows can reserve stable layout space.");
+  }
+
+  const detailWxss = readFileSync(detailWxssPath, "utf8");
+  if (!/\.stars\s*\{[\s\S]*flex-wrap:\s*nowrap;[\s\S]*\}/.test(detailWxss)) {
+    failures.push("Cat detail structure rating stars must stay on one row, including the sixth bonus star.");
+  }
+  if (!/\.star\s*\{[\s\S]*flex:\s*0\s+0\s+23rpx;[\s\S]*\}/.test(detailWxss)) {
+    failures.push("Cat detail structure rating stars must keep a fixed non-shrinking width.");
+  }
+
+  const detail = evaluateCatDetailModule(detailPageText);
+  const groups = detail.normalizeRatingGroups({
+    face: {
+      eyes: 3,
+      ears: 5,
+      muzzle: 6,
+    },
+  });
+  const rows = Object.fromEntries(
+    groups.flatMap((group) => group.rows).map((row) => [row.label, row]),
+  );
+
+  assertRatingRow(rows["眼睛"], {
+    activeCount: 3,
+    description: "3-point structure rating",
+    expectedStarCount: 5,
+    highlightIndexes: [],
+  });
+  assertRatingRow(rows["耳朵"], {
+    activeCount: 5,
+    description: "5-point structure rating",
+    expectedStarCount: 5,
+    highlightIndexes: [],
+  });
+  assertRatingRow(rows["嘴套"], {
+    activeCount: 6,
+    description: "6-point structure rating",
+    expectedStarCount: 6,
+    highlightIndexes: [5],
+  });
+}
+
 function createBreedingCatApiFixture(entry, { currentProductionIdentityShape = false } = {}) {
   return {
     id: entry.cat.id,
@@ -762,6 +828,43 @@ function assertPhotoFrame(
   }
 }
 
+function assertRatingRow(
+  row,
+  { activeCount, description, expectedStarCount, highlightIndexes },
+) {
+  if (!row) {
+    failures.push(`${description} must be present in normalized cat detail rating groups.`);
+    return;
+  }
+
+  if (row.stars.length !== expectedStarCount) {
+    failures.push(`${description} must render ${expectedStarCount} star slots, got ${row.stars.length}.`);
+  }
+
+  const actualActiveCount = row.stars.filter((star) => star.active).length;
+  if (actualActiveCount !== activeCount) {
+    failures.push(`${description} must render ${activeCount} active stars, got ${actualActiveCount}.`);
+  }
+
+  const actualHighlightIndexes = row.stars
+    .map((star, index) => (star.highlight ? index : null))
+    .filter((index) => index !== null);
+  if (JSON.stringify(actualHighlightIndexes) !== JSON.stringify(highlightIndexes)) {
+    failures.push(
+      `${description} highlight indexes must be ${JSON.stringify(highlightIndexes)}, got ${JSON.stringify(actualHighlightIndexes)}.`,
+    );
+  }
+
+  row.stars.forEach((star, index) => {
+    const shouldBeActive = index < activeCount;
+    if (star.active !== shouldBeActive) {
+      failures.push(
+        `${description} star ${index + 1} active state must be ${shouldBeActive}, got ${star.active}.`,
+      );
+    }
+  });
+}
+
 function parseInlineStyle(styleText) {
   return Object.fromEntries(
     String(styleText || "")
@@ -808,6 +911,32 @@ module.exports = { normalizeFixedPageView };`,
   };
   sandbox.exports = sandbox.module.exports;
   vm.runInNewContext(compiled, sandbox, { filename: "fixed-page-content.ts" });
+  return sandbox.module.exports;
+}
+
+function evaluateCatDetailModule(sourceText) {
+  const runtimeSource = sourceText
+    .replace(/^import[^\n]*\n/gm, "")
+    .replace(/^export\s+/gm, "");
+  const compiled = ts.transpileModule(
+    `${runtimeSource}
+module.exports = { normalizeRatingGroups };`,
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+      fileName: "cat-detail/index.ts",
+    },
+  ).outputText;
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    Page: () => {},
+  };
+  sandbox.exports = sandbox.module.exports;
+  vm.runInNewContext(compiled, sandbox, { filename: "cat-detail/index.ts" });
   return sandbox.module.exports;
 }
 

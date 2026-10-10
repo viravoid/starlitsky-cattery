@@ -31,6 +31,9 @@ interface RatingGroup {
   rows: RatingRow[];
 }
 
+const BASE_RATING_STARS = 5;
+const BONUS_RATING_VALUE = 6;
+
 interface NoteParagraph {
   id: string;
   prefix: string;
@@ -251,8 +254,10 @@ function splitParagraphs(value: string) {
 
 function normalizeRatingGroups(value: unknown): RatingGroup[] {
   const input = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  const face = input.face && typeof input.face === "object" ? (input.face as Record<string, unknown>) : {};
-  const body = input.body && typeof input.body === "object" ? (input.body as Record<string, unknown>) : {};
+  const face =
+    input.face && typeof input.face === "object" ? (input.face as Record<string, unknown>) : {};
+  const body =
+    input.body && typeof input.body === "object" ? (input.body as Record<string, unknown>) : {};
   return [
     {
       title: "面部结构",
@@ -276,13 +281,14 @@ function normalizeRatingGroups(value: unknown): RatingGroup[] {
 
 function ratingRow(label: string, raw: unknown): RatingRow | null {
   if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
-  const value = Math.max(0, Math.min(6, Math.round(raw)));
+  const value = Math.max(0, Math.min(BONUS_RATING_VALUE, Math.round(raw)));
+  const starCount = value === BONUS_RATING_VALUE ? BONUS_RATING_VALUE : BASE_RATING_STARS;
   return {
     label,
     value,
-    stars: Array.from({ length: 6 }).map((_, index) => ({
+    stars: Array.from({ length: starCount }).map((_, index) => ({
       active: index < value,
-      highlight: value === 6 && index === 0,
+      highlight: value === BONUS_RATING_VALUE && index === BASE_RATING_STARS,
     })),
   };
 }
