@@ -218,7 +218,7 @@ function getRequiredMessage(question: Question | undefined) {
 function getValidationSummary(errors: Partial<Record<FieldKey, string>>) {
   const onlyPhoneInvalid =
     Object.keys(errors).length === 1 && errors.phone === "请输入正确的 11 位手机号";
-  return onlyPhoneInvalid ? "请检查填写内容" : "请先补充必填信息";
+  return onlyPhoneInvalid ? "请检查填写内容" : "未全部填写完，无法提交";
 }
 
 function createBlankValues(): SelectionApplicationAnswers {

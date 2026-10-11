@@ -64,7 +64,7 @@
   opacity: 0.82;
 }
 
-.manual-crop-image {
+.positioned-image {
   position: absolute;
   max-width: none;
 }
@@ -217,14 +217,22 @@
   line-height: 1.35;
 }
 
+.rating-label {
+  flex: 1;
+  min-width: 0;
+}
+
 .stars {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 4rpx;
+  flex-wrap: nowrap;
+  gap: 5rpx;
 }
 
 .star {
   display: inline-flex;
+  flex: 0 0 23rpx;
   width: 23rpx;
   height: 23rpx;
   line-height: 1;
@@ -233,6 +241,19 @@
 .star-icon {
   width: 23rpx;
   height: 23rpx;
+}
+
+.bonus-star {
+  flex-basis: 25rpx;
+  width: 25rpx;
+  height: 25rpx;
+  margin-left: 7rpx;
+}
+
+.bonus-star .star-icon {
+  width: 25rpx;
+  height: 25rpx;
+  filter: drop-shadow(0 0 5rpx rgba(231, 193, 93, 0.36));
 }
 
 .rating-note {

@@ -25,10 +25,10 @@ function StarRow({ label, value }: { label: string; value?: number }) {
         <span className="shrink-0 text-[11px] text-muted-foreground/70">待评估</span>
       ) : (
         <span className="flex shrink-0 items-center gap-[3px]">
-          {showSix && <Star active highlight />}
           {Array.from({ length: baseCount }).map((_, index) => (
             <Star key={index} active={index < filled} />
           ))}
+          {showSix && <Star active highlight />}
         </span>
       )}
     </div>
@@ -42,7 +42,7 @@ function Star({ active, highlight }: { active: boolean; highlight?: boolean }) {
       className={`h-3.5 w-3.5 ${
         active
           ? highlight
-            ? "text-[#f1b84b] drop-shadow-[0_0_2.5px_rgba(241,184,75,0.45)]"
+            ? "ml-1 h-[15px] w-[15px] text-[#f1b84b] drop-shadow-[0_0_3px_rgba(231,193,93,0.36)]"
             : "text-[#e7c15d]"
           : "text-[#dce3ed]"
       }`}
@@ -201,7 +201,7 @@ function KittenDetail() {
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           <Info label="颜色" value={kitten.color} />
           <Info label="生日" value={kitten.birthday} />
-          {kitten.status !== "已有家" && <Info label="是否已绝育" value="示例文字（待更新）" />}
+          {kitten.status !== "已有家" && <Info label="是否已绝育" value="未绝育" />}
           <Info label="父亲" value={kitten.fatherName} />
           <Info label="母亲" value={kitten.motherName} />
           <Info label="窝次" value={kitten.litterName ?? "暂未分配"} />

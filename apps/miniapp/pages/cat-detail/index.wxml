@@ -65,13 +65,13 @@
         <view wx:for="{{ratingGroups}}" wx:key="title" class="rating-group">
           <text class="rating-title">{{item.title}}</text>
           <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="label" class="rating-row">
-            <text>{{row.label}}</text>
+            <text class="rating-label">{{row.label}}</text>
             <view class="stars">
               <view
                 wx:for="{{row.stars}}"
                 wx:for-item="star"
                 wx:key="*this"
-                class="star"
+                class="{{star.highlight ? 'star bonus-star' : 'star'}}"
               >
                 <image
                   class="star-icon"

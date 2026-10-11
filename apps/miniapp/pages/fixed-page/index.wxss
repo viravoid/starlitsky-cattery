@@ -166,7 +166,7 @@
 }
 
 .about-facts-section {
-  margin-top: 14rpx;
+  padding-top: 16rpx;
 }
 
 .about-facts-grid {
@@ -1004,7 +1004,7 @@
   overflow: hidden;
 }
 
-.manual-crop-image {
+.positioned-image {
   position: absolute;
   max-width: none;
 }

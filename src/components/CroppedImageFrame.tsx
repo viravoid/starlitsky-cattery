@@ -124,10 +124,37 @@ function getCropLayout({
   const scale = Math.max(frameWidth / cropPixelWidth, frameHeight / cropPixelHeight);
   const width = naturalWidth * scale;
   const height = naturalHeight * scale;
+  const left = clampCoverOffset(-(cropRect.x * naturalWidth * scale), width, frameWidth);
+  const top = clampCoverOffset(-(cropRect.y * naturalHeight * scale), height, frameHeight);
+  if (!coversFrame(width, height, left, top, frameWidth, frameHeight)) return null;
+
   return {
     width,
     height,
-    left: -(cropRect.x * naturalWidth * scale),
-    top: -(cropRect.y * naturalHeight * scale),
+    left,
+    top,
   };
+}
+
+function clampCoverOffset(offset: number, size: number, frameSize: number) {
+  if (!Number.isFinite(offset) || !Number.isFinite(size) || size < frameSize) return 0;
+  return Math.max(frameSize - size, Math.min(0, offset));
+}
+
+function coversFrame(
+  width: number,
+  height: number,
+  left: number,
+  top: number,
+  frameWidth: number,
+  frameHeight: number,
+) {
+  return (
+    width >= frameWidth &&
+    height >= frameHeight &&
+    left <= 0 &&
+    top <= 0 &&
+    left + width >= frameWidth &&
+    top + height >= frameHeight
+  );
 }

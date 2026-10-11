@@ -26,6 +26,7 @@ type BreedingPlanStud = Pick<
   | "coverPresentations"
 >;
 type StudMap = Map<string, BreedingPlanStud>;
+const HIDDEN_PUBLIC_BREEDING_PAIRINGS = new Set(["tianhe-zhaoyue-2026-h2"]);
 
 export function BreedingPlanView({
   content,
@@ -46,7 +47,12 @@ export function BreedingPlanView({
   const introduction = content.introduction.trim();
   const colorDisclaimer = content.disclaimer.color.trim();
   const scheduleDisclaimer = content.disclaimer.schedule.trim();
-  const visibleGroups = content.groups.filter((group) => group.pairings.length > 0);
+  const visibleGroups = content.groups
+    .map((group) => ({
+      ...group,
+      pairings: group.pairings.filter(isPublicBreedingPairing),
+    }))
+    .filter((group) => group.pairings.length > 0);
 
   return (
     <PhoneFrame
@@ -137,6 +143,11 @@ export function BreedingPlanView({
       </div>
     </PhoneFrame>
   );
+}
+
+function isPublicBreedingPairing(pairing: BreedingPlanPairing) {
+  if (HIDDEN_PUBLIC_BREEDING_PAIRINGS.has(pairing.id)) return false;
+  return !(pairing.maleStudId === "tianhe" && pairing.femaleStudId === "zhaoyue");
 }
 
 function PairingCard({
