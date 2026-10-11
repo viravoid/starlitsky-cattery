@@ -26,6 +26,8 @@ const searchSchema = z
     studFilter: z.enum(["现役公猫", "现役母猫", "预备役种猫"]).optional(),
     litter: z.string().optional(),
     litterOpen: z.boolean().optional(),
+    gender: z.enum(["全部", "弟弟", "妹妹"]).optional(),
+    genderOpen: z.boolean().optional(),
   })
   .catch({});
 
@@ -48,6 +50,7 @@ export const Route = createFileRoute("/cats")({
 
 const KITTEN_FILTERS = ["待找家", "找家中", "已有家"] as const;
 const STUD_FILTERS: StudCategory[] = ["现役公猫", "现役母猫", "预备役种猫"];
+const GENDER_FILTERS = ["全部", "弟弟", "妹妹"] as const;
 
 function Meta({ k, v }: { k: string; v: string }) {
   return (
@@ -100,8 +103,16 @@ function CatCard({
     <Link
       to={to}
       params={params}
-      className="pressable flex min-h-[128px] gap-3 overflow-hidden rounded-[22px] border border-border bg-card p-2.5 shadow-card"
+      className="pressable relative flex min-h-[128px] gap-3 overflow-hidden rounded-[22px] border border-border bg-card p-2.5 shadow-card"
     >
+      {litter && (
+        <Pill
+          tone="sunny"
+          className="pointer-events-none absolute right-2.5 top-2.5 z-10 px-2 py-0 text-[10.5px]"
+        >
+          {litter}
+        </Pill>
+      )}
       <div className="relative w-[32%] min-w-[104px] shrink-0 self-stretch overflow-hidden rounded-[18px] bg-cream">
         {imageUrl ? (
           <div className="h-full min-h-[108px] overflow-hidden bg-card">
@@ -123,19 +134,12 @@ function CatCard({
           />
         )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col py-1 pr-1">
-        {(pill || litter) && (
+      <div className={`flex min-w-0 flex-1 flex-col py-1 pr-1 ${litter ? "pt-5" : ""}`}>
+        {pill && (
           <div className="flex flex-wrap gap-1.5">
-            {pill && (
-              <Pill tone={pill.tone} className="px-2 py-0 text-[10.5px]">
-                {pill.text}
-              </Pill>
-            )}
-            {litter && (
-              <Pill tone="sunny" className="px-2 py-0 text-[10.5px]">
-                {litter}
-              </Pill>
-            )}
+            <Pill tone={pill.tone} className="px-2 py-0 text-[10.5px]">
+              {pill.text}
+            </Pill>
           </div>
         )}
         <h3 className="mt-2 line-clamp-2 text-[15px] font-semibold leading-snug text-heading">
@@ -167,6 +171,8 @@ function Cats() {
   const studFilter = search.studFilter ?? "现役公猫";
   const litter = search.litter ?? "全部";
   const litterOpen = search.litterOpen ?? false;
+  const gender = search.gender ?? "全部";
+  const genderOpen = search.genderOpen ?? false;
   const litterOptions = useMemo(
     () => litterRecords.map((item) => ({ value: item.id, label: item.name })),
     [litterRecords],
@@ -191,10 +197,23 @@ function Cats() {
       }),
     });
   const setLitterOpen = (open: boolean) =>
-    navigate({ search: (prev: CatsSearch) => ({ ...prev, litterOpen: open }) });
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, litterOpen: open, genderOpen: false }) });
+  const setGender = (value: (typeof GENDER_FILTERS)[number]) =>
+    navigate({
+      search: (prev: CatsSearch) => ({
+        ...prev,
+        gender: value === "全部" ? undefined : value,
+        genderOpen: false,
+      }),
+    });
+  const setGenderOpen = (open: boolean) =>
+    navigate({ search: (prev: CatsSearch) => ({ ...prev, genderOpen: open, litterOpen: false }) });
 
   const kittenList = kittenRecords.filter(
-    (kitten) => kitten.status === kittenFilter && (litter === "全部" || kitten.litterId === litter),
+    (kitten) =>
+      kitten.status === kittenFilter &&
+      (litter === "全部" || kitten.litterId === litter) &&
+      (gender === "全部" || kitten.gender === gender),
   );
   const filteredStuds = studRecords.filter((stud) => stud.category === studFilter);
 
@@ -299,6 +318,27 @@ function Cats() {
               />
             </button>
           )}
+          {tab === "kittens" && (
+            <button
+              onClick={() => setGenderOpen(!genderOpen)}
+              className="pressable flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold"
+              style={{
+                backgroundColor: gender === "全部" ? "#fffdf8" : "#f9f0d4",
+                color: gender === "全部" ? "#6b8db3" : "#b48725",
+                border: gender === "全部" ? "1px solid #e8dfcf" : "1px solid #e7c15d",
+              }}
+              aria-expanded={genderOpen}
+            >
+              性别{gender === "全部" ? "" : `：${gender}`}
+              <ChevronDown
+                className="h-3.5 w-3.5 transition-transform"
+                style={{
+                  transform: genderOpen ? "rotate(180deg)" : "none",
+                  color: gender === "全部" ? "#6b8db3" : "#b48725",
+                }}
+              />
+            </button>
+          )}
         </div>
       </div>
 
@@ -332,6 +372,36 @@ function Cats() {
                     }
                   >
                     {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {genderOpen && (
+            <div className="flex flex-wrap gap-2">
+              {GENDER_FILTERS.map((item) => {
+                const active = gender === item;
+                return (
+                  <button
+                    key={item}
+                    onClick={() => setGender(item)}
+                    className="pressable shrink-0 rounded-full px-3 py-1 text-[12px]"
+                    style={
+                      active
+                        ? {
+                            backgroundColor: "#f9f0d4",
+                            color: "#b48725",
+                            border: "1px solid #e7c15d",
+                          }
+                        : {
+                            backgroundColor: "#fffdf8",
+                            color: "#6b8db3",
+                            border: "1px solid #e8dfcf",
+                          }
+                    }
+                  >
+                    {item}
                   </button>
                 );
               })}

@@ -27,13 +27,8 @@ function GroupTitle({ no, cn }: { no: string; cn: string }) {
   );
 }
 
-function Label({ children, required }: { children: ReactNode; required?: boolean }) {
-  return (
-    <span className="mb-1.5 block text-[13px] font-medium text-heading">
-      {children}
-      {required && <span className="ml-0.5 text-[#c46a6a]">*</span>}
-    </span>
-  );
+function Label({ children }: { children: ReactNode; required?: boolean }) {
+  return <span className="mb-1.5 block text-[13px] font-medium text-heading">{children}</span>;
 }
 
 function TextField({
@@ -123,10 +118,7 @@ function CommitBlock({
 
   return (
     <div className="rounded-[1.25rem] border border-border bg-card/60 p-4">
-      <p className="text-[13px] leading-[1.9] text-foreground">
-        {text}
-        <span className="ml-0.5 text-[#c46a6a]">*</span>
-      </p>
+      <p className="text-[13px] leading-[1.9] text-foreground">{text}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {options.map((option) => (
           <OptionButton
@@ -182,20 +174,22 @@ export function QuestionnaireView({
     createBlankQuestionnaireValues(),
   );
   const [errors, setErrors] = useState<QuestionnaireValidationErrors>({});
+  const [formError, setFormError] = useState("");
   const submittingRef = useRef(false);
   const intro = content.intro.trim();
   const privacyNotice = content.privacyNotice.trim();
   const ps = content.ps.trim();
   const successBody = content.successBody.trim();
 
-  const set =
-    (key: QuestionnaireSubmissionFieldKey) =>
-    (value: string) =>
-      setValues((prev) => ({
-        ...prev,
-        [key]: value,
-        ...(key === "residents" && value !== "yes" ? { residentsNeutered: "" } : {}),
-      }));
+  const set = (key: QuestionnaireSubmissionFieldKey) => (value: string) => {
+    setFormError("");
+    setErrors((prev) => ({ ...prev, [key]: undefined }));
+    setValues((prev) => ({
+      ...prev,
+      [key]: value,
+      ...(key === "residents" && value !== "yes" ? { residentsNeutered: "" } : {}),
+    }));
+  };
   const val = (key: QuestionnaireSubmissionFieldKey) => values[key];
 
   const onSubmit = () => {
@@ -206,11 +200,17 @@ export function QuestionnaireView({
     const nextErrors = validateQuestionnaireValues(values, content);
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
+      setFormError(
+        Object.keys(nextErrors).length === 1 && nextErrors.phone === "请输入正确的 11 位手机号"
+          ? "请检查填写内容"
+          : "未全部填写完，无法提交",
+      );
       return;
     }
 
     submittingRef.current = true;
     setErrors({});
+    setFormError("");
     if (submissionMode === "live") {
       catteryActions.submitQuestionnaire({ content, values });
     }
@@ -276,6 +276,11 @@ export function QuestionnaireView({
                 {privacyNotice}
               </p>
             )}
+          </div>
+        )}
+        {formError && (
+          <div className="mt-3 rounded-2xl border border-[#f3b7b7] bg-[#fff4f4] px-4 py-3 text-[12.5px] font-medium text-[#b42318]">
+            {formError}
           </div>
         )}
 

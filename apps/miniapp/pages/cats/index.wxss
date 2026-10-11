@@ -80,14 +80,16 @@
 }
 
 .filters-scroll,
-.litter-filters-scroll {
+.litter-filters-scroll,
+.gender-filters-scroll {
   width: 100%;
   margin: 20rpx 0 0;
   overflow: hidden;
   white-space: nowrap;
 }
 
-.litter-filters-scroll {
+.litter-filters-scroll,
+.gender-filters-scroll {
   height: 92rpx;
   margin-top: 16rpx;
 }
@@ -229,6 +231,7 @@
 }
 
 .cat-row {
+  position: relative;
   display: flex;
   gap: 24rpx;
   width: 100% !important;
@@ -247,11 +250,15 @@
 }
 
 .card-pills {
+  position: absolute;
+  top: 18rpx;
+  right: 20rpx;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 10rpx;
-  min-height: 34rpx;
-  margin-bottom: 12rpx;
+  max-width: calc(100% - 300rpx);
+  pointer-events: none;
 }
 
 .thumb {
@@ -290,6 +297,10 @@
   flex: 1;
   flex-direction: column;
   padding: 0;
+}
+
+.has-litter .info {
+  padding-top: 26rpx;
 }
 
 .pill {

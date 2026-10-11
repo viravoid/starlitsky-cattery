@@ -32,7 +32,6 @@
       <view wx:for="{{item.questions}}" wx:for-item="question" wx:key="key" class="{{question.type === 'commitment' ? 'field commitment-card' : 'field'}}" wx:if="{{question.key !== 'residentsNeutered' || values.residents === 'yes'}}">
         <text class="{{question.type === 'commitment' ? 'label commitment-label' : 'label'}}">
           {{question.label}}
-          <text wx:if="{{question.required}}" class="required">*</text>
         </text>
 
         <input

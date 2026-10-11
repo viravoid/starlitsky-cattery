@@ -25,6 +25,10 @@
         窝次{{activeLitterId ? "：" + activeLitterLabel : ""}}
         <text class="{{litterOpen ? 'litter-chevron open' : 'litter-chevron'}}">⌄</text>
       </button>
+      <button class="{{activeGenderId ? 'filter active-filter litter-toggle' : 'filter litter-toggle'}}" bindtap="toggleGender">
+        性别{{activeGenderId ? "：" + activeGenderLabel : ""}}
+        <text class="{{genderOpen ? 'litter-chevron open' : 'litter-chevron'}}">⌄</text>
+      </button>
     </view>
   </scroll-view>
   </view>
@@ -32,6 +36,14 @@
   <scroll-view wx:if="{{activeTab === 'kittens' && litterOpen}}" class="litter-filters-scroll" scroll-x enable-flex>
     <view class="litter-filters">
       <button wx:for="{{litterFilters}}" wx:key="id" class="{{activeLitterId === item.id ? 'filter active-filter' : 'filter'}}" data-id="{{item.id}}" bindtap="setLitter">
+        {{item.name}}
+      </button>
+    </view>
+  </scroll-view>
+
+  <scroll-view wx:if="{{genderOpen}}" class="gender-filters-scroll" scroll-x enable-flex>
+    <view class="litter-filters">
+      <button wx:for="{{genderFilters}}" wx:key="id" class="{{activeGenderId === item.id ? 'filter active-filter' : 'filter'}}" data-id="{{item.id}}" bindtap="setGender">
         {{item.name}}
       </button>
     </view>
@@ -47,8 +59,11 @@
     <text class="empty-title">暂无可展示猫咪</text>
   </view>
 
-  <view wx:else class="list {{activeTab === 'kittens' && litterOpen ? 'list-expanded' : ''}}">
-    <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
+  <view wx:else class="list {{(activeTab === 'kittens' && litterOpen) || genderOpen ? 'list-expanded' : ''}}">
+    <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row {{item.litterName ? 'has-litter' : ''}}" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
+      <view wx:if="{{item.litterName}}" class="card-pills">
+        <text class="pill litter-pill">{{item.litterName}}</text>
+      </view>
       <view class="thumb">
         <image
           wx:if="{{item.imageUrl}}"
@@ -62,9 +77,6 @@
         </view>
       </view>
       <view class="info">
-        <view wx:if="{{item.litterName}}" class="card-pills">
-          <text class="pill litter-pill">{{item.litterName}}</text>
-        </view>
         <text class="name">{{item.name}}</text>
         <view class="meta-grid">
           <view wx:for="{{item.metaItems}}" wx:key="label" class="meta-item">

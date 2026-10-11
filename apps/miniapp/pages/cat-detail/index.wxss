@@ -245,18 +245,17 @@
 
 .bonus-star {
   position: relative;
-  flex-basis: 31rpx;
-  width: 31rpx;
-  height: 31rpx;
+  flex-basis: 27rpx;
+  width: 27rpx;
+  height: 27rpx;
+  box-sizing: border-box;
   margin-left: 8rpx;
+  border: 1rpx solid rgba(231, 193, 93, 0.42);
   border-radius: 999rpx;
-  background: radial-gradient(
-    circle,
-    rgba(255, 244, 190, 0.95) 0%,
-    rgba(231, 193, 93, 0.2) 66%,
-    rgba(231, 193, 93, 0) 72%
-  );
-  box-shadow: 0 0 18rpx rgba(231, 193, 93, 0.72);
+  background: rgba(255, 253, 248, 0.72);
+  box-shadow:
+    0 0 7rpx rgba(231, 193, 93, 0.3),
+    inset 0 0 5rpx rgba(231, 193, 93, 0.16);
 }
 
 .bonus-star::before {
@@ -270,8 +269,8 @@
 }
 
 .bonus-star .star-icon {
-  width: 31rpx;
-  height: 31rpx;
+  width: 24rpx;
+  height: 24rpx;
 }
 
 .rating-note {

@@ -707,8 +707,12 @@ function verifyCatStructureRatingInvariants() {
   if (!/\.star\s*\{[\s\S]*flex:\s*0\s+0\s+23rpx;[\s\S]*\}/.test(detailWxss)) {
     failures.push("Cat detail structure rating stars must keep a fixed non-shrinking width.");
   }
-  if (!/\.bonus-star\s*\{[\s\S]*margin-left:\s*8rpx;[\s\S]*box-shadow:\s*0\s+0\s+18rpx/.test(detailWxss)) {
-    failures.push("Cat detail sixth bonus star must be visually separated and emphasized.");
+  if (
+    !/\.bonus-star\s*\{[\s\S]*margin-left:\s*8rpx;[\s\S]*border:\s*1rpx\s+solid[\s\S]*box-shadow:\s*[\s\S]*0\s+0\s+7rpx/.test(
+      detailWxss,
+    )
+  ) {
+    failures.push("Cat detail sixth bonus star must use a light ring/glow emphasis.");
   }
 
   const detail = evaluateCatDetailModule(detailPageText);
@@ -760,10 +764,24 @@ function verifyPublicCatUiInvariants() {
   if (/label:\s*"价格"|lineThree:\s*`价格/.test(catsPageText)) {
     failures.push("Our Cats list kitten cards must not expose price fields.");
   }
+  if (
+    !catsPageText.includes("activeGenderId") ||
+    !catsPageText.includes("GENDER_FILTERS") ||
+    !catsPageText.includes("setGender") ||
+    !catsPageText.includes("item.genderKey === normalizedGenderId")
+  ) {
+    failures.push("Our Cats list must keep a dedicated gender filter combined with existing filters.");
+  }
 
   const catsWxml = readFileSync(catsWxmlPath, "utf8");
   if (catsWxml.includes("{{item.pill}}")) {
     failures.push("Our Cats list cards must not render public status pills such as active/semi-retired.");
+  }
+  if (!catsWxml.includes("toggleGender") || !catsWxml.includes("性别")) {
+    failures.push("Our Cats list must render a gender filter control.");
+  }
+  if (!/class="cat-row \{\{item\.litterName \? 'has-litter' : ''\}\}"/.test(catsWxml)) {
+    failures.push("Our Cats list must position litter tags from the card container.");
   }
 
   const detailPageText = readFileSync(detailPagePath, "utf8");
@@ -777,6 +795,36 @@ function verifyPublicCatUiInvariants() {
   const fixedPageWxml = readFileSync(fixedPageWxmlPath, "utf8");
   if (fixedPageWxml.includes("about-hero-section") || fixedPageWxml.includes('class="about-hero"')) {
     failures.push("About fixed page must not reserve a top hero image block.");
+  }
+
+  verifyQuestionnaireUiInvariants();
+}
+
+function verifyQuestionnaireUiInvariants() {
+  const questionnairePagePath = join(miniappRoot, "pages/questionnaire/index.ts");
+  const questionnaireWxmlPath = join(miniappRoot, "pages/questionnaire/index.wxml");
+  const questionnaireWxssPath = join(miniappRoot, "pages/questionnaire/index.wxss");
+
+  for (const requiredPath of [questionnairePagePath, questionnaireWxmlPath, questionnaireWxssPath]) {
+    if (!existsSync(requiredPath)) {
+      failures.push(`${toRepoPath(requiredPath)} is required for questionnaire UI verification.`);
+      return;
+    }
+  }
+
+  const questionnairePageText = readFileSync(questionnairePagePath, "utf8");
+  if (!questionnairePageText.includes("未全部填写完，无法提交")) {
+    failures.push("Questionnaire validation must show a clear incomplete-form submit message.");
+  }
+
+  const questionnaireWxml = readFileSync(questionnaireWxmlPath, "utf8");
+  if (questionnaireWxml.includes('class="required"') || questionnaireWxml.includes("question.required")) {
+    failures.push("Questionnaire fields must not render per-question red required stars.");
+  }
+
+  const questionnaireWxss = readFileSync(questionnaireWxssPath, "utf8");
+  if (/\.required\b/.test(questionnaireWxss)) {
+    failures.push("Questionnaire stylesheet must not keep a red required-star class.");
   }
 }
 

@@ -42,7 +42,7 @@ function Star({ active, highlight }: { active: boolean; highlight?: boolean }) {
       className={`h-3.5 w-3.5 ${
         active
           ? highlight
-            ? "ml-1 h-4 w-4 rounded-full bg-[#fff4be] text-[#f1b84b] drop-shadow-[0_0_5px_rgba(241,184,75,0.72)]"
+            ? "ml-1 h-4 w-4 rounded-full text-[#f1b84b] ring-1 ring-[#e7c15d]/45 drop-shadow-[0_0_3px_rgba(231,193,93,0.34)]"
             : "text-[#e7c15d]"
           : "text-[#dce3ed]"
       }`}

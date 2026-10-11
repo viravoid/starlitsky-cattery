@@ -3,6 +3,7 @@ import { listPublicCats } from "../../utils/public-content/index";
 import { resolveCatFrame, type ImageFrameMode } from "../../utils/cat-presentation";
 
 type TabKey = "kittens" | "studs";
+type GenderFilterId = "" | "male" | "female";
 
 interface CatListItem {
   id: string;
@@ -16,6 +17,7 @@ interface CatListItem {
   lineThree: string;
   litterId: string;
   litterName: string;
+  genderKey: string;
   metaItems: CatMetaItem[];
   name: string;
   pill: string;
@@ -30,9 +32,13 @@ interface CatMetaItem {
 interface CatsPage {
   data: {
     activeFilter: string;
+    activeGenderId: GenderFilterId;
+    activeGenderLabel: string;
     activeLitterLabel: string;
     activeLitterId: string;
     activeTab: TabKey;
+    genderFilters: GenderFilter[];
+    genderOpen: boolean;
     items: CatListItem[];
     litterFilters: LitterFilter[];
     litterOpen: boolean;
@@ -48,6 +54,11 @@ interface LitterFilter {
   name: string;
 }
 
+interface GenderFilter {
+  id: GenderFilterId;
+  name: string;
+}
+
 interface TapEvent {
   currentTarget: {
     dataset: Record<string, string>;
@@ -56,15 +67,24 @@ interface TapEvent {
 
 const KITTEN_FILTERS = ["找家中", "待找家", "已有家"];
 const STUD_FILTERS = ["现役公猫", "现役母猫", "预备役种猫"];
+const GENDER_FILTERS: GenderFilter[] = [
+  { id: "", name: "全部" },
+  { id: "male", name: "弟弟" },
+  { id: "female", name: "妹妹" },
+];
 
 Page({
   data: {
     activeFilter: "找家中",
+    activeGenderId: "" as GenderFilterId,
+    activeGenderLabel: "全部",
     activeLitterLabel: "全部窝次",
     activeLitterId: "",
     activeTab: "kittens" as TabKey,
     error: "",
     filters: KITTEN_FILTERS,
+    genderFilters: GENDER_FILTERS,
+    genderOpen: false,
     isLoading: true,
     items: [] as CatListItem[],
     litterFilters: [{ id: "", name: "全部窝次" }],
@@ -96,7 +116,13 @@ Page({
         error: "",
         isLoading: false,
         items,
-        ...deriveView(items, this.data.activeTab, this.data.activeFilter, this.data.activeLitterId),
+        ...deriveView(
+          items,
+          this.data.activeTab,
+          this.data.activeFilter,
+          this.data.activeLitterId,
+          this.data.activeGenderId,
+        ),
       });
     } catch (error) {
       this.setData({
@@ -117,12 +143,14 @@ Page({
     if (!tab || tab === this.data.activeTab) return;
     this.setData({
       activeTab: tab,
+      genderOpen: false,
       litterOpen: false,
       ...deriveView(
         this.data.items,
         tab,
         tab === "kittens" ? KITTEN_FILTERS[0] : STUD_FILTERS[0],
         "",
+        this.data.activeGenderId,
       ),
     });
   },
@@ -130,12 +158,18 @@ Page({
   setFilter(this: CatsPage, event: TapEvent) {
     const filter = event.currentTarget.dataset.filter;
     this.setData({
-      ...deriveView(this.data.items, this.data.activeTab, filter, this.data.activeLitterId),
+      ...deriveView(
+        this.data.items,
+        this.data.activeTab,
+        filter,
+        this.data.activeLitterId,
+        this.data.activeGenderId,
+      ),
     });
   },
 
   toggleLitter(this: CatsPage) {
-    this.setData({ litterOpen: !this.data.litterOpen });
+    this.setData({ genderOpen: false, litterOpen: !this.data.litterOpen });
   },
 
   setLitter(this: CatsPage, event: TapEvent) {
@@ -143,7 +177,32 @@ Page({
     const nextId = id === this.data.activeLitterId ? "" : id;
     this.setData({
       litterOpen: false,
-      ...deriveView(this.data.items, this.data.activeTab, this.data.activeFilter, nextId),
+      ...deriveView(
+        this.data.items,
+        this.data.activeTab,
+        this.data.activeFilter,
+        nextId,
+        this.data.activeGenderId,
+      ),
+    });
+  },
+
+  toggleGender(this: CatsPage) {
+    this.setData({ genderOpen: !this.data.genderOpen, litterOpen: false });
+  },
+
+  setGender(this: CatsPage, event: TapEvent) {
+    const id = (event.currentTarget.dataset.id || "") as GenderFilterId;
+    const nextId = id === this.data.activeGenderId ? "" : id;
+    this.setData({
+      genderOpen: false,
+      ...deriveView(
+        this.data.items,
+        this.data.activeTab,
+        this.data.activeFilter,
+        this.data.activeLitterId,
+        nextId,
+      ),
     });
   },
 
@@ -166,6 +225,7 @@ function deriveView(
   tab: TabKey,
   activeFilter: string,
   activeLitterId: string,
+  activeGenderId: GenderFilterId,
 ) {
   const tabItems = items.filter((item) => item.kind === tab);
   const filters = tab === "kittens" ? KITTEN_FILTERS : STUD_FILTERS;
@@ -180,15 +240,24 @@ function deriveView(
     : "";
   const activeLitterLabel =
     litterFilters.find((item) => item.id === normalizedLitterId)?.name || "全部";
+  const normalizedGenderId = GENDER_FILTERS.some((item) => item.id === activeGenderId)
+    ? activeGenderId
+    : "";
+  const activeGenderLabel =
+    GENDER_FILTERS.find((item) => item.id === normalizedGenderId)?.name || "全部";
   return {
     activeFilter: normalizedFilter,
+    activeGenderId: normalizedGenderId,
+    activeGenderLabel,
     activeLitterLabel,
     activeLitterId: normalizedLitterId,
     filters,
+    genderFilters: GENDER_FILTERS,
     litterFilters,
     visibleItems: tabItems.filter(
       (item) =>
         item.statusKey === normalizedFilter &&
+        (!normalizedGenderId || item.genderKey === normalizedGenderId) &&
         (tab !== "kittens" || !normalizedLitterId || item.litterId === normalizedLitterId),
     ),
   };
@@ -217,6 +286,7 @@ function toCatListItem(cat: CatData): CatListItem | null {
       lineThree: "",
       litterId: cat.kittenProfile.litter?.id || "",
       litterName,
+      genderKey: cat.gender || "",
       metaItems: [
         { label: "性别", value: genderLabel(cat.gender) },
         { label: "颜色", value: color },
@@ -250,6 +320,7 @@ function toCatListItem(cat: CatData): CatListItem | null {
       lineThree: cat.birthday ? `生日 ${formatBirthday(cat.birthday)}` : "",
       litterId: "",
       litterName: "",
+      genderKey: cat.gender || "",
       metaItems,
       name: cat.name,
       pill: reproductiveState,
