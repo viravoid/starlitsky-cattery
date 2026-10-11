@@ -4,8 +4,9 @@ import type {
   AttachCatToLitterRequest,
   AdminCommunityPostData,
   AdminCommunityPostListData,
+  AdminPasswordLoginData,
+  AdminPasswordLoginRequest,
   BreedingCatProfileData,
-  CreatedAdminLoginChallengeData,
   CreateBreedingCatProfileRequest,
   CreateCatRequest,
   CreatedParentInviteData,
@@ -37,8 +38,6 @@ import type {
   ParentProfileListData,
   ParentInviteData,
   ParentInviteListData,
-  PollAdminLoginChallengeData,
-  PollAdminLoginChallengeRequest,
   ReviewParentApplicationRequest,
   SelectionApplicationData,
   SelectionApplicationListData,
@@ -100,15 +99,9 @@ export function getCurrentAdminUser() {
   return unwrap<CurrentUserResponseData>(adminGet("/auth/me"));
 }
 
-export function createAdminLoginChallenge() {
-  return unwrap<CreatedAdminLoginChallengeData, Record<string, never>>(
-    adminPost("/admin-auth/challenges", {}),
-  );
-}
-
-export function pollAdminLoginChallenge(id: string, data: PollAdminLoginChallengeRequest) {
-  return unwrap<PollAdminLoginChallengeData, PollAdminLoginChallengeRequest>(
-    adminPost(`/admin-auth/challenges/${encodeURIComponent(id)}/poll`, data),
+export function loginAdminWithPassword(data: AdminPasswordLoginRequest) {
+  return unwrap<AdminPasswordLoginData, AdminPasswordLoginRequest>(
+    adminPost("/admin-auth/login", data),
   );
 }
 

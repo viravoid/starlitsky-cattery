@@ -37,31 +37,13 @@ export const config = {
       max: parsePositiveInteger(process.env.WECHAT_LOGIN_RATE_LIMIT_MAX, 20),
       maxBuckets: parsePositiveInteger(process.env.WECHAT_LOGIN_RATE_LIMIT_MAX_BUCKETS, 10_000),
     },
-    adminLoginChallengeTtlMs: parsePositiveInteger(
-      process.env.ADMIN_LOGIN_CHALLENGE_TTL_MS,
-      4 * 60 * 1000,
-    ),
-    adminLoginChallengeCreateRateLimit: {
-      windowMs: parsePositiveInteger(
-        process.env.ADMIN_LOGIN_CHALLENGE_CREATE_RATE_LIMIT_WINDOW_MS,
-        60 * 1000,
-      ),
-      max: parsePositiveInteger(process.env.ADMIN_LOGIN_CHALLENGE_CREATE_RATE_LIMIT_MAX, 12),
-      maxBuckets: parsePositiveInteger(
-        process.env.ADMIN_LOGIN_CHALLENGE_CREATE_RATE_LIMIT_MAX_BUCKETS,
-        10_000,
-      ),
-    },
-    adminLoginChallengePollRateLimit: {
-      windowMs: parsePositiveInteger(
-        process.env.ADMIN_LOGIN_CHALLENGE_POLL_RATE_LIMIT_WINDOW_MS,
-        60 * 1000,
-      ),
-      max: parsePositiveInteger(process.env.ADMIN_LOGIN_CHALLENGE_POLL_RATE_LIMIT_MAX, 45),
-      maxBuckets: parsePositiveInteger(
-        process.env.ADMIN_LOGIN_CHALLENGE_POLL_RATE_LIMIT_MAX_BUCKETS,
-        10_000,
-      ),
+    adminUsername: process.env.ADMIN_USERNAME || "",
+    adminPasswordHash: process.env.ADMIN_PASSWORD_HASH || "",
+    adminInitialPassword: process.env.ADMIN_INITIAL_PASSWORD || "",
+    adminLoginRateLimit: {
+      windowMs: parsePositiveInteger(process.env.ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS, 60 * 1000),
+      max: parsePositiveInteger(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX, 8),
+      maxBuckets: parsePositiveInteger(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX_BUCKETS, 10_000),
     },
   },
   wechat: {

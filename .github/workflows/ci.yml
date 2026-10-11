@@ -117,6 +117,8 @@ jobs:
           API_PORT: 8080
           DATABASE_URL: file:./ci-production-env.db
           AUTH_TOKEN_SECRET: ci-release-readiness-production-secret-32-chars
+          ADMIN_USERNAME: ci-admin
+          ADMIN_PASSWORD_HASH: scrypt$16384$8$1$MDEyMzQ1Njc4OWFiY2RlZg$TsfdUS3OaL3k5RwvYKn8tSxBhQbNCJGpnp2rIuKZIRc
           WECHAT_APP_ID: wxcirelease1234567890
           WECHAT_APP_SECRET: ci-wechat-secret-release-readiness-32-chars
           WECHAT_MOCK_LOGIN_ENABLED: "false"

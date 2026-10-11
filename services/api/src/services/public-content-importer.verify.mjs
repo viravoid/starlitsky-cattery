@@ -420,7 +420,6 @@ try {
     "user",
     "userRole",
     "userSession",
-    "adminLoginChallenge",
     "parentProfile",
     "parentInvite",
     "parentApplication",

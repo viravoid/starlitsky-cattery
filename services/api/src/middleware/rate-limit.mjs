@@ -19,7 +19,7 @@ export function assertRateLimit(key, options = {}, nowMs = Date.now()) {
   buckets.set(key, bucket);
 
   if (bucket.count > limit.max) {
-    throw tooManyRequests("Too many WeChat login attempts. Please try again later.", {
+    throw tooManyRequests("Too many login attempts. Please try again later.", {
       retryAfterSeconds: Math.ceil((bucket.resetAtMs - nowMs) / 1000),
     });
   }

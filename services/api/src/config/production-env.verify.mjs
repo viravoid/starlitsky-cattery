@@ -40,6 +40,7 @@ if (!authSecret) {
 
 requireNonPlaceholder("WECHAT_APP_ID");
 requireNonPlaceholder("WECHAT_APP_SECRET");
+validateAdminPasswordLogin();
 
 rejectEnabled("WECHAT_MOCK_LOGIN_ENABLED");
 rejectEnabled("WECHAT_MOCK_QR_ENABLED");
@@ -170,6 +171,35 @@ function validateStorage() {
   }
 
   readPositiveInteger("STORAGE_MAX_IMAGE_BYTES");
+}
+
+function validateAdminPasswordLogin() {
+  requireNonPlaceholder("ADMIN_USERNAME");
+
+  const passwordHash = readEnv("ADMIN_PASSWORD_HASH");
+  const initialPassword = readEnv("ADMIN_INITIAL_PASSWORD");
+  if (!passwordHash && !initialPassword) {
+    fail("ADMIN_PASSWORD_HASH or ADMIN_INITIAL_PASSWORD must be set for Admin login.");
+    return;
+  }
+
+  if (passwordHash) {
+    validateNonPlaceholder("ADMIN_PASSWORD_HASH", passwordHash);
+    if (!/^scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9_-]+\$[A-Za-z0-9_-]+$/.test(passwordHash)) {
+      fail("ADMIN_PASSWORD_HASH must use the scrypt$N$r$p$salt$key format.");
+    }
+  }
+
+  if (initialPassword) {
+    validateNonPlaceholder("ADMIN_INITIAL_PASSWORD", initialPassword);
+    if (initialPassword.length < 12) {
+      fail("ADMIN_INITIAL_PASSWORD must be at least 12 characters when used.");
+    }
+  }
+
+  readPositiveInteger("ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS");
+  readPositiveInteger("ADMIN_LOGIN_RATE_LIMIT_MAX");
+  readPositiveInteger("ADMIN_LOGIN_RATE_LIMIT_MAX_BUCKETS");
 }
 
 function requireNonPlaceholder(name) {
