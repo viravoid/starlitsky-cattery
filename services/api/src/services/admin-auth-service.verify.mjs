@@ -21,7 +21,6 @@ const config = {
     sessionTtlDays: 7,
     adminUsername: ADMIN_USERNAME,
     adminPasswordHash: createAdminPasswordHash(ADMIN_PASSWORD),
-    adminInitialPassword: "",
     adminLoginRateLimit: { windowMs: 60_000, max: 100, maxBuckets: 1000 },
   },
   server: {
@@ -114,23 +113,6 @@ try {
   assert.equal(secondLogin.user.id, authenticated.user.id, "configured admin login should reuse one user");
   assert.equal(await prisma.user.count({ where: { nickname: ADMIN_USERNAME } }), 1);
 
-  const initialPasswordConfig = {
-    ...config,
-    auth: {
-      ...config.auth,
-      adminPasswordHash: "",
-      adminInitialPassword: ADMIN_PASSWORD,
-    },
-  };
-  const initialPasswordLogin = await routeJson(
-    "/admin-auth/login",
-    "POST",
-    { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
-    "",
-    initialPasswordConfig,
-  );
-  assert.ok(initialPasswordLogin.token, "initial password env fallback should authenticate");
-
   resetRateLimitBuckets();
   const rateLimitedConfig = {
     ...config,
@@ -173,7 +155,6 @@ try {
     auth: {
       ...config.auth,
       adminPasswordHash: "",
-      adminInitialPassword: "",
     },
   };
   await assertRouteRejects(

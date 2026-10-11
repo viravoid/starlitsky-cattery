@@ -176,25 +176,16 @@ function validateStorage() {
 function validateAdminPasswordLogin() {
   requireNonPlaceholder("ADMIN_USERNAME");
 
-  const passwordHash = readEnv("ADMIN_PASSWORD_HASH");
-  const initialPassword = readEnv("ADMIN_INITIAL_PASSWORD");
-  if (!passwordHash && !initialPassword) {
-    fail("ADMIN_PASSWORD_HASH or ADMIN_INITIAL_PASSWORD must be set for Admin login.");
-    return;
+  const passwordHash = requireNonPlaceholder("ADMIN_PASSWORD_HASH");
+  if (
+    passwordHash &&
+    !/^scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9_-]+\$[A-Za-z0-9_-]+$/.test(passwordHash)
+  ) {
+    fail("ADMIN_PASSWORD_HASH must use the scrypt$N$r$p$salt$key format.");
   }
 
-  if (passwordHash) {
-    validateNonPlaceholder("ADMIN_PASSWORD_HASH", passwordHash);
-    if (!/^scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9_-]+\$[A-Za-z0-9_-]+$/.test(passwordHash)) {
-      fail("ADMIN_PASSWORD_HASH must use the scrypt$N$r$p$salt$key format.");
-    }
-  }
-
-  if (initialPassword) {
-    validateNonPlaceholder("ADMIN_INITIAL_PASSWORD", initialPassword);
-    if (initialPassword.length < 12) {
-      fail("ADMIN_INITIAL_PASSWORD must be at least 12 characters when used.");
-    }
+  if (readEnv("ADMIN_INITIAL_PASSWORD")) {
+    fail("ADMIN_INITIAL_PASSWORD must not be set; production Admin login accepts password hashes only.");
   }
 
   readPositiveInteger("ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS");

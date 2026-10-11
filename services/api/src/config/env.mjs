@@ -39,7 +39,6 @@ export const config = {
     },
     adminUsername: process.env.ADMIN_USERNAME || "",
     adminPasswordHash: process.env.ADMIN_PASSWORD_HASH || "",
-    adminInitialPassword: process.env.ADMIN_INITIAL_PASSWORD || "",
     adminLoginRateLimit: {
       windowMs: parsePositiveInteger(process.env.ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS, 60 * 1000),
       max: parsePositiveInteger(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX, 8),

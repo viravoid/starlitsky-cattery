@@ -67,27 +67,7 @@ export function createAdminPasswordHash(password) {
 }
 
 function resolveConfiguredPasswordHash(config) {
-  const configuredHash = String(config.auth.adminPasswordHash || "").trim();
-  if (configuredHash) return configuredHash;
-
-  const initialPassword = String(config.auth.adminInitialPassword || "");
-  return initialPassword ? createDeterministicInitialPasswordHash(initialPassword, config) : "";
-}
-
-function createDeterministicInitialPasswordHash(password, config) {
-  const salt = createHash("sha256")
-    .update(`admin-initial-password:${config.auth.tokenSecret}:${config.auth.adminUsername}`)
-    .digest()
-    .subarray(0, 16);
-  const key = derivePasswordKey(password, salt);
-  return [
-    PASSWORD_HASH_ALGORITHM,
-    String(PASSWORD_HASH_PARAMETERS.N),
-    String(PASSWORD_HASH_PARAMETERS.r),
-    String(PASSWORD_HASH_PARAMETERS.p),
-    salt.toString("base64url"),
-    key.toString("base64url"),
-  ].join("$");
+  return String(config.auth.adminPasswordHash || "").trim();
 }
 
 function verifyAdminPassword(password, passwordHash) {
