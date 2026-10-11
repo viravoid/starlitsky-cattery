@@ -27,7 +27,6 @@ const DISALLOWED_COUNT_MODELS = [
   "user",
   "userRole",
   "userSession",
-  "adminLoginChallenge",
   "parentProfile",
   "parentInvite",
   "parentApplication",

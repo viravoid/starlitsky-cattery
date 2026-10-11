@@ -161,45 +161,10 @@ td {
   padding: 24px;
 }
 
-.auth-qr-box {
+.auth-form {
   display: grid;
-  place-items: center;
-  width: 220px;
-  height: 220px;
-  border: 1px solid #dbe3ef;
-  border-radius: 8px;
-  background: #f8fafc;
-  margin: 18px 0;
-}
-
-.auth-qr-box img,
-.auth-qr-placeholder {
-  width: 190px;
-  height: 190px;
-}
-
-.auth-qr-box img {
-  display: block;
-}
-
-.auth-qr-placeholder {
-  display: grid;
-  place-items: center;
-  border: 1px dashed #cbd5e1;
-  border-radius: 8px;
-  color: #64748b;
-  font-weight: 800;
-}
-
-.auth-status-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #475569;
-  font-size: 14px;
-  font-weight: 800;
-  margin-bottom: 14px;
+  gap: 16px;
+  margin-top: 22px;
 }
 
 .workspace {

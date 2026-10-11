@@ -40,6 +40,7 @@ if (!authSecret) {
 
 requireNonPlaceholder("WECHAT_APP_ID");
 requireNonPlaceholder("WECHAT_APP_SECRET");
+validateAdminPasswordLogin();
 
 rejectEnabled("WECHAT_MOCK_LOGIN_ENABLED");
 rejectEnabled("WECHAT_MOCK_QR_ENABLED");
@@ -170,6 +171,26 @@ function validateStorage() {
   }
 
   readPositiveInteger("STORAGE_MAX_IMAGE_BYTES");
+}
+
+function validateAdminPasswordLogin() {
+  requireNonPlaceholder("ADMIN_USERNAME");
+
+  const passwordHash = requireNonPlaceholder("ADMIN_PASSWORD_HASH");
+  if (
+    passwordHash &&
+    !/^scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9_-]+\$[A-Za-z0-9_-]+$/.test(passwordHash)
+  ) {
+    fail("ADMIN_PASSWORD_HASH must use the scrypt$N$r$p$salt$key format.");
+  }
+
+  if (readEnv("ADMIN_INITIAL_PASSWORD")) {
+    fail("ADMIN_INITIAL_PASSWORD must not be set; production Admin login accepts password hashes only.");
+  }
+
+  readPositiveInteger("ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS");
+  readPositiveInteger("ADMIN_LOGIN_RATE_LIMIT_MAX");
+  readPositiveInteger("ADMIN_LOGIN_RATE_LIMIT_MAX_BUCKETS");
 }
 
 function requireNonPlaceholder(name) {

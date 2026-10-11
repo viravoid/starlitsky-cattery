@@ -1,21 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import type {
-  CreatedAdminLoginChallengeData,
-  CurrentUserData,
-  PollAdminLoginChallengeData,
-} from "@starlitsky/shared";
+import { useEffect, useState, type FormEvent } from "react";
+import type { AdminPasswordLoginData, CurrentUserData } from "@starlitsky/shared";
 import {
-  createAdminLoginChallenge,
   getCurrentAdminUser,
+  loginAdminWithPassword,
   logoutCurrentAdminSession,
-  pollAdminLoginChallenge,
 } from "./api/cattery";
 import { clearAdminAuthToken, getAdminAuthToken, setAdminAuthToken } from "./api/auth-token";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { routes } from "./routes";
 
 const ADMIN_ROLES = new Set(["keeper", "admin"]);
-const POLL_INTERVAL_MS = 2000;
 
 export function App() {
   const CurrentPage = routes.catteryManagement;
@@ -70,9 +64,7 @@ export function App() {
     return () => window.removeEventListener("starlitsky-admin-unauthorized", handleUnauthorized);
   }, []);
 
-  async function handleAuthenticated(data: PollAdminLoginChallengeData) {
-    if (!data.token) throw new Error("登录响应缺少 session token");
-
+  async function handleAuthenticated(data: AdminPasswordLoginData) {
     setAdminAuthToken(data.token);
     const current = await getCurrentAdminUser();
     if (!hasAdminAccess(current.user)) {
@@ -110,7 +102,7 @@ export function App() {
   }
 
   if (authState === "login") {
-    return <AdminQrLogin onAuthenticated={handleAuthenticated} />;
+    return <AdminPasswordLogin onAuthenticated={handleAuthenticated} />;
   }
 
   return (
@@ -120,114 +112,28 @@ export function App() {
   );
 }
 
-function AdminQrLogin({
+function AdminPasswordLogin({
   onAuthenticated,
 }: {
-  onAuthenticated: (data: PollAdminLoginChallengeData) => Promise<void>;
+  onAuthenticated: (data: AdminPasswordLoginData) => Promise<void>;
 }) {
-  const [challenge, setChallenge] = useState<CreatedAdminLoginChallengeData | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [expiresAtMs, setExpiresAtMs] = useState(0);
-  const [nowMs, setNowMs] = useState(Date.now());
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const secondsLeft = useMemo(
-    () => Math.max(0, Math.ceil((expiresAtMs - nowMs) / 1000)),
-    [expiresAtMs, nowMs],
-  );
+  async function submitLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSubmitting) return;
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    async function createChallenge() {
-      setIsCreating(true);
-      setMessage("");
-      try {
-        const created = await createAdminLoginChallenge();
-        if (!active) return;
-        setChallenge(created);
-        setExpiresAtMs(Date.parse(created.expiresAt));
-        if (created.qr.status === "unavailable") {
-          setMessage(created.qr.message);
-        }
-      } catch (error) {
-        if (active) setMessage(getErrorMessage(error));
-      } finally {
-        if (active) setIsCreating(false);
-      }
-    }
-
-    createChallenge();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!challenge || Date.now() >= Date.parse(challenge.expiresAt)) return;
-
-    const activeChallenge = challenge;
-    let stopped = false;
-    let timeoutId = 0;
-
-    async function poll() {
-      if (stopped) return;
-      try {
-        const result = await pollAdminLoginChallenge(activeChallenge.id, {
-          pollCredential: activeChallenge.pollCredential,
-        });
-        if (stopped) return;
-        if (result.token) {
-          await onAuthenticated(result);
-          return;
-        }
-        if (result.status === "expired") {
-          setMessage("二维码已失效，正在刷新。");
-          refreshChallenge();
-          return;
-        }
-        if (result.status === "consumed") {
-          setMessage("这个二维码已经使用过，请刷新后重试。");
-          return;
-        }
-        timeoutId = window.setTimeout(poll, POLL_INTERVAL_MS);
-      } catch (error) {
-        if (stopped) return;
-        setMessage(getErrorMessage(error));
-        timeoutId = window.setTimeout(poll, POLL_INTERVAL_MS);
-      }
-    }
-
-    timeoutId = window.setTimeout(poll, POLL_INTERVAL_MS);
-    return () => {
-      stopped = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [challenge, onAuthenticated]);
-
-  useEffect(() => {
-    if (!challenge || secondsLeft > 0) return;
-    setMessage("二维码已过期，正在刷新。");
-    refreshChallenge();
-  }, [challenge, secondsLeft]);
-
-  async function refreshChallenge() {
-    setIsCreating(true);
+    setIsSubmitting(true);
     setMessage("");
     try {
-      const created = await createAdminLoginChallenge();
-      setChallenge(created);
-      setExpiresAtMs(Date.parse(created.expiresAt));
-      if (created.qr.status === "unavailable") setMessage(created.qr.message);
+      await onAuthenticated(await loginAdminWithPassword({ username, password }));
     } catch (error) {
       setMessage(getErrorMessage(error));
     } finally {
-      setIsCreating(false);
+      setIsSubmitting(false);
     }
   }
 
@@ -235,23 +141,35 @@ function AdminQrLogin({
     <main className="page auth-page">
       <section className="auth-panel">
         <p className="eyebrow">Starlitsky Admin</p>
-        <h1>使用星月小程序扫码登录</h1>
-        <p className="muted">请使用星月缅因猫舍小程序扫码，并在手机上点击确认登录。</p>
+        <h1>后台登录</h1>
 
-        <div className="auth-qr-box">
-          {challenge?.qr.imageDataUrl ? (
-            <img src={challenge.qr.imageDataUrl} alt="星月小程序后台登录码" />
-          ) : (
-            <div className="auth-qr-placeholder">{isCreating ? "正在生成" : "暂无二维码"}</div>
-          )}
-        </div>
-
-        <div className="auth-status-row">
-          <span>{secondsLeft > 0 ? `剩余 ${secondsLeft} 秒` : "正在刷新"}</span>
-          <button className="secondary-button" type="button" onClick={refreshChallenge} disabled={isCreating}>
-            刷新二维码
+        <form className="auth-form" onSubmit={submitLogin}>
+          <label>
+            账号
+            <input
+              autoComplete="username"
+              name="username"
+              onChange={(event) => setUsername(event.target.value)}
+              required
+              type="text"
+              value={username}
+            />
+          </label>
+          <label>
+            密码
+            <input
+              autoComplete="current-password"
+              name="password"
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type="password"
+              value={password}
+            />
+          </label>
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "登录中" : "登录"}
           </button>
-        </div>
+        </form>
 
         {message ? <p className="error-banner compact">{message}</p> : null}
       </section>

@@ -15,7 +15,6 @@
     "pages/parent-onboard/index",
     "pages/cats/index",
     "pages/cat-detail/index",
-    "pages/admin-auth/index",
     "pages/parent-auth/index"
   ],
   "lazyCodeLoading": "requiredComponents",
