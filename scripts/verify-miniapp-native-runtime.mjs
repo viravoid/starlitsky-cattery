@@ -707,12 +707,22 @@ function verifyCatStructureRatingInvariants() {
   if (!/\.star\s*\{[\s\S]*flex:\s*0\s+0\s+23rpx;[\s\S]*\}/.test(detailWxss)) {
     failures.push("Cat detail structure rating stars must keep a fixed non-shrinking width.");
   }
-  if (
-    !/\.bonus-star\s*\{[\s\S]*margin-left:\s*8rpx;[\s\S]*border:\s*1rpx\s+solid[\s\S]*box-shadow:\s*[\s\S]*0\s+0\s+7rpx/.test(
-      detailWxss,
-    )
-  ) {
-    failures.push("Cat detail sixth bonus star must use a light ring/glow emphasis.");
+  const bonusStarBlock = detailWxss.match(/\.bonus-star\s*\{([\s\S]*?)\}/)?.[1] || "";
+  const bonusStarIconBlock = detailWxss.match(/\.bonus-star\s+\.star-icon\s*\{([\s\S]*?)\}/)?.[1] || "";
+  if (!/margin-left:\s*[67]rpx/.test(bonusStarBlock)) {
+    failures.push("Cat detail sixth bonus star must keep a small extra gap after the fifth star.");
+  }
+  if (!/width:\s*25rpx/.test(bonusStarBlock) || !/height:\s*25rpx/.test(bonusStarBlock)) {
+    failures.push("Cat detail sixth bonus star must stay close to the normal star size.");
+  }
+  if (/border\s*:|border-radius\s*:|background\s*:|box-shadow\s*:/.test(bonusStarBlock)) {
+    failures.push("Cat detail sixth bonus star must not use badge-like border/background/container styling.");
+  }
+  if (/\.bonus-star::before/.test(detailWxss)) {
+    failures.push("Cat detail sixth bonus star must not render a vertical separator.");
+  }
+  if (!/filter:\s*drop-shadow\(0\s+0\s+5rpx\s+rgba\(231,\s*193,\s*93,\s*0\.36\)\)/.test(bonusStarIconBlock)) {
+    failures.push("Cat detail sixth bonus star must use only a soft star-shaped halo.");
   }
 
   const detail = evaluateCatDetailModule(detailPageText);
