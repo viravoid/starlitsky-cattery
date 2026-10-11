@@ -787,8 +787,11 @@ function verifyPublicCatUiInvariants() {
   if (catsWxml.includes("{{item.pill}}")) {
     failures.push("Our Cats list cards must not render public status pills such as active/semi-retired.");
   }
-  if (!catsWxml.includes("toggleGender") || !catsWxml.includes("性别")) {
-    failures.push("Our Cats list must render a gender filter control.");
+  if (
+    !catsWxml.includes('class="filter-section-title">性别</text>') ||
+    !catsWxml.includes("bindtap=\"setGender\"")
+  ) {
+    failures.push("Our Cats list must render gender options inside the kitten filter panel.");
   }
   if (!/class="cat-row \{\{item\.litterName \? 'has-litter' : ''\}\}"/.test(catsWxml)) {
     failures.push("Our Cats list must position litter tags from the card container.");
