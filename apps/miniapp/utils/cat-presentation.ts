@@ -30,10 +30,7 @@ const ENTRY_ASPECT_RATIO: Record<CatPresentationEntry, number> = {
   communityProfile: 4 / 3,
 };
 
-export function resolveCatFrame(
-  cat: CatData,
-  entry: CatPresentationEntry,
-): ImageFrameView | null {
+export function resolveCatFrame(cat: CatData, entry: CatPresentationEntry): ImageFrameView | null {
   const media = sortedImageMedia(cat.mediaAssets);
   if (!media.length) return null;
   const cover = media.find((item) => item.usage === "cover") ?? media[0];
@@ -42,9 +39,10 @@ export function resolveCatFrame(
   const manualSelections = asRecord(cat.entryCoverSelections);
   const selection = asRecord(manualSelections?.[entry]);
   const selectedId = stringOr(selection?.imageId, "");
-  const selectedMedia = selectedId && availableIds.includes(selectedId)
-    ? media.find((item) => item.id === selectedId)
-    : null;
+  const selectedMedia =
+    selectedId && availableIds.includes(selectedId)
+      ? media.find((item) => item.id === selectedId)
+      : null;
   const targetMedia = selectedMedia ?? cover;
   const aspectRatio = ENTRY_ASPECT_RATIO[entry];
 
@@ -114,8 +112,15 @@ function toCropFrame(
   const scale = Math.max(100 / cropPixelWidth, 100 / aspectRatio / cropPixelHeight);
   const widthPercent = naturalWidth * scale;
   const heightPercent = naturalHeight * scale * aspectRatio;
-  const leftPercent = -(cropRect.x * naturalWidth * scale);
-  const topPercent = -(cropRect.y * naturalHeight * scale * aspectRatio);
+  const leftPercent = clampCoverOffset(-(cropRect.x * naturalWidth * scale), widthPercent);
+  const topPercent = clampCoverOffset(
+    -(cropRect.y * naturalHeight * scale * aspectRatio),
+    heightPercent,
+  );
+
+  if (!coversFrame(widthPercent, heightPercent, leftPercent, topPercent)) {
+    return toCoverFrame(media, aspectRatio);
+  }
 
   return {
     aspectRatio,
@@ -145,8 +150,18 @@ function toLegacyFrame(
   const scale = Math.max(frameWidth / naturalWidth, frameHeight / naturalHeight) * legacy.zoom;
   const widthPercent = naturalWidth * scale;
   const heightPercent = naturalHeight * scale * aspectRatio;
-  const leftPercent = (100 - widthPercent) * (legacy.objectPositionX / 100);
-  const topPercent = (100 - heightPercent) * (legacy.objectPositionY / 100);
+  const leftPercent = clampCoverOffset(
+    (100 - widthPercent) * (legacy.objectPositionX / 100),
+    widthPercent,
+  );
+  const topPercent = clampCoverOffset(
+    (100 - heightPercent) * (legacy.objectPositionY / 100),
+    heightPercent,
+  );
+
+  if (!coversFrame(widthPercent, heightPercent, leftPercent, topPercent)) {
+    return toCoverFrame(media, aspectRatio);
+  }
 
   return {
     aspectRatio,
@@ -180,16 +195,25 @@ function sortedImageMedia(mediaAssets: CatMediaAssetData[] = []) {
 
 function normalizeCropRect(value: unknown): CropRect | null {
   const input = asRecord(value);
-  const x = unit(input?.x);
-  const y = unit(input?.y);
+  const rawX = numberOr(input?.x, NaN);
+  const rawY = numberOr(input?.y, NaN);
   const width = unit(input?.width);
   const height = unit(input?.height);
-  if (x == null || y == null || width == null || height == null || width <= 0 || height <= 0) {
+  if (
+    !Number.isFinite(rawX) ||
+    !Number.isFinite(rawY) ||
+    width == null ||
+    height == null ||
+    width <= 0 ||
+    height <= 0
+  ) {
     return null;
   }
+  const maxX = Math.max(0, 1 - width);
+  const maxY = Math.max(0, 1 - height);
   return {
-    x: Math.min(x, 1 - width),
-    y: Math.min(y, 1 - height),
+    x: clamp(rawX, 0, maxX),
+    y: clamp(rawY, 0, maxY),
     width,
     height,
   };
@@ -223,7 +247,7 @@ function uniqueIds(values: Array<string | undefined>) {
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value))
+  return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
 }
@@ -246,6 +270,26 @@ function unit(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
   return Math.max(0, Math.min(1, parsed));
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function clampCoverOffset(offset: number, size: number) {
+  if (!Number.isFinite(offset) || !Number.isFinite(size) || size < 100) return 0;
+  return clamp(offset, 100 - size, 0);
+}
+
+function coversFrame(width: number, height: number, left: number, top: number) {
+  return (
+    width >= 100 &&
+    height >= 100 &&
+    left <= 0 &&
+    top <= 0 &&
+    left + width >= 100 &&
+    top + height >= 100
+  );
 }
 
 function round(value: number) {

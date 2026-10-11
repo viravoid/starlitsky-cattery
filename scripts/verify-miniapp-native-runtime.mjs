@@ -26,6 +26,7 @@ verifyVisualQaMutationGuards();
 verifyFixedPageNormalization();
 verifyCatPhotoRenderingInvariants();
 verifyCatStructureRatingInvariants();
+verifyPublicCatUiInvariants();
 verifyRuntimeImports();
 verifyWxssCompatibility();
 
@@ -358,8 +359,11 @@ function verifyFixedPageNormalization() {
     breedingCats,
   );
   const pairings = breedingView.breedingGroups.flatMap((group) => group.pairings);
-  if (pairings.length !== 10) {
-    failures.push(`Breeding-plan normalization must keep 10 canonical pairings; got ${pairings.length}.`);
+  if (pairings.length !== 9) {
+    failures.push(`Breeding-plan public normalization must keep 9 visible canonical pairings; got ${pairings.length}.`);
+  }
+  if (pairings.some((pairing) => pairing.id === "tianhe-zhaoyue-2026-h2")) {
+    failures.push("Breeding-plan public normalization must hide the tianhe-zhaoyue pairing.");
   }
   for (const pairing of pairings) {
     if (!pairing.male || !pairing.female) {
@@ -384,10 +388,13 @@ function verifyFixedPageNormalization() {
     productionShapeBreedingCats,
   );
   const productionShapePairings = productionShapeView.breedingGroups.flatMap((group) => group.pairings);
-  if (productionShapePairings.length !== 10) {
+  if (productionShapePairings.length !== 9) {
     failures.push(
-      `Breeding-plan current-production-shape normalization must keep 10 canonical pairings; got ${productionShapePairings.length}.`,
+      `Breeding-plan current-production-shape public normalization must keep 9 visible canonical pairings; got ${productionShapePairings.length}.`,
     );
+  }
+  if (productionShapePairings.some((pairing) => pairing.id === "tianhe-zhaoyue-2026-h2")) {
+    failures.push("Breeding-plan current-production-shape public normalization must hide the tianhe-zhaoyue pairing.");
   }
   for (const pairing of productionShapePairings) {
     if (!pairing.male || !pairing.female) {
@@ -556,6 +563,27 @@ function verifyCatPhotoRenderingInvariants() {
     requirePositionedCover: true,
   });
 
+  const clampedCropFrame = presentation.resolveCatFrame(
+    createCatFixture({
+      entryCoverSelections: {
+        listCard: {
+          imageId: "portrait",
+          cropRect: { x: -0.3, y: 1.4, width: 0.5, height: 0.25 },
+        },
+      },
+      mediaAssets: mediaCases,
+    }),
+    "listCard",
+  );
+  assertPhotoFrame(clampedCropFrame, {
+    aspectRatio: listAspectRatio,
+    description: "listCard out-of-bounds manual crop",
+    expectedId: "portrait",
+    naturalHeight: 1600,
+    naturalWidth: 800,
+    requirePositionedCover: true,
+  });
+
   const invalidCropFrame = presentation.resolveCatFrame(
     createCatFixture({
       entryCoverSelections: {
@@ -571,6 +599,28 @@ function verifyCatPhotoRenderingInvariants() {
   assertPhotoFrame(invalidCropFrame, {
     aspectRatio: listAspectRatio,
     description: "listCard invalid crop fallback",
+    expectedId: "landscape",
+    naturalHeight: 800,
+    naturalWidth: 1600,
+    requirePositionedCover: true,
+  });
+
+  const outOfBoundsLegacyFrame = presentation.resolveCatFrame(
+    createCatFixture({
+      coverPresentations: {
+        listCard: {
+          objectPositionX: -80,
+          objectPositionY: 240,
+          zoom: 0.2,
+        },
+      },
+      mediaAssets: [createCatMedia("landscape", 1600, 800)],
+    }),
+    "listCard",
+  );
+  assertPhotoFrame(outOfBoundsLegacyFrame, {
+    aspectRatio: listAspectRatio,
+    description: "listCard out-of-bounds focal/zoom positioning",
     expectedId: "landscape",
     naturalHeight: 800,
     naturalWidth: 1600,
@@ -657,6 +707,9 @@ function verifyCatStructureRatingInvariants() {
   if (!/\.star\s*\{[\s\S]*flex:\s*0\s+0\s+23rpx;[\s\S]*\}/.test(detailWxss)) {
     failures.push("Cat detail structure rating stars must keep a fixed non-shrinking width.");
   }
+  if (!/\.bonus-star\s*\{[\s\S]*margin-left:\s*8rpx;[\s\S]*box-shadow:\s*0\s+0\s+18rpx/.test(detailWxss)) {
+    failures.push("Cat detail sixth bonus star must be visually separated and emphasized.");
+  }
 
   const detail = evaluateCatDetailModule(detailPageText);
   const groups = detail.normalizeRatingGroups({
@@ -688,6 +741,43 @@ function verifyCatStructureRatingInvariants() {
     expectedStarCount: 6,
     highlightIndexes: [5],
   });
+}
+
+function verifyPublicCatUiInvariants() {
+  const catsPagePath = join(miniappRoot, "pages/cats/index.ts");
+  const catsWxmlPath = join(miniappRoot, "pages/cats/index.wxml");
+  const detailPagePath = join(miniappRoot, "pages/cat-detail/index.ts");
+  const fixedPageWxmlPath = join(miniappRoot, "pages/fixed-page/index.wxml");
+
+  for (const requiredPath of [catsPagePath, catsWxmlPath, detailPagePath, fixedPageWxmlPath]) {
+    if (!existsSync(requiredPath)) {
+      failures.push(`${toRepoPath(requiredPath)} is required for public cat UI verification.`);
+      return;
+    }
+  }
+
+  const catsPageText = readFileSync(catsPagePath, "utf8");
+  if (/label:\s*"价格"|lineThree:\s*`价格/.test(catsPageText)) {
+    failures.push("Our Cats list kitten cards must not expose price fields.");
+  }
+
+  const catsWxml = readFileSync(catsWxmlPath, "utf8");
+  if (catsWxml.includes("{{item.pill}}")) {
+    failures.push("Our Cats list cards must not render public status pills such as active/semi-retired.");
+  }
+
+  const detailPageText = readFileSync(detailPagePath, "utf8");
+  if (detailPageText.includes("示例文字（待更新）")) {
+    failures.push("Kitten detail neuter status must not render placeholder sample text.");
+  }
+  if (!detailPageText.includes('value: "未绝育"')) {
+    failures.push("Kitten detail must default neuter status to 未绝育 when no field is configured.");
+  }
+
+  const fixedPageWxml = readFileSync(fixedPageWxmlPath, "utf8");
+  if (fixedPageWxml.includes("about-hero-section") || fixedPageWxml.includes('class="about-hero"')) {
+    failures.push("About fixed page must not reserve a top hero image block.");
+  }
 }
 
 function createBreedingCatApiFixture(entry, { currentProductionIdentityShape = false } = {}) {
@@ -743,6 +833,7 @@ function createMinimalBreedingCatFixture({ id, publicContentId, storyJson }) {
 }
 
 function createCatFixture({
+  coverPresentations,
   detailImagePresentations,
   entryCoverSelections,
   mediaAssets,
@@ -751,6 +842,7 @@ function createCatFixture({
     id: "verify-cat",
     name: "verify cat",
     mediaAssets: mediaAssets ?? [],
+    coverPresentations,
     detailImagePresentations,
     entryCoverSelections,
   };
@@ -816,6 +908,11 @@ function assertPhotoFrame(
   }
   if (width < 99.9 || height < 99.9) {
     failures.push(`${description} must cover the fixed frame; got ${width}% x ${height}%.`);
+  }
+  if (left > 0.001 || top > 0.001 || left + width < 99.999 || top + height < 99.999) {
+    failures.push(
+      `${description} must clamp positioned image edges over the frame; got left=${left} top=${top} right=${left + width} bottom=${top + height}.`,
+    );
   }
   if (naturalWidth && naturalHeight) {
     const renderedRatio = width / (height / aspectRatio);

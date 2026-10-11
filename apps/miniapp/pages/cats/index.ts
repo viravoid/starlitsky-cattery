@@ -118,7 +118,12 @@ Page({
     this.setData({
       activeTab: tab,
       litterOpen: false,
-      ...deriveView(this.data.items, tab, tab === "kittens" ? KITTEN_FILTERS[0] : STUD_FILTERS[0], ""),
+      ...deriveView(
+        this.data.items,
+        tab,
+        tab === "kittens" ? KITTEN_FILTERS[0] : STUD_FILTERS[0],
+        "",
+      ),
     });
   },
 
@@ -173,7 +178,8 @@ function deriveView(
   const normalizedLitterId = litterFilters.some((item) => item.id === activeLitterId)
     ? activeLitterId
     : "";
-  const activeLitterLabel = litterFilters.find((item) => item.id === normalizedLitterId)?.name || "全部";
+  const activeLitterLabel =
+    litterFilters.find((item) => item.id === normalizedLitterId)?.name || "全部";
   return {
     activeFilter: normalizedFilter,
     activeLitterLabel,
@@ -201,7 +207,6 @@ function toCatListItem(cat: CatData): CatListItem | null {
     const status = saleStatusLabel(cat.kittenProfile.saleStatus);
     const color = cat.color || "待补充";
     const birthday = formatBirthday(cat.birthday);
-    const price = cat.kittenProfile.priceText || "沟通确认";
     const litterName = formatLitterName(cat.kittenProfile.litter?.name || "");
     return {
       id: cat.id,
@@ -209,14 +214,13 @@ function toCatListItem(cat: CatData): CatListItem | null {
       kind: "kittens",
       lineOne: `性别 ${genderLabel(cat.gender)} · 颜色 ${color}`,
       lineTwo: `生日 ${birthday}`,
-      lineThree: `价格 ${price}`,
+      lineThree: "",
       litterId: cat.kittenProfile.litter?.id || "",
       litterName,
       metaItems: [
         { label: "性别", value: genderLabel(cat.gender) },
         { label: "颜色", value: color },
         { label: "生日", value: birthday },
-        { label: "价格", value: price },
       ],
       name: cat.name,
       pill: status,
@@ -232,7 +236,7 @@ function toCatListItem(cat: CatData): CatListItem | null {
     const color = cat.color || "颜色待补充";
     const trait = cat.breedingProfile.trait || cat.breedingProfile.source || "";
     const metaItems = [
-      { label: "身份", value: reproductiveState && reproductiveState !== category ? `${category} / ${reproductiveState}` : category },
+      { label: "身份", value: category },
       { label: "颜色", value: color },
     ];
     if (trait) metaItems.push({ label: "特点", value: trait });

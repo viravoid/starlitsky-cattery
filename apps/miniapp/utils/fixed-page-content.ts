@@ -416,6 +416,7 @@ const DEFAULT_CONTACT_ACCOUNTS = [
   { id: "contact-account-wechat", label: "微信", value: "StarlitSkyCattery" },
   { id: "contact-account-redbook", label: "小红书", value: "星月缅因猫舍" },
 ];
+const HIDDEN_PUBLIC_BREEDING_PAIRINGS = new Set(["tianhe-zhaoyue-2026-h2"]);
 
 export function emptyFixedPageView(slug = "about"): FixedPageViewData {
   return {
@@ -821,7 +822,7 @@ function normalizeBreedingGroup(
     id: stringOr(group.id, `breeding-plan-group-${index + 1}`),
     pairings: pairings.map((pairing, pairingIndex) =>
       normalizeBreedingPairing(pairing, pairingIndex, studMap),
-    ),
+    ).filter(isPublicBreedingPairing),
     showTrail: index > 0,
     title: textOr(group.title, ""),
   };
@@ -850,6 +851,11 @@ function normalizeBreedingPairing(
     maleFallbackId: maleId,
     timeLabel: textOr(pairing.timeLabel, ""),
   };
+}
+
+function isPublicBreedingPairing(pairing: BreedingPlanPairingView) {
+  if (HIDDEN_PUBLIC_BREEDING_PAIRINGS.has(pairing.id)) return false;
+  return !(pairing.maleFallbackId === "tianhe" && pairing.femaleFallbackId === "zhaoyue");
 }
 
 function normalizePageImages(slug: string, mediaAssets: FixedPageMediaAssetData[]) {

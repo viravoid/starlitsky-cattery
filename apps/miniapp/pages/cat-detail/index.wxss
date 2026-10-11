@@ -227,7 +227,7 @@
   flex: 0 0 auto;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 4rpx;
+  gap: 5rpx;
 }
 
 .star {
@@ -241,6 +241,37 @@
 .star-icon {
   width: 23rpx;
   height: 23rpx;
+}
+
+.bonus-star {
+  position: relative;
+  flex-basis: 31rpx;
+  width: 31rpx;
+  height: 31rpx;
+  margin-left: 8rpx;
+  border-radius: 999rpx;
+  background: radial-gradient(
+    circle,
+    rgba(255, 244, 190, 0.95) 0%,
+    rgba(231, 193, 93, 0.2) 66%,
+    rgba(231, 193, 93, 0) 72%
+  );
+  box-shadow: 0 0 18rpx rgba(231, 193, 93, 0.72);
+}
+
+.bonus-star::before {
+  position: absolute;
+  left: -7rpx;
+  top: 7rpx;
+  width: 1rpx;
+  height: 17rpx;
+  background: rgba(231, 193, 93, 0.58);
+  content: "";
+}
+
+.bonus-star .star-icon {
+  width: 31rpx;
+  height: 31rpx;
 }
 
 .rating-note {

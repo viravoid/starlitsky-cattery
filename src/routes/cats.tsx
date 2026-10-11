@@ -7,7 +7,7 @@ import { PhoneFrame } from "@/components/mobile/PhoneFrame";
 import { Section, Pill, Placeholder } from "@/components/mobile/ui";
 import { PaperIcon, ChevronRightIcon } from "@/components/mobile/icons";
 import { CurledCat } from "@/components/mobile/illustrations";
-import { statusTone, type StudCategory } from "@/lib/cattery-data";
+import { type StudCategory } from "@/lib/cattery-data";
 import { getResolvedCatCoverPresentation } from "@/lib/cat-image-presentation";
 import { useCatteryImageUrls } from "@/hooks/use-cattery-image-urls";
 import {
@@ -78,7 +78,7 @@ function CatCard({
   imageLabel: string;
   entryCoverSelections?: EntryCoverSelections;
   coverPresentations?: CatCoverPresentations;
-  pill: { text: string; tone: string };
+  pill?: { text: string; tone: string };
   litter?: string;
   name: string;
   meta: { k: string; v: string }[];
@@ -124,16 +124,20 @@ function CatCard({
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col py-1 pr-1">
-        <div className="flex flex-wrap gap-1.5">
-          <Pill tone={pill.tone} className="px-2 py-0 text-[10.5px]">
-            {pill.text}
-          </Pill>
-          {litter && (
-            <Pill tone="sunny" className="px-2 py-0 text-[10.5px]">
-              {litter}
-            </Pill>
-          )}
-        </div>
+        {(pill || litter) && (
+          <div className="flex flex-wrap gap-1.5">
+            {pill && (
+              <Pill tone={pill.tone} className="px-2 py-0 text-[10.5px]">
+                {pill.text}
+              </Pill>
+            )}
+            {litter && (
+              <Pill tone="sunny" className="px-2 py-0 text-[10.5px]">
+                {litter}
+              </Pill>
+            )}
+          </div>
+        )}
         <h3 className="mt-2 line-clamp-2 text-[15px] font-semibold leading-snug text-heading">
           {name}
         </h3>
@@ -348,14 +352,12 @@ function Cats() {
                 imageLabel="示例图片（小猫照片，待替换）"
                 entryCoverSelections={kitten.entryCoverSelections}
                 coverPresentations={kitten.coverPresentations}
-                pill={{ text: kitten.status, tone: statusTone(kitten.status) }}
                 litter={kitten.litterName}
                 name={kitten.name}
                 meta={[
                   { k: "性别", v: kitten.gender },
                   { k: "颜色", v: kitten.color },
                   { k: "生日", v: kitten.birthday },
-                  { k: "价格", v: kitten.price },
                 ]}
                 to="/kittens/$id"
                 params={{ id: kitten.id }}
@@ -384,7 +386,6 @@ function Cats() {
                 imageLabel="示例图片（种猫照片，待替换）"
                 entryCoverSelections={stud.entryCoverSelections}
                 coverPresentations={stud.coverPresentations}
-                pill={{ text: stud.status, tone: "sunny" }}
                 name={stud.name}
                 meta={[
                   { k: "身份", v: stud.role },

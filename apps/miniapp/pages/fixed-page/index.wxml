@@ -6,30 +6,6 @@
   </view>
 
   <view wx:elif="{{viewKind === 'about'}}">
-    <view class="section about-hero-section">
-      <swiper
-        class="about-hero"
-        style="height: {{aboutHeroHeight}}rpx"
-        indicator-dots="{{aboutHeroSlides.length > 1}}"
-        indicator-color="rgba(255,253,248,0.78)"
-        indicator-active-color="#e7c15d"
-      >
-        <swiper-item wx:for="{{aboutHeroSlides}}" wx:key="id">
-          <image
-            wx:if="{{item.image}}"
-            class="image-fill"
-            src="{{item.image.url}}"
-            mode="aspectFill"
-            data-url="{{item.image.url}}"
-            bindtap="previewPageImage"
-          />
-          <view wx:else class="placeholder about-placeholder xy-soft-placeholder">
-            <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
-          </view>
-        </swiper-item>
-      </swiper>
-    </view>
-
     <view class="section about-facts-section">
       <view class="section-title-wrap">
         <text class="section-title">猫舍名片</text>

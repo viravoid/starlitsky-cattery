@@ -166,7 +166,7 @@ function toDetailView(cat: CatData) {
       info: [
         ...commonInfo,
         ...(cat.kittenProfile.saleStatus !== "adopted"
-          ? [{ label: "是否已绝育", value: "示例文字（待更新）" }]
+          ? [{ label: "是否已绝育", value: "未绝育" }]
           : []),
         { label: "父亲", value: cat.kittenProfile.litter?.fatherCat?.name || "待补充" },
         { label: "母亲", value: cat.kittenProfile.litter?.motherCat?.name || "待补充" },

@@ -71,7 +71,7 @@
                 wx:for="{{row.stars}}"
                 wx:for-item="star"
                 wx:key="*this"
-                class="star"
+                class="{{star.highlight ? 'star bonus-star' : 'star'}}"
               >
                 <image
                   class="star-icon"
