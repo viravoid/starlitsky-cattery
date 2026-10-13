@@ -469,6 +469,26 @@ try {
     { visibility: "hidden" },
   );
   assert.equal(hiddenComment.visibility, "hidden", "keeper should hide comments");
+  const adminCommentList = await routeGet("/community/admin/comments?pageSize=100", admin);
+  assert.equal(
+    adminCommentList.items.some(
+      (item) => item.id === moderationComment.id && item.visibility === "hidden",
+    ),
+    true,
+    "admin comment list should expose hidden comments for moderation",
+  );
+  await assertRouteRejects(
+    "guest cannot use admin comments list",
+    "/community/admin/comments",
+    null,
+    401,
+  );
+  await assertRouteRejects(
+    "parent cannot use admin comments list",
+    "/community/admin/comments",
+    parentA,
+    403,
+  );
   const deletedComment = await routeJson(
     `/community/admin/posts/${visiblePost.id}/comments/${moderationComment.id}`,
     admin,
@@ -476,6 +496,17 @@ try {
     { deleted: true },
   );
   assert.equal(deletedComment.deletedAt !== null, true, "keeper should soft-delete comments");
+  const adminCommentListWithDeleted = await routeGet(
+    "/community/admin/comments?includeDeleted=true&pageSize=100",
+    admin,
+  );
+  assert.equal(
+    adminCommentListWithDeleted.items.some(
+      (item) => item.id === moderationComment.id && item.deletedAt,
+    ),
+    true,
+    "admin comment list should include deleted comments when requested",
+  );
 
   const adminList = await routeGet("/community/admin/posts?includeDeleted=true&pageSize=100", admin);
   assert.equal(

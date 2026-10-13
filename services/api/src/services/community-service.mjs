@@ -68,6 +68,31 @@ export async function listAdminCommunityPosts(searchParams, user) {
   };
 }
 
+export async function listAdminCommunityComments(searchParams, user) {
+  ensurePrivilegedUser(user);
+  const { page, pageSize, skip, take } = parsePagination(searchParams);
+  const where = buildAdminCommentWhere(searchParams);
+
+  const [items, total] = await prisma.$transaction([
+    prisma.comment.findMany({
+      where,
+      include: {
+        ...COMMENT_INCLUDE,
+        post: true,
+      },
+      orderBy: [{ created_at: "desc" }, { id: "asc" }],
+      skip,
+      take,
+    }),
+    prisma.comment.count({ where }),
+  ]);
+
+  return {
+    items: items.map((comment) => toAdminCommunityCommentDto(comment, { viewer: user })),
+    pagination: buildPaginationMeta({ page, pageSize, total }),
+  };
+}
+
 export async function getCommunityPost(id, viewer = null) {
   const post = await prisma.post.findFirst({
     where: {
@@ -617,6 +642,35 @@ function buildAdminPostWhere(searchParams) {
   return where;
 }
 
+function buildAdminCommentWhere(searchParams) {
+  const visibility = searchParams.get("visibility");
+  const postId = searchParams.get("postId");
+  const authorUserId = searchParams.get("authorUserId");
+  const query = searchParams.get("q");
+  const includeDeleted = searchParams.get("includeDeleted") === "true";
+  const where = {};
+
+  if (!includeDeleted) where.deleted_at = null;
+  if (visibility) {
+    if (!VISIBILITY_VALUES.has(visibility))
+      throw badRequest("visibility contains an unsupported value");
+    where.visibility = visibility;
+  }
+  if (postId) where.post_id = postId;
+  if (authorUserId) where.author_user_id = authorUserId;
+  if (query) {
+    where.OR = [
+      { content: { contains: query } },
+      { author: { nickname: { contains: query } } },
+      { author: { parent_profile: { display_name: { contains: query } } } },
+      { post: { content: { contains: query } } },
+      { post: { author_name_snapshot: { contains: query } } },
+    ];
+  }
+
+  return where;
+}
+
 async function getPublicPostSupplements(
   postIds,
   {
@@ -761,6 +815,22 @@ function toAdminCommunityPostDto(post, publicData) {
     ...toCommunityPostDto(post, publicData),
     authorUserId: post.author_user_id,
     deletedAt: toIsoString(post.deleted_at),
+  };
+}
+
+function toAdminCommunityCommentDto(comment, { viewer = null } = {}) {
+  return {
+    ...toCommunityCommentDto(comment, { viewer }),
+    post: {
+      id: comment.post.id,
+      authorName: comment.post.author_name_snapshot,
+      category: comment.post.category,
+      content: comment.post.content,
+      visibility: comment.post.visibility,
+      pinned: comment.post.pinned,
+      deletedAt: toIsoString(comment.post.deleted_at),
+      createdAt: toIsoString(comment.post.created_at),
+    },
   };
 }
 

@@ -52,6 +52,7 @@ export async function routeRequest(request, response, context) {
   if (
     url.pathname === "/community/admin/posts" ||
     url.pathname.startsWith("/community/admin/posts/") ||
+    url.pathname === "/community/admin/comments" ||
     url.pathname === "/community/post-options" ||
     url.pathname === "/community/posts" ||
     url.pathname.startsWith("/community/posts/")

@@ -627,6 +627,19 @@ export interface AdminCommunityPostData extends CommunityPostData {
   deletedAt: string | null;
 }
 
+export interface AdminCommunityCommentData extends CommunityCommentData {
+  post: {
+    id: string;
+    authorName: string;
+    category: CommunityPostCategory | string;
+    content: string;
+    visibility: string;
+    pinned: boolean;
+    deletedAt: string | null;
+    createdAt: string;
+  };
+}
+
 export interface CommunityPostData {
   id: string;
   authorName: string;
@@ -650,6 +663,7 @@ export interface CommunityPostData {
 
 export type CommunityPostListData = PaginatedResponse<CommunityPostData>;
 export type AdminCommunityPostListData = PaginatedResponse<AdminCommunityPostData>;
+export type AdminCommunityCommentListData = PaginatedResponse<AdminCommunityCommentData>;
 
 export interface MyCatData {
   id: string;

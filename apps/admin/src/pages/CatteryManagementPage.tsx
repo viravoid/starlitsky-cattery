@@ -42,6 +42,7 @@ type SectionKey =
   | "media"
   | "fixedPages"
   | "communityModeration"
+  | "communityComments"
   | "parentUsers"
   | "parentInvites"
   | "parentApplications"
@@ -522,7 +523,10 @@ export function CatteryManagementPage() {
             固定页面
           </button>
           <button type="button" onClick={() => setActiveSection("communityModeration")}>
-            社区管理
+            动态管理
+          </button>
+          <button type="button" onClick={() => setActiveSection("communityComments")}>
+            评论管理
           </button>
           <button type="button" onClick={() => setActiveSection("parentInvites")}>
             家长邀请
@@ -578,7 +582,15 @@ export function CatteryManagementPage() {
           type="button"
           onClick={() => setActiveSection("communityModeration")}
         >
-          社区管理
+          动态管理
+        </button>
+        <button
+          aria-selected={activeSection === "communityComments"}
+          className={activeSection === "communityComments" ? "active-tab" : ""}
+          type="button"
+          onClick={() => setActiveSection("communityComments")}
+        >
+          评论管理
         </button>
         <button
           aria-selected={activeSection === "parentUsers"}
@@ -628,7 +640,9 @@ export function CatteryManagementPage() {
       ) : activeSection === "selectionApplications" ? (
         <SelectionApplicationsPanel />
       ) : activeSection === "communityModeration" ? (
-        <CommunityModerationPanel />
+        <CommunityModerationPanel initialView="posts" />
+      ) : activeSection === "communityComments" ? (
+        <CommunityModerationPanel initialView="comments" />
       ) : activeSection === "fixedPages" ? (
         <FixedPagesPanel isLoading={isLoading} pages={fixedPages} onReload={loadData} />
       ) : activeSection === "media" ? (
@@ -1637,6 +1651,7 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#media") return "media";
   if (window.location.hash === "#fixed-pages") return "fixedPages";
   if (window.location.hash === "#community") return "communityModeration";
+  if (window.location.hash === "#community-comments") return "communityComments";
   if (window.location.hash === "#parent-users") return "parentUsers";
   if (window.location.hash === "#parent-invites") return "parentInvites";
   if (window.location.hash === "#parent-applications") return "parentApplications";
