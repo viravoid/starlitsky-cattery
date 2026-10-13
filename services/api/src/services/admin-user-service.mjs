@@ -1,6 +1,10 @@
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
+import {
+  validateParentCatLinkRelationship,
+  validateParentCatLinkStatus,
+} from "./parent-cat-link-validation.mjs";
 
 const CERTIFY_PARENT_FIELDS = [
   "userId",
@@ -87,36 +91,35 @@ export async function certifyExistingUserAsParent(input, adminUser) {
     const now = new Date();
     await ensureParentRole(userId, adminUser.id, transaction);
 
-    const profile = await transaction.parentProfile.upsert({
+    let profile = await transaction.parentProfile.findUnique({
       where: { user_id: userId },
-      update: {
-        display_name:
-          nullableString(input.displayName, "displayName") ||
-          existingUser.nickname ||
-          `User ${userId.slice(0, 8)}`,
-        real_name: nullableString(input.realName, "realName"),
-        contact_phone: nullableString(input.contactPhone, "contactPhone"),
-        contact_wechat: nullableString(input.contactWechat, "contactWechat"),
-        city: nullableString(input.city, "city"),
-        status: "active",
-        activated_at: now,
-        note: nullableString(input.note, "note"),
-      },
-      create: {
-        user_id: userId,
-        display_name:
-          nullableString(input.displayName, "displayName") ||
-          existingUser.nickname ||
-          `User ${userId.slice(0, 8)}`,
-        real_name: nullableString(input.realName, "realName"),
-        contact_phone: nullableString(input.contactPhone, "contactPhone"),
-        contact_wechat: nullableString(input.contactWechat, "contactWechat"),
-        city: nullableString(input.city, "city"),
-        status: "active",
-        activated_at: now,
-        note: nullableString(input.note, "note"),
-      },
     });
+    if (profile) {
+      const data = buildExistingParentProfileUpdate(input, profile, now);
+      if (Object.keys(data).length > 0) {
+        profile = await transaction.parentProfile.update({
+          where: { id: profile.id },
+          data,
+        });
+      }
+    } else {
+      profile = await transaction.parentProfile.create({
+        data: {
+          user_id: userId,
+          display_name:
+            nullableString(input.displayName, "displayName") ||
+            existingUser.nickname ||
+            `User ${userId.slice(0, 8)}`,
+          real_name: nullableString(input.realName, "realName"),
+          contact_phone: nullableString(input.contactPhone, "contactPhone"),
+          contact_wechat: nullableString(input.contactWechat, "contactWechat"),
+          city: nullableString(input.city, "city"),
+          status: "active",
+          activated_at: now,
+          note: nullableString(input.note, "note"),
+        },
+      });
+    }
 
     for (const link of links) {
       await createParentCatLink(profile.id, link, adminUser.id, transaction);
@@ -129,6 +132,26 @@ export async function certifyExistingUserAsParent(input, adminUser) {
   });
 
   return toAdminUserDto(user);
+}
+
+function buildExistingParentProfileUpdate(input, profile, now) {
+  const data = {};
+  const providedDisplayName = getProvidedNonEmptyString(input, "displayName");
+  if (providedDisplayName !== undefined) data.display_name = providedDisplayName;
+  if (Object.hasOwn(input, "realName")) data.real_name = nullableString(input.realName, "realName");
+  if (Object.hasOwn(input, "contactPhone")) {
+    data.contact_phone = nullableString(input.contactPhone, "contactPhone");
+  }
+  if (Object.hasOwn(input, "contactWechat")) {
+    data.contact_wechat = nullableString(input.contactWechat, "contactWechat");
+  }
+  if (Object.hasOwn(input, "city")) data.city = nullableString(input.city, "city");
+  if (Object.hasOwn(input, "note")) data.note = nullableString(input.note, "note");
+  if (profile.status !== "active") {
+    data.status = "active";
+    data.activated_at = now;
+  }
+  return data;
 }
 
 async function ensureParentRole(userId, adminUserId, transaction) {
@@ -201,9 +224,14 @@ function normalizeParentCatLinks(value) {
     assertNoUnknownFields(link, CERTIFY_PARENT_LINK_FIELDS);
     return {
       catId: requiredString(link.catId, `catLinks[${index}].catId`),
-      relationship:
+      relationship: validateParentCatLinkRelationship(
         optionalString(link.relationship, `catLinks[${index}].relationship`) ?? "owner",
-      status: optionalString(link.status, `catLinks[${index}].status`) ?? "active",
+        `catLinks[${index}].relationship`,
+      ),
+      status: validateParentCatLinkStatus(
+        optionalString(link.status, `catLinks[${index}].status`) ?? "active",
+        `catLinks[${index}].status`,
+      ),
       startedAt: link.startedAt ?? null,
       endedAt: link.endedAt ?? null,
       note: link.note ?? null,
@@ -326,6 +354,11 @@ function nullableString(value, fieldName) {
   if (value == null || value === "") return null;
   if (typeof value !== "string") throw badRequest(`${fieldName} must be a string`);
   return value.trim() || null;
+}
+
+function getProvidedNonEmptyString(input, fieldName) {
+  if (!Object.hasOwn(input, fieldName)) return undefined;
+  return optionalString(input[fieldName], fieldName);
 }
 
 function parseNullableDate(value, fieldName) {

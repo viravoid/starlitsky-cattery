@@ -1,6 +1,10 @@
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
+import {
+  validateParentCatLinkRelationship,
+  validateParentCatLinkStatus,
+} from "./parent-cat-link-validation.mjs";
 
 const BREEDING_CREATE_FIELDS = [
   "category",
@@ -276,8 +280,10 @@ export async function createCatParentLink(catId, input) {
   await ensureActiveCatExists(catId);
 
   const parentProfileId = requiredString(input.parentProfileId, "parentProfileId");
-  const relationship = requiredString(input.relationship, "relationship");
-  const status = optionalString(input.status, "status") ?? "active";
+  const relationship = validateParentCatLinkRelationship(
+    requiredString(input.relationship, "relationship"),
+  );
+  const status = validateParentCatLinkStatus(optionalString(input.status, "status") ?? "active");
   await ensureParentProfileExists(parentProfileId);
 
   let link;
@@ -320,10 +326,12 @@ export async function updateParentCatLink(linkId, input) {
 
   const data = {};
   if (Object.hasOwn(input, "relationship")) {
-    data.relationship = requiredString(input.relationship, "relationship");
+    data.relationship = validateParentCatLinkRelationship(
+      requiredString(input.relationship, "relationship"),
+    );
   }
   if (Object.hasOwn(input, "status")) {
-    data.status = requiredString(input.status, "status");
+    data.status = validateParentCatLinkStatus(requiredString(input.status, "status"));
   }
   if (Object.hasOwn(input, "startedAt")) {
     data.started_at = parseNullableDate(input.startedAt, "startedAt");

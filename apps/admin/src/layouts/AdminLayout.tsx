@@ -10,7 +10,7 @@ const NAV_GROUPS = [
     title: "猫咪管理",
     items: [
       { label: "小猫", href: "#cats" },
-      { label: "种猫", href: "#litters" },
+      { label: "种猫", href: "#cats" },
     ],
   },
   {

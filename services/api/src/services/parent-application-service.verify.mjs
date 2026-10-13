@@ -64,13 +64,26 @@ const hiddenCat = await prisma.cat.create({
     visibility: "hidden",
   },
 });
+const secondHiddenCat = await prisma.cat.create({
+  data: {
+    name: "Verify Second Hidden Parent Cat",
+    gender: "male",
+    color: "hidden silver",
+    lifecycle_status: "adopted",
+    visibility: "hidden",
+  },
+});
 
 const userCountBeforeManualParent = await prisma.user.count();
 const manuallyCertified = await certifyExistingUserAsParent(
   {
     userId: existingWechatUser.id,
     displayName: "Manual Existing Parent",
+    realName: "Manual Real Name",
+    contactPhone: "13900000000",
+    contactWechat: "manual-wechat",
     city: "Shanghai",
+    note: "manual profile note",
     catLinks: [
       {
         catId: hiddenCat.id,
@@ -142,6 +155,42 @@ assert.equal(
   true,
   "community post options should include the manually linked cat",
 );
+const manualProfileBeforeRepeat = await prisma.parentProfile.findUnique({
+  where: { user_id: existingWechatUser.id },
+});
+await certifyExistingUserAsParent(
+  {
+    userId: existingWechatUser.id,
+    catLinks: [{ catId: secondHiddenCat.id, relationship: "co_owner" }],
+  },
+  admin,
+);
+const manualProfileAfterRepeat = await prisma.parentProfile.findUnique({
+  where: { user_id: existingWechatUser.id },
+});
+assert.deepEqual(
+  pickParentProfileEditableFields(manualProfileAfterRepeat),
+  pickParentProfileEditableFields(manualProfileBeforeRepeat),
+  "repeat manual certification without profile fields must preserve existing ParentProfile fields",
+);
+assert.equal(
+  manualProfileAfterRepeat?.activated_at?.toISOString(),
+  manualProfileBeforeRepeat?.activated_at?.toISOString(),
+  "repeat manual certification for an active profile must not reset activated_at",
+);
+assert.equal(
+  await prisma.parentCatLink.count({
+    where: {
+      parent_profile_id: manualParentProfile.id,
+      cat_id: secondHiddenCat.id,
+      relationship: "co_owner",
+      status: "active",
+      deleted_at: null,
+    },
+  }),
+  1,
+  "repeat manual certification should still bind newly provided cats",
+);
 await assertRejects("duplicate active link should be blocked", () =>
   certifyExistingUserAsParent(
     {
@@ -174,6 +223,64 @@ const manualLink = await prisma.parentCatLink.findFirst({
     deleted_at: null,
   },
 });
+const linkCountBeforeInvalidCreate = await prisma.parentCatLink.count();
+await assertRouteJsonRejects(
+  "invalid create relationship should fail",
+  `/cats/${hiddenCat.id}/parent-links`,
+  admin,
+  "POST",
+  {
+    parentProfileId: manualParentProfile.id,
+    relationship: "friend",
+  },
+  400,
+);
+await assertRouteJsonRejects(
+  "invalid create status should fail",
+  `/cats/${hiddenCat.id}/parent-links`,
+  admin,
+  "POST",
+  {
+    parentProfileId: manualParentProfile.id,
+    relationship: "caregiver",
+    status: "paused",
+  },
+  400,
+);
+assert.equal(
+  await prisma.parentCatLink.count(),
+  linkCountBeforeInvalidCreate,
+  "invalid ParentCatLink create requests must not write rows",
+);
+await assertRouteJsonRejects(
+  "invalid patch relationship should fail",
+  `/parent-cat-links/${manualLink.id}`,
+  admin,
+  "PATCH",
+  { relationship: "friend" },
+  400,
+);
+await assertRouteJsonRejects(
+  "invalid patch status should fail",
+  `/parent-cat-links/${manualLink.id}`,
+  admin,
+  "PATCH",
+  { status: "paused" },
+  400,
+);
+const manualLinkAfterInvalidPatch = await prisma.parentCatLink.findUnique({
+  where: { id: manualLink.id },
+});
+assert.equal(
+  manualLinkAfterInvalidPatch.relationship,
+  "owner",
+  "invalid relationship PATCH must not mutate the link",
+);
+assert.equal(
+  manualLinkAfterInvalidPatch.status,
+  "active",
+  "invalid status PATCH must not mutate the link",
+);
 const updatedManualLink = await routeJson(
   `/parent-cat-links/${manualLink.id}`,
   admin,
@@ -531,6 +638,15 @@ async function assertRouteRejects(label, url, actingUser, statusCode) {
   );
 }
 
+async function assertRouteJsonRejects(label, url, actingUser, method, body, statusCode) {
+  const token = actingUser ? await createSessionToken(actingUser) : "";
+  await assert.rejects(
+    () => routeRequest(createRequest({ body, method, url, token }), createResponse(), { config }),
+    (error) => error?.statusCode === statusCode,
+    label,
+  );
+}
+
 function createRequest({ method, url, token = "", body = undefined }) {
   const request = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
   request.method = method;
@@ -577,6 +693,18 @@ function createJsonResponse() {
 
 function randomString() {
   return Math.random().toString(36).slice(2);
+}
+
+function pickParentProfileEditableFields(profile) {
+  return {
+    display_name: profile?.display_name,
+    real_name: profile?.real_name,
+    contact_phone: profile?.contact_phone,
+    contact_wechat: profile?.contact_wechat,
+    city: profile?.city,
+    note: profile?.note,
+    status: profile?.status,
+  };
 }
 
 async function assertRejects(label, action) {
