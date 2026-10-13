@@ -43,7 +43,11 @@ interface NoteParagraph {
 
 interface CatDetailData {
   cat: CatData | null;
+  detailText: string;
+  dietText: string;
   error: string;
+  personalityText: string;
+  showKittenNarrative: boolean;
   gallery: string[];
   galleryItems: GalleryItem[];
   id: string;
@@ -73,7 +77,11 @@ interface TapEvent {
 Page({
   data: {
     cat: null,
+    detailText: "",
+    dietText: "",
     error: "",
+    personalityText: "",
+    showKittenNarrative: false,
     gallery: [],
     galleryItems: [],
     id: "",
@@ -163,6 +171,11 @@ function toDetailView(cat: CatData) {
     return {
       gallery,
       galleryItems,
+      detailText: readStoryText(cat.storyJson, "detail") || readStoryArrayText(cat.storyJson),
+      dietText: readStoryText(cat.storyJson, "diet"),
+      personalityText:
+        readStoryText(cat.storyJson, "personality") || cat.personality || "",
+      showKittenNarrative: true,
       info: [
         ...commonInfo,
         ...(cat.kittenProfile.saleStatus !== "adopted"
@@ -175,9 +188,7 @@ function toDetailView(cat: CatData) {
       ],
       litterId: cat.kittenProfile.litter?.id || "",
       litterName: cat.kittenProfile.litter?.name || "",
-      noteParagraphs: toNoteParagraphs(
-        paragraphsFromStory(cat.storyJson, cat.personality || "主理人介绍待补充。"),
-      ),
+      noteParagraphs: [],
       ratingGroups,
       showStructureRating: ratingGroups.some((group) => group.rows.length > 0),
       statusLabel: saleStatusLabel(cat.kittenProfile.saleStatus),
@@ -188,6 +199,10 @@ function toDetailView(cat: CatData) {
     return {
       gallery,
       galleryItems,
+      detailText: "",
+      dietText: "",
+      personalityText: "",
+      showKittenNarrative: false,
       info: [
         ...commonInfo,
         { label: "身份", value: breedingCategoryLabel(cat.breedingProfile.category) },
@@ -213,6 +228,10 @@ function toDetailView(cat: CatData) {
   return {
     gallery,
     galleryItems,
+    detailText: "",
+    dietText: "",
+    personalityText: "",
+    showKittenNarrative: false,
     info: commonInfo,
     litterId: "",
     litterName: "",
@@ -223,6 +242,27 @@ function toDetailView(cat: CatData) {
     showStructureRating: false,
     statusLabel: lifecycleLabel(cat.lifecycleStatus),
   };
+}
+
+function readStoryText(
+  value: unknown,
+  key: "detail" | "personality" | "diet",
+) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const input = value as Record<string, unknown>;
+  const field = input[key];
+  return typeof field === "string" ? field.trim() : "";
+}
+
+function readStoryArrayText(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const input = value as Record<string, unknown>;
+  if (!Array.isArray(input.story)) return "";
+
+  return input.story
+    .filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+    .map((item) => item.trim())
+    .join("\n\n");
 }
 
 function toNoteParagraphs(paragraphs: string[]): NoteParagraph[] {

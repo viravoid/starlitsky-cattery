@@ -24,6 +24,13 @@ interface LegacyPresentation {
   zoom: number;
 }
 
+const LIST_CARD_FALLBACK_OVERRIDES: Record<string, Partial<LegacyPresentation>> = {
+  "public-content-cat-luoyiyi": { objectPositionY: 20 },
+  "public-content-cat-xiaobianmu": { objectPositionY: 20 },
+  "public-content-cat-manao": { objectPositionY: 20 },
+  "public-content-cat-shuilongyin": { objectPositionY: 20 },
+};
+
 const ENTRY_ASPECT_RATIO: Record<CatPresentationEntry, number> = {
   listCard: 16 / 10,
   breedingPlanCard: 1,
@@ -54,7 +61,12 @@ export function resolveCatFrame(cat: CatData, entry: CatPresentationEntry): Imag
   const legacy = normalizeLegacyPresentation(asRecord(cat.coverPresentations)?.[entry]);
   if (legacy) return toLegacyFrame(targetMedia, aspectRatio, legacy);
 
-  return toLegacyFrame(targetMedia, aspectRatio, fallbackLegacy(entry));
+  const fallbackAspectRatio = entry === "listCard" ? 218 / 236 : aspectRatio;
+  return toLegacyFrame(
+    targetMedia,
+    fallbackAspectRatio,
+    fallbackLegacy(entry, cat.id),
+  );
 }
 
 export function resolveCatDetailFrames(cat: CatData): ImageFrameView[] {
@@ -232,11 +244,21 @@ function normalizeLegacyPresentation(value: unknown): LegacyPresentation | null 
   };
 }
 
-function fallbackLegacy(entry: CatPresentationEntry): LegacyPresentation {
-  return {
+function fallbackLegacy(
+  entry: CatPresentationEntry,
+  catId = "",
+): LegacyPresentation {
+  const base: LegacyPresentation = {
     objectPositionX: 50,
     objectPositionY: entry === "listCard" ? 30 : 34,
     zoom: 1,
+  };
+
+  if (entry !== "listCard") return base;
+
+  return {
+    ...base,
+    ...(LIST_CARD_FALLBACK_OVERRIDES[catId] ?? {}),
   };
 }
 
