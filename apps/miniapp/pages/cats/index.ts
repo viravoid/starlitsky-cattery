@@ -336,9 +336,7 @@ function toCatListItem(cat: CatData): CatListItem | null {
     const metaItems = [
       { label: "身份", value: category },
       { label: "颜色", value: color },
-    ];
-    if (trait) metaItems.push({ label: "特点", value: trait });
-    if (cat.birthday) metaItems.push({ label: "生日", value: formatBirthday(cat.birthday) });
+    ];    if (cat.birthday) metaItems.push({ label: "生日", value: formatBirthday(cat.birthday) });
     return {
       id: cat.id,
       ...imageFields,

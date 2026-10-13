@@ -49,13 +49,6 @@
       </view>
     </view>
 
-    <view class="bottom-cta">
-      <view class="questionnaire-button" bindtap="openQuestionnaire">
-        <image class="questionnaire-icon" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
-        <text>选猫问卷</text>
-      </view>
-    </view>
-
     <view wx:if="{{showStructureRating}}" class="structure">
       <view class="section-heading">
         <text class="section-title">结构评分</text>
@@ -86,6 +79,13 @@
       <text class="rating-note">由猫舍主理人根据实际观察给出的专业评价，仅供参考。</text>
     </view>
 
+    <view class="bottom-cta">
+      <view class="questionnaire-button" bindtap="openQuestionnaire">
+        <image class="questionnaire-icon" src="../../assets/illustrations/paper-icon-white.png" mode="aspectFit" />
+        <text>选猫问卷</text>
+      </view>
+    </view>
+
     <view class="note">
       <view class="about-divider">
         <view class="about-line"></view>
@@ -95,7 +95,26 @@
       <text class="note-title">关于{{cat.name}}</text>
       <text class="note-subtitle">主理人手记 · Keeper's Note</text>
       <view class="note-body-wrap">
-        <text wx:for="{{noteParagraphs}}" wx:key="id" class="note-body">{{item.prefix}}{{item.text}}{{item.suffix}}</text>
+        <block wx:if="{{showKittenNarrative}}">
+          <view wx:if="{{detailText}}" class="kitten-note-section">
+            <text class="kitten-note-label">详细介绍</text>
+            <text class="note-body kitten-note-body">{{detailText}}</text>
+          </view>
+
+          <view wx:if="{{personalityText}}" class="kitten-note-section">
+            <text class="kitten-note-label">性格简介</text>
+            <text class="note-body kitten-note-body">{{personalityText}}</text>
+          </view>
+
+          <view wx:if="{{dietText}}" class="kitten-note-section">
+            <text class="kitten-note-label">饮食习惯</text>
+            <text class="note-body kitten-note-body">{{dietText}}</text>
+          </view>
+        </block>
+
+        <block wx:else>
+          <text wx:for="{{noteParagraphs}}" wx:key="id" class="note-body">{{item.prefix}}{{item.text}}{{item.suffix}}</text>
+        </block>
       </view>
       <view class="signature">
         <view class="signature-line"></view>

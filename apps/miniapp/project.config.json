@@ -11,5 +11,13 @@
     "useCompilerPlugins": [
       "typescript"
     ]
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "assets/visual-qa"
+      }
+    ]
   }
 }
