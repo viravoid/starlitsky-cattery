@@ -2,6 +2,7 @@ import type {
   CatData,
   CatListData,
   AttachCatToLitterRequest,
+  AdminCommunityCommentListData,
   AdminCommunityPostData,
   AdminCommunityPostListData,
   AdminUserListData,
@@ -89,6 +90,16 @@ export interface ListCommunityModerationParams {
   includeDeleted?: boolean;
   page?: number;
   pageSize?: number;
+  q?: string;
+  visibility?: string;
+}
+
+export interface ListCommunityCommentModerationParams {
+  authorUserId?: string;
+  includeDeleted?: boolean;
+  page?: number;
+  pageSize?: number;
+  postId?: string;
   q?: string;
   visibility?: string;
 }
@@ -297,6 +308,14 @@ export function listMedia(params: ListMediaParams = {}) {
 
 export function listCommunityModerationPosts(params: ListCommunityModerationParams = {}) {
   return unwrap<AdminCommunityPostListData>(adminGet(`/community/admin/posts${toSearch(params)}`));
+}
+
+export function listCommunityModerationComments(
+  params: ListCommunityCommentModerationParams = {},
+) {
+  return unwrap<AdminCommunityCommentListData>(
+    adminGet(`/community/admin/comments${toSearch(params)}`),
+  );
 }
 
 export function getCommunityModerationPost(id: string) {

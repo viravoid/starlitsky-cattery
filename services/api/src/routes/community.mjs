@@ -8,6 +8,7 @@ import {
   getAdminCommunityPost,
   getCommunityPost,
   getCommunityPostOptions,
+  listAdminCommunityComments,
   listAdminCommunityPosts,
   listCommunityPosts,
   listMyCommunityPosts,
@@ -24,6 +25,18 @@ import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
 export async function routeCommunityRequest(request, response, url, context) {
+  if (url.pathname === "/community/admin/comments") {
+    const user = await requireAdminMutationRole(request, context.config);
+    if (request.method === "GET") {
+      sendSuccess(response, {
+        data: await listAdminCommunityComments(url.searchParams, user),
+      });
+      return;
+    }
+
+    throw methodNotAllowed();
+  }
+
   if (url.pathname === "/community/admin/posts") {
     const user = await requireAdminMutationRole(request, context.config);
     if (request.method === "GET") {

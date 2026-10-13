@@ -1,11 +1,12 @@
 import { ENVIRONMENT_MEDIA_USAGES } from "@starlitsky/shared";
 import type {
   FixedPageData,
+  FixedPageSlug,
   MediaAssetData,
   MediaBindingData,
   UpdateFixedPageRequest,
 } from "@starlitsky/shared";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   archiveMediaBinding,
   getFixedPage,
@@ -16,17 +17,19 @@ import {
 } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
 
+type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
+type JsonRecord = Record<string, unknown>;
+type EnvironmentSlotKey = keyof typeof ENVIRONMENT_MEDIA_USAGES;
+
 interface FixedPageFormState {
-  contentJson: string;
+  contentJson: JsonRecord;
+  contentJsonText: string;
   contentSchemaVersion: string;
   seoDescription: string;
   seoTitle: string;
   status: string;
   title: string;
 }
-
-type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
-type EnvironmentSlotKey = keyof typeof ENVIRONMENT_MEDIA_USAGES;
 
 interface EnvironmentSlotConfig {
   key: EnvironmentSlotKey;
@@ -45,6 +48,59 @@ const STATUS_OPTIONS = [
   { label: "隐藏", value: "hidden" },
 ];
 
+const PAGE_LABELS: Record<FixedPageSlug, { eyebrow: string; title: string; desc: string }> = {
+  home: {
+    eyebrow: "HomepageContentPanel",
+    title: "首页",
+    desc: "管理首页入口、介绍和结构化内容；图片继续走固定页媒体绑定。",
+  },
+  about: {
+    eyebrow: "AboutContentPanel",
+    title: "猫舍介绍",
+    desc: "按 Demo 的主图、名片和正文分组维护真实 contentJson。",
+  },
+  philosophy: {
+    eyebrow: "PhilosophyContentPanel",
+    title: "繁育理念",
+    desc: "维护理念开场、正文段落和结构化小节。",
+  },
+  environment: {
+    eyebrow: "EnvironmentContentPanel",
+    title: "猫舍环境",
+    desc: "维护环境事实、空间分区和真实 COS 环境图片位。",
+  },
+  feeding: {
+    eyebrow: "FeedingContentPanel",
+    title: "喂养体系",
+    desc: "维护喂养事实、正文与项目说明，不恢复文章 CMS。",
+  },
+  process: {
+    eyebrow: "ProcessContentPanel",
+    title: "价格与接猫流程",
+    desc: "维护价格、流程、福利和礼包等结构化小节。",
+  },
+  "breeding-plan": {
+    eyebrow: "BreedingPlanContentPanel",
+    title: "繁育计划",
+    desc: "维护计划周期、组合与说明字段。",
+  },
+  aftercare: {
+    eyebrow: "AftercareContentPanel",
+    title: "售后保障",
+    desc: "维护售后承诺、准备事项和底部提示。",
+  },
+  questionnaire: {
+    eyebrow: "QuestionnaireContentPanel",
+    title: "选猫问卷页面",
+    desc: "维护问卷页标题、说明和提示，问卷提交仍在独立真实模块处理。",
+  },
+  contact: {
+    eyebrow: "ContactContentPanel",
+    title: "联系方式",
+    desc: "维护联系账号、介绍和底部提示。",
+  },
+};
+
 const ENVIRONMENT_MEDIA_SLOTS: EnvironmentSlotConfig[] = [
   { key: "maternity", label: "母婴房", usage: ENVIRONMENT_MEDIA_USAGES.maternity },
   { key: "publicArea", label: "公共活动区", usage: ENVIRONMENT_MEDIA_USAGES.publicArea },
@@ -62,6 +118,7 @@ export function FixedPagesPanel({
 }) {
   const [selectedSlug, setSelectedSlug] = useState("");
   const [selectedPage, setSelectedPage] = useState<FixedPageData | null>(null);
+  const [savedForm, setSavedForm] = useState<FixedPageFormState>(() => toForm(null));
   const [form, setForm] = useState<FixedPageFormState>(() => toForm(null));
   const [imagesByPageId, setImagesByPageId] = useState<Record<string, MediaAssetData[]>>({});
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
@@ -69,6 +126,14 @@ export function FixedPagesPanel({
   const [imageUploadState, setImageUploadState] = useState<ImageUploadState>("idle");
   const [slotUploadStates, setSlotUploadStates] = useState<Record<string, ImageUploadState>>({});
   const [slotSortDrafts, setSlotSortDrafts] = useState<Record<string, string>>({});
+  const [openPanels, setOpenPanels] = useState<Record<string, boolean>>({
+    body: true,
+    facts: true,
+    sections: true,
+    media: true,
+    meta: false,
+    advanced: false,
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -78,16 +143,26 @@ export function FixedPagesPanel({
     [pages, selectedSlug],
   );
   const selectedPageImages = selectedPage ? (imagesByPageId[selectedPage.id] ?? []) : [];
+  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(savedForm), [form, savedForm]);
+  const pageCopy = selectedPage ? PAGE_LABELS[selectedPage.slug] : null;
 
   useEffect(() => {
     if (!selectedSlug && pages[0]) setSelectedSlug(pages[0].slug);
   }, [pages, selectedSlug]);
 
   useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [dirty]);
+
+  useEffect(() => {
     return () => {
-      if (imagePreviewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
+      if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl);
     };
   }, [imagePreviewUrl]);
 
@@ -99,10 +174,7 @@ export function FixedPagesPanel({
       pageSize: 100,
       status: "active",
     });
-    setImagesByPageId((current) => ({
-      ...current,
-      [pageId]: mediaList.items,
-    }));
+    setImagesByPageId((current) => ({ ...current, [pageId]: mediaList.items }));
     setSlotSortDrafts((current) => mergeSortDrafts(current, mediaList.items, pageId));
     return mediaList.items;
   }, []);
@@ -110,9 +182,7 @@ export function FixedPagesPanel({
   const clearPendingImage = useCallback(() => {
     setPendingImageFile(null);
     setImagePreviewUrl((current) => {
-      if (current.startsWith("blob:")) {
-        URL.revokeObjectURL(current);
-      }
+      if (current.startsWith("blob:")) URL.revokeObjectURL(current);
       return "";
     });
     setImageUploadState("idle");
@@ -120,27 +190,30 @@ export function FixedPagesPanel({
 
   const selectPage = useCallback(
     async (slug: string) => {
+      if (dirty && !window.confirm("当前页面存在未保存修改，确定要切换页面吗？")) return;
       setSelectedSlug(slug);
       setNotice("");
       setError("");
 
       try {
         const page = await getFixedPage(slug);
+        const nextForm = toForm(page);
         setSelectedPage(page);
-        setForm(toForm(page));
+        setSavedForm(nextForm);
+        setForm(nextForm);
         clearPendingImage();
         await loadPageImages(page.id);
       } catch (selectError) {
         setError(getErrorMessage(selectError));
       }
     },
-    [clearPendingImage, loadPageImages],
+    [clearPendingImage, dirty, loadPageImages],
   );
 
   useEffect(() => {
-    if (!currentListPage) return;
+    if (!currentListPage || selectedPage?.slug === currentListPage.slug) return;
     void selectPage(currentListPage.slug);
-  }, [currentListPage, selectPage]);
+  }, [currentListPage, selectPage, selectedPage?.slug]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -154,7 +227,9 @@ export function FixedPagesPanel({
       const payload = toPayload(form);
       const updated = await updateFixedPage(selectedPage.slug, payload);
       setSelectedPage(updated);
-      setForm(toForm(updated));
+      const nextForm = toForm(updated);
+      setSavedForm(nextForm);
+      setForm(nextForm);
       const hadPendingImage = Boolean(pendingImageFile);
 
       if (pendingImageFile) {
@@ -179,11 +254,39 @@ export function FixedPagesPanel({
     }
   }
 
+  function restoreDraft() {
+    if (!dirty) return;
+    if (!window.confirm("确定要放弃当前未保存修改吗？")) return;
+    setForm(savedForm);
+    clearPendingImage();
+    setNotice("已恢复到上一次保存的内容。");
+  }
+
+  function updateContent(patch: JsonRecord) {
+    setForm((current) => {
+      const contentJson = { ...current.contentJson, ...patch };
+      return {
+        ...current,
+        contentJson,
+        contentJsonText: JSON.stringify(contentJson, null, 2),
+      };
+    });
+  }
+
+  function updateContentText(contentJsonText: string) {
+    setForm((current) => {
+      try {
+        const parsed = parseContentJsonText(contentJsonText);
+        return { ...current, contentJson: parsed, contentJsonText };
+      } catch {
+        return { ...current, contentJsonText };
+      }
+    });
+  }
+
   function handleImageSelected(file: File | null) {
     clearPendingImage();
-
     if (!file) return;
-
     setPendingImageFile(file);
     setImagePreviewUrl(URL.createObjectURL(file));
     setImageUploadState("pending");
@@ -191,9 +294,8 @@ export function FixedPagesPanel({
 
   async function uploadPendingImage(pageId: string) {
     if (!pendingImageFile) return null;
-
     setImageUploadState("uploading");
-    const media = await uploadFixedPageImage(pageId, pendingImageFile);
+    const media = await uploadFixedPageImage(pageId, pendingImageFile, { usage: "gallery" });
     setImagesByPageId((current) => ({
       ...current,
       [pageId]: [media, ...(current[pageId] ?? []).filter((item) => item.id !== media.id)],
@@ -204,10 +306,7 @@ export function FixedPagesPanel({
     return media;
   }
 
-  async function handleEnvironmentSlotImageSelected(
-    slot: EnvironmentSlotConfig,
-    file: File | null,
-  ) {
+  async function handleEnvironmentSlotImageSelected(slot: EnvironmentSlotConfig, file: File | null) {
     if (!selectedPage || !file) return;
 
     setSlotUploadStates((current) => ({ ...current, [slot.usage]: "uploading" }));
@@ -216,19 +315,12 @@ export function FixedPagesPanel({
 
     try {
       const currentItems = getEnvironmentSlotItems(selectedPageImages, selectedPage.id, slot.usage);
-      const media = await uploadFixedPageImage(selectedPage.id, file, {
+      await uploadFixedPageImage(selectedPage.id, file, {
         altText: `${slot.label}环境照片`,
         sortOrder: getNextSortOrder(currentItems),
         title: `${slot.label} - ${file.name}`,
         usage: slot.usage,
       });
-      setImagesByPageId((current) => ({
-        ...current,
-        [selectedPage.id]: [
-          media,
-          ...(current[selectedPage.id] ?? []).filter((item) => item.id !== media.id),
-        ],
-      }));
       await loadPageImages(selectedPage.id);
       setSlotUploadStates((current) => ({ ...current, [slot.usage]: "uploaded" }));
       setNotice(`${slot.label}图片已上传并绑定到该位置`);
@@ -285,9 +377,9 @@ export function FixedPagesPanel({
       <div className="toolbar">
         <div>
           <p className="eyebrow">Fixed Pages</p>
-          <h2>固定页面内容管理</h2>
+          <h2>站点内容管理</h2>
           <p className="muted compact">
-            只维护预定义页面的结构化内容，不提供文章、新增栏目或通用 CMS 能力。
+            Demo 字段分组 + 真实 FixedPage API；图片上传继续使用真实媒体 API 和 COS。
           </p>
         </div>
         <div className="toolbar-actions">
@@ -300,7 +392,7 @@ export function FixedPagesPanel({
       {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="error-banner">{error}</div> : null}
 
-      <div className="management-grid">
+      <div className="management-grid wide-detail">
         <section className="table-panel" aria-label="固定页面列表">
           <div className="section-heading">
             <div>
@@ -313,137 +405,163 @@ export function FixedPagesPanel({
           ) : pages.length === 0 ? (
             <div className="empty-state">暂无固定页面配置，请先运行数据库迁移。</div>
           ) : (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>页面</th>
-                    <th>Slug</th>
-                    <th>状态</th>
-                    <th>版本</th>
-                    <th>更新时间</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pages.map((page) => (
-                    <tr key={page.slug}>
-                      <td>
-                        <button
-                          className="link-button"
-                          type="button"
-                          onClick={() => void selectPage(page.slug)}
-                        >
-                          {page.title}
-                        </button>
-                      </td>
-                      <td>{page.slug}</td>
-                      <td>{formatOption(page.status, STATUS_OPTIONS)}</td>
-                      <td>v{page.contentSchemaVersion}</td>
-                      <td>{formatDateTime(page.updatedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="fixed-page-list">
+              {pages.map((page) => (
+                <button
+                  className={`fixed-page-list-item ${selectedPage?.slug === page.slug ? "active" : ""}`}
+                  key={page.slug}
+                  type="button"
+                  onClick={() => void selectPage(page.slug)}
+                >
+                  <span>
+                    <strong>{PAGE_LABELS[page.slug].title}</strong>
+                    <small>{PAGE_LABELS[page.slug].eyebrow}</small>
+                  </span>
+                  <span className={`status-badge status-${page.status}`}>
+                    {formatOption(page.status, STATUS_OPTIONS)}
+                  </span>
+                </button>
+              ))}
             </div>
           )}
         </section>
 
         <aside className="detail-panel" aria-label="固定页面编辑">
-          {selectedPage ? (
+          {selectedPage && pageCopy ? (
             <form className="form-stack" onSubmit={handleSubmit}>
-              <div>
-                <p className="eyebrow">Edit Fixed Page</p>
-                <h3>{selectedPage.slug}</h3>
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">{pageCopy.eyebrow}</p>
+                  <h3>{pageCopy.title}</h3>
+                  <p className="muted compact">{pageCopy.desc}</p>
+                </div>
+                <span className={`upload-state ${dirty ? "upload-state-pending" : "upload-state-uploaded"}`}>
+                  {dirty ? "有未保存修改" : "当前内容已保存"}
+                </span>
               </div>
-              <label>
-                页面标题
-                <input
-                  aria-label="页面标题"
-                  required
-                  value={form.title}
-                  onChange={(event) => setForm({ ...form, title: event.target.value })}
-                />
-              </label>
-              <div className="form-grid">
+
+              <EditorSection
+                desc="标题、发布状态、SEO 与内容结构版本继续写入真实 FixedPage。"
+                open={openPanels.meta}
+                title="页面基础信息"
+                onToggle={() => setOpenPanels((current) => ({ ...current, meta: !current.meta }))}
+              >
                 <label>
-                  状态
-                  <select
-                    aria-label="状态"
-                    value={form.status}
-                    onChange={(event) => setForm({ ...form, status: event.target.value })}
-                  >
-                    {STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  内容结构版本
+                  页面标题
                   <input
-                    aria-label="内容结构版本"
-                    inputMode="numeric"
-                    value={form.contentSchemaVersion}
-                    onChange={(event) =>
-                      setForm({ ...form, contentSchemaVersion: event.target.value })
-                    }
+                    required
+                    value={form.title}
+                    onChange={(event) => setForm({ ...form, title: event.target.value })}
                   />
                 </label>
-              </div>
-              <label>
-                SEO 标题
-                <input
-                  aria-label="SEO 标题"
-                  value={form.seoTitle}
-                  onChange={(event) => setForm({ ...form, seoTitle: event.target.value })}
-                />
-              </label>
-              <label>
-                SEO 描述
+                <div className="form-grid">
+                  <label>
+                    状态
+                    <select
+                      value={form.status}
+                      onChange={(event) => setForm({ ...form, status: event.target.value })}
+                    >
+                      {STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    内容结构版本
+                    <input
+                      inputMode="numeric"
+                      value={form.contentSchemaVersion}
+                      onChange={(event) =>
+                        setForm({ ...form, contentSchemaVersion: event.target.value })
+                      }
+                    />
+                  </label>
+                </div>
+                <label>
+                  SEO 标题
+                  <input
+                    value={form.seoTitle}
+                    onChange={(event) => setForm({ ...form, seoTitle: event.target.value })}
+                  />
+                </label>
+                <label>
+                  SEO 描述
+                  <textarea
+                    rows={3}
+                    value={form.seoDescription}
+                    onChange={(event) => setForm({ ...form, seoDescription: event.target.value })}
+                  />
+                </label>
+              </EditorSection>
+
+              <StructuredContentEditor
+                content={form.contentJson}
+                openPanels={openPanels}
+                slug={selectedPage.slug}
+                onContentChange={updateContent}
+                onPanelsChange={setOpenPanels}
+              />
+
+              <EditorSection
+                desc="保留完整 JSON 往返；结构化面板暂未覆盖的字段可在这里编辑。"
+                open={openPanels.advanced}
+                title="高级 JSON"
+                onToggle={() =>
+                  setOpenPanels((current) => ({ ...current, advanced: !current.advanced }))
+                }
+              >
                 <textarea
-                  aria-label="SEO 描述"
-                  rows={3}
-                  value={form.seoDescription}
-                  onChange={(event) => setForm({ ...form, seoDescription: event.target.value })}
-                />
-              </label>
-              <label>
-                结构化内容 JSON
-                <textarea
-                  aria-label="结构化内容 JSON"
                   className="code-textarea"
                   rows={14}
-                  value={form.contentJson}
-                  onChange={(event) => setForm({ ...form, contentJson: event.target.value })}
+                  value={form.contentJsonText}
+                  onChange={(event) => updateContentText(event.target.value)}
                 />
-              </label>
-              {selectedPage.slug === "environment" ? (
-                <EnvironmentFixedPageMediaSlots
-                  disabled={isSaving}
-                  images={selectedPageImages}
-                  pageId={selectedPage.id}
-                  slotSortDrafts={slotSortDrafts}
-                  slotUploadStates={slotUploadStates}
-                  onArchive={handleEnvironmentBindingArchive}
-                  onSortDraftChange={(bindingId, sortOrder) =>
-                    setSlotSortDrafts((current) => ({ ...current, [bindingId]: sortOrder }))
-                  }
-                  onSortSave={handleEnvironmentSortSave}
-                  onUpload={handleEnvironmentSlotImageSelected}
-                />
-              ) : (
-                <FixedPageImageUploadField
-                  disabled={isSaving}
-                  images={selectedPageImages}
-                  previewUrl={imagePreviewUrl}
-                  state={imageUploadState}
-                  onChange={handleImageSelected}
-                />
-              )}
+              </EditorSection>
+
+              <EditorSection
+                desc="图片上传继续使用真实媒体接口；环境页保留 Demo 的母婴房、公共区、医疗间位置。"
+                open={openPanels.media}
+                title="页面图片"
+                onToggle={() => setOpenPanels((current) => ({ ...current, media: !current.media }))}
+              >
+                {selectedPage.slug === "environment" ? (
+                  <EnvironmentFixedPageMediaSlots
+                    disabled={isSaving}
+                    images={selectedPageImages}
+                    pageId={selectedPage.id}
+                    slotSortDrafts={slotSortDrafts}
+                    slotUploadStates={slotUploadStates}
+                    onArchive={handleEnvironmentBindingArchive}
+                    onSortDraftChange={(bindingId, sortOrder) =>
+                      setSlotSortDrafts((current) => ({ ...current, [bindingId]: sortOrder }))
+                    }
+                    onSortSave={handleEnvironmentSortSave}
+                    onUpload={handleEnvironmentSlotImageSelected}
+                  />
+                ) : (
+                  <FixedPageImageUploadField
+                    disabled={isSaving}
+                    images={selectedPageImages}
+                    previewUrl={imagePreviewUrl}
+                    state={imageUploadState}
+                    onChange={handleImageSelected}
+                  />
+                )}
+              </EditorSection>
+
               <div className="form-actions">
                 <button disabled={isSaving} type="submit">
-                  {isSaving ? "保存中..." : "保存固定页面"}
+                  {isSaving ? "保存中..." : "保存更改"}
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={isSaving || !dirty}
+                  type="button"
+                  onClick={restoreDraft}
+                >
+                  取消本次修改
                 </button>
               </div>
             </form>
@@ -453,6 +571,220 @@ export function FixedPagesPanel({
         </aside>
       </div>
     </>
+  );
+}
+
+function StructuredContentEditor({
+  content,
+  openPanels,
+  slug,
+  onContentChange,
+  onPanelsChange,
+}: {
+  content: JsonRecord;
+  openPanels: Record<string, boolean>;
+  slug: FixedPageSlug;
+  onContentChange: (patch: JsonRecord) => void;
+  onPanelsChange: (panels: Record<string, boolean>) => void;
+}) {
+  const facts = isRecord(content.facts) ? content.facts : {};
+  const sections = Array.isArray(content.sections) ? content.sections : [];
+  const primitiveFields = Object.entries(content).filter(
+    ([key, value]) =>
+      !["facts", "sections"].includes(key) &&
+      (typeof value === "string" || typeof value === "number" || typeof value === "boolean"),
+  );
+
+  return (
+    <>
+      <EditorSection
+        desc="对应 Demo 面板中的正文、开场说明、标题等主内容字段。"
+        open={openPanels.body}
+        title="正文与主字段"
+        onToggle={() => onPanelsChange({ ...openPanels, body: !openPanels.body })}
+      >
+        {primitiveFields.length === 0 ? (
+          <div className="empty-state">该页面暂无可直接编辑的主字段，可使用高级 JSON。</div>
+        ) : (
+          <div className="form-stack">
+            {primitiveFields.map(([key, value]) =>
+              String(value).length > 120 || key.toLowerCase().includes("body") ? (
+                <label key={key}>
+                  {formatFieldLabel(key)}
+                  <textarea
+                    rows={key === "body" ? 10 : 5}
+                    value={String(value)}
+                    onChange={(event) => onContentChange({ [key]: event.target.value })}
+                  />
+                </label>
+              ) : (
+                <label key={key}>
+                  {formatFieldLabel(key)}
+                  <input
+                    value={String(value)}
+                    onChange={(event) => onContentChange({ [key]: event.target.value })}
+                  />
+                </label>
+              ),
+            )}
+          </div>
+        )}
+      </EditorSection>
+
+      <EditorSection
+        desc="对应 Demo 的名片、要点、指标类字段。"
+        open={openPanels.facts}
+        title="事实卡片"
+        onToggle={() => onPanelsChange({ ...openPanels, facts: !openPanels.facts })}
+      >
+        {Object.keys(facts).length === 0 ? (
+          <div className="empty-state">该页面暂无 facts 字段。</div>
+        ) : (
+          <div className="form-grid">
+            {Object.entries(facts).map(([key, value]) => (
+              <label key={key}>
+                {formatFieldLabel(key)}
+                <input
+                  value={stringifyScalar(value)}
+                  onChange={(event) =>
+                    onContentChange({ facts: { ...facts, [key]: event.target.value } })
+                  }
+                />
+              </label>
+            ))}
+          </div>
+        )}
+      </EditorSection>
+
+      <EditorSection
+        desc={slug === "process" ? "价格、福利、购买流程等按 Demo 小节拆分。" : "页面中的可排序内容小节。"}
+        open={openPanels.sections}
+        title="内容小节"
+        onToggle={() => onPanelsChange({ ...openPanels, sections: !openPanels.sections })}
+      >
+        <SectionListEditor sections={sections} onChange={(next) => onContentChange({ sections: next })} />
+      </EditorSection>
+    </>
+  );
+}
+
+function SectionListEditor({
+  sections,
+  onChange,
+}: {
+  sections: unknown[];
+  onChange: (sections: unknown[]) => void;
+}) {
+  const normalizedSections = sections.map((section) => (isRecord(section) ? section : { body: section }));
+
+  function updateSection(index: number, patch: JsonRecord) {
+    onChange(normalizedSections.map((section, currentIndex) => (currentIndex === index ? { ...section, ...patch } : section)));
+  }
+
+  function addSection() {
+    onChange([...normalizedSections, { title: "新小节", body: "" }]);
+  }
+
+  function removeSection(index: number) {
+    if (!window.confirm("确定删除这个小节吗？")) return;
+    onChange(normalizedSections.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  function moveSection(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= normalizedSections.length) return;
+    const next = [...normalizedSections];
+    const [item] = next.splice(index, 1);
+    next.splice(target, 0, item);
+    onChange(next);
+  }
+
+  return (
+    <div className="form-stack">
+      <div className="form-actions">
+        <button className="secondary-button small-button" type="button" onClick={addSection}>
+          新增小节
+        </button>
+      </div>
+      {normalizedSections.length === 0 ? (
+        <div className="empty-state">暂无小节。</div>
+      ) : (
+        normalizedSections.map((section, index) => (
+          <div className="structured-section-card" key={index}>
+            <div className="section-heading">
+              <span className="muted">#{index + 1}</span>
+              <div className="table-actions">
+                <button
+                  className="secondary-button small-button"
+                  disabled={index === 0}
+                  type="button"
+                  onClick={() => moveSection(index, -1)}
+                >
+                  上移
+                </button>
+                <button
+                  className="secondary-button small-button"
+                  disabled={index === normalizedSections.length - 1}
+                  type="button"
+                  onClick={() => moveSection(index, 1)}
+                >
+                  下移
+                </button>
+                <button
+                  className="danger-button small-button"
+                  type="button"
+                  onClick={() => removeSection(index)}
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+            <label>
+              标题
+              <input
+                value={stringifyScalar(section.title)}
+                onChange={(event) => updateSection(index, { title: event.target.value })}
+              />
+            </label>
+            <label>
+              正文
+              <textarea
+                rows={5}
+                value={stringifyScalar(section.body)}
+                onChange={(event) => updateSection(index, { body: event.target.value })}
+              />
+            </label>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function EditorSection({
+  children,
+  desc,
+  open,
+  title,
+  onToggle,
+}: {
+  children: ReactNode;
+  desc: string;
+  open: boolean;
+  title: string;
+  onToggle: () => void;
+}) {
+  return (
+    <section className="editor-section">
+      <button className="editor-section-toggle" type="button" onClick={onToggle}>
+        <span>
+          <strong>{title}</strong>
+          <small>{desc}</small>
+        </span>
+        <span>{open ? "收起" : "展开"}</span>
+      </button>
+      {open ? <div className="editor-section-body">{children}</div> : null}
+    </section>
   );
 }
 
@@ -491,7 +823,6 @@ function FixedPageImageUploadField({
         选择图片
         <input
           accept="image/*"
-          aria-label="选择固定页面图片"
           disabled={disabled}
           type="file"
           onChange={(event) => {
@@ -501,9 +832,7 @@ function FixedPageImageUploadField({
         />
       </label>
       <p className="muted compact">
-        {state === "pending"
-          ? "图片将在保存固定页面时上传并绑定。"
-          : "保存后会通过媒体绑定持久化到当前固定页面。"}
+        {state === "pending" ? "图片将在保存固定页面时上传并绑定。" : "保存后会通过媒体绑定持久化到当前固定页面。"}
       </p>
     </div>
   );
@@ -532,129 +861,77 @@ function EnvironmentFixedPageMediaSlots({
 }) {
   return (
     <div className="environment-slot-stack">
-      <div className="subsection-heading">
-        <h4>环境页图片位置</h4>
-        <span className="upload-state">fixed_page slots</span>
-      </div>
       {ENVIRONMENT_MEDIA_SLOTS.map((slot) => (
-        <EnvironmentFixedPageMediaSlot
-          disabled={disabled}
-          items={getEnvironmentSlotItems(images, pageId, slot.usage)}
-          key={slot.usage}
-          slot={slot}
-          sortDrafts={slotSortDrafts}
-          uploadState={slotUploadStates[slot.usage] ?? "idle"}
-          onArchive={onArchive}
-          onSortDraftChange={onSortDraftChange}
-          onSortSave={onSortSave}
-          onUpload={onUpload}
-        />
-      ))}
-    </div>
-  );
-}
-
-function EnvironmentFixedPageMediaSlot({
-  disabled,
-  items,
-  slot,
-  sortDrafts,
-  uploadState,
-  onArchive,
-  onSortDraftChange,
-  onSortSave,
-  onUpload,
-}: {
-  disabled: boolean;
-  items: EnvironmentSlotItem[];
-  slot: EnvironmentSlotConfig;
-  sortDrafts: Record<string, string>;
-  uploadState: ImageUploadState;
-  onArchive: (media: MediaAssetData, binding: MediaBindingData) => void;
-  onSortDraftChange: (bindingId: string, sortOrder: string) => void;
-  onSortSave: (media: MediaAssetData, binding: MediaBindingData) => void;
-  onUpload: (slot: EnvironmentSlotConfig, file: File | null) => void;
-}) {
-  return (
-    <section className="environment-slot" aria-label={`${slot.label}图片`}>
-      <div className="section-heading">
-        <div>
-          <h4>{slot.label}</h4>
-          <p className="muted compact">{slot.usage}</p>
-        </div>
-        <span className={`upload-state upload-state-${uploadState}`}>
-          {formatImageState(uploadState)}
-        </span>
-      </div>
-
-      <div className="environment-slot-images">
-        {items.length === 0 ? (
-          <div className="image-placeholder">暂无图片</div>
-        ) : (
-          items.map(({ binding, media }) => {
-            const imageUrl = media.thumbnailUrl || media.sourceUrl;
-            return (
-              <div className="environment-slot-image-row" key={binding.id}>
-                <img
-                  alt={media.altText || media.title || `${slot.label}图片`}
-                  className="environment-slot-preview"
-                  src={imageUrl}
-                />
-                <div className="environment-slot-controls">
-                  <div>
+        <section className="environment-slot" key={slot.usage}>
+          <div className="section-heading">
+            <div>
+              <h4>{slot.label}</h4>
+              <p className="muted compact">{slot.usage}</p>
+            </div>
+            <span className={`upload-state upload-state-${slotUploadStates[slot.usage] ?? "idle"}`}>
+              {formatImageState(slotUploadStates[slot.usage] ?? "idle")}
+            </span>
+          </div>
+          <div className="environment-slot-images">
+            {getEnvironmentSlotItems(images, pageId, slot.usage).length === 0 ? (
+              <div className="image-placeholder">暂无图片</div>
+            ) : (
+              getEnvironmentSlotItems(images, pageId, slot.usage).map(({ binding, media }) => (
+                <div className="environment-slot-image-row" key={binding.id}>
+                  <img
+                    alt={media.altText || media.title || `${slot.label}图片`}
+                    className="environment-slot-preview"
+                    src={media.thumbnailUrl || media.sourceUrl}
+                  />
+                  <div className="environment-slot-controls">
                     <strong>{media.title || media.sourceUrl}</strong>
-                    <p className="muted compact">当前排序：{binding.sortOrder}</p>
-                  </div>
-                  <label>
-                    排序
-                    <input
-                      aria-label={`${slot.label}图片排序`}
-                      disabled={disabled}
-                      inputMode="numeric"
-                      value={sortDrafts[binding.id] ?? String(binding.sortOrder)}
-                      onChange={(event) => onSortDraftChange(binding.id, event.target.value)}
-                    />
-                  </label>
-                  <div className="table-actions">
-                    <button
-                      className="secondary-button small-button"
-                      disabled={disabled}
-                      type="button"
-                      onClick={() => onSortSave(media, binding)}
-                    >
-                      保存排序
-                    </button>
-                    <button
-                      className="danger-button small-button"
-                      disabled={disabled}
-                      type="button"
-                      onClick={() => onArchive(media, binding)}
-                    >
-                      移出该位置
-                    </button>
+                    <label>
+                      排序
+                      <input
+                        disabled={disabled}
+                        inputMode="numeric"
+                        value={slotSortDrafts[binding.id] ?? String(binding.sortOrder)}
+                        onChange={(event) => onSortDraftChange(binding.id, event.target.value)}
+                      />
+                    </label>
+                    <div className="table-actions">
+                      <button
+                        className="secondary-button small-button"
+                        disabled={disabled}
+                        type="button"
+                        onClick={() => onSortSave(media, binding)}
+                      >
+                        保存排序
+                      </button>
+                      <button
+                        className="danger-button small-button"
+                        disabled={disabled}
+                        type="button"
+                        onClick={() => onArchive(media, binding)}
+                      >
+                        移出该位置
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      <label>
-        上传到{slot.label}
-        <input
-          accept="image/*"
-          aria-label={`上传到${slot.label}`}
-          disabled={disabled || uploadState === "uploading"}
-          type="file"
-          onChange={(event) => {
-            onUpload(slot, event.target.files?.[0] ?? null);
-            event.currentTarget.value = "";
-          }}
-        />
-      </label>
-      <p className="muted compact">移出只会归档该页面位置绑定，不删除媒体记录或对象存储文件。</p>
-    </section>
+              ))
+            )}
+          </div>
+          <label>
+            上传到{slot.label}
+            <input
+              accept="image/*"
+              disabled={disabled || slotUploadStates[slot.usage] === "uploading"}
+              type="file"
+              onChange={(event) => {
+                onUpload(slot, event.target.files?.[0] ?? null);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -697,11 +974,7 @@ function getNextSortOrder(items: EnvironmentSlotItem[]) {
   return Math.max(...items.map((item) => item.binding.sortOrder)) + 10;
 }
 
-function mergeSortDrafts(
-  current: Record<string, string>,
-  images: MediaAssetData[],
-  pageId: string,
-) {
+function mergeSortDrafts(current: Record<string, string>, images: MediaAssetData[], pageId: string) {
   const next = { ...current };
   for (const slot of ENVIRONMENT_MEDIA_SLOTS) {
     for (const item of getEnvironmentSlotItems(images, pageId, slot.usage)) {
@@ -709,6 +982,75 @@ function mergeSortDrafts(
     }
   }
   return next;
+}
+
+function toForm(page: FixedPageData | null): FixedPageFormState {
+  const contentJson = toContentRecord(page?.contentJson);
+  return {
+    contentJson,
+    contentJsonText: JSON.stringify(contentJson, null, 2),
+    contentSchemaVersion: String(page?.contentSchemaVersion ?? 1),
+    seoDescription: page?.seoDescription ?? "",
+    seoTitle: page?.seoTitle ?? "",
+    status: page?.status ?? "draft",
+    title: page?.title ?? "",
+  };
+}
+
+function toPayload(form: FixedPageFormState): UpdateFixedPageRequest {
+  const contentJson = parseContentJsonText(form.contentJsonText);
+  return {
+    contentJson,
+    contentSchemaVersion: Number(form.contentSchemaVersion),
+    seoDescription: emptyToNull(form.seoDescription),
+    seoTitle: emptyToNull(form.seoTitle),
+    status: form.status as UpdateFixedPageRequest["status"],
+    title: form.title.trim(),
+  };
+}
+
+function parseContentJsonText(value: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value || "{}");
+  } catch {
+    throw new Error("结构化内容 JSON 格式不正确");
+  }
+  if (!isRecord(parsed)) throw new Error("结构化内容 JSON 必须是对象");
+  return parsed;
+}
+
+function toContentRecord(value: unknown): JsonRecord {
+  return isRecord(value) ? value : {};
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function stringifyScalar(value: unknown) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
+function formatFieldLabel(value: string) {
+  const labels: Record<string, string> = {
+    body: "正文",
+    openingBelief: "开场理念",
+    title: "标题",
+    subtitle: "副标题",
+    description: "说明",
+    lead: "引导文案",
+    note: "备注",
+  };
+  return labels[value] ?? value;
+}
+
+function emptyToNull(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 function formatImageState(state: ImageUploadState) {
@@ -724,45 +1066,6 @@ function formatImageState(state: ImageUploadState) {
   }
 }
 
-function toForm(page: FixedPageData | null): FixedPageFormState {
-  return {
-    contentJson: JSON.stringify(page?.contentJson ?? {}, null, 2),
-    contentSchemaVersion: String(page?.contentSchemaVersion ?? 1),
-    seoDescription: page?.seoDescription ?? "",
-    seoTitle: page?.seoTitle ?? "",
-    status: page?.status ?? "draft",
-    title: page?.title ?? "",
-  };
-}
-
-function toPayload(form: FixedPageFormState): UpdateFixedPageRequest {
-  let contentJson: unknown;
-  try {
-    contentJson = JSON.parse(form.contentJson || "{}");
-  } catch {
-    throw new Error("结构化内容 JSON 格式不正确");
-  }
-
-  return {
-    contentJson,
-    contentSchemaVersion: Number(form.contentSchemaVersion),
-    seoDescription: emptyToNull(form.seoDescription),
-    seoTitle: emptyToNull(form.seoTitle),
-    status: form.status as UpdateFixedPageRequest["status"],
-    title: form.title.trim(),
-  };
-}
-
-function emptyToNull(value: string) {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
-
 function formatOption(value: string, options: Array<{ label: string; value: string }>) {
   return options.find((option) => option.value === value)?.label ?? value;
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return "-";
-  return new Date(value).toLocaleString("zh-CN");
 }
