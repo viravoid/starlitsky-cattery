@@ -434,6 +434,47 @@ td {
   font-size: 13px;
 }
 
+.cover-adjuster {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 14px;
+}
+
+.cover-adjust-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.cover-adjust-preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 120ms ease, object-position 120ms ease;
+}
+
+.cover-adjust-controls {
+  display: grid;
+  gap: 12px;
+}
+
+.cover-adjust-controls label {
+  display: grid;
+  gap: 6px;
+}
+
+.cover-adjust-controls input[type="range"] {
+  width: 100%;
+}
+
 .cat-image-preview,
 .cat-image-placeholder,
 .image-preview,

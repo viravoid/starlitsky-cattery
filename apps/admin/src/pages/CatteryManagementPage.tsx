@@ -46,6 +46,10 @@ type EditorMode = "create" | "edit" | null;
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 
 interface CatFormState {
+  coverAdjusted: boolean;
+  coverPositionX: number;
+  coverPositionY: number;
+  coverZoom: number;
   birthday: string;
   color: string;
   gender: string;
@@ -97,6 +101,10 @@ const GENDER_OPTIONS = [
 ];
 
 const DEFAULT_CAT_FORM: CatFormState = {
+  coverAdjusted: false,
+  coverPositionX: 50,
+  coverPositionY: 30,
+  coverZoom: 1,
   birthday: "",
   color: "",
   gender: "",
@@ -363,7 +371,7 @@ export function CatteryManagementPage() {
     setNotice("");
 
     try {
-      const payload = toCatPayload(catForm);
+      const payload = toCatPayload(catForm, selectedCat);
       const savedCat =
         catEditorMode === "edit" && selectedCat
           ? await updateCat(selectedCat.id, payload)
@@ -1091,8 +1099,128 @@ function CatForm({
         state={imageUploadState}
         onChange={onImageChange}
       />
+      <CatCoverAdjustField
+        form={form}
+        images={selectedCatImages}
+        previewUrl={imagePreviewUrl}
+        onChange={onChange}
+      />
       <FormActions isSaving={isSaving} onCancel={onCancel} />
     </form>
+  );
+}
+
+function CatCoverAdjustField({
+  form,
+  images,
+  previewUrl,
+  onChange,
+}: {
+  form: CatFormState;
+  images: MediaAssetData[];
+  previewUrl: string;
+  onChange: (form: CatFormState) => void;
+}) {
+  const currentImage = getPrimaryCatImage(images);
+  const displayUrl = previewUrl || currentImage?.thumbnailUrl || currentImage?.sourceUrl || "";
+
+  function updateCover(values: Partial<CatFormState>) {
+    onChange({
+      ...form,
+      ...values,
+      coverAdjusted: true,
+    });
+  }
+
+  return (
+    <div className="cover-adjuster">
+      <div className="subsection-heading">
+        <h4>{"列表封面调整"}</h4>
+        <button
+          className="secondary-button small-button"
+          type="button"
+          onClick={() =>
+            updateCover({
+              coverPositionX: 50,
+              coverPositionY: 30,
+              coverZoom: 1,
+            })
+          }
+        >
+          {"恢复默认"}
+        </button>
+      </div>
+
+      {displayUrl ? (
+        <div className="cover-adjust-preview">
+          <img
+            alt={currentImage?.altText || currentImage?.title || "封面预览"}
+            src={displayUrl}
+            style={{
+              objectPosition: `${form.coverPositionX}% ${form.coverPositionY}%`,
+              transform: `scale(${form.coverZoom})`,
+              transformOrigin: `${form.coverPositionX}% ${form.coverPositionY}%`,
+            }}
+          />
+        </div>
+      ) : (
+        <div className="cat-image-placeholder">{"暂无可预览图片"}</div>
+      )}
+
+      <div className="cover-adjust-controls">
+        <label>
+          <span>
+            {"缩放"} {form.coverZoom.toFixed(2)}x
+          </span>
+          <input
+            type="range"
+            min="1"
+            max="1.5"
+            step="0.01"
+            value={form.coverZoom}
+            onChange={(event) =>
+              updateCover({ coverZoom: Number(event.target.value) })
+            }
+          />
+        </label>
+
+        <label>
+          <span>
+            {"水平位置"} {form.coverPositionX}%
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={form.coverPositionX}
+            onChange={(event) =>
+              updateCover({ coverPositionX: Number(event.target.value) })
+            }
+          />
+        </label>
+
+        <label>
+          <span>
+            {"垂直位置"} {form.coverPositionY}%
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={form.coverPositionY}
+            onChange={(event) =>
+              updateCover({ coverPositionY: Number(event.target.value) })
+            }
+          />
+        </label>
+      </div>
+
+      <p className="muted compact">
+        {"只调整小程序列表封面构图，不修改原图。"}
+      </p>
+    </div>
   );
 }
 
@@ -1533,7 +1661,13 @@ function formatImageState(state: ImageUploadState) {
 }
 
 function toCatForm(cat: CatData): CatFormState {
+  const presentation = readListCardPresentation(cat);
+
   return {
+    coverAdjusted: false,
+    coverPositionX: presentation.objectPositionX,
+    coverPositionY: presentation.objectPositionY,
+    coverZoom: presentation.zoom,
     birthday: toDateInputValue(cat.birthday),
     color: cat.color ?? "",
     gender: cat.gender ?? "",
@@ -1544,7 +1678,14 @@ function toCatForm(cat: CatData): CatFormState {
   };
 }
 
-function toCatPayload(form: CatFormState): CreateCatRequest | UpdateCatRequest {
+function toCatPayload(
+  form: CatFormState,
+  existingCat: CatData | null,
+): CreateCatRequest | UpdateCatRequest {
+  const storyJson = form.coverAdjusted
+    ? updateListCardPresentation(existingCat?.storyJson, form)
+    : undefined;
+
   return {
     birthday: form.birthday || null,
     color: emptyToNull(form.color),
@@ -1553,7 +1694,85 @@ function toCatPayload(form: CatFormState): CreateCatRequest | UpdateCatRequest {
     name: form.name.trim(),
     personality: emptyToNull(form.personality),
     visibility: form.visibility,
+    ...(storyJson === undefined ? {} : { storyJson }),
   };
+}
+
+function readListCardPresentation(cat: CatData) {
+  const presentations = asObject(cat.coverPresentations);
+  const listCard = asObject(presentations?.listCard);
+
+  return {
+    objectPositionX: numberInRange(listCard?.objectPositionX, 0, 100, 50),
+    objectPositionY: numberInRange(listCard?.objectPositionY, 0, 100, 30),
+    zoom: numberInRange(listCard?.zoom, 1, 3, 1),
+  };
+}
+
+function updateListCardPresentation(value: unknown, form: CatFormState) {
+  const base = { ...(asObject(value) ?? {}) };
+
+  const existingImagePresentation = asObject(base.imagePresentation);
+  const imagePresentation = {
+    ...(existingImagePresentation ?? {}),
+  };
+
+  for (const key of [
+    "entryCoverSelections",
+    "coverPresentations",
+    "detailImagePresentations",
+    "detailCarouselPresentations",
+  ]) {
+    if (
+      !Object.hasOwn(imagePresentation, key) &&
+      Object.hasOwn(base, key)
+    ) {
+      imagePresentation[key] = base[key];
+    }
+  }
+
+  const coverPresentations = {
+    ...(asObject(imagePresentation.coverPresentations) ?? {}),
+    listCard: {
+      objectPositionX: form.coverPositionX,
+      objectPositionY: form.coverPositionY,
+      zoom: form.coverZoom,
+    },
+  };
+
+  imagePresentation.coverPresentations = coverPresentations;
+
+  const existingSelections = asObject(imagePresentation.entryCoverSelections);
+  if (existingSelections) {
+    const nextSelections = { ...existingSelections };
+    delete nextSelections.listCard;
+
+    if (Object.keys(nextSelections).length > 0) {
+      imagePresentation.entryCoverSelections = nextSelections;
+    } else {
+      delete imagePresentation.entryCoverSelections;
+    }
+  }
+
+  base.imagePresentation = imagePresentation;
+  return base;
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function numberInRange(
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number,
+) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
 }
 
 function toLitterForm(litter: LitterData): LitterFormState {
