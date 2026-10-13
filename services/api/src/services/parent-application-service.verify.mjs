@@ -20,6 +20,7 @@ const {
   submitParentApplication,
   verifyParentInvite,
 } = await import("./parent-application-service.mjs");
+const { certifyExistingUserAsParent } = await import("./admin-user-service.mjs");
 
 const config = {
   auth: {
@@ -44,6 +45,9 @@ const admin = await createUserWithRole("verify-admin", "keeper");
 const user = await createUserWithRole("verify-user", "user");
 const secondUser = await createUserWithRole("verify-user-2", "user");
 const rejectedUser = await createUserWithRole("verify-user-3", "user");
+const existingWechatUser = await createUserWithRole("verify-wechat-user", "user", {
+  wechat_openid: "verify-openid-manual-parent",
+});
 const cat = await prisma.cat.create({
   data: {
     name: "Verify Existing Cat",
@@ -60,6 +64,147 @@ const hiddenCat = await prisma.cat.create({
     visibility: "hidden",
   },
 });
+
+const userCountBeforeManualParent = await prisma.user.count();
+const manuallyCertified = await certifyExistingUserAsParent(
+  {
+    userId: existingWechatUser.id,
+    displayName: "Manual Existing Parent",
+    city: "Shanghai",
+    catLinks: [
+      {
+        catId: hiddenCat.id,
+        relationship: "owner",
+        startedAt: "2024-01-01",
+        note: "manual verify link",
+      },
+    ],
+  },
+  admin,
+);
+assert.equal(manuallyCertified.id, existingWechatUser.id, "manual certification must reuse users.id");
+assert.equal(
+  await prisma.user.count(),
+  userCountBeforeManualParent,
+  "manual certification must not create a second User",
+);
+assert.equal(
+  await prisma.user.count({
+    where: { wechat_openid: "verify-openid-manual-parent" },
+  }),
+  1,
+  "manual certification must not duplicate the WeChat account",
+);
+assert.equal(
+  await prisma.userRole.count({
+    where: { user_id: existingWechatUser.id, role: "parent", revoked_at: null },
+  }),
+  1,
+  "manual certification should grant one active parent role",
+);
+const manualParentProfile = await prisma.parentProfile.findUnique({
+  where: { user_id: existingWechatUser.id },
+});
+assert.equal(manualParentProfile?.status, "active", "manual certification should activate profile");
+assert.equal(
+  await prisma.parentCatLink.count({
+    where: {
+      parent_profile_id: manualParentProfile.id,
+      cat_id: hiddenCat.id,
+      relationship: "owner",
+      status: "active",
+      deleted_at: null,
+    },
+  }),
+  1,
+  "manual certification should create an active cat link",
+);
+const adminUsers = await routeGet("/admin/users?q=Manual&pageSize=10", admin);
+assert.equal(
+  adminUsers.items.some((item) => item.id === existingWechatUser.id && item.wechatBound),
+  true,
+  "admin user list should expose existing WeChat parent state",
+);
+const manualMyCats = await routeGet("/me/cats", existingWechatUser);
+assert.equal(
+  manualMyCats.items.some((item) => item.id === hiddenCat.id),
+  true,
+  "/me/cats should return cats bound to the same users.id",
+);
+const manualPostOptions = await routeGet("/community/post-options", existingWechatUser);
+assert.deepEqual(
+  manualPostOptions.categories,
+  ["parent_share", "personal_thoughts"],
+  "manually certified parent should receive parent community categories",
+);
+assert.equal(
+  manualPostOptions.cats.some((item) => item.id === hiddenCat.id),
+  true,
+  "community post options should include the manually linked cat",
+);
+await assertRejects("duplicate active link should be blocked", () =>
+  certifyExistingUserAsParent(
+    {
+      userId: existingWechatUser.id,
+      displayName: "Manual Existing Parent",
+      catLinks: [{ catId: hiddenCat.id, relationship: "owner" }],
+    },
+    admin,
+  ),
+);
+await certifyExistingUserAsParent(
+  {
+    userId: existingWechatUser.id,
+    displayName: "Manual Existing Parent Again",
+  },
+  admin,
+);
+assert.equal(
+  await prisma.userRole.count({
+    where: { user_id: existingWechatUser.id, role: "parent", revoked_at: null },
+  }),
+  1,
+  "manual certification role grant should be idempotent",
+);
+const manualLink = await prisma.parentCatLink.findFirst({
+  where: {
+    parent_profile_id: manualParentProfile.id,
+    cat_id: hiddenCat.id,
+    relationship: "owner",
+    deleted_at: null,
+  },
+});
+const updatedManualLink = await routeJson(
+  `/parent-cat-links/${manualLink.id}`,
+  admin,
+  "PATCH",
+  {
+    relationship: "caregiver",
+    status: "ended",
+    endedAt: "2024-06-01",
+    note: "ended manually",
+  },
+);
+assert.equal(updatedManualLink.relationship, "caregiver", "relationship should be updatable");
+assert.equal(updatedManualLink.status, "ended", "status should be updatable");
+assert.equal(
+  await prisma.parentCatLink.count({
+    where: {
+      parent_profile_id: manualParentProfile.id,
+      cat_id: hiddenCat.id,
+      status: "active",
+      deleted_at: null,
+    },
+  }),
+  0,
+  "ending a link should remove active ownership for permission checks",
+);
+const manualMyCatsAfterEnd = await routeGet("/me/cats", existingWechatUser);
+assert.equal(
+  manualMyCatsAfterEnd.items.some((item) => item.id === hiddenCat.id),
+  false,
+  "ended manual link should no longer expose the cat in /me/cats",
+);
 
 await assertRejects("no invite cannot submit", () =>
   submitParentApplication(
@@ -324,9 +469,10 @@ assert.equal(
 console.info("parent application flow verification passed");
 await prisma.$disconnect();
 
-async function createUserWithRole(nickname, role) {
+async function createUserWithRole(nickname, role, data = {}) {
   return prisma.user.create({
     data: {
+      ...data,
       nickname,
       status: "active",
       roles: {
@@ -366,9 +512,13 @@ async function assertRouteRejectsForbidden(applicationId, actingUser) {
 }
 
 async function routeGet(url, actingUser) {
+  return routeJson(url, actingUser, "GET");
+}
+
+async function routeJson(url, actingUser, method, body = undefined) {
   const response = createJsonResponse();
   const token = actingUser ? await createSessionToken(actingUser) : "";
-  await routeRequest(createRequest({ method: "GET", url, token }), response, { config });
+  await routeRequest(createRequest({ body, method, url, token }), response, { config });
   return response.data.data;
 }
 
@@ -381,8 +531,8 @@ async function assertRouteRejects(label, url, actingUser, statusCode) {
   );
 }
 
-function createRequest({ method, url, token = "", body = "" }) {
-  const request = Readable.from(body ? [body] : []);
+function createRequest({ method, url, token = "", body = undefined }) {
+  const request = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
   request.method = method;
   request.url = url;
   request.headers = {

@@ -36,7 +36,7 @@ const PARENT_LINK_CREATE_FIELDS = [
   "endedAt",
   "note",
 ];
-const PARENT_LINK_UPDATE_FIELDS = ["status"];
+const PARENT_LINK_UPDATE_FIELDS = ["relationship", "status", "startedAt", "endedAt", "note"];
 
 export async function getBreedingProfile(catId, options = { includeHidden: true }) {
   await ensureActiveCatExists(catId, options);
@@ -318,21 +318,44 @@ export async function updateParentCatLink(linkId, input) {
   });
   if (!existing) throw notFound("Parent cat link not found");
 
-  const link = await prisma.parentCatLink.update({
-    where: { id: linkId },
-    data: {
-      status: requiredString(input.status, "status"),
-      active_dedup_key:
-        input.status === "active"
-          ? buildParentCatLinkDedupKey(
-              existing.parent_profile_id,
-              existing.cat_id,
-              existing.relationship,
-            )
-          : null,
-    },
-    include: { parent_profile: true },
-  });
+  const data = {};
+  if (Object.hasOwn(input, "relationship")) {
+    data.relationship = requiredString(input.relationship, "relationship");
+  }
+  if (Object.hasOwn(input, "status")) {
+    data.status = requiredString(input.status, "status");
+  }
+  if (Object.hasOwn(input, "startedAt")) {
+    data.started_at = parseNullableDate(input.startedAt, "startedAt");
+  }
+  if (Object.hasOwn(input, "endedAt")) {
+    data.ended_at = parseNullableDate(input.endedAt, "endedAt");
+  }
+  if (Object.hasOwn(input, "note")) {
+    data.note = nullableString(input.note, "note");
+  }
+  if (Object.keys(data).length === 0) {
+    throw badRequest("At least one parent cat link field must be provided");
+  }
+
+  const nextStatus = data.status ?? existing.status;
+  const nextRelationship = data.relationship ?? existing.relationship;
+  data.active_dedup_key =
+    nextStatus === "active"
+      ? buildParentCatLinkDedupKey(existing.parent_profile_id, existing.cat_id, nextRelationship)
+      : null;
+
+  let link;
+  try {
+    link = await prisma.parentCatLink.update({
+      where: { id: linkId },
+      data,
+      include: { parent_profile: true, cat: true },
+    });
+  } catch (error) {
+    if (error?.code === "P2002") throw badRequest("Parent cat link already exists");
+    throw error;
+  }
 
   return toParentCatLinkDto(link);
 }
@@ -525,6 +548,7 @@ function toParentCatLinkDto(link) {
     updatedAt: toIsoString(link.updated_at),
     deletedAt: toIsoString(link.deleted_at),
     parentProfile: link.parent_profile ? toParentProfileDto(link.parent_profile) : undefined,
+    cat: link.cat ? toCatSummaryDto(link.cat) : undefined,
   };
 }
 
