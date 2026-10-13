@@ -101,46 +101,75 @@ td {
   font-size: 14px;
 }
 
-.page {
+.page,
+.admin-shell {
   min-height: 100vh;
   padding: 28px;
 }
 
+.admin-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+  padding: 0;
+}
+
 .layout {
-  width: min(1280px, 100%);
-  margin: 0 auto;
+  min-width: 0;
+  padding: 28px;
 }
 
-.layout-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 18px;
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 22px;
+  height: 100vh;
+  border-right: 1px solid #dbe3ef;
+  background: #ffffff;
+  padding: 24px 18px;
+  overflow-y: auto;
 }
 
-.layout-header nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.sidebar-brand h1 {
+  font-size: 22px;
+  line-height: 1.25;
 }
 
-.layout-header a {
-  border: 1px solid #cbd5e1;
+.sidebar-nav,
+.sidebar-group {
+  display: grid;
+  gap: 8px;
+}
+
+.sidebar-group {
+  padding-bottom: 14px;
+}
+
+.sidebar-group h2 {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+  margin: 0 0 4px;
+}
+
+.sidebar-group a {
   border-radius: 8px;
   color: #334155;
-  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 9px 10px;
   text-decoration: none;
 }
 
-.layout-header a:hover {
-  border-color: #2563eb;
+.sidebar-group a:hover {
+  background: #eff6ff;
   color: #1d4ed8;
 }
 
 .session-summary {
-  display: inline-flex;
-  align-items: center;
+  display: grid;
   gap: 10px;
   color: #475569;
   font-size: 13px;
@@ -528,6 +557,30 @@ td {
   gap: 12px;
 }
 
+.filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(140px, 0.8fr));
+  gap: 12px;
+}
+
+.wide-detail {
+  grid-template-columns: minmax(0, 1.4fr) minmax(420px, 0.95fr);
+}
+
+.parent-link-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(110px, 0.7fr) minmax(110px, 0.7fr) minmax(120px, 0.8fr) minmax(120px, 0.8fr);
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 8px 0;
+}
+
+.parent-link-row input,
+.parent-link-row select {
+  margin-top: 0;
+}
+
 .secondary-button {
   border: 1px solid #cbd5e1;
   background: #ffffff;
@@ -663,6 +716,21 @@ p {
     padding: 18px;
   }
 
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .layout {
+    padding: 18px;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #dbe3ef;
+  }
+
   .layout-header,
   .toolbar,
   .section-heading {
@@ -672,7 +740,12 @@ p {
 
   .management-grid,
   .form-grid,
+  .filter-bar,
   .media-binding-row {
+    grid-template-columns: 1fr;
+  }
+
+  .parent-link-row {
     grid-template-columns: 1fr;
   }
 

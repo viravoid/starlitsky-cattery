@@ -4,9 +4,11 @@ import type {
   AttachCatToLitterRequest,
   AdminCommunityPostData,
   AdminCommunityPostListData,
+  AdminUserListData,
   AdminPasswordLoginData,
   AdminPasswordLoginRequest,
   BreedingCatProfileData,
+  CertifyExistingUserAsParentRequest,
   CreateBreedingCatProfileRequest,
   CreateCatRequest,
   CreatedParentInviteData,
@@ -91,12 +93,37 @@ export interface ListCommunityModerationParams {
   visibility?: string;
 }
 
+export interface ListAdminUsersParams {
+  page?: number;
+  pageSize?: number;
+  parentStatus?: string;
+  q?: string;
+  role?: string;
+  wechatBound?: boolean;
+}
+
 export function listCats(params: ListCatsParams = {}) {
   return unwrap<CatListData>(adminGet(`/cats${toSearch(params)}`));
 }
 
 export function getCurrentAdminUser() {
   return unwrap<CurrentUserResponseData>(adminGet("/auth/me"));
+}
+
+export function listAdminUsers(params: ListAdminUsersParams = {}) {
+  return unwrap<AdminUserListData>(adminGet(`/admin/users${toSearch(params)}`));
+}
+
+export function certifyExistingUserAsParent(
+  userId: string,
+  data: Omit<CertifyExistingUserAsParentRequest, "userId">,
+) {
+  return unwrap<
+    AdminUserListData["items"][number],
+    Omit<CertifyExistingUserAsParentRequest, "userId">
+  >(
+    adminPost(`/admin/users/${encodeURIComponent(userId)}/certify-parent`, data),
+  );
 }
 
 export function loginAdminWithPassword(data: AdminPasswordLoginRequest) {

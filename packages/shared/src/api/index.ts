@@ -269,6 +269,14 @@ export interface ParentCatLinkData {
   updatedAt: string;
   deletedAt: string | null;
   parentProfile?: ParentProfileData;
+  cat?: {
+    id: string;
+    name: string;
+    gender: string | null;
+    color: string | null;
+    lifecycleStatus: string;
+    visibility: string;
+  };
 }
 
 export interface CreateParentCatLinkRequest {
@@ -280,8 +288,49 @@ export interface CreateParentCatLinkRequest {
   note?: string | null;
 }
 
-export interface UpdateParentCatLinkRequest {
+export type UpdateParentCatLinkRequest = Partial<
+  Pick<CreateParentCatLinkRequest, "relationship" | "status" | "startedAt" | "endedAt" | "note">
+>;
+
+export interface AdminUserParentApplicationSummaryData {
+  id: string;
   status: string;
+  displayName: string;
+  createdAt: string;
+}
+
+export interface AdminUserData {
+  id: string;
+  wechatBound: boolean;
+  nickname: string | null;
+  avatarUrl: string | null;
+  phone: string | null;
+  status: string;
+  roles: UserRole[];
+  parentProfile: (ParentProfileData & { links: ParentCatLinkData[] }) | null;
+  pendingApplication: AdminUserParentApplicationSummaryData | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminUserListData = PaginatedResponse<AdminUserData>;
+
+export interface CertifyExistingUserAsParentRequest {
+  userId: string;
+  displayName?: string | null;
+  realName?: string | null;
+  contactPhone?: string | null;
+  contactWechat?: string | null;
+  city?: string | null;
+  note?: string | null;
+  catLinks?: Array<{
+    catId: string;
+    relationship?: string;
+    status?: string;
+    startedAt?: string | null;
+    endedAt?: string | null;
+    note?: string | null;
+  }>;
 }
 
 export type ParentInviteStatus = "active" | "used" | "revoked";

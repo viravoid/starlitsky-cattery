@@ -28,17 +28,21 @@ import { PageContainer } from "../components/PageContainer";
 import { getErrorMessage } from "../utils/errors";
 import { CatArchivePanel, LitterKittensPanel } from "./CatteryProfilePanels";
 import { CommunityModerationPanel } from "./CommunityModerationPanel";
+import { DashboardPage } from "./DashboardPage";
 import { FixedPagesPanel } from "./FixedPagesPanel";
 import { MediaManagementPanel } from "./MediaManagementPanel";
 import { ParentApplicationsPanel, ParentInvitesPanel } from "./ParentInvitationReviewPanel";
+import { ParentUsersPanel } from "./ParentUsersPanel";
 import { SelectionApplicationsPanel } from "./SelectionApplicationsPanel";
 
 type SectionKey =
+  | "dashboard"
   | "cats"
   | "litters"
   | "media"
   | "fixedPages"
   | "communityModeration"
+  | "parentUsers"
   | "parentInvites"
   | "parentApplications"
   | "selectionApplications";
@@ -523,6 +527,9 @@ export function CatteryManagementPage() {
           <button type="button" onClick={() => setActiveSection("parentInvites")}>
             家长邀请
           </button>
+          <button type="button" onClick={() => setActiveSection("parentUsers")}>
+            家长列表
+          </button>
           <button type="button" onClick={() => setActiveSection("parentApplications")}>
             申请审核
           </button>
@@ -574,6 +581,14 @@ export function CatteryManagementPage() {
           社区管理
         </button>
         <button
+          aria-selected={activeSection === "parentUsers"}
+          className={activeSection === "parentUsers" ? "active-tab" : ""}
+          type="button"
+          onClick={() => setActiveSection("parentUsers")}
+        >
+          家长列表
+        </button>
+        <button
           aria-selected={activeSection === "parentInvites"}
           className={activeSection === "parentInvites" ? "active-tab" : ""}
           type="button"
@@ -602,7 +617,11 @@ export function CatteryManagementPage() {
       {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="error-banner">{error}</div> : null}
 
-      {activeSection === "parentInvites" ? (
+      {activeSection === "dashboard" ? (
+        <DashboardPage />
+      ) : activeSection === "parentUsers" ? (
+        <ParentUsersPanel />
+      ) : activeSection === "parentInvites" ? (
         <ParentInvitesPanel />
       ) : activeSection === "parentApplications" ? (
         <ParentApplicationsPanel />
@@ -1613,10 +1632,12 @@ function formatDateTime(value: string | null) {
 }
 
 function getSectionFromHash(): SectionKey {
+  if (window.location.hash === "#dashboard") return "dashboard";
   if (window.location.hash === "#litters") return "litters";
   if (window.location.hash === "#media") return "media";
   if (window.location.hash === "#fixed-pages") return "fixedPages";
   if (window.location.hash === "#community") return "communityModeration";
+  if (window.location.hash === "#parent-users") return "parentUsers";
   if (window.location.hash === "#parent-invites") return "parentInvites";
   if (window.location.hash === "#parent-applications") return "parentApplications";
   if (window.location.hash === "#selection-applications") return "selectionApplications";

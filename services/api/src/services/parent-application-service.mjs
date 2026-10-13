@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
+import { validateParentCatLinkRelationship } from "./parent-cat-link-validation.mjs";
 import { createMiniProgramCode } from "./wechat-mini-program-code-service.mjs";
 
 const INVITE_STATUS_ACTIVE = "active";
@@ -660,8 +661,10 @@ function normalizeExistingCatClaims(value) {
     assertNoUnknownFields(claim, ["catId", "relationship", "startedAt", "note"]);
     return {
       catId: requiredString(claim.catId, `existingCatClaims[${index}].catId`),
-      relationship:
+      relationship: validateParentCatLinkRelationship(
         optionalString(claim.relationship, `existingCatClaims[${index}].relationship`) ?? "owner",
+        `existingCatClaims[${index}].relationship`,
+      ),
       startedAt: optionalDateString(claim.startedAt, `existingCatClaims[${index}].startedAt`),
       note: nullableString(claim.note, `existingCatClaims[${index}].note`),
     };
@@ -690,7 +693,10 @@ function normalizeNewCats(value) {
       arrivedAt: optionalDateString(cat.arrivedAt, `newCats[${index}].arrivedAt`),
       personality: nullableString(cat.personality, `newCats[${index}].personality`),
       note: nullableString(cat.note, `newCats[${index}].note`),
-      relationship: optionalString(cat.relationship, `newCats[${index}].relationship`) ?? "owner",
+      relationship: validateParentCatLinkRelationship(
+        optionalString(cat.relationship, `newCats[${index}].relationship`) ?? "owner",
+        `newCats[${index}].relationship`,
+      ),
     };
   });
 }
