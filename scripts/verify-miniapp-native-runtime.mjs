@@ -523,7 +523,10 @@ function verifyCatPhotoRenderingInvariants() {
   }
 
   const presentation = evaluateCatPresentationModule(catPresentationText);
-  const listAspectRatio = 16 / 10;
+  const listManualAspectRatio = 16 / 10;
+  const listFallbackAspectRatio = 218 / 236;
+  const breedingPlanAspectRatio = 1;
+  const communityProfileAspectRatio = 4 / 3;
   const mediaCases = [
     createCatMedia("portrait", 800, 1600),
     createCatMedia("landscape", 1600, 800),
@@ -533,7 +536,7 @@ function verifyCatPhotoRenderingInvariants() {
   for (const media of mediaCases) {
     const frame = presentation.resolveCatFrame(createCatFixture({ mediaAssets: [media] }), "listCard");
     assertPhotoFrame(frame, {
-      aspectRatio: listAspectRatio,
+      aspectRatio: listFallbackAspectRatio,
       description: `listCard ${media.id} fallback cover`,
       expectedId: media.id,
       naturalHeight: media.height,
@@ -555,7 +558,7 @@ function verifyCatPhotoRenderingInvariants() {
     "listCard",
   );
   assertPhotoFrame(cropFrame, {
-    aspectRatio: listAspectRatio,
+    aspectRatio: listManualAspectRatio,
     description: "listCard manual crop",
     expectedId: "portrait",
     naturalHeight: 1600,
@@ -576,7 +579,7 @@ function verifyCatPhotoRenderingInvariants() {
     "listCard",
   );
   assertPhotoFrame(clampedCropFrame, {
-    aspectRatio: listAspectRatio,
+    aspectRatio: listManualAspectRatio,
     description: "listCard out-of-bounds manual crop",
     expectedId: "portrait",
     naturalHeight: 1600,
@@ -597,7 +600,7 @@ function verifyCatPhotoRenderingInvariants() {
     "listCard",
   );
   assertPhotoFrame(invalidCropFrame, {
-    aspectRatio: listAspectRatio,
+    aspectRatio: listFallbackAspectRatio,
     description: "listCard invalid crop fallback",
     expectedId: "landscape",
     naturalHeight: 800,
@@ -619,7 +622,7 @@ function verifyCatPhotoRenderingInvariants() {
     "listCard",
   );
   assertPhotoFrame(outOfBoundsLegacyFrame, {
-    aspectRatio: listAspectRatio,
+    aspectRatio: listManualAspectRatio,
     description: "listCard out-of-bounds focal/zoom positioning",
     expectedId: "landscape",
     naturalHeight: 800,
@@ -640,10 +643,97 @@ function verifyCatPhotoRenderingInvariants() {
     "listCard",
   );
   assertPhotoFrame(missingDimensionsCropFrame, {
-    aspectRatio: listAspectRatio,
+    aspectRatio: listManualAspectRatio,
     description: "listCard crop without dimensions fallback",
     expectedId: "no-dimensions",
     requireAspectFillFallback: true,
+  });
+
+  const namedFallbackFrame = presentation.resolveCatFrame(
+    createCatFixture({
+      id: "public-content-cat-shuilongyin",
+      mediaAssets: [createCatMedia("portrait", 800, 1600)],
+    }),
+    "listCard",
+  );
+  assertPhotoFrame(namedFallbackFrame, {
+    aspectRatio: listFallbackAspectRatio,
+    description: "listCard named fallback cover",
+    expectedId: "portrait",
+    naturalHeight: 1600,
+    naturalWidth: 800,
+    requirePositionedCover: true,
+  });
+
+  const namedManualCropFrame = presentation.resolveCatFrame(
+    createCatFixture({
+      id: "public-content-cat-shuilongyin",
+      entryCoverSelections: {
+        listCard: {
+          imageId: "portrait",
+          cropRect: { x: 0.1, y: 0.2, width: 0.5, height: 0.25 },
+        },
+      },
+      mediaAssets: mediaCases,
+    }),
+    "listCard",
+  );
+  assertPhotoFrame(namedManualCropFrame, {
+    aspectRatio: listManualAspectRatio,
+    description: "listCard named cat manual crop",
+    expectedId: "portrait",
+    naturalHeight: 1600,
+    naturalWidth: 800,
+    requirePositionedCover: true,
+  });
+
+  const namedSavedPresentationFrame = presentation.resolveCatFrame(
+    createCatFixture({
+      id: "public-content-cat-shuilongyin",
+      coverPresentations: {
+        listCard: {
+          objectPositionX: 80,
+          objectPositionY: 90,
+          zoom: 1.2,
+        },
+      },
+      mediaAssets: [createCatMedia("landscape", 1600, 800)],
+    }),
+    "listCard",
+  );
+  assertPhotoFrame(namedSavedPresentationFrame, {
+    aspectRatio: listManualAspectRatio,
+    description: "listCard named cat saved presentation",
+    expectedId: "landscape",
+    naturalHeight: 800,
+    naturalWidth: 1600,
+    requirePositionedCover: true,
+  });
+
+  const breedingPlanFrame = presentation.resolveCatFrame(
+    createCatFixture({ mediaAssets: [createCatMedia("landscape", 1600, 800)] }),
+    "breedingPlanCard",
+  );
+  assertPhotoFrame(breedingPlanFrame, {
+    aspectRatio: breedingPlanAspectRatio,
+    description: "breedingPlanCard fallback cover",
+    expectedId: "landscape",
+    naturalHeight: 800,
+    naturalWidth: 1600,
+    requirePositionedCover: true,
+  });
+
+  const communityProfileFrame = presentation.resolveCatFrame(
+    createCatFixture({ mediaAssets: [createCatMedia("landscape", 1600, 800)] }),
+    "communityProfile",
+  );
+  assertPhotoFrame(communityProfileFrame, {
+    aspectRatio: communityProfileAspectRatio,
+    description: "communityProfile fallback cover",
+    expectedId: "landscape",
+    naturalHeight: 800,
+    naturalWidth: 1600,
+    requirePositionedCover: true,
   });
 
   const detailFrames = presentation.resolveCatDetailFrames(
@@ -897,10 +987,11 @@ function createCatFixture({
   coverPresentations,
   detailImagePresentations,
   entryCoverSelections,
+  id = "verify-cat",
   mediaAssets,
 } = {}) {
   return {
-    id: "verify-cat",
+    id,
     name: "verify cat",
     mediaAssets: mediaAssets ?? [],
     coverPresentations,
@@ -940,6 +1031,11 @@ function assertPhotoFrame(
   }
   if (frame.id !== expectedId) {
     failures.push(`${description} must resolve media "${expectedId}", got "${frame.id}".`);
+  }
+  if (Math.abs(Number(frame.aspectRatio) - aspectRatio) > 0.0001) {
+    failures.push(
+      `${description} must report aspectRatio ${aspectRatio.toFixed(4)}, got ${Number(frame.aspectRatio).toFixed(4)}.`,
+    );
   }
   if (frame.mode === "scaleToFill") {
     failures.push(`${description} must not use scaleToFill.`);
