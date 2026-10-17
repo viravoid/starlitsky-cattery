@@ -9,6 +9,9 @@ const adminRoot = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
   plugins: [react()],
   root: adminRoot,
+  resolve: {
+    tsconfigPaths: true,
+  },
   build: {
     outDir: "../../dist/admin",
     emptyOutDir: true,

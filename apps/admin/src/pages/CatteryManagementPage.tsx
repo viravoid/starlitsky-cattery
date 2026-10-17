@@ -760,58 +760,62 @@ export function CatteryManagementPage() {
 
   return (
     <PageContainer>
-      <div className="toolbar">
-        <div>
-          <p className="eyebrow">Cattery Data</p>
-          <h2>猫咪管理</h2>
-          <p className="muted compact">Demo 管理体验接入真实 Admin API / SQLite / COS 媒体。</p>
+      {activeSection !== "media" ? (
+        <div className="toolbar">
+          <div>
+            <p className="eyebrow">Cattery Data</p>
+            <h2>猫咪管理</h2>
+            <p className="muted compact">Demo 管理体验接入真实 Admin API / SQLite / COS 媒体。</p>
+          </div>
+          <div className="toolbar-actions">
+            <button className="secondary-button" type="button" onClick={loadData}>
+              刷新
+            </button>
+            <button type="button" onClick={() => openCreateCat("kittens")}>
+              新增小猫
+            </button>
+            <button type="button" onClick={openCreateLitter}>
+              新增窝次
+            </button>
+            <button type="button" onClick={() => openCreateCat("studs")}>
+              新增种猫
+            </button>
+          </div>
         </div>
-        <div className="toolbar-actions">
-          <button className="secondary-button" type="button" onClick={loadData}>
-            刷新
-          </button>
-          <button type="button" onClick={() => openCreateCat("kittens")}>
-            新增小猫
-          </button>
-          <button type="button" onClick={openCreateLitter}>
-            新增窝次
-          </button>
-          <button type="button" onClick={() => openCreateCat("studs")}>
-            新增种猫
-          </button>
+      ) : null}
+
+      {activeSection !== "media" ? (
+        <div className="tabs" role="tablist" aria-label="管理模块">
+          {[
+            ["kittens", "小猫"],
+            ["litters", "窝次"],
+            ["studs", "种猫"],
+            ["cats", "其它猫咪"],
+            ["media", "媒体"],
+            ["fixedPages", "固定页面"],
+            ["communityModeration", "动态"],
+            ["communityComments", "评论"],
+            ["parentInvites", "家长邀请"],
+            ["parentUsers", "家长"],
+            ["parentApplications", "申请审核"],
+            ["selectionApplications", "选猫问卷"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              aria-selected={activeSection === key}
+              className={activeSection === key ? "active-tab" : ""}
+              type="button"
+              onClick={() => switchSection(key as SectionKey)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      </div>
+      ) : null}
 
-      <div className="tabs" role="tablist" aria-label="管理模块">
-        {[
-          ["kittens", "小猫"],
-          ["litters", "窝次"],
-          ["studs", "种猫"],
-          ["cats", "其它猫咪"],
-          ["media", "媒体"],
-          ["fixedPages", "固定页面"],
-          ["communityModeration", "动态"],
-          ["communityComments", "评论"],
-          ["parentInvites", "家长邀请"],
-          ["parentUsers", "家长"],
-          ["parentApplications", "申请审核"],
-          ["selectionApplications", "选猫问卷"],
-        ].map(([key, label]) => (
-          <button
-            key={key}
-            aria-selected={activeSection === key}
-            className={activeSection === key ? "active-tab" : ""}
-            type="button"
-            onClick={() => switchSection(key as SectionKey)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {notice ? <div className="notice">{notice}</div> : null}
-      {error ? <div className="error-banner">{error}</div> : null}
-      {isLoading ? <p className="muted">正在加载真实数据...</p> : null}
+      {activeSection !== "media" && notice ? <div className="notice">{notice}</div> : null}
+      {activeSection !== "media" && error ? <div className="error-banner">{error}</div> : null}
+      {activeSection !== "media" && isLoading ? <p className="muted">正在加载真实数据...</p> : null}
 
       {activeSection === "dashboard" && <DashboardPage />}
       {activeSection === "kittens" && (
