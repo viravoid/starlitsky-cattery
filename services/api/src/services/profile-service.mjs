@@ -53,11 +53,15 @@ export async function getBreedingProfile(catId, options = { includeHidden: true 
 }
 
 export async function createBreedingProfile(catId, input) {
-  assertPlainObject(input);
-  await ensureActiveCatExists(catId);
-  await ensureNoBreedingProfile(catId);
+  return createBreedingProfileWithClient(prisma, catId, input);
+}
 
-  const profile = await prisma.breedingCatProfile.create({
+export async function createBreedingProfileWithClient(client, catId, input, options = {}) {
+  assertPlainObject(input);
+  if (options.ensureCat !== false) await ensureActiveCatExists(catId, undefined, client);
+  await ensureNoBreedingProfile(catId, client);
+
+  const profile = await client.breedingCatProfile.create({
     data: {
       cat_id: catId,
       ...normalizeBreedingProfileInput(input, {
@@ -109,17 +113,21 @@ export async function getKittenProfile(catId, options = { includeHidden: true })
 }
 
 export async function createKittenProfile(catId, input) {
+  return createKittenProfileWithClient(prisma, catId, input);
+}
+
+export async function createKittenProfileWithClient(client, catId, input, options = {}) {
   assertPlainObject(input);
-  await ensureActiveCatExists(catId);
-  await ensureNoKittenProfile(catId);
+  if (options.ensureCat !== false) await ensureActiveCatExists(catId, undefined, client);
+  await ensureNoKittenProfile(catId, client);
 
   const data = normalizeKittenProfileInput(input, {
     mode: "create",
     allowedFields: KITTEN_CREATE_FIELDS,
   });
-  await ensureActiveLitterExists(data.litter_id);
+  await ensureActiveLitterExists(data.litter_id, client);
 
-  const profile = await prisma.kittenProfile.create({
+  const profile = await client.kittenProfile.create({
     data: {
       cat_id: catId,
       ...data,
@@ -368,8 +376,8 @@ export async function updateParentCatLink(linkId, input) {
   return toParentCatLinkDto(link);
 }
 
-async function ensureActiveCatExists(catId, options = { includeHidden: true }) {
-  const cat = await prisma.cat.findFirst({
+async function ensureActiveCatExists(catId, options = { includeHidden: true }, client = prisma) {
+  const cat = await client.cat.findFirst({
     where: {
       id: catId,
       deleted_at: null,
@@ -380,8 +388,8 @@ async function ensureActiveCatExists(catId, options = { includeHidden: true }) {
   if (!cat) throw notFound("Cat not found");
 }
 
-async function ensureActiveLitterExists(litterId) {
-  const litter = await prisma.litter.findFirst({
+async function ensureActiveLitterExists(litterId, client = prisma) {
+  const litter = await client.litter.findFirst({
     where: {
       id: litterId,
       deleted_at: null,
@@ -399,8 +407,8 @@ async function ensureParentProfileExists(parentProfileId) {
   if (!profile) throw notFound("Parent profile not found");
 }
 
-async function ensureNoBreedingProfile(catId) {
-  const existing = await prisma.breedingCatProfile.findUnique({
+async function ensureNoBreedingProfile(catId, client = prisma) {
+  const existing = await client.breedingCatProfile.findUnique({
     where: { cat_id: catId },
     select: { cat_id: true },
   });
@@ -416,8 +424,8 @@ async function ensureBreedingProfileExists(catId) {
   if (!existing) throw notFound("Breeding cat profile not found");
 }
 
-async function ensureNoKittenProfile(catId) {
-  const existing = await prisma.kittenProfile.findUnique({
+async function ensureNoKittenProfile(catId, client = prisma) {
+  const existing = await client.kittenProfile.findUnique({
     where: { cat_id: catId },
     select: { cat_id: true },
   });

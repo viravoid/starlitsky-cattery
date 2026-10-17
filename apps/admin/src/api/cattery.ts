@@ -12,6 +12,8 @@ import type {
   CertifyExistingUserAsParentRequest,
   CreateBreedingCatProfileRequest,
   CreateCatRequest,
+  CreateCatWithBreedingProfileRequest,
+  CreateCatWithKittenProfileRequest,
   CreatedParentInviteData,
   CurrentUserResponseData,
   CreateKittenProfileRequest,
@@ -132,9 +134,7 @@ export function certifyExistingUserAsParent(
   return unwrap<
     AdminUserListData["items"][number],
     Omit<CertifyExistingUserAsParentRequest, "userId">
-  >(
-    adminPost(`/admin/users/${encodeURIComponent(userId)}/certify-parent`, data),
-  );
+  >(adminPost(`/admin/users/${encodeURIComponent(userId)}/certify-parent`, data));
 }
 
 export function loginAdminWithPassword(data: AdminPasswordLoginRequest) {
@@ -153,6 +153,18 @@ export function getCat(id: string) {
 
 export function createCat(data: CreateCatRequest) {
   return unwrap<CatData, CreateCatRequest>(adminPost("/cats", data));
+}
+
+export function createCatWithKittenProfile(data: CreateCatWithKittenProfileRequest) {
+  return unwrap<CatData, CreateCatWithKittenProfileRequest>(
+    adminPost("/cats/with-kitten-profile", data),
+  );
+}
+
+export function createCatWithBreedingProfile(data: CreateCatWithBreedingProfileRequest) {
+  return unwrap<CatData, CreateCatWithBreedingProfileRequest>(
+    adminPost("/cats/with-breeding-profile", data),
+  );
 }
 
 export function updateCat(id: string, data: UpdateCatRequest) {
@@ -310,9 +322,7 @@ export function listCommunityModerationPosts(params: ListCommunityModerationPara
   return unwrap<AdminCommunityPostListData>(adminGet(`/community/admin/posts${toSearch(params)}`));
 }
 
-export function listCommunityModerationComments(
-  params: ListCommunityCommentModerationParams = {},
-) {
+export function listCommunityModerationComments(params: ListCommunityCommentModerationParams = {}) {
   return unwrap<AdminCommunityCommentListData>(
     adminGet(`/community/admin/comments${toSearch(params)}`),
   );

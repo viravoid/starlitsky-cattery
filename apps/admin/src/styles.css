@@ -199,6 +199,7 @@ td {
 .workspace {
   display: grid;
   gap: 18px;
+  min-width: 0;
 }
 
 .toolbar,
@@ -419,6 +420,65 @@ td {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #f8fafc;
+  object-fit: cover;
+}
+
+.image-gallery-editor,
+.presentation-editor {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.image-gallery-row {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+}
+
+.image-gallery-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.image-gallery-row img {
+  width: 128px;
+  height: 96px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  object-fit: cover;
+}
+
+.presentation-preview {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.presentation-preview-tall .cropped-preview-frame {
+  aspect-ratio: 4 / 5;
+}
+
+.cropped-preview-frame {
+  position: relative;
+  min-height: 180px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  aspect-ratio: 16 / 10;
+}
+
+.cropped-preview-frame img {
+  position: absolute;
+  max-width: none;
   object-fit: cover;
 }
 
@@ -739,7 +799,9 @@ td {
 
 .parent-link-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(110px, 0.7fr) minmax(110px, 0.7fr) minmax(120px, 0.8fr) minmax(120px, 0.8fr);
+  grid-template-columns:
+    minmax(120px, 1fr) minmax(110px, 0.7fr) minmax(110px, 0.7fr) minmax(120px, 0.8fr)
+    minmax(120px, 0.8fr);
   gap: 8px;
   align-items: center;
   border-bottom: 1px solid #e2e8f0;
@@ -922,6 +984,11 @@ p {
   .tabs,
   .toolbar-actions {
     width: 100%;
+  }
+
+  .tabs {
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   .tabs button,

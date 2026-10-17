@@ -22,6 +22,8 @@
     "typecheck:shared": "tsc -p packages/shared/tsconfig.json --noEmit",
     "typecheck": "tsc --noEmit",
     "verify:admin-auth": "npm --workspace @starlitsky/api run verify:admin-auth",
+    "verify:cat-admin-hardening": "npm --workspace @starlitsky/api run verify:cat-admin-hardening",
+    "verify:cat-story-json": "node apps/admin/src/utils/cat-story-json.verify.ts",
     "verify:community": "npm --workspace @starlitsky/api run verify:community",
     "verify:fixed-page-media": "npm --workspace @starlitsky/api run verify:fixed-page-media",
     "verify:environment-media-batch": "npm --workspace @starlitsky/api run verify:environment-media-batch",
