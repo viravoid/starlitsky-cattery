@@ -199,6 +199,7 @@ td {
 .workspace {
   display: grid;
   gap: 18px;
+  min-width: 0;
 }
 
 .toolbar,
@@ -983,6 +984,11 @@ p {
   .tabs,
   .toolbar-actions {
     width: 100%;
+  }
+
+  .tabs {
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   .tabs button,

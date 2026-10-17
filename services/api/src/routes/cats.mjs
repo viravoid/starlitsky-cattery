@@ -1,4 +1,12 @@
-import { createCat, deleteCat, getCat, listCats, updateCat } from "../services/cat-service.mjs";
+import {
+  createCat,
+  createCatWithBreedingProfile,
+  createCatWithKittenProfile,
+  deleteCat,
+  getCat,
+  listCats,
+  updateCat,
+} from "../services/cat-service.mjs";
 import { getCurrentUserFromRequest } from "../services/auth-service.mjs";
 import {
   createBreedingProfile,
@@ -104,6 +112,34 @@ export async function routeCatsRequest(request, response, url, context) {
 
   const id = matchCatId(url.pathname);
 
+  if (url.pathname === "/cats/with-kitten-profile") {
+    if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
+      sendSuccess(response, {
+        statusCode: 201,
+        data: await createCatWithKittenProfile(await readJsonBody(request)),
+        message: "Cat and kitten profile created",
+      });
+      return;
+    }
+
+    throw methodNotAllowed();
+  }
+
+  if (url.pathname === "/cats/with-breeding-profile") {
+    if (request.method === "POST") {
+      await requireAdminMutationRole(request, context.config);
+      sendSuccess(response, {
+        statusCode: 201,
+        data: await createCatWithBreedingProfile(await readJsonBody(request)),
+        message: "Cat and breeding profile created",
+      });
+      return;
+    }
+
+    throw methodNotAllowed();
+  }
+
   if (url.pathname === "/cats") {
     if (request.method === "GET") {
       sendSuccess(response, {
@@ -159,8 +195,12 @@ export async function routeCatsRequest(request, response, url, context) {
 
 async function resolveCatReadOptions(request, config) {
   const user = await getCurrentUserFromRequest(request, config);
+  const canReadAdminCatData = Boolean(
+    user?.roles.some((role) => role === "admin" || role === "keeper"),
+  );
   return {
-    includeHidden: Boolean(user?.roles.some((role) => role === "admin" || role === "keeper")),
+    includeHidden: canReadAdminCatData,
+    includeParentLinks: canReadAdminCatData,
   };
 }
 

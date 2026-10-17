@@ -2,6 +2,10 @@ import { prisma } from "../db/prisma.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parseBooleanParam, parsePagination } from "../utils/request.mjs";
 import { resolveMediaSourceUrl, resolveMediaThumbnailUrl } from "./media-delivery-service.mjs";
+import {
+  createBreedingProfileWithClient,
+  createKittenProfileWithClient,
+} from "./profile-service.mjs";
 
 const VISIBILITY_VALUES = new Set(["visible", "hidden", "archived"]);
 const CREATE_FIELDS = [
@@ -23,7 +27,7 @@ export async function listCats(searchParams, options = {}) {
   const [items, total] = await prisma.$transaction([
     prisma.cat.findMany({
       where,
-      include: CAT_PUBLIC_INCLUDE,
+      include: buildCatInclude(options),
       orderBy: [{ created_at: "desc" }, { id: "asc" }],
       skip,
       take,
@@ -45,7 +49,7 @@ export async function getCat(id, options = {}) {
       deleted_at: null,
       ...(options.includeHidden ? {} : { visibility: "visible" }),
     },
-    include: CAT_PUBLIC_INCLUDE,
+    include: buildCatInclude(options),
   });
 
   if (!cat) throw notFound("Cat not found");
@@ -61,6 +65,50 @@ export async function createCat(input) {
   });
 
   const cat = await prisma.cat.create({ data });
+  return toCatDto(cat);
+}
+
+export async function createCatWithKittenProfile(input) {
+  const { cat: catInput, kittenProfile } = normalizeCreateCatWithProfileInput(input);
+
+  const cat = await prisma.$transaction(async (transaction) => {
+    const createdCat = await transaction.cat.create({
+      data: normalizeCatInput(catInput, {
+        mode: "create",
+        allowedFields: CREATE_FIELDS,
+      }),
+    });
+    await createKittenProfileWithClient(transaction, createdCat.id, kittenProfile, {
+      ensureCat: false,
+    });
+    return transaction.cat.findUnique({
+      where: { id: createdCat.id },
+      include: buildCatInclude({ includeHidden: true }),
+    });
+  });
+
+  return toCatDto(cat);
+}
+
+export async function createCatWithBreedingProfile(input) {
+  const { cat: catInput, breedingProfile } = normalizeCreateCatWithProfileInput(input);
+
+  const cat = await prisma.$transaction(async (transaction) => {
+    const createdCat = await transaction.cat.create({
+      data: normalizeCatInput(catInput, {
+        mode: "create",
+        allowedFields: CREATE_FIELDS,
+      }),
+    });
+    await createBreedingProfileWithClient(transaction, createdCat.id, breedingProfile, {
+      ensureCat: false,
+    });
+    return transaction.cat.findUnique({
+      where: { id: createdCat.id },
+      include: buildCatInclude({ includeHidden: true }),
+    });
+  });
+
   return toCatDto(cat);
 }
 
@@ -187,6 +235,31 @@ function normalizeCatInput(input, { mode, allowedFields }) {
   return data;
 }
 
+function normalizeCreateCatWithProfileInput(input) {
+  assertPlainObject(input);
+  assertNoUnknownFields(input, ["cat", "kittenProfile", "breedingProfile"]);
+  if (!isPlainObject(input.cat)) throw badRequest("cat must be a JSON object");
+
+  if (Object.hasOwn(input, "kittenProfile")) {
+    if (Object.hasOwn(input, "breedingProfile")) {
+      throw badRequest("Only one profile type can be created at a time");
+    }
+    if (!isPlainObject(input.kittenProfile)) {
+      throw badRequest("kittenProfile must be a JSON object");
+    }
+    return { cat: input.cat, kittenProfile: input.kittenProfile };
+  }
+
+  if (Object.hasOwn(input, "breedingProfile")) {
+    if (!isPlainObject(input.breedingProfile)) {
+      throw badRequest("breedingProfile must be a JSON object");
+    }
+    return { cat: input.cat, breedingProfile: input.breedingProfile };
+  }
+
+  throw badRequest("A kittenProfile or breedingProfile is required");
+}
+
 async function listVisibleCatMedia(catIds) {
   if (catIds.length === 0) return new Map();
 
@@ -240,10 +313,31 @@ function toCatDto(cat, mediaByCatId = new Map(), options = {}) {
     visibility: cat.visibility,
     breedingProfile: cat.breeding_profile ? toBreedingProfileDto(cat.breeding_profile) : null,
     kittenProfile: cat.kitten_profile ? toKittenProfileDto(cat.kitten_profile, options) : null,
+    ...(options.includeParentLinks
+      ? {
+          parentCatLinks: (cat.parent_cat_links ?? []).map(toParentCatLinkSummaryDto),
+        }
+      : {}),
     mediaAssets: mediaByCatId.get(cat.id) ?? [],
     createdAt: toIsoString(cat.created_at),
     updatedAt: toIsoString(cat.updated_at),
     deletedAt: toIsoString(cat.deleted_at),
+  };
+}
+
+function toParentCatLinkSummaryDto(link) {
+  return {
+    id: link.id,
+    parentProfileId: link.parent_profile_id,
+    catId: link.cat_id,
+    relationship: link.relationship,
+    status: link.status,
+    parentProfile: link.parent_profile
+      ? {
+          id: link.parent_profile.id,
+          displayName: link.parent_profile.display_name,
+        }
+      : undefined,
   };
 }
 
@@ -326,11 +420,12 @@ function readCatPublicContentFields(storyJson) {
 
 function readCatPresentationFields(storyJson) {
   if (!storyJson || typeof storyJson !== "object" || Array.isArray(storyJson)) return {};
-  const source = storyJson.imagePresentation &&
+  const source =
+    storyJson.imagePresentation &&
     typeof storyJson.imagePresentation === "object" &&
     !Array.isArray(storyJson.imagePresentation)
-    ? storyJson.imagePresentation
-    : storyJson;
+      ? storyJson.imagePresentation
+      : storyJson;
 
   return {
     ...(isPlainObject(source.entryCoverSelections)
@@ -424,16 +519,34 @@ function toIsoString(value) {
   return value ? value.toISOString() : null;
 }
 
-const CAT_PUBLIC_INCLUDE = {
-  breeding_profile: true,
-  kitten_profile: {
-    include: {
-      litter: {
-        include: {
-          father_cat: true,
-          mother_cat: true,
+function buildCatInclude(options = {}) {
+  return {
+    breeding_profile: true,
+    kitten_profile: {
+      include: {
+        litter: {
+          include: {
+            father_cat: true,
+            mother_cat: true,
+          },
         },
       },
     },
-  },
-};
+    ...(options.includeParentLinks
+      ? {
+          parent_cat_links: {
+            where: { deleted_at: null },
+            include: {
+              parent_profile: {
+                select: {
+                  id: true,
+                  display_name: true,
+                },
+              },
+            },
+            orderBy: [{ status: "asc" }, { created_at: "desc" }, { id: "asc" }],
+          },
+        }
+      : {}),
+  };
+}

@@ -18,6 +18,8 @@ import {
   archiveMediaBinding,
   createBreedingProfile,
   createCat,
+  createCatWithBreedingProfile,
+  createCatWithKittenProfile,
   createKittenProfile,
   createLitter,
   createMediaBinding,
@@ -38,6 +40,7 @@ import {
   uploadLitterImage,
 } from "../api/cattery";
 import { PageContainer } from "../components/PageContainer";
+import { mergeCatStoryTextFields, readCatStoryText } from "../utils/cat-story-json";
 import { getErrorMessage } from "../utils/errors";
 import { CommunityModerationPanel } from "./CommunityModerationPanel";
 import { DashboardPage } from "./DashboardPage";
@@ -343,6 +346,8 @@ export function CatteryManagementPage() {
   function switchSection(section: SectionKey) {
     if ((catDirty || litterDirty) && !confirm("当前表单有未保存修改，确定切换模块吗？")) return;
     setActiveSection(section);
+    setSelectedCat(null);
+    setSelectedLitter(null);
     setCatEditorMode(null);
     setLitterEditorMode(null);
     setNotice("");
@@ -521,16 +526,29 @@ export function CatteryManagementPage() {
 
     try {
       const payload = toCatPayload(catDraft, selectedCat);
-      const savedCat =
-        catEditorMode === "edit" && selectedCat
-          ? await updateCat(selectedCat.id, payload)
-          : await createCat(payload as CreateCatRequest);
+      let savedCat: CatData;
 
-      if (activeSection === "kittens") {
-        await saveKittenProfile(savedCat.id, catDraft, savedCat.kittenProfile);
+      if (catEditorMode === "edit" && selectedCat) {
+        savedCat = await updateCat(selectedCat.id, payload);
+      } else if (activeSection === "kittens") {
+        savedCat = await createCatWithKittenProfile({
+          cat: payload as CreateCatRequest,
+          kittenProfile: toKittenProfilePayload(catDraft),
+        });
+      } else if (activeSection === "studs") {
+        savedCat = await createCatWithBreedingProfile({
+          breedingProfile: toBreedingProfilePayload(catDraft),
+          cat: payload as CreateCatRequest,
+        });
+      } else {
+        savedCat = await createCat(payload as CreateCatRequest);
       }
-      if (activeSection === "studs") {
-        await saveBreedingProfile(savedCat.id, catDraft, savedCat.breedingProfile);
+
+      if (catEditorMode === "edit" && activeSection === "kittens") {
+        await saveKittenProfile(savedCat.id, catDraft, selectedCat?.kittenProfile ?? null);
+      }
+      if (catEditorMode === "edit" && activeSection === "studs") {
+        await saveBreedingProfile(savedCat.id, catDraft, selectedCat?.breedingProfile ?? null);
       }
       if (pendingCatImageFile) {
         await uploadPendingCatImage(savedCat.id);
@@ -558,14 +576,7 @@ export function CatteryManagementPage() {
     draft: CatDraft,
     existing: CatData["kittenProfile"],
   ) {
-    if (!draft.kittenLitterId) throw new Error("小猫必须选择窝次");
-    const payload = {
-      adoptedAt: null,
-      litterId: draft.kittenLitterId,
-      priceText: emptyToNull(draft.kittenPriceText),
-      saleStatus: draft.kittenSaleStatus,
-      structureRatingJson: parseJsonOrString(draft.structureRatingRaw),
-    };
+    const payload = toKittenProfilePayload(draft);
     if (existing) await updateKittenProfile(catId, payload);
     else await createKittenProfile(catId, payload);
   }
@@ -575,14 +586,7 @@ export function CatteryManagementPage() {
     draft: CatDraft,
     existing: BreedingCatProfileData | null,
   ) {
-    const payload = {
-      category: draft.breedingCategory,
-      reproductiveState: draft.breedingReproductiveState,
-      sortOrder: Number.parseInt(draft.breedingSortOrder, 10) || 0,
-      source: emptyToNull(draft.breedingSource),
-      statusLabel: emptyToNull(draft.breedingStatusLabel),
-      trait: emptyToNull(draft.breedingTrait),
-    };
+    const payload = toBreedingProfilePayload(draft);
     if (existing) await updateBreedingProfile(catId, payload);
     else await createBreedingProfile(catId, payload);
   }
@@ -1061,7 +1065,7 @@ function CatManagementWorkspace({
                       <span className="muted">{cat.breedingProfile?.reproductiveState ?? "-"}</span>
                     </td>
                   ) : null}
-                  <td>{cat.lifecycleStatus === "adopted" ? "已有家" : "-"}</td>
+                  <td>{formatParentOwnership(cat)}</td>
                   <td>{formatOption(cat.visibility, VISIBILITY_OPTIONS)}</td>
                   <td>{cat.mediaAssets.length}</td>
                   <td>
@@ -2076,7 +2080,7 @@ function CatDetail({
               .join("、") || "-",
           ],
           ["动态数量", "当前 API 未提供可靠计数"],
-          ["性格", cat.personality || readStoryText(cat.storyJson, "personality") || "-"],
+          ["性格", cat.personality || readCatStoryText(cat.storyJson, "personality") || "-"],
         ]}
       />
       <div className="community-media-strip">
@@ -2246,18 +2250,41 @@ function toCatPayload(
   };
 }
 
+function toKittenProfilePayload(draft: CatDraft) {
+  if (!draft.kittenLitterId) throw new Error("小猫必须选择窝次");
+  return {
+    adoptedAt: null,
+    litterId: draft.kittenLitterId,
+    priceText: emptyToNull(draft.kittenPriceText),
+    saleStatus: draft.kittenSaleStatus,
+    structureRatingJson: parseJsonOrString(draft.structureRatingRaw),
+  };
+}
+
+function toBreedingProfilePayload(draft: CatDraft) {
+  return {
+    category: draft.breedingCategory,
+    reproductiveState: draft.breedingReproductiveState,
+    sortOrder: Number.parseInt(draft.breedingSortOrder, 10) || 0,
+    source: emptyToNull(draft.breedingSource),
+    statusLabel: emptyToNull(draft.breedingStatusLabel),
+    trait: emptyToNull(draft.breedingTrait),
+  };
+}
+
 function mergeCatStoryJson(existing: unknown, draft: CatDraft) {
-  const base = isRecord(existing) ? { ...existing } : {};
+  const base = mergeCatStoryTextFields(existing, {
+    detail: draft.storyDetail,
+    diet: draft.diet,
+    personality: draft.storyPersonality,
+  });
   const imagePresentation = compactImagePresentation({
     ...(isRecord(base.imagePresentation) ? (base.imagePresentation as ImagePresentation) : {}),
     ...draft.imagePresentation,
   });
   return removeUndefinedObject({
     ...base,
-    detail: emptyToUndefined(draft.storyDetail) ?? base.detail,
-    diet: emptyToUndefined(draft.diet) ?? base.diet,
     imagePresentation,
-    personality: emptyToUndefined(draft.storyPersonality) ?? base.personality,
   });
 }
 
@@ -2283,7 +2310,7 @@ function toCatDraft(cat: CatData): CatDraft {
     breedingStatusLabel: cat.breedingProfile?.statusLabel ?? "",
     breedingTrait: cat.breedingProfile?.trait ?? "",
     color: cat.color ?? "",
-    diet: readStoryText(storyJson, "diet"),
+    diet: readCatStoryText(storyJson, "diet"),
     gender: cat.gender ?? "",
     imagePresentation,
     kittenLitterId: cat.kittenProfile?.litterId ?? "",
@@ -2292,8 +2319,8 @@ function toCatDraft(cat: CatData): CatDraft {
     lifecycleStatus: cat.lifecycleStatus,
     name: cat.name,
     personality: cat.personality ?? "",
-    storyDetail: readStoryText(storyJson, "detail"),
-    storyPersonality: readStoryText(storyJson, "personality"),
+    storyDetail: readCatStoryText(storyJson, "detail"),
+    storyPersonality: readCatStoryText(storyJson, "personality"),
     structureRatingRaw: stringifyJson(cat.kittenProfile?.structureRatingJson),
     visibility: cat.visibility as Visibility,
   };
@@ -2424,6 +2451,27 @@ function formatCatStatus(cat: CatData, mode: "kittens" | "studs" | "cats") {
   return formatOption(cat.lifecycleStatus, CAT_STATUS_OPTIONS);
 }
 
+function formatParentOwnership(cat: CatData) {
+  const links = cat.parentCatLinks ?? [];
+  const link = links.find((item) => item.status === "active") ?? links[0];
+  if (!link) return "-";
+  const parentName = link.parentProfile?.displayName || link.parentProfileId;
+  return `${parentName} / ${formatParentRelationship(link.relationship)}`;
+}
+
+function formatParentRelationship(value: string) {
+  switch (value) {
+    case "owner":
+      return "家长";
+    case "co_owner":
+      return "共同家长";
+    case "caregiver":
+      return "照护人";
+    default:
+      return value;
+  }
+}
+
 function formatImageState(state: ImageUploadState) {
   switch (state) {
     case "pending":
@@ -2435,14 +2483,6 @@ function formatImageState(state: ImageUploadState) {
     default:
       return "未选择";
   }
-}
-
-function readStoryText(storyJson: unknown, key: string) {
-  if (!isRecord(storyJson)) return "";
-  const value = storyJson[key];
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.filter((item) => typeof item === "string").join("\n");
-  return "";
 }
 
 function parseJsonOrString(value: string) {
@@ -2468,11 +2508,6 @@ function serializeDraft(value: unknown) {
 function emptyToNull(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
-}
-
-function emptyToUndefined(value: string) {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
 }
 
 function toDateInputValue(value: string | null) {

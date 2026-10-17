@@ -91,10 +91,23 @@ export interface CatData {
         litter?: KittenProfileData["litter"] | null;
       })
     | null;
+  parentCatLinks?: CatParentLinkSummaryData[];
   mediaAssets: CatMediaAssetData[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+}
+
+export interface CatParentLinkSummaryData {
+  id: string;
+  parentProfileId: string;
+  catId: string;
+  relationship: string;
+  status: string;
+  parentProfile?: {
+    id: string;
+    displayName: string;
+  };
 }
 
 export interface CatMediaAssetData {
@@ -123,6 +136,16 @@ export interface CreateCatRequest {
 }
 
 export type UpdateCatRequest = Partial<CreateCatRequest>;
+
+export interface CreateCatWithKittenProfileRequest {
+  cat: CreateCatRequest;
+  kittenProfile: CreateKittenProfileRequest;
+}
+
+export interface CreateCatWithBreedingProfileRequest {
+  cat: CreateCatRequest;
+  breedingProfile: CreateBreedingCatProfileRequest;
+}
 
 export type CatListData = PaginatedResponse<CatData>;
 
