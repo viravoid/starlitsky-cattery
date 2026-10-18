@@ -89,6 +89,9 @@ jobs:
       - name: Verify private COS read delivery
         run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:private-cos-read
 
+      - name: Verify COS migration readiness
+        run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:cos-migration
+
       - name: Verify security
         run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:security
 
@@ -131,6 +134,8 @@ jobs:
           STORAGE_ACCESS_KEY_SECRET: ci-storage-secret-release-readiness-32-chars
           STORAGE_PUBLIC_BASE_URL: https://media.staging.starlitsky.example.org
           STORAGE_READ_EXPIRES_SECONDS: "3600"
+          STORAGE_LEGACY_BUCKET: starlitsky-ci-legacy
+          STORAGE_READ_BUCKETS_JSON: '[{"bucket":"starlitsky-ci-legacy","provider":"cos","region":"ap-shanghai"}]'
         run: npm run verify:production-env
 
       - name: Verify deployment assets

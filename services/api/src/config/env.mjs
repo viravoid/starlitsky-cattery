@@ -72,6 +72,8 @@ export const config = {
       3600,
     ),
     maxImageBytes: parsePositiveInteger(process.env.STORAGE_MAX_IMAGE_BYTES, 10 * 1024 * 1024),
+    legacyBucket: process.env.STORAGE_LEGACY_BUCKET || "",
+    readBuckets: parseStorageReadBuckets(process.env.STORAGE_READ_BUCKETS_JSON),
   },
 };
 
@@ -103,4 +105,26 @@ function parseOriginList(value, fallback = []) {
     .map((origin) => origin.trim())
     .filter((origin) => origin && origin !== "*");
   return origins.length > 0 ? origins : fallback;
+}
+
+function parseStorageReadBuckets(value) {
+  if (typeof value !== "string" || value.trim() === "") return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+      .map((entry) => ({
+        bucket: typeof entry.bucket === "string" ? entry.bucket.trim() : "",
+        provider: typeof entry.provider === "string" ? entry.provider.trim() : "",
+        region: typeof entry.region === "string" ? entry.region.trim() : "",
+        endpoint: typeof entry.endpoint === "string" ? entry.endpoint.trim() : "",
+        publicBaseUrl: typeof entry.publicBaseUrl === "string" ? entry.publicBaseUrl.trim() : "",
+        forcePathStyle: entry.forcePathStyle === true,
+      }))
+      .filter((entry) => entry.bucket);
+  } catch {
+    return [];
+  }
 }
