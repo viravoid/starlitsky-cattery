@@ -166,27 +166,27 @@ export async function createCosMigrationInventory({
     .filter(([, items]) => items.length > 1)
     .map(([objectKey, items]) => ({ objectKey, mediaIds: items.map((item) => item.id) }));
   const jsonReferences = [
-    ...collectJsonReferences(cats, "cat", "story_json", sourceOrigins),
-    ...collectJsonReferences(fixedPages, "fixed_page", "content_json", sourceOrigins),
+    ...collectJsonReferences(cats, "cat", "story_json", sourceBaseUrls),
+    ...collectJsonReferences(fixedPages, "fixed_page", "content_json", sourceBaseUrls),
     ...collectJsonReferences(
       parentApplications,
       "parent_application",
       "existing_cat_claims_json",
-      sourceOrigins,
+      sourceBaseUrls,
     ),
     ...collectJsonReferences(
       parentApplications,
       "parent_application",
       "new_cats_json",
-      sourceOrigins,
+      sourceBaseUrls,
     ),
     ...collectJsonReferences(
       kittenProfiles.map((record) => ({ ...record, id: record.cat_id, updated_at: null })),
       "kitten_profile",
       "structure_rating_json",
-      sourceOrigins,
+      sourceBaseUrls,
     ),
-    ...collectJsonReferences(litters, "litter", "possible_colors_json", sourceOrigins),
+    ...collectJsonReferences(litters, "litter", "possible_colors_json", sourceBaseUrls),
     ...[
       "cat_experience_json",
       "existing_pets_json",
@@ -194,7 +194,7 @@ export async function createCosMigrationInventory({
       "preferences_json",
       "commitments_json",
     ].flatMap((field) =>
-      collectJsonReferences(selectionApplications, "selection_application", field, sourceOrigins),
+      collectJsonReferences(selectionApplications, "selection_application", field, sourceBaseUrls),
     ),
   ];
 
@@ -286,29 +286,6 @@ export async function executeCosObjectCopies({
 
   const results = await mapLimit(actions, COPY_CONCURRENCY, async (action) => {
     try {
-      const existing = await storage.headObject({
-        bucket: inventory.targetBucket,
-        objectKey: action.objectKey,
-      });
-      if (existing.exists) {
-        const verification = verifyObjectMetadata(action, existing);
-        const checksumVerification = verification.ok
-          ? await verifyRemoteChecksum({
-              action,
-              bucket: inventory.targetBucket,
-              metadata: existing,
-              storage,
-            })
-          : { status: "not-checked" };
-        const checksumOk = checksumVerification.status !== "mismatch";
-        return {
-          ...action,
-          status: verification.ok && checksumOk ? "verified-existing" : "conflict",
-          checksumVerification,
-          verification,
-        };
-      }
-
       const source = await storage.getObject({
         bucket: inventory.sourceBucket,
         objectKey: action.objectKey,
@@ -323,6 +300,35 @@ export async function executeCosObjectCopies({
       if (checksumVerification.status === "mismatch") {
         return { ...action, status: "checksum-mismatch", checksumVerification };
       }
+      const sourceContentSha256 = sha256(body);
+
+      const existing = await storage.headObject({
+        bucket: inventory.targetBucket,
+        objectKey: action.objectKey,
+      });
+      if (existing.exists) {
+        const verification = verifyObjectMetadata(action, existing);
+        const byteVerification = verification.ok
+          ? await verifyRemoteContent({
+              bucket: inventory.targetBucket,
+              expectedSha256: sourceContentSha256,
+              objectKey: action.objectKey,
+              storage,
+            })
+          : { algorithm: "sha256", status: "not-checked" };
+        return {
+          ...action,
+          status:
+            verification.ok && byteVerification.status === "match"
+              ? "verified-existing"
+              : "conflict",
+          byteVerification,
+          checksumVerification,
+          sourceContentSha256,
+          sourceVerification,
+          verification,
+        };
+      }
 
       await storage.putObject({
         body,
@@ -335,23 +341,24 @@ export async function executeCosObjectCopies({
         objectKey: action.objectKey,
       });
       const verification = verifyObjectMetadata(action, target);
-      const targetChecksumVerification = verification.ok
-        ? await verifyRemoteChecksum({
-            action,
+      const byteVerification = verification.ok
+        ? await verifyRemoteContent({
             bucket: inventory.targetBucket,
-            metadata: target,
+            expectedSha256: sourceContentSha256,
+            objectKey: action.objectKey,
             storage,
           })
-        : { status: "not-checked" };
+        : { algorithm: "sha256", status: "not-checked" };
       return {
         ...action,
         status:
-          verification.ok && targetChecksumVerification.status !== "mismatch"
+          verification.ok && byteVerification.status === "match"
             ? "copied-and-verified"
             : "copy-verification-failed",
+        byteVerification,
         checksumVerification,
+        sourceContentSha256,
         sourceVerification,
-        targetChecksumVerification,
         verification,
       };
     } catch (error) {
@@ -379,15 +386,28 @@ export function buildStorageSwitchPlan({ inventory, copyReport }) {
     throw new CosMigrationError("Copy report does not belong to this inventory");
   }
   const verifiedKeys = new Set(
-    copyReport.results
-      .filter((result) => ["copied-and-verified", "verified-existing"].includes(result.status))
-      .map((result) => result.objectKey),
+    copyReport.results.filter(isByteVerifiedCopyResult).map((result) => result.objectKey),
   );
   const targetBaseUrl = inventory.targetBaseUrls?.[0] ?? inventory.targetOrigins[0];
   if (!targetBaseUrl) throw new CosMigrationError("Target bucket has no configured stable origin");
-  const blockingJsonReferences = inventory.jsonReferences.filter(
-    (reference) => !["cat", "fixed_page"].includes(reference.model),
-  );
+  const blockingJsonReferences = inventory.jsonReferences
+    .map((reference) => {
+      if (!["cat", "fixed_page"].includes(reference.model)) {
+        return { ...reference, blockingReason: "unsupported-json-model" };
+      }
+      const parsed = parseStorageObjectReference(
+        reference.value,
+        inventory.sourceBaseUrls ?? inventory.sourceOrigins,
+      );
+      if (!parsed || parsed.objectKey !== reference.objectKey) {
+        return { ...reference, blockingReason: "unresolvable-storage-url" };
+      }
+      if (!verifiedKeys.has(parsed.objectKey)) {
+        return { ...reference, blockingReason: "object-not-byte-verified" };
+      }
+      return null;
+    })
+    .filter(Boolean);
   if (blockingJsonReferences.length > 0) {
     throw new CosMigrationError(
       "Legacy storage URLs were found in JSON fields without an automatic audited switch path",
@@ -427,11 +447,7 @@ export function buildStorageSwitchPlan({ inventory, copyReport }) {
     }));
   const jsonUpdates = inventory.jsonReferences.map((reference) => ({
     ...reference,
-    replacementValue: rewriteStorageReferences(
-      reference.value,
-      inventory.sourceBaseUrls ?? inventory.sourceOrigins,
-      targetBaseUrl,
-    ),
+    replacementValue: rewriteExactStorageObjectUrl(reference, targetBaseUrl),
   }));
   const plan = {
     schemaVersion: 1,
@@ -722,21 +738,23 @@ function verifyChecksum(checksum, body, etag) {
     : { status: "unsupported-format" };
 }
 
-async function verifyRemoteChecksum({ action, bucket, metadata, storage }) {
-  if (!action.checksum) return { status: "unavailable" };
-  const expected = action.checksum.toLowerCase().replace(/^md5:/, "");
-  const actualEtag = stringOrNull(metadata.etag)?.toLowerCase().replaceAll('"', "");
-  if (/^[a-f0-9]{32}$/.test(expected) && actualEtag && !actualEtag.includes("-")) {
+async function verifyRemoteContent({ bucket, expectedSha256, objectKey, storage }) {
+  const object = await storage.getObject({ bucket, objectKey });
+  if (!object.exists) {
     return {
-      algorithm: "md5-etag",
-      actual: actualEtag,
-      expected,
-      status: actualEtag === expected ? "match" : "mismatch",
+      algorithm: "sha256",
+      expected: expectedSha256,
+      status: "unavailable",
+      reason: "missing-after-head",
     };
   }
-  const object = await storage.getObject({ bucket, objectKey: action.objectKey });
-  if (!object.exists) return { status: "mismatch", reason: "missing-after-head" };
-  return verifyChecksum(action.checksum, Buffer.from(object.body), object.etag ?? metadata.etag);
+  const actual = sha256(Buffer.from(object.body));
+  return {
+    algorithm: "sha256",
+    actual,
+    expected: expectedSha256,
+    status: actual === expectedSha256 ? "match" : "mismatch",
+  };
 }
 
 function inventoryChecksumVerification(checksum, etag) {
@@ -754,17 +772,19 @@ function inventoryChecksumVerification(checksum, etag) {
   return { status: "requires-body-verification" };
 }
 
-function collectJsonReferences(records, model, field, origins) {
+function collectJsonReferences(records, model, field, sourceBaseUrls) {
   const references = [];
   for (const record of records) {
     walkJson(record[field], [], (path, value) => {
-      if (containsOrigin(value, origins)) {
+      const parsed = parseStorageObjectReference(value, sourceBaseUrls);
+      if (parsed) {
         references.push({
           model,
           id: record.id,
           field,
           path,
           value,
+          objectKey: parsed.objectKey,
           expectedUpdatedAt: toIsoString(record.updated_at),
           switchHandling: ["cat", "fixed_page"].includes(model)
             ? "exact-path-update"
@@ -850,8 +870,9 @@ function withUploadBucket(value, bucket) {
 }
 
 function rewriteStableObjectUrl(value, objectKey, sourceOrigins, targetBaseUrl) {
-  if (!containsOrigin(value, sourceOrigins)) return value;
   try {
+    const sourceUrl = new URL(value);
+    if (!sourceOrigins.includes(sourceUrl.origin)) return value;
     const targetUrl = new URL(targetBaseUrl);
     targetUrl.pathname = [
       targetUrl.pathname.replace(/^\/+|\/+$/g, ""),
@@ -862,17 +883,29 @@ function rewriteStableObjectUrl(value, objectKey, sourceOrigins, targetBaseUrl) 
     ]
       .filter(Boolean)
       .join("/");
-    targetUrl.search = "";
+    targetUrl.search = sourceUrl.search;
+    targetUrl.hash = sourceUrl.hash;
     return targetUrl.toString();
   } catch {
     return value;
   }
 }
 
-function rewriteStorageReferences(value, sourceBaseUrls, targetBaseUrl) {
-  return [...sourceBaseUrls]
-    .sort((left, right) => right.length - left.length)
-    .reduce((current, sourceBaseUrl) => current.split(sourceBaseUrl).join(targetBaseUrl), value);
+function rewriteExactStorageObjectUrl(reference, targetBaseUrl) {
+  const targetUrl = new URL(targetBaseUrl);
+  const sourceUrl = new URL(reference.value);
+  targetUrl.pathname = [
+    targetUrl.pathname.replace(/^\/+|\/+$/g, ""),
+    reference.objectKey
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/"),
+  ]
+    .filter(Boolean)
+    .join("/");
+  targetUrl.search = sourceUrl.search;
+  targetUrl.hash = sourceUrl.hash;
+  return targetUrl.toString();
 }
 
 function storageOrigins(storage) {
@@ -909,6 +942,10 @@ function containsOrigin(value, origins) {
 }
 
 function inferObjectKey(value, baseUrls) {
+  return parseStorageObjectReference(value, baseUrls)?.objectKey ?? null;
+}
+
+function parseStorageObjectReference(value, baseUrls) {
   if (typeof value !== "string") return null;
   try {
     const sourceUrl = new URL(value);
@@ -918,12 +955,27 @@ function inferObjectKey(value, baseUrls) {
       const basePath = decodeURIComponent(baseUrl.pathname).replace(/^\/+|\/+$/g, "");
       const sourcePath = decodeURIComponent(sourceUrl.pathname).replace(/^\/+/, "");
       if (basePath && !sourcePath.startsWith(`${basePath}/`)) continue;
-      return safeObjectKey(basePath ? sourcePath.slice(basePath.length + 1) : sourcePath);
+      const objectKey = safeObjectKey(
+        basePath ? sourcePath.slice(basePath.length + 1) : sourcePath,
+      );
+      if (!objectKey) return null;
+      return { objectKey };
     }
     return null;
   } catch {
     return null;
   }
+}
+
+function isByteVerifiedCopyResult(result) {
+  return (
+    ["copied-and-verified", "verified-existing"].includes(result?.status) &&
+    result.byteVerification?.algorithm === "sha256" &&
+    result.byteVerification.status === "match" &&
+    /^[a-f0-9]{64}$/.test(result.byteVerification.actual ?? "") &&
+    result.byteVerification.actual === result.byteVerification.expected &&
+    result.byteVerification.actual === result.sourceContentSha256
+  );
 }
 
 function readUploadMetadata(value) {

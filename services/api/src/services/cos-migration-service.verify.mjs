@@ -26,6 +26,8 @@ const {
   createCosMigrationInventory,
   executeCosObjectCopies,
 } = await import("./cos-migration-service.mjs");
+const { assertMigrationWriteRuntime, databaseUrlFingerprint } =
+  await import("./cos-migration-runtime-guard.mjs");
 
 const PREFIX = "verify-cos-migration";
 const SOURCE_BUCKET = "verify-old-bucket";
@@ -85,6 +87,7 @@ try {
   assert.equal(inventory.jsonReferences.length, 2);
   assert.equal(inventory.records[0].bindings.length, 3);
   assert.equal(inventory.records[0].bindings[0].usage, "cover");
+  assert.equal(inventory.jsonReferences[0].objectKey, OBJECT_KEY);
 
   const dryRun = await executeCosObjectCopies({ inventory, storage });
   assert.equal(dryRun.mode, "dry-run");
@@ -96,6 +99,21 @@ try {
   assert.equal(readCount, 0, "dry-run must not read object bodies");
   assert.equal(writeCount, 0, "dry-run must not write objects");
   assert.equal(targetObjects.size, 0);
+
+  targetObjects.set(OBJECT_KEY, storedObject(Buffer.alloc(BODY.length, "x"), "image/jpeg"));
+  const conflictingTarget = await executeCosObjectCopies({
+    inventory,
+    apply: true,
+    confirmObjectWrite: true,
+    storage,
+  });
+  const contentConflict = conflictingTarget.results.find(
+    (result) => result.objectKey === OBJECT_KEY,
+  );
+  assert.equal(contentConflict.status, "conflict");
+  assert.equal(contentConflict.verification.ok, true, "size and MIME intentionally match");
+  assert.equal(contentConflict.byteVerification.status, "mismatch");
+  targetObjects.delete(OBJECT_KEY);
 
   failNextPut = true;
   const failedCopy = await executeCosObjectCopies({
@@ -114,7 +132,10 @@ try {
     "independently verified objects may survive a partial failure",
   );
   assert.equal(
-    buildStorageSwitchPlan({ inventory, copyReport: failedCopy }).mediaUpdates.length,
+    buildStorageSwitchPlan({
+      inventory: { ...inventory, jsonReferences: [] },
+      copyReport: failedCopy,
+    }).mediaUpdates.length,
     0,
   );
 
@@ -127,8 +148,17 @@ try {
   const primaryCopy = copied.results.find((result) => result.objectKey === OBJECT_KEY);
   assert.equal(primaryCopy.status, "copied-and-verified");
   assert.equal(primaryCopy.checksumVerification.status, "match");
-  assert.equal(primaryCopy.targetChecksumVerification.status, "match");
+  assert.equal(primaryCopy.byteVerification.status, "match");
+  assert.equal(primaryCopy.byteVerification.actual, CHECKSUM);
   assert.equal(targetObjects.get(OBJECT_KEY).body.equals(BODY), true);
+  const thumbnailCopy = copied.results.find((result) => result.objectKey === THUMBNAIL_KEY);
+  assert.equal(thumbnailCopy.status, "verified-existing");
+  assert.equal(thumbnailCopy.checksumVerification.status, "unavailable");
+  assert.equal(
+    thumbnailCopy.byteVerification.status,
+    "match",
+    "a checksum-less independent thumbnail must still receive byte-level verification",
+  );
 
   const repeated = await executeCosObjectCopies({
     inventory,
@@ -137,10 +167,84 @@ try {
     storage,
   });
   assert.ok(repeated.results.every((result) => result.status === "verified-existing"));
+  assert.ok(repeated.results.every((result) => result.byteVerification.status === "match"));
   assert.equal(writeCount, 2, "verified target objects must not be copied again");
+
+  await verifyChecksumlessHistoricalMedia();
+
+  const statusOnlyReport = structuredClone(copied);
+  statusOnlyReport.results = statusOnlyReport.results.map(
+    ({ byteVerification, ...result }) => result,
+  );
+  assert.equal(
+    buildStorageSwitchPlan({
+      inventory: { ...inventory, jsonReferences: [] },
+      copyReport: statusOnlyReport,
+    }).mediaUpdates.length,
+    0,
+    "success labels without SHA-256 evidence must never authorize switching",
+  );
+
+  for (const [objectKey, label] of [
+    ["media/images/orphan.jpg", "JSON-only orphan"],
+    [MISSING_KEY, "uncopied object"],
+  ]) {
+    assert.throws(
+      () =>
+        buildStorageSwitchPlan({
+          inventory: {
+            ...inventory,
+            jsonReferences: [
+              ...inventory.jsonReferences,
+              {
+                ...inventory.jsonReferences[0],
+                objectKey,
+                value: `https://${SOURCE_HOST}/${objectKey}?variant=original`,
+              },
+            ],
+          },
+          copyReport: copied,
+        }),
+      (error) =>
+        error?.details?.references?.some(
+          (reference) =>
+            reference.objectKey === objectKey &&
+            reference.blockingReason === "object-not-byte-verified",
+        ),
+      `${label} must block switch-plan generation`,
+    );
+  }
 
   const plan = buildStorageSwitchPlan({ inventory, copyReport: copied });
   assert.equal(plan.mediaUpdates.length, 2, "only records backed by verified objects may switch");
+  const changedReference = plan.jsonUpdates[0];
+  await assert.rejects(
+    () =>
+      applyStorageSwitchPlan({
+        client: {
+          $transaction: async (task) =>
+            task({
+              cat: {
+                findUnique: async () => ({
+                  [changedReference.field]: { imagePresentation: { url: "changed-after-plan" } },
+                  id: changedReference.id,
+                  updated_at: new Date(changedReference.expectedUpdatedAt),
+                }),
+              },
+              fixedPage: { findUnique: async () => null },
+            }),
+        },
+        plan: {
+          ...plan,
+          jsonUpdates: [changedReference],
+          mediaUpdates: [],
+        },
+        apply: true,
+        confirmDatabaseWrite: true,
+      }),
+    /JSON reference changed after inventory/,
+    "a JSON value changed after planning must abort instead of rewriting a stale path",
+  );
   const drySwitch = await applyStorageSwitchPlan({ client: prisma, plan });
   assert.equal(drySwitch.mode, "dry-run");
   assert.equal(
@@ -182,6 +286,11 @@ try {
   assert.equal(catAfter.story_json.imagePresentation.crop.x, 0.25);
   assert.equal(new URL(catAfter.story_json.imagePresentation.url).host, TARGET_HOST);
   assert.equal(new URL(pageAfter.content_json.hero.imageUrl).host, TARGET_HOST);
+  assert.equal(new URL(pageAfter.content_json.hero.imageUrl).search, "?width=128");
+  assert.equal(
+    catAfter.story_json.note,
+    `Do not rewrite https://${SOURCE_HOST}.example.invalid/${OBJECT_KEY}`,
+  );
 
   const repeatedSwitch = await applyStorageSwitchPlan({
     client: prisma,
@@ -224,10 +333,18 @@ try {
   assert.equal(primaryRolledBack.metadata_json.upload.bucket, SOURCE_BUCKET);
   assert.equal(new URL(primaryRolledBack.source_url).host, SOURCE_HOST);
   assert.equal(new URL(catRolledBack.story_json.imagePresentation.url).host, SOURCE_HOST);
+  assert.equal(
+    (await prisma.fixedPage.findUnique({ where: { id: seeded.page.id } })).content_json.hero
+      .imageUrl,
+    `https://${SOURCE_HOST}/media/images/%73hared.jpg?width=128`,
+    "rollback must restore the exact encoded source URL and query",
+  );
   assert.ok(
     await prisma.mediaAsset.findUnique({ where: { id: postCutover.id } }),
     "per-record rollback must preserve post-cutover media",
   );
+
+  verifyRuntimeGuard();
 
   console.info("COS migration readiness verification passed");
 } finally {
@@ -248,6 +365,7 @@ async function seed() {
           crop: { x: 0.25, y: 0.1, zoom: 1.4 },
           url: `https://${SOURCE_HOST}/${OBJECT_KEY}`,
         },
+        note: `Do not rewrite https://${SOURCE_HOST}.example.invalid/${OBJECT_KEY}`,
       },
     },
   });
@@ -256,7 +374,11 @@ async function seed() {
       id: `${PREFIX}-page`,
       slug: `${PREFIX}-page`,
       title: "Migration Page",
-      content_json: { hero: { imageUrl: `https://${SOURCE_HOST}/${OBJECT_KEY}` } },
+      content_json: {
+        hero: {
+          imageUrl: `https://${SOURCE_HOST}/media/images/%73hared.jpg?width=128`,
+        },
+      },
     },
   });
   const author = await prisma.user.create({
@@ -315,6 +437,124 @@ async function seed() {
     },
   });
   return { archivedDuplicate, author, cat, missing, page, post, primary };
+}
+
+function verifyRuntimeGuard() {
+  const productionDatabaseUrl = "file:/srv/starlitsky/production.db";
+  const fingerprint = databaseUrlFingerprint(productionDatabaseUrl);
+  assert.equal(fingerprint.length, 64);
+
+  const base = {
+    apply: true,
+    configuredEnvironment: "production",
+    operation: "Database switch",
+    operationConfirmed: true,
+    exactTargetConfirmed: true,
+    nodeEnvironment: undefined,
+  };
+  assert.throws(
+    () => assertMigrationWriteRuntime({ ...base, configuredEnvironment: undefined }),
+    /requires COS_MIGRATION_RUNTIME_ENVIRONMENT=staging or production/,
+    "an unclassified host must default to denying writes",
+  );
+  assert.throws(
+    () => assertMigrationWriteRuntime(base),
+    /requires --write-environment staging or production/,
+    "NODE_ENV being unset must not select a writable default",
+  );
+  assert.throws(
+    () => assertMigrationWriteRuntime({ ...base, runtimeEnvironment: "production" }),
+    /requires --confirm-production/,
+  );
+  assert.throws(
+    () =>
+      assertMigrationWriteRuntime({
+        ...base,
+        confirmProduction: true,
+        exactTargetConfirmed: false,
+        runtimeEnvironment: "production",
+      }),
+    /exact target confirmation/,
+  );
+  assert.throws(
+    () =>
+      assertMigrationWriteRuntime({
+        ...base,
+        confirmProduction: true,
+        operationConfirmed: false,
+        runtimeEnvironment: "production",
+      }),
+    /operation-specific confirmation/,
+  );
+  assert.doesNotThrow(() =>
+    assertMigrationWriteRuntime({
+      ...base,
+      confirmProduction: true,
+      runtimeEnvironment: "production",
+    }),
+  );
+  assert.throws(
+    () =>
+      assertMigrationWriteRuntime({
+        ...base,
+        configuredEnvironment: "staging",
+        nodeEnvironment: "production",
+        runtimeEnvironment: "staging",
+      }),
+    /cannot classify.*as staging/,
+  );
+  assert.doesNotThrow(() =>
+    assertMigrationWriteRuntime({
+      apply: false,
+      exactTargetConfirmed: false,
+      operation: "Object copy",
+      operationConfirmed: false,
+    }),
+  );
+}
+
+async function verifyChecksumlessHistoricalMedia() {
+  const objectKey = "media/images/checksumless-history.jpg";
+  const body = Buffer.from("historical-media-without-checksum");
+  const sourceObjects = new Map([[objectKey, storedObject(body, "image/jpeg")]]);
+  const targetObjects = new Map();
+  const storage = createFakeStorage({
+    failNextPut: () => false,
+    onFailedPut: () => {},
+    onRead: () => {},
+    onWrite: () => {},
+    sourceObjects,
+    targetObjects,
+  });
+  const inventory = {
+    inventorySha256: "checksumless-history-inventory",
+    sourceBucket: SOURCE_BUCKET,
+    targetBucket: TARGET_BUCKET,
+    records: [
+      {
+        checksum: null,
+        id: "checksumless-history",
+        mimeType: "image/jpeg",
+        objectKey,
+        sizeBytes: body.length,
+        sourceObject: {
+          ...sourceObjects.get(objectKey),
+          inventoryConsistency: "listed-and-head-confirmed",
+          sizeBytes: body.length,
+        },
+      },
+    ],
+  };
+  const report = await executeCosObjectCopies({
+    inventory,
+    apply: true,
+    confirmObjectWrite: true,
+    storage,
+  });
+  assert.equal(report.results[0].status, "copied-and-verified");
+  assert.equal(report.results[0].checksumVerification.status, "unavailable");
+  assert.equal(report.results[0].byteVerification.status, "match");
+  assert.equal(targetObjects.get(objectKey).body.equals(body), true);
 }
 
 function binding(ownerType, ownerId, usage, sortOrder) {

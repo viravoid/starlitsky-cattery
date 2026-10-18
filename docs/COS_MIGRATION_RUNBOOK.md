@@ -13,8 +13,12 @@ deletion, or PR merge.
   `STORAGE_LEGACY_BUCKET` fallback. If neither is available, the stored URL is returned unchanged.
 - Unknown bucket names are rejected. Client input cannot select bucket, endpoint, or credentials.
 - The read allowlist inherits server-side credentials. Never put access keys in its JSON.
-- Copy and database switching are separate commands. Both default to dry-run and require different
-  confirmation flags for writes. Production additionally requires `--confirm-production`.
+- Copy and database switching are separate commands. Both default to dry-run. Every write requires
+  an operation-specific confirmation, an exact target confirmation, and matching host/CLI
+  environment declarations. Production additionally requires `--confirm-production`.
+- The host must explicitly set `COS_MIGRATION_RUNTIME_ENVIRONMENT` to `staging` or `production`.
+  There is no writable default, and `--write-environment` must exactly match it. `NODE_ENV` is only
+  an additional consistency check and is never the source of write authorization.
 - No code in this change deletes source objects or changes bucket ACL/CORS.
 
 Example non-secret shape (values must be supplied through the approved environment process):
@@ -55,9 +59,17 @@ thumbnail URLs, database size/MIME/checksum, storage list/HEAD metadata, binding
 deleted state, duplicate keys, missing records, orphan source objects, and exact legacy-host
 references across every current Prisma JSON field. `Cat.story_json` and `FixedPage.content_json`
 have exact-path automatic switching; a legacy URL in any other JSON field blocks switch-plan
-generation for explicit review instead of being silently skipped. A checksum is only reported as
-verified when its format permits verification; a successful HTTP response is never treated as
-sufficient.
+generation for explicit review instead of being silently skipped. JSON strings are recognized only
+when the entire value is a URL with an exact configured source origin and object path. Encoded paths
+are decoded to the object key and query/fragment components are preserved. Similar hostnames and
+legacy-looking prose are not rewritten.
+
+Every copy attempt reads the source bytes and computes SHA-256. An existing or newly written target
+is then read back and must produce the same SHA-256; size, MIME, ETag, a successful HTTP response, or
+an absent historical checksum can never substitute for this comparison. A JSON URL can enter the
+switch plan only when its parsed object key has that byte-verification evidence in the matching copy
+report. Untracked, orphan, missing, changed, unreadable, or unverified objects block plan generation
+and are listed with a reason.
 
 Reconcile every missing object, duplicate key, orphan, pending/rejected item, archived/deleted item,
 and checksum mismatch before writes. The inventory hash binds later reports to this exact snapshot.
@@ -74,11 +86,13 @@ and checksum mismatch before writes. The inventory hash binds later reports to t
 npm run media:cos-migration -- copy `
   --inventory cos-migration-inventory.json `
   --output cos-migration-copy-report.json `
-  --apply --confirm-object-write
+  --apply --confirm-object-write `
+  --confirm-target-bucket standard-target-bucket `
+  --write-environment staging
 ```
 
-5. Repeat the same command. Existing target objects must be HEAD-verified and skipped; mismatched
-   size or MIME is a conflict, not success.
+5. Repeat the same command. Existing target objects are read and SHA-256 compared with freshly read
+   source bytes before being skipped. Any byte, size, or MIME mismatch is a conflict, not success.
 6. Build the per-record switch plan:
 
 ```powershell
@@ -94,7 +108,16 @@ npm run media:cos-migration -- switch-plan `
 npm run media:cos-migration -- switch --plan cos-migration-switch-plan.json
 npm run media:cos-migration -- switch --plan cos-migration-switch-plan.json `
   --output cos-migration-switch-report.json `
-  --apply --confirm-database-write
+  --apply --confirm-database-write `
+  --confirm-database-url-sha256 <sha256-of-exact-DATABASE_URL> `
+  --write-environment staging
+```
+
+Calculate the database target fingerprint from the process environment without printing the URL or
+placing credentials in command history:
+
+```powershell
+node -e "const c=require('node:crypto');process.stdout.write(c.createHash('sha256').update(process.env.DATABASE_URL||'').digest('hex'))"
 ```
 
 The switch transaction updates only records whose object copy was verified. It checks each
@@ -122,15 +145,20 @@ Each numbered write/configuration action requires explicit user approval at that
 
 1. Approve production allowlist/legacy fallback configuration and deploy the compatibility code.
 2. Approve a read-only production inventory and reconcile it.
-3. Approve production target-bucket object writes. The production copy command additionally needs
-   `--confirm-production`; save its immutable report.
+3. Set `COS_MIGRATION_RUNTIME_ENVIRONMENT=production` through the approved runtime configuration.
+   Approve production target-bucket object writes. The production copy command requires
+   `--apply --confirm-object-write --confirm-target-bucket <exact-target-bucket>
+--write-environment production --confirm-production`; save its immutable report. The flags are
+   safeguards and evidence of target selection, not substitutes for the separate human approval.
 4. Prevent missed uploads using one of these reviewed controls:
    - preferred: a short Admin/community media-upload freeze for the final delta; or
    - keep uploads on the legacy bucket, regenerate inventory, and copy all records created/updated
      after the first inventory cutoff before switching.
 5. Approve the final delta copy and verification.
 6. Approve per-record database switching. The production switch command requires
-   `--apply --confirm-database-write --confirm-production`.
+   `--apply --confirm-database-write --confirm-database-url-sha256 <exact-current-fingerprint>
+--write-environment production --confirm-production`. A missing environment declaration, target
+   mismatch, operation confirmation, or production confirmation stops before object/database writes.
 7. Approve changing `STORAGE_BUCKET` so subsequent browser-direct uploads target standard COS.
 8. Execute the full acceptance checklist above and begin the observation period.
 

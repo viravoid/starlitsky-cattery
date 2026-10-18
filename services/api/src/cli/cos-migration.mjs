@@ -11,6 +11,10 @@ import {
   createCosMigrationInventory,
   executeCosObjectCopies,
 } from "../services/cos-migration-service.mjs";
+import {
+  assertMigrationWriteRuntime,
+  databaseUrlFingerprint,
+} from "../services/cos-migration-runtime-guard.mjs";
 
 const options = parseArgs(process.argv.slice(2));
 
@@ -23,9 +27,19 @@ try {
       targetBucket: required(options.targetBucket, "--target-bucket"),
     });
   } else if (options.command === "copy") {
-    assertWriteRuntime(options, "object copy");
+    const inventory = readJson(required(options.inventory, "--inventory"));
+    assertMigrationWriteRuntime({
+      apply: options.apply,
+      confirmProduction: options.confirmProduction,
+      exactTargetConfirmed:
+        Boolean(options.confirmTargetBucket) &&
+        options.confirmTargetBucket === inventory.targetBucket,
+      operation: "Object copy",
+      operationConfirmed: options.confirmObjectWrite,
+      runtimeEnvironment: options.writeEnvironment,
+    });
     result = await executeCosObjectCopies({
-      inventory: readJson(required(options.inventory, "--inventory")),
+      inventory,
       apply: options.apply,
       confirmObjectWrite: options.confirmObjectWrite,
     });
@@ -40,10 +54,22 @@ try {
       switchReport: readJson(required(options.switchReport, "--switch-report")),
     });
   } else if (options.command === "switch") {
-    assertWriteRuntime(options, "database switch");
+    const plan = readJson(required(options.plan, "--plan"));
+    const currentDatabaseFingerprint = databaseUrlFingerprint(process.env.DATABASE_URL);
+    assertMigrationWriteRuntime({
+      apply: options.apply,
+      confirmProduction: options.confirmProduction,
+      exactTargetConfirmed:
+        Boolean(currentDatabaseFingerprint) &&
+        Boolean(options.confirmDatabaseUrlSha256) &&
+        options.confirmDatabaseUrlSha256 === currentDatabaseFingerprint,
+      operation: "Database switch",
+      operationConfirmed: options.confirmDatabaseWrite,
+      runtimeEnvironment: options.writeEnvironment,
+    });
     result = await applyStorageSwitchPlan({
       client: prisma,
-      plan: readJson(required(options.plan, "--plan")),
+      plan,
       apply: options.apply,
       confirmDatabaseWrite: options.confirmDatabaseWrite,
     });
@@ -71,8 +97,10 @@ function parseArgs(args) {
     command: args[0] ?? "",
     apply: false,
     confirmDatabaseWrite: false,
+    confirmDatabaseUrlSha256: "",
     confirmObjectWrite: false,
     confirmProduction: false,
+    confirmTargetBucket: "",
     copyReport: "",
     inventory: "",
     output: "",
@@ -80,6 +108,7 @@ function parseArgs(args) {
     sourceBucket: "",
     switchReport: "",
     targetBucket: "",
+    writeEnvironment: "",
   };
   for (let index = 1; index < args.length; index += 1) {
     const arg = args[index];
@@ -92,12 +121,15 @@ function parseArgs(args) {
       const value = inlineValue ?? args[++index] ?? "";
       const field = {
         "--copy-report": "copyReport",
+        "--confirm-database-url-sha256": "confirmDatabaseUrlSha256",
+        "--confirm-target-bucket": "confirmTargetBucket",
         "--inventory": "inventory",
         "--output": "output",
         "--plan": "plan",
         "--source-bucket": "sourceBucket",
         "--switch-report": "switchReport",
         "--target-bucket": "targetBucket",
+        "--write-environment": "writeEnvironment",
       }[name];
       if (!field) throw new CosMigrationError(`Unsupported argument: ${arg}`);
       parsed[field] = value;
@@ -106,15 +138,6 @@ function parseArgs(args) {
     }
   }
   return parsed;
-}
-
-function assertWriteRuntime(options, operation) {
-  if (!options.apply) return;
-  if (process.env.NODE_ENV === "production" && !options.confirmProduction) {
-    throw new CosMigrationError(
-      `Production ${operation} also requires --confirm-production after separate approval`,
-    );
-  }
 }
 
 function readJson(path) {
