@@ -127,15 +127,10 @@ try {
         sizeBytes: 128,
         usage: "gallery",
       }),
-    (error) =>
-      error?.statusCode === 400 && error?.details?.fields?.includes("bucket") === true,
+    (error) => error?.statusCode === 400 && error?.details?.fields?.includes("bucket") === true,
     "upload requests must reject client-selected buckets",
   );
-  assert.equal(
-    await countRunMedia(),
-    0,
-    "client bucket rejection must not create pending media",
-  );
+  assert.equal(await countRunMedia(), 0, "client bucket rejection must not create pending media");
 
   const missingUpload = await requestImageUpload({
     fileName: "missing.jpg",
