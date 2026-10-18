@@ -12,6 +12,9 @@ process.env.STORAGE_ACCESS_KEY_SECRET = "verify-secret-key";
 process.env.STORAGE_PUBLIC_BASE_URL = "https://media.verify.example";
 process.env.STORAGE_KEY_PREFIX = "verify-media";
 process.env.STORAGE_MAX_IMAGE_BYTES = "1024";
+process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
+  { bucket: "verify-legacy-media-bucket", provider: "s3", region: "ap-shanghai" },
+]);
 
 rmLocalSqlite(process.env.DATABASE_URL);
 await ensureLocalSqliteSchema(process.env.DATABASE_URL);
@@ -26,13 +29,15 @@ const { setObjectStorageTestClient } = await import("./object-storage-service.mj
 const RUN_PREFIX = "verify-media-upload";
 const objectMetadata = new Map();
 const deletedObjectKeys = [];
+const headRequests = [];
 const silentLogger = {
   info() {},
   error() {},
 };
 
 setObjectStorageTestClient({
-  headObject({ objectKey }) {
+  headObject({ bucket, objectKey }) {
+    headRequests.push({ bucket, objectKey });
     return objectMetadata.get(objectKey) ?? { exists: false };
   },
   deleteObject({ objectKey }) {
@@ -109,6 +114,27 @@ try {
     await countRunMedia(),
     0,
     "unsafe file name rejection must not create pending media",
+  );
+
+  await assert.rejects(
+    () =>
+      requestImageUpload({
+        bucket: "verify-legacy-media-bucket",
+        fileName: "client-selected-bucket.jpg",
+        mimeType: "image/jpeg",
+        ownerId: cat.id,
+        ownerType: "cat",
+        sizeBytes: 128,
+        usage: "gallery",
+      }),
+    (error) =>
+      error?.statusCode === 400 && error?.details?.fields?.includes("bucket") === true,
+    "upload requests must reject client-selected buckets",
+  );
+  assert.equal(
+    await countRunMedia(),
+    0,
+    "client bucket rejection must not create pending media",
   );
 
   const missingUpload = await requestImageUpload({
@@ -213,6 +239,16 @@ try {
     usage: "cover",
     width: 1200,
   });
+  assert.equal(
+    goodUpload.media.metadataJson?.upload?.bucket,
+    "verify-media-bucket",
+    "new uploads must persist the configured primary bucket",
+  );
+  assert.equal(
+    new URL(goodUpload.upload.url).host,
+    "verify-media-bucket.s3.ap-shanghai.amazonaws.com",
+    "new upload presigns must target the configured primary bucket",
+  );
   objectMetadata.set(goodUpload.objectKey, {
     exists: true,
     contentLength: 128,
@@ -224,6 +260,11 @@ try {
     sizeBytes: 128,
     width: 1200,
   });
+  assert.deepEqual(
+    headRequests.find((request) => request.objectKey === goodUpload.objectKey),
+    { bucket: "verify-media-bucket", objectKey: goodUpload.objectKey },
+    "upload completion HEAD must use the server-recorded primary bucket",
+  );
   assert.equal(completed.status, "active", "verified upload should become active");
   assert.equal(completed.sizeBytes, 128, "verified upload should store actual size");
   assert.deepEqual(
