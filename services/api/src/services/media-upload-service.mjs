@@ -141,7 +141,7 @@ async function verifyUploadedObject(media, input) {
     throw badRequest("Media upload metadata is missing its storage object key");
   }
 
-  const metadata = await headObject({ objectKey: upload.objectKey });
+  const metadata = await headObject({ bucket: upload.bucket, objectKey: upload.objectKey });
   if (!metadata.exists) {
     throw badRequest("Uploaded object was not found in object storage");
   }
@@ -192,7 +192,11 @@ async function verifyUploadedObject(media, input) {
 
 function assertIdempotentCompletion(media, input) {
   const requestedSizeBytes = optionalPositiveInteger(input.sizeBytes, "sizeBytes");
-  if (requestedSizeBytes != null && media.size_bytes != null && requestedSizeBytes !== media.size_bytes) {
+  if (
+    requestedSizeBytes != null &&
+    media.size_bytes != null &&
+    requestedSizeBytes !== media.size_bytes
+  ) {
     throw badRequest("Completed upload size does not match the existing media asset");
   }
 }

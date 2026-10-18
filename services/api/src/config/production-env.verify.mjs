@@ -171,6 +171,59 @@ function validateStorage() {
   }
 
   readPositiveInteger("STORAGE_MAX_IMAGE_BYTES");
+  validateStorageReadBuckets();
+}
+
+function validateStorageReadBuckets() {
+  const raw = readEnv("STORAGE_READ_BUCKETS_JSON");
+  const legacyBucket = readEnv("STORAGE_LEGACY_BUCKET");
+  if (!raw) {
+    if (legacyBucket && legacyBucket !== readEnv("STORAGE_BUCKET")) {
+      fail("STORAGE_LEGACY_BUCKET must be present in STORAGE_READ_BUCKETS_JSON.");
+    }
+    return;
+  }
+
+  let entries;
+  try {
+    entries = JSON.parse(raw);
+  } catch {
+    fail("STORAGE_READ_BUCKETS_JSON must be valid JSON.");
+    return;
+  }
+  if (!Array.isArray(entries)) {
+    fail("STORAGE_READ_BUCKETS_JSON must be a JSON array.");
+    return;
+  }
+
+  const buckets = new Set([readEnv("STORAGE_BUCKET")]);
+  for (const [index, entry] of entries.entries()) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      fail(`STORAGE_READ_BUCKETS_JSON[${index}] must be an object.`);
+      continue;
+    }
+    if ("accessKeyId" in entry || "accessKeySecret" in entry) {
+      fail(`STORAGE_READ_BUCKETS_JSON[${index}] must not contain credentials.`);
+    }
+    const bucket = typeof entry.bucket === "string" ? entry.bucket.trim() : "";
+    if (!bucket) {
+      fail(`STORAGE_READ_BUCKETS_JSON[${index}].bucket is required.`);
+      continue;
+    }
+    if (buckets.has(bucket)) fail(`Duplicate storage bucket in read allowlist: ${bucket}.`);
+    buckets.add(bucket);
+    if (entry.region != null && typeof entry.region !== "string") {
+      fail(`STORAGE_READ_BUCKETS_JSON[${index}].region must be a string.`);
+    }
+    if (entry.endpoint)
+      validateHttpUrl(`STORAGE_READ_BUCKETS_JSON[${index}].endpoint`, entry.endpoint);
+    if (entry.publicBaseUrl) {
+      validateHttpUrl(`STORAGE_READ_BUCKETS_JSON[${index}].publicBaseUrl`, entry.publicBaseUrl);
+    }
+  }
+  if (legacyBucket && !buckets.has(legacyBucket)) {
+    fail("STORAGE_LEGACY_BUCKET must be present in STORAGE_READ_BUCKETS_JSON.");
+  }
 }
 
 function validateAdminPasswordLogin() {
@@ -185,7 +238,9 @@ function validateAdminPasswordLogin() {
   }
 
   if (readEnv("ADMIN_INITIAL_PASSWORD")) {
-    fail("ADMIN_INITIAL_PASSWORD must not be set; production Admin login accepts password hashes only.");
+    fail(
+      "ADMIN_INITIAL_PASSWORD must not be set; production Admin login accepts password hashes only.",
+    );
   }
 
   readPositiveInteger("ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS");

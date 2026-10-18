@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 process.env.DATABASE_URL = "file:private-cos-read-delivery-verify.db";
 process.env.STORAGE_PROVIDER = "cos";
-process.env.STORAGE_BUCKET = "verify-private-bucket";
+process.env.STORAGE_BUCKET = "verify-new-bucket";
 process.env.STORAGE_REGION = "ap-shanghai";
 process.env.STORAGE_ENDPOINT = "";
 process.env.STORAGE_ACCESS_KEY_ID = "verify-access-key";
@@ -15,12 +15,16 @@ process.env.STORAGE_KEY_PREFIX = "verify-media";
 process.env.STORAGE_UPLOAD_EXPIRES_SECONDS = "600";
 process.env.STORAGE_READ_EXPIRES_SECONDS = "7200";
 process.env.STORAGE_MAX_IMAGE_BYTES = "10485760";
+process.env.STORAGE_LEGACY_BUCKET = "verify-old-bucket";
+process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
+  { bucket: "verify-old-bucket", provider: "cos", region: "ap-shanghai" },
+]);
 
 rmLocalSqlite(process.env.DATABASE_URL);
 await ensureLocalSqliteSchema(process.env.DATABASE_URL);
 
 const { prisma } = await import("../db/prisma.mjs");
-const { createPresignedGetUrl, createPresignedPutUpload } =
+const { createPresignedGetUrl, createPresignedPutUpload, listObjects, putObject } =
   await import("./object-storage-service.mjs");
 const { getCat } = await import("./cat-service.mjs");
 const { getCommunityPost } = await import("./community-service.mjs");
@@ -29,10 +33,12 @@ const { getMedia, updateMedia } = await import("./media-service.mjs");
 const { getMyCat } = await import("./my-cats-service.mjs");
 
 const RUN_PREFIX = "verify-private-cos-read";
-const STORAGE_HOST = "verify-private-bucket.cos.ap-shanghai.myqcloud.com";
+const NEW_STORAGE_HOST = "verify-new-bucket.cos.ap-shanghai.myqcloud.com";
+const OLD_STORAGE_HOST = "verify-old-bucket.cos.ap-shanghai.myqcloud.com";
 const SECRET = process.env.STORAGE_ACCESS_KEY_SECRET;
 const MANAGED_OBJECT_KEY = "verify-media/images/space name+中文.jpg";
-const STORED_SOURCE_URL = `https://${STORAGE_HOST}/${encodePath(MANAGED_OBJECT_KEY)}`;
+const MANAGED_THUMBNAIL_KEY = "verify-media/images/thumb.jpg";
+const STORED_SOURCE_URL = `https://${OLD_STORAGE_HOST}/${encodePath(MANAGED_OBJECT_KEY)}`;
 
 await cleanup();
 
@@ -41,8 +47,8 @@ try {
   const signedGetUrl = new URL(signedGet.url);
   assert.equal(signedGet.method, "GET", "read presign should describe GET semantics");
   assert.equal(signedGet.provider, "cos", "read presign should keep provider");
-  assert.equal(signedGet.bucket, "verify-private-bucket", "read presign should keep bucket");
-  assert.equal(signedGetUrl.host, STORAGE_HOST, "read presign should derive the COS host");
+  assert.equal(signedGet.bucket, "verify-new-bucket", "default read should use the upload bucket");
+  assert.equal(signedGetUrl.host, NEW_STORAGE_HOST, "default read should derive the new COS host");
   assert.equal(signedGetUrl.pathname, `/${encodePath(MANAGED_OBJECT_KEY)}`);
   assert.equal(signedGetUrl.searchParams.get("X-Amz-Algorithm"), "AWS4-HMAC-SHA256");
   assert.match(
@@ -63,7 +69,7 @@ try {
   });
   const signedPutUrl = new URL(signedPut.upload.url);
   assert.equal(signedPut.upload.method, "PUT", "upload presign should still use PUT");
-  assert.equal(signedPutUrl.host, STORAGE_HOST, "upload presign should keep the COS host");
+  assert.equal(signedPutUrl.host, NEW_STORAGE_HOST, "new upload presign should use the new bucket");
   assert.equal(signedPutUrl.pathname, `/${encodePath(MANAGED_OBJECT_KEY)}`);
   assert.equal(signedPutUrl.searchParams.get("X-Amz-SignedHeaders"), "content-type;host");
   assert.equal(
@@ -72,13 +78,82 @@ try {
     "upload presign must not expose the secret",
   );
 
-  const { cat, managedMedia, externalMedia, invalidManagedMedia, parentUser, post } =
-    await seedDeliveryRecords();
+  const oldSignedGet = createPresignedGetUrl({
+    bucket: "verify-old-bucket",
+    objectKey: MANAGED_OBJECT_KEY,
+  });
+  assert.equal(new URL(oldSignedGet.url).host, OLD_STORAGE_HOST);
+  assert.throws(
+    () => createPresignedGetUrl({ bucket: "not-allowed", objectKey: MANAGED_OBJECT_KEY }),
+    /allowlist/,
+    "unknown buckets must never be signed",
+  );
+  assert.throws(
+    () => createPresignedGetUrl({ bucket: "verify-old-bucket", objectKey: "../secret.jpg" }),
+    /key is invalid/,
+    "path traversal keys must never be signed",
+  );
+
+  const originalFetch = globalThis.fetch;
+  const signedRequests = [];
+  try {
+    globalThis.fetch = async (url, options) => {
+      signedRequests.push({ url: String(url), options });
+      if (options.method === "PUT") {
+        return new Response(null, { status: 200, headers: { etag: '"put-etag"' } });
+      }
+      return new Response(
+        "<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>media/a&amp;b.jpg</Key><LastModified>2026-10-18T00:00:00.000Z</LastModified><ETag>&quot;etag&quot;</ETag><Size>12</Size></Contents></ListBucketResult>",
+        { status: 200, headers: { "content-type": "application/xml" } },
+      );
+    };
+    const listed = await listObjects({ bucket: "verify-old-bucket", prefix: "media/" });
+    assert.deepEqual(listed.objects, [
+      {
+        objectKey: "media/a&b.jpg",
+        sizeBytes: 12,
+        etag: '"etag"',
+        lastModified: "2026-10-18T00:00:00.000Z",
+      },
+    ]);
+    const listRequestUrl = new URL(signedRequests[0].url);
+    assert.equal(listRequestUrl.host, OLD_STORAGE_HOST);
+    assert.equal(listRequestUrl.searchParams.get("list-type"), "2");
+    assert.equal(listRequestUrl.searchParams.get("prefix"), "media/");
+    assert.match(signedRequests[0].options.headers.Authorization, /SignedHeaders=host;/);
+
+    await putObject({
+      bucket: "verify-new-bucket",
+      objectKey: "verify-media/images/server-copy.jpg",
+      body: Buffer.from("server-side-copy"),
+      contentType: "image/jpeg",
+    });
+    assert.equal(new URL(signedRequests[1].url).host, NEW_STORAGE_HOST);
+    assert.equal(signedRequests[1].options.method, "PUT");
+    assert.equal(signedRequests[1].options.headers["content-type"], "image/jpeg");
+    assert.match(
+      signedRequests[1].options.headers.Authorization,
+      /SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  const {
+    cat,
+    managedMedia,
+    legacyMedia,
+    newMedia,
+    externalMedia,
+    invalidManagedMedia,
+    parentUser,
+    post,
+  } = await seedDeliveryRecords();
 
   const managedDto = await getMedia(managedMedia.id);
-  assertSignedDeliveryUrl(managedDto.sourceUrl, MANAGED_OBJECT_KEY);
+  assertSignedDeliveryUrl(managedDto.sourceUrl, MANAGED_OBJECT_KEY, OLD_STORAGE_HOST);
   assert.equal(managedDto.storedSourceUrl, STORED_SOURCE_URL);
-  assert.equal(managedDto.thumbnailUrl, "https://thumb.example/managed-thumb.jpg");
+  assertSignedDeliveryUrl(managedDto.thumbnailUrl, MANAGED_THUMBNAIL_KEY, OLD_STORAGE_HOST);
   const managedAfterRead = await prisma.mediaAsset.findUnique({ where: { id: managedMedia.id } });
   assert.equal(
     managedAfterRead?.source_url,
@@ -87,7 +162,7 @@ try {
   );
 
   const updatedManaged = await updateMedia(managedMedia.id, { title: "Updated managed title" });
-  assertSignedDeliveryUrl(updatedManaged.sourceUrl, MANAGED_OBJECT_KEY);
+  assertSignedDeliveryUrl(updatedManaged.sourceUrl, MANAGED_OBJECT_KEY, OLD_STORAGE_HOST);
   const managedAfterUpdate = await prisma.mediaAsset.findUnique({ where: { id: managedMedia.id } });
   assert.equal(
     managedAfterUpdate?.source_url,
@@ -106,6 +181,41 @@ try {
     "https://external.example/image.jpg",
     "external media source URL must remain unchanged",
   );
+  assert.equal(externalDto.thumbnailUrl, "https://external.example/thumb.jpg");
+
+  const legacyDto = await getMedia(legacyMedia.id);
+  assertSignedDeliveryUrl(
+    legacyDto.sourceUrl,
+    legacyMedia.metadata_json.upload.objectKey,
+    OLD_STORAGE_HOST,
+  );
+  const newDto = await getMedia(newMedia.id);
+  assertSignedDeliveryUrl(
+    newDto.sourceUrl,
+    newMedia.metadata_json.upload.objectKey,
+    NEW_STORAGE_HOST,
+  );
+  await prisma.mediaAsset.update({
+    where: { id: legacyMedia.id },
+    data: {
+      metadata_json: {
+        upload: {
+          ...legacyMedia.metadata_json.upload,
+          bucket: "verify-new-bucket",
+        },
+      },
+    },
+  });
+  assertSignedDeliveryUrl(
+    (await getMedia(legacyMedia.id)).sourceUrl,
+    legacyMedia.metadata_json.upload.objectKey,
+    NEW_STORAGE_HOST,
+  );
+  assertSignedDeliveryUrl(
+    (await getMedia(managedMedia.id)).sourceUrl,
+    MANAGED_OBJECT_KEY,
+    OLD_STORAGE_HOST,
+  );
 
   const invalidManagedDto = await getMedia(invalidManagedMedia.id);
   assert.equal(
@@ -116,21 +226,21 @@ try {
 
   const catDto = await getCat(cat.id, { includeHidden: true });
   const catManaged = catDto.mediaAssets.find((item) => item.id === managedMedia.id);
-  assertSignedDeliveryUrl(catManaged?.sourceUrl, MANAGED_OBJECT_KEY);
+  assertSignedDeliveryUrl(catManaged?.sourceUrl, MANAGED_OBJECT_KEY, OLD_STORAGE_HOST);
   const catExternal = catDto.mediaAssets.find((item) => item.id === externalMedia.id);
   assert.equal(catExternal?.sourceUrl, "https://external.example/image.jpg");
 
   const pageDto = await getFixedPage("about", { includeHidden: true });
   const pageManaged = pageDto.mediaAssets.find((item) => item.id === managedMedia.id);
-  assertSignedDeliveryUrl(pageManaged?.sourceUrl, MANAGED_OBJECT_KEY);
+  assertSignedDeliveryUrl(pageManaged?.sourceUrl, MANAGED_OBJECT_KEY, OLD_STORAGE_HOST);
 
   const postDto = await getCommunityPost(post.id, null);
   const postManaged = postDto.mediaAssets.find((item) => item.id === managedMedia.id);
-  assertSignedDeliveryUrl(postManaged?.sourceUrl, MANAGED_OBJECT_KEY);
+  assertSignedDeliveryUrl(postManaged?.sourceUrl, MANAGED_OBJECT_KEY, OLD_STORAGE_HOST);
 
   const myCatDto = await getMyCat(cat.id, parentUser);
   const myCatManaged = myCatDto.mediaAssets.find((item) => item.id === managedMedia.id);
-  assertSignedDeliveryUrl(myCatManaged?.sourceUrl, MANAGED_OBJECT_KEY);
+  assertSignedDeliveryUrl(myCatManaged?.sourceUrl, MANAGED_OBJECT_KEY, OLD_STORAGE_HOST);
 
   console.info("Private COS read delivery verification passed");
 } finally {
@@ -208,12 +318,12 @@ async function seedDeliveryRecords() {
       id: `${RUN_PREFIX}-managed`,
       kind: "image",
       source_url: STORED_SOURCE_URL,
-      thumbnail_url: "https://thumb.example/managed-thumb.jpg",
+      thumbnail_url: `https://${OLD_STORAGE_HOST}/${MANAGED_THUMBNAIL_KEY}`,
       status: "active",
       metadata_json: {
         upload: {
           provider: "cos",
-          bucket: "verify-private-bucket",
+          bucket: "verify-old-bucket",
           objectKey: MANAGED_OBJECT_KEY,
           verifiedAt: "2026-09-12T00:00:00.000Z",
         },
@@ -232,9 +342,32 @@ async function seedDeliveryRecords() {
       id: `${RUN_PREFIX}-external`,
       kind: "image",
       source_url: "https://external.example/image.jpg",
+      thumbnail_url: "https://external.example/thumb.jpg",
       status: "active",
       bindings: {
         create: [visibleBinding("cat", cat.id, "gallery", 10)],
+      },
+    },
+  });
+  const legacyObjectKey = "verify-media/images/legacy-no-bucket.jpg";
+  const legacyMedia = await prisma.mediaAsset.create({
+    data: {
+      id: `${RUN_PREFIX}-legacy`,
+      kind: "image",
+      source_url: `https://${OLD_STORAGE_HOST}/${legacyObjectKey}`,
+      status: "active",
+      metadata_json: { upload: { objectKey: legacyObjectKey, provider: "cos" } },
+    },
+  });
+  const newObjectKey = "verify-media/images/new-upload.jpg";
+  const newMedia = await prisma.mediaAsset.create({
+    data: {
+      id: `${RUN_PREFIX}-new`,
+      kind: "image",
+      source_url: `https://${NEW_STORAGE_HOST}/${newObjectKey}`,
+      status: "active",
+      metadata_json: {
+        upload: { bucket: "verify-new-bucket", objectKey: newObjectKey, provider: "cos" },
       },
     },
   });
@@ -251,6 +384,8 @@ async function seedDeliveryRecords() {
   return {
     cat,
     managedMedia,
+    legacyMedia,
+    newMedia,
     externalMedia,
     invalidManagedMedia,
     parentUser: {
@@ -277,10 +412,10 @@ function visibleBinding(ownerType, ownerId, usage, sortOrder) {
   };
 }
 
-function assertSignedDeliveryUrl(value, objectKey) {
+function assertSignedDeliveryUrl(value, objectKey, expectedHost) {
   assert.equal(typeof value, "string");
   const url = new URL(value);
-  assert.equal(url.host, STORAGE_HOST);
+  assert.equal(url.host, expectedHost);
   assert.equal(url.pathname, `/${encodePath(objectKey)}`);
   assert.equal(url.searchParams.get("X-Amz-Algorithm"), "AWS4-HMAC-SHA256");
   assert.equal(url.searchParams.get("X-Amz-SignedHeaders"), "host");

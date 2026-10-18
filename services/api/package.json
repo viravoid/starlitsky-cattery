@@ -16,6 +16,7 @@
     "verify:community": "node src/services/community-service.verify.mjs",
     "verify:media-upload": "node src/services/media-upload-service.verify.mjs",
     "verify:private-cos-read": "node src/services/private-cos-read-delivery.verify.mjs",
+    "verify:cos-migration": "node src/services/cos-migration-service.verify.mjs",
     "verify:fixed-page-media": "node src/services/fixed-page-media-service.verify.mjs",
     "verify:migration-smoke": "node src/services/prisma-migration-smoke.verify.mjs",
     "verify:production-env": "node src/config/production-env.verify.mjs",
@@ -28,7 +29,8 @@
     "verify:environment-media-batch": "node src/services/environment-media-batch-importer.verify.mjs",
     "import:public-content": "node src/cli/import-public-content.mjs",
     "apply:demo-recovery-update": "node src/cli/apply-demo-recovery-update.mjs",
-    "media:apply-environment-batch": "node src/cli/apply-environment-media-batch.mjs"
+    "media:apply-environment-batch": "node src/cli/apply-environment-media-batch.mjs",
+    "media:cos-migration": "node src/cli/cos-migration.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.12.0"

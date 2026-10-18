@@ -19,6 +19,7 @@ dist-ssr
 *.db-journal
 *.sqlite
 *.sqlite3
+cos-migration-*.json
 
 # Wrangler / Cloudflare
 .wrangler/
