@@ -12,29 +12,32 @@ process.env.STORAGE_ACCESS_KEY_SECRET = "verify-secret-key";
 process.env.STORAGE_PUBLIC_BASE_URL = "https://media.verify.example";
 process.env.STORAGE_KEY_PREFIX = "verify-media";
 process.env.STORAGE_MAX_IMAGE_BYTES = "1024";
+process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
+  { bucket: "verify-legacy-media-bucket", provider: "s3", region: "ap-shanghai" },
+]);
 
 rmLocalSqlite(process.env.DATABASE_URL);
 await ensureLocalSqliteSchema(process.env.DATABASE_URL);
 
 const { prisma } = await import("../db/prisma.mjs");
-const {
-  completeMediaUpload,
-  expireStalePendingImageUploads,
-  requestImageUpload,
-} = await import("./media-upload-service.mjs");
-const { createPendingMediaUploadMaintenance } = await import("./media-upload-maintenance-service.mjs");
+const { completeMediaUpload, expireStalePendingImageUploads, requestImageUpload } =
+  await import("./media-upload-service.mjs");
+const { createPendingMediaUploadMaintenance } =
+  await import("./media-upload-maintenance-service.mjs");
 const { setObjectStorageTestClient } = await import("./object-storage-service.mjs");
 
 const RUN_PREFIX = "verify-media-upload";
 const objectMetadata = new Map();
 const deletedObjectKeys = [];
+const headRequests = [];
 const silentLogger = {
   info() {},
   error() {},
 };
 
 setObjectStorageTestClient({
-  headObject({ objectKey }) {
+  headObject({ bucket, objectKey }) {
+    headRequests.push({ bucket, objectKey });
     return objectMetadata.get(objectKey) ?? { exists: false };
   },
   deleteObject({ objectKey }) {
@@ -107,7 +110,27 @@ try {
     (error) => error?.statusCode === 400,
     "file names with path traversal should be rejected before presign",
   );
-  assert.equal(await countRunMedia(), 0, "unsafe file name rejection must not create pending media");
+  assert.equal(
+    await countRunMedia(),
+    0,
+    "unsafe file name rejection must not create pending media",
+  );
+
+  await assert.rejects(
+    () =>
+      requestImageUpload({
+        bucket: "verify-legacy-media-bucket",
+        fileName: "client-selected-bucket.jpg",
+        mimeType: "image/jpeg",
+        ownerId: cat.id,
+        ownerType: "cat",
+        sizeBytes: 128,
+        usage: "gallery",
+      }),
+    (error) => error?.statusCode === 400 && error?.details?.fields?.includes("bucket") === true,
+    "upload requests must reject client-selected buckets",
+  );
+  assert.equal(await countRunMedia(), 0, "client bucket rejection must not create pending media");
 
   const missingUpload = await requestImageUpload({
     fileName: "missing.jpg",
@@ -200,22 +223,56 @@ try {
   );
 
   const goodUpload = await requestImageUpload({
+    bindingVisibility: "hidden",
     fileName: "good.jpg",
+    height: 800,
     mimeType: "image/jpeg",
     ownerId: cat.id,
     ownerType: "cat",
     sizeBytes: 128,
+    sortOrder: 7,
     usage: "cover",
+    width: 1200,
   });
+  assert.equal(
+    goodUpload.media.metadataJson?.upload?.bucket,
+    "verify-media-bucket",
+    "new uploads must persist the configured primary bucket",
+  );
+  assert.equal(
+    new URL(goodUpload.upload.url).host,
+    "verify-media-bucket.s3.ap-shanghai.amazonaws.com",
+    "new upload presigns must target the configured primary bucket",
+  );
   objectMetadata.set(goodUpload.objectKey, {
     exists: true,
     contentLength: 128,
     contentType: "image/jpeg; charset=binary",
     etag: '"verify-good"',
   });
-  const completed = await completeMediaUpload(goodUpload.media.id, { sizeBytes: 128 });
+  const completed = await completeMediaUpload(goodUpload.media.id, {
+    height: 800,
+    sizeBytes: 128,
+    width: 1200,
+  });
+  assert.deepEqual(
+    headRequests.find((request) => request.objectKey === goodUpload.objectKey),
+    { bucket: "verify-media-bucket", objectKey: goodUpload.objectKey },
+    "upload completion HEAD must use the server-recorded primary bucket",
+  );
   assert.equal(completed.status, "active", "verified upload should become active");
   assert.equal(completed.sizeBytes, 128, "verified upload should store actual size");
+  assert.deepEqual(
+    [completed.width, completed.height],
+    [1200, 800],
+    "completed upload should preserve the browser-reported image dimensions",
+  );
+  assert.equal(completed.bindings[0]?.sortOrder, 7, "upload should preserve initial binding order");
+  assert.equal(
+    completed.bindings[0]?.visibility,
+    "hidden",
+    "upload should preserve initial binding visibility",
+  );
   assert.equal(
     completed.metadataJson?.upload?.verifiedMimeType,
     "image/jpeg",
@@ -291,9 +348,19 @@ try {
     staleAfterMs: 24 * 60 * 60 * 1000,
   });
   assert.equal(expired.expiredCount, 1, "stale pending upload should be marked rejected");
-  const staleAfterExpire = await prisma.mediaAsset.findUnique({ where: { id: staleUpload.media.id } });
-  assert.equal(staleAfterExpire?.status, "rejected", "stale pending media should not remain pending");
-  assert.equal(deletedObjectKeys.length, 0, "stale pending cleanup must not broadly delete objects");
+  const staleAfterExpire = await prisma.mediaAsset.findUnique({
+    where: { id: staleUpload.media.id },
+  });
+  assert.equal(
+    staleAfterExpire?.status,
+    "rejected",
+    "stale pending media should not remain pending",
+  );
+  assert.equal(
+    deletedObjectKeys.length,
+    0,
+    "stale pending cleanup must not broadly delete objects",
+  );
 
   const staleBatchA = await requestImageUpload({
     fileName: "stale-batch-a.jpg",
@@ -328,8 +395,16 @@ try {
     staleAfterMs: 24 * 60 * 60 * 1000,
     batchSize: 1,
   });
-  assert.equal(boundedExpired.expiredCount, 1, "stale cleanup should expire only one bounded batch");
-  assert.equal(boundedExpired.hasMore, true, "bounded stale cleanup should report remaining stale rows");
+  assert.equal(
+    boundedExpired.expiredCount,
+    1,
+    "stale cleanup should expire only one bounded batch",
+  );
+  assert.equal(
+    boundedExpired.hasMore,
+    true,
+    "bounded stale cleanup should report remaining stale rows",
+  );
   assert.equal(
     await prisma.mediaAsset.count({
       where: { id: { in: [staleBatchA.media.id, staleBatchB.media.id] }, status: "rejected" },
@@ -337,7 +412,9 @@ try {
     1,
     "bounded cleanup must not process beyond the configured batch",
   );
-  const freshAfterExpire = await prisma.mediaAsset.findUnique({ where: { id: freshUpload.media.id } });
+  const freshAfterExpire = await prisma.mediaAsset.findUnique({
+    where: { id: freshUpload.media.id },
+  });
   assert.equal(freshAfterExpire?.status, "pending", "fresh pending media should not be expired");
   assert.equal(deletedObjectKeys.length, 0, "bounded stale cleanup must not delete remote objects");
 
@@ -405,7 +482,11 @@ try {
     contentType: "image/jpeg",
   });
   await completeMediaUpload(newCoverUpload.media.id, { sizeBytes: 300 });
-  assert.equal(await countActiveVisibleCatCovers(cat.id), 1, "cat should have exactly one active visible cover");
+  assert.equal(
+    await countActiveVisibleCatCovers(cat.id),
+    1,
+    "cat should have exactly one active visible cover",
+  );
   assert.equal(
     await countActiveVisibleCatGallery(cat.id),
     1,
@@ -462,7 +543,10 @@ async function countActiveVisibleCatGallery(catId) {
 async function cleanup() {
   await prisma.mediaBinding.deleteMany({
     where: {
-      OR: [{ owner_id: { startsWith: RUN_PREFIX } }, { media: { source_url: { contains: RUN_PREFIX } } }],
+      OR: [
+        { owner_id: { startsWith: RUN_PREFIX } },
+        { media: { source_url: { contains: RUN_PREFIX } } },
+      ],
     },
   });
   await prisma.mediaAsset.deleteMany({
@@ -485,7 +569,10 @@ async function ensureLocalSqliteSchema(databaseUrl) {
       .get();
     if (hasUsersTable) return;
 
-    const migrationsDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../prisma/migrations");
+    const migrationsDir = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../prisma/migrations",
+    );
     for (const folder of readdirSync(migrationsDir).sort()) {
       const migrationPath = resolve(migrationsDir, folder, "migration.sql");
       if (existsSync(migrationPath)) {

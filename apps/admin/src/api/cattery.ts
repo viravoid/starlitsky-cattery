@@ -397,22 +397,28 @@ export function completeMediaUpload(id: string, data: CompleteMediaUploadRequest
 
 async function uploadImageForOwner({
   altText,
+  bindingVisibility = "visible",
   fallbackFileName,
   file,
+  height,
   ownerId,
   ownerType,
   sortOrder,
   title,
   usage,
+  width,
 }: {
   altText?: string | null;
+  bindingVisibility?: string;
   fallbackFileName: string;
   file: File;
+  height?: number | null;
   ownerId: string;
   ownerType: string;
   sortOrder?: number;
   title?: string | null;
   usage: string;
+  width?: number | null;
 }) {
   if (!file.type) {
     throw new Error("Image file MIME type is required");
@@ -420,7 +426,9 @@ async function uploadImageForOwner({
 
   const imageUpload = await requestImageUpload({
     altText: altText ?? file.name,
+    bindingVisibility,
     fileName: file.name || fallbackFileName,
+    height,
     mimeType: file.type,
     ownerId,
     ownerType,
@@ -428,7 +436,7 @@ async function uploadImageForOwner({
     sortOrder,
     title: title ?? file.name,
     usage,
-    bindingVisibility: "visible",
+    width,
   });
 
   const uploadResponse = await fetch(imageUpload.upload.url, {
@@ -442,7 +450,47 @@ async function uploadImageForOwner({
   }
 
   return completeMediaUpload(imageUpload.media.id, {
+    height,
     sizeBytes: file.size,
+    width,
+  });
+}
+
+export function uploadMediaImage({
+  altText,
+  bindingVisibility,
+  file,
+  height,
+  ownerId,
+  ownerType,
+  sortOrder,
+  title,
+  usage,
+  width,
+}: {
+  altText?: string | null;
+  bindingVisibility?: string;
+  file: File;
+  height?: number | null;
+  ownerId: string;
+  ownerType: string;
+  sortOrder?: number;
+  title?: string | null;
+  usage: string;
+  width?: number | null;
+}) {
+  return uploadImageForOwner({
+    altText,
+    bindingVisibility,
+    fallbackFileName: "media-image",
+    file,
+    height,
+    ownerId,
+    ownerType,
+    sortOrder,
+    title,
+    usage,
+    width,
   });
 }
 
