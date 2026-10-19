@@ -144,7 +144,7 @@ jobs:
           STORAGE_PUBLIC_BASE_URL: https://media.staging.starlitsky.example.org
           STORAGE_READ_EXPIRES_SECONDS: "3600"
           STORAGE_LEGACY_BUCKET: starlitsky-ci-legacy
-          STORAGE_READ_BUCKETS_JSON: '[{"bucket":"starlitsky-ci-legacy","provider":"cos","region":"ap-shanghai"}]'
+          STORAGE_READ_BUCKETS_JSON: '[{"bucket":"starlitsky-ci-legacy","provider":"lightcos","publicBaseUrl":"https://starlitsky-ci-legacy.light-cos.com"}]'
         run: npm run verify:production-env
 
       - name: Verify deployment assets

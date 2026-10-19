@@ -28,6 +28,7 @@ export async function createCosMigrationInventory({
   const generatedAt = new Date().toISOString();
   const [
     media,
+    users,
     cats,
     fixedPages,
     parentApplications,
@@ -40,6 +41,10 @@ export async function createCosMigrationInventory({
     client.mediaAsset.findMany({
       include: { bindings: { orderBy: [{ sort_order: "asc" }, { id: "asc" }] } },
       orderBy: [{ created_at: "asc" }, { id: "asc" }],
+    }),
+    client.user.findMany({
+      select: { avatar_url: true, id: true, updated_at: true },
+      orderBy: { id: "asc" },
     }),
     client.cat.findMany({
       select: { id: true, story_json: true, updated_at: true },
@@ -88,84 +93,8 @@ export async function createCosMigrationInventory({
   const targetOrigins = storageOrigins(buckets.target);
   const sourceBaseUrls = storageBaseUrls(buckets.source);
   const targetBaseUrls = storageBaseUrls(buckets.target);
-  const referencedObjectKeys = [
-    ...new Set(
-      media
-        .flatMap((item) => {
-          const upload = readUploadMetadata(item.metadata_json);
-          return [
-            safeObjectKey(upload?.objectKey) ?? inferObjectKey(item.source_url, sourceBaseUrls),
-            inferObjectKey(item.thumbnail_url, sourceBaseUrls),
-          ];
-        })
-        .filter(Boolean),
-    ),
-  ];
-  await mapLimit(referencedObjectKeys, 8, async (objectKey) => {
-    await Promise.all([
-      enrichListedObject(storage, sourceBucket, objectKey, sourceObjectMap),
-      enrichListedObject(storage, targetBucket, objectKey, targetObjectMap),
-    ]);
-  });
-  const records = media.map((item) => {
-    const upload = readUploadMetadata(item.metadata_json);
-    const objectKey =
-      safeObjectKey(upload?.objectKey) ?? inferObjectKey(item.source_url, sourceBaseUrls);
-    const sourceListed = objectKey ? (sourceObjectMap.get(objectKey) ?? null) : null;
-    const targetListed = objectKey ? (targetObjectMap.get(objectKey) ?? null) : null;
-    const thumbnailObjectKey = inferObjectKey(item.thumbnail_url, sourceBaseUrls);
-    const thumbnailSourceListed = thumbnailObjectKey
-      ? (sourceObjectMap.get(thumbnailObjectKey) ?? null)
-      : null;
-    const thumbnailTargetListed = thumbnailObjectKey
-      ? (targetObjectMap.get(thumbnailObjectKey) ?? null)
-      : null;
-    return {
-      id: item.id,
-      status: item.status,
-      deletedAt: toIsoString(item.deleted_at),
-      updatedAt: toIsoString(item.updated_at),
-      objectKey,
-      declaredBucket: stringOrNull(upload?.bucket),
-      actualBucket: classifyActualBucket(sourceListed, targetListed, sourceBucket, targetBucket),
-      sourceUrl: item.source_url,
-      thumbnailUrl: item.thumbnail_url,
-      thumbnailObjectKey,
-      thumbnailSourceObject: thumbnailSourceListed,
-      thumbnailTargetObject: thumbnailTargetListed,
-      sizeBytes: item.size_bytes,
-      mimeType: item.mime_type,
-      checksum: item.checksum,
-      checksumVerification: inventoryChecksumVerification(item.checksum, sourceListed?.etag),
-      sourceObject: sourceListed,
-      targetObject: targetListed,
-      bindings: item.bindings.map((binding) => ({
-        id: binding.id,
-        ownerType: binding.owner_type,
-        ownerId: binding.owner_id,
-        usage: binding.usage,
-        sortOrder: binding.sort_order,
-        visibility: binding.visibility,
-        deletedAt: toIsoString(binding.deleted_at),
-      })),
-      metadataJson: item.metadata_json,
-      sourceUrlReferencesOldBucket: containsOrigin(item.source_url, sourceOrigins),
-      thumbnailUrlReferencesOldBucket: containsOrigin(item.thumbnail_url, sourceOrigins),
-    };
-  });
-
-  const referencedKeys = new Set(
-    records.flatMap((record) => [record.objectKey, record.thumbnailObjectKey]).filter(Boolean),
-  );
-  const duplicateKeys = [
-    ...groupBy(
-      records.filter((record) => record.objectKey),
-      "objectKey",
-    ),
-  ]
-    .filter(([, items]) => items.length > 1)
-    .map(([objectKey, items]) => ({ objectKey, mediaIds: items.map((item) => item.id) }));
   const jsonReferences = [
+    ...collectJsonReferences(media, "media_asset", "metadata_json", sourceBaseUrls),
     ...collectJsonReferences(cats, "cat", "story_json", sourceBaseUrls),
     ...collectJsonReferences(fixedPages, "fixed_page", "content_json", sourceBaseUrls),
     ...collectJsonReferences(
@@ -197,9 +126,118 @@ export async function createCosMigrationInventory({
       collectJsonReferences(selectionApplications, "selection_application", field, sourceBaseUrls),
     ),
   ];
+  const userAvatarReferences = collectScalarReferences(users, "user", "avatar_url", sourceBaseUrls);
+  const referencedObjectKeys = [
+    ...new Set(
+      [
+        ...media.flatMap((item) => {
+          const upload = readUploadMetadata(item.metadata_json);
+          return [
+            safeObjectKey(upload?.objectKey) ?? inferObjectKey(item.source_url, sourceBaseUrls),
+            inferObjectKey(item.thumbnail_url, sourceBaseUrls),
+          ];
+        }),
+        ...jsonReferences.map((reference) => reference.objectKey),
+        ...userAvatarReferences.map((reference) => reference.objectKey),
+      ].filter(Boolean),
+    ),
+  ];
+  await mapLimit(referencedObjectKeys, 8, async (objectKey) => {
+    await Promise.all([
+      enrichListedObject(storage, sourceBucket, objectKey, sourceObjectMap),
+      enrichListedObject(storage, targetBucket, objectKey, targetObjectMap),
+    ]);
+  });
+  const records = media.map((item) => {
+    const upload = readUploadMetadata(item.metadata_json);
+    const objectKey =
+      safeObjectKey(upload?.objectKey) ?? inferObjectKey(item.source_url, sourceBaseUrls);
+    const sourceListed = objectKey ? (sourceObjectMap.get(objectKey) ?? null) : null;
+    const targetListed = objectKey ? (targetObjectMap.get(objectKey) ?? null) : null;
+    const thumbnailObjectKey = inferObjectKey(item.thumbnail_url, sourceBaseUrls);
+    const thumbnailSourceListed = thumbnailObjectKey
+      ? (sourceObjectMap.get(thumbnailObjectKey) ?? null)
+      : null;
+    const thumbnailTargetListed = thumbnailObjectKey
+      ? (targetObjectMap.get(thumbnailObjectKey) ?? null)
+      : null;
+    const sourceUrlObjectKey = inferObjectKey(item.source_url, sourceBaseUrls);
+    const thumbnailUrlObjectKey = inferObjectKey(item.thumbnail_url, sourceBaseUrls);
+    const sourceUrlReferencesOldBucket = Boolean(sourceUrlObjectKey);
+    const thumbnailUrlReferencesOldBucket = Boolean(thumbnailUrlObjectKey);
+    const declaredBucket = stringOrNull(upload?.bucket);
+    return {
+      id: item.id,
+      status: item.status,
+      deletedAt: toIsoString(item.deleted_at),
+      updatedAt: toIsoString(item.updated_at),
+      objectKey,
+      declaredBucket,
+      actualBucket: classifyActualBucket(sourceListed, targetListed, sourceBucket, targetBucket),
+      sourceUrl: item.source_url,
+      thumbnailUrl: item.thumbnail_url,
+      thumbnailObjectKey,
+      thumbnailSourceObject: thumbnailSourceListed,
+      thumbnailTargetObject: thumbnailTargetListed,
+      sizeBytes: item.size_bytes,
+      mimeType: item.mime_type,
+      checksum: item.checksum,
+      checksumVerification: inventoryChecksumVerification(item.checksum, sourceListed?.etag),
+      sourceObject: sourceListed,
+      targetObject: targetListed,
+      bindings: item.bindings.map((binding) => ({
+        id: binding.id,
+        ownerType: binding.owner_type,
+        ownerId: binding.owner_id,
+        usage: binding.usage,
+        sortOrder: binding.sort_order,
+        visibility: binding.visibility,
+        deletedAt: toIsoString(binding.deleted_at),
+      })),
+      metadataJson: item.metadata_json,
+      sourceUrlObjectKey,
+      thumbnailUrlObjectKey,
+      sourceUrlReferencesOldBucket,
+      thumbnailUrlReferencesOldBucket,
+      requiresMigration: Boolean(
+        declaredBucket === sourceBucket ||
+        sourceListed ||
+        sourceUrlReferencesOldBucket ||
+        thumbnailUrlReferencesOldBucket ||
+        jsonReferences.some(
+          (reference) => reference.model === "media_asset" && reference.id === item.id,
+        ),
+      ),
+    };
+  });
 
+  const referencedKeys = new Set(
+    [
+      ...records.flatMap((record) => [record.objectKey, record.thumbnailObjectKey]),
+      ...jsonReferences.map((reference) => reference.objectKey),
+      ...userAvatarReferences.map((reference) => reference.objectKey),
+    ].filter(Boolean),
+  );
+  const duplicateKeys = [
+    ...groupBy(
+      records.filter((record) => record.objectKey),
+      "objectKey",
+    ),
+  ]
+    .filter(([, items]) => items.length > 1)
+    .map(([objectKey, items]) => ({ objectKey, mediaIds: items.map((item) => item.id) }));
+  const duplicateKeyConflicts = duplicateKeys
+    .map((duplicate) => {
+      const items = records.filter((record) => duplicate.mediaIds.includes(record.id));
+      const conflictingFields = ["checksum", "mimeType", "sizeBytes"].filter(
+        (field) =>
+          new Set(items.map((item) => item[field]).filter((value) => value != null)).size > 1,
+      );
+      return conflictingFields.length > 0 ? { ...duplicate, conflictingFields } : null;
+    })
+    .filter(Boolean);
   const inventory = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt,
     sourceBucket,
     targetBucket,
@@ -212,7 +250,11 @@ export async function createCosMigrationInventory({
       mediaUpdatedAt: maxIso(media.map((item) => item.updated_at)),
     },
     records,
+    recordsRequiringMigration: records
+      .filter((record) => record.requiresMigration)
+      .map((record) => record.id),
     duplicateKeys,
+    duplicateKeyConflicts,
     missingSourceRecords: records
       .filter(
         (record) =>
@@ -230,12 +272,13 @@ export async function createCosMigrationInventory({
       )
       .map((record) => record.id),
     recordsWithoutObjectKey: records
-      .filter((record) => !record.objectKey)
+      .filter((record) => record.requiresMigration && !record.objectKey)
       .map((record) => record.id),
     orphanSourceObjects: sourceObjects.filter((object) => !referencedKeys.has(object.objectKey)),
     sourceObjects,
     targetObjects,
     jsonReferences,
+    userAvatarReferences,
     statusGroups: {
       pending: records.filter((record) => record.status === "pending").map((record) => record.id),
       rejected: records.filter((record) => record.status === "rejected").map((record) => record.id),
@@ -244,7 +287,13 @@ export async function createCosMigrationInventory({
         .map((record) => record.id),
     },
   };
-  return { ...inventory, inventorySha256: sha256(stableJson(inventory)) };
+  return { ...inventory, inventorySha256: calculateCosMigrationInventorySha256(inventory) };
+}
+
+export function calculateCosMigrationInventorySha256(inventory) {
+  const payload = { ...(inventory ?? {}) };
+  delete payload.inventorySha256;
+  return sha256(stableJson(payload));
 }
 
 async function enrichListedObject(storage, bucket, objectKey, objectMap) {
@@ -380,91 +429,384 @@ export async function executeCosObjectCopies({
   };
 }
 
-export function buildStorageSwitchPlan({ inventory, copyReport }) {
+export function buildStorageSwitchPlan({
+  inventory,
+  copyReport,
+  exclusions = null,
+  approvedExclusionsSha256 = "",
+}) {
   assertInventory(inventory);
   if (copyReport?.inventorySha256 !== inventory.inventorySha256) {
     throw new CosMigrationError("Copy report does not belong to this inventory");
+  }
+  if (
+    copyReport?.mode !== "apply" ||
+    copyReport.sourceBucket !== inventory.sourceBucket ||
+    copyReport.targetBucket !== inventory.targetBucket ||
+    !Array.isArray(copyReport.results)
+  ) {
+    throw new CosMigrationError("A matching applied copy report is required for switch planning");
+  }
+  const duplicateCopyResultKeys = [...groupBy(copyReport.results, "objectKey")]
+    .filter(([, results]) => results.length !== 1)
+    .map(([objectKey]) => objectKey);
+  if (duplicateCopyResultKeys.length > 0) {
+    throw new CosMigrationError("Copy report contains duplicate object results", {
+      objectKeys: duplicateCopyResultKeys,
+    });
+  }
+  const expectedCopyKeys = new Set(buildCopyActions(inventory).map((action) => action.objectKey));
+  const unexpectedCopyResultKeys = copyReport.results
+    .map((result) => result.objectKey)
+    .filter((objectKey) => !expectedCopyKeys.has(objectKey));
+  if (unexpectedCopyResultKeys.length > 0) {
+    throw new CosMigrationError("Copy report contains results outside the bound inventory", {
+      objectKeys: unexpectedCopyResultKeys,
+    });
   }
   const verifiedKeys = new Set(
     copyReport.results.filter(isByteVerifiedCopyResult).map((result) => result.objectKey),
   );
   const targetBaseUrl = inventory.targetBaseUrls?.[0] ?? inventory.targetOrigins[0];
   if (!targetBaseUrl) throw new CosMigrationError("Target bucket has no configured stable origin");
-  const blockingJsonReferences = inventory.jsonReferences
-    .map((reference) => {
-      if (!["cat", "fixed_page"].includes(reference.model)) {
-        return { ...reference, blockingReason: "unsupported-json-model" };
-      }
-      const parsed = parseStorageObjectReference(
-        reference.value,
-        inventory.sourceBaseUrls ?? inventory.sourceOrigins,
-      );
-      if (!parsed || parsed.objectKey !== reference.objectKey) {
-        return { ...reference, blockingReason: "unresolvable-storage-url" };
-      }
-      if (!verifiedKeys.has(parsed.objectKey)) {
-        return { ...reference, blockingReason: "object-not-byte-verified" };
-      }
-      return null;
-    })
-    .filter(Boolean);
-  if (blockingJsonReferences.length > 0) {
-    throw new CosMigrationError(
-      "Legacy storage URLs were found in JSON fields without an automatic audited switch path",
-      { references: blockingJsonReferences },
-    );
+  const findings = buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys });
+  const approvedExclusions = resolveApprovedExclusions({
+    approvedExclusionsSha256,
+    exclusions,
+    findings,
+    inventory,
+    inventorySha256: inventory.inventorySha256,
+  });
+  const approvedExclusionKeys = new Set(approvedExclusions.map((item) => item.key));
+  const blockingFindings = findings.filter(
+    (finding) => !approvedExclusionKeys.has(finding.exclusionKey),
+  );
+  if (blockingFindings.length > 0) {
+    throw new CosMigrationError("Migration integrity findings block switch-plan generation", {
+      findings: blockingFindings,
+      exclusionManifestSchema: {
+        schemaVersion: 1,
+        inventorySha256: inventory.inventorySha256,
+        exclusions: [
+          {
+            key: blockingFindings[0].exclusionKey,
+            reason: "document why this data is intentionally excluded",
+            approvalReference: "separate approval/change reference",
+          },
+        ],
+      },
+    });
   }
 
   const mediaUpdates = inventory.records
     .filter(
       (record) =>
-        record.objectKey &&
-        verifiedKeys.has(record.objectKey) &&
-        (!record.thumbnailObjectKey || verifiedKeys.has(record.thumbnailObjectKey)),
+        record.requiresMigration !== false && !approvedExclusionKeys.has(`media:${record.id}`),
     )
-    .map((record) => ({
-      id: record.id,
-      expectedUpdatedAt: record.updatedAt,
-      objectKey: record.objectKey,
-      previous: {
-        metadataJson: record.metadataJson,
-        sourceUrl: record.sourceUrl,
-        thumbnailUrl: record.thumbnailUrl,
-      },
-      metadataJson: withUploadBucket(record.metadataJson, inventory.targetBucket),
-      sourceUrl: rewriteStableObjectUrl(
-        record.sourceUrl,
-        record.objectKey,
-        inventory.sourceOrigins,
-        targetBaseUrl,
-      ),
-      thumbnailUrl: rewriteStableObjectUrl(
-        record.thumbnailUrl,
-        record.thumbnailObjectKey ?? record.objectKey,
-        inventory.sourceOrigins,
-        targetBaseUrl,
-      ),
+    .map((record) => {
+      const metadataReferences = (inventory.jsonReferences ?? [])
+        .filter(
+          (reference) =>
+            reference.model === "media_asset" &&
+            reference.id === record.id &&
+            !approvedExclusionKeys.has(referenceExclusionKey(reference)),
+        )
+        .map((reference) => ({
+          ...reference,
+          replacementValue: rewriteExactStorageObjectUrl(reference, targetBaseUrl),
+        }));
+      const rewrittenMetadata =
+        metadataReferences.length > 0
+          ? applyExactJsonReplacements(record.metadataJson, metadataReferences)
+          : record.metadataJson;
+      return {
+        id: record.id,
+        expectedUpdatedAt: record.updatedAt,
+        objectKey: record.objectKey,
+        previous: {
+          metadataJson: record.metadataJson,
+          sourceUrl: record.sourceUrl,
+          thumbnailUrl: record.thumbnailUrl,
+        },
+        metadataJson: withUploadBucket(rewrittenMetadata, inventory.targetBucket),
+        sourceUrl: rewriteStableObjectUrl(
+          record.sourceUrl,
+          record.objectKey,
+          inventory.sourceBaseUrls ?? inventory.sourceOrigins,
+          targetBaseUrl,
+        ),
+        thumbnailUrl: rewriteStableObjectUrl(
+          record.thumbnailUrl,
+          record.thumbnailObjectKey ?? record.objectKey,
+          inventory.sourceBaseUrls ?? inventory.sourceOrigins,
+          targetBaseUrl,
+        ),
+      };
+    });
+  const jsonUpdates = inventory.jsonReferences
+    .filter(
+      (reference) =>
+        ["cat", "fixed_page"].includes(reference.model) &&
+        !approvedExclusionKeys.has(referenceExclusionKey(reference)),
+    )
+    .map((reference) => ({
+      ...reference,
+      replacementValue: rewriteExactStorageObjectUrl(reference, targetBaseUrl),
     }));
-  const jsonUpdates = inventory.jsonReferences.map((reference) => ({
-    ...reference,
-    replacementValue: rewriteExactStorageObjectUrl(reference, targetBaseUrl),
-  }));
+  const userUpdates = (inventory.userAvatarReferences ?? [])
+    .filter((reference) => !approvedExclusionKeys.has(referenceExclusionKey(reference)))
+    .map((reference) => ({
+      id: reference.id,
+      expectedUpdatedAt: reference.expectedUpdatedAt,
+      objectKey: reference.objectKey,
+      previousAvatarUrl: reference.value,
+      avatarUrl: rewriteExactStorageObjectUrl(reference, targetBaseUrl),
+    }));
   const plan = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     inventorySha256: inventory.inventorySha256,
     sourceBucket: inventory.sourceBucket,
     targetBucket: inventory.targetBucket,
     mediaUpdates,
     jsonUpdates,
+    userUpdates,
+    integrity: {
+      sourceObjectCount: inventory.sourceObjects?.length ?? 0,
+      migratingMediaCount: inventory.records.filter((record) => record.requiresMigration !== false)
+        .length,
+      duplicateKeys: inventory.duplicateKeys ?? [],
+      orphanSourceObjectKeys: (inventory.orphanSourceObjects ?? []).map(
+        (object) => object.objectKey,
+      ),
+      verifiedObjectKeys: [...verifiedKeys].sort(),
+      findings,
+      approvedExclusions,
+      approvedExclusionsSha256: approvedExclusions.length ? approvedExclusionsSha256 : null,
+    },
   };
-  return { ...plan, switchPlanSha256: sha256(stableJson(plan)) };
+  return { ...plan, switchPlanSha256: calculateStorageSwitchPlanSha256(plan) };
+}
+
+export function calculateStorageSwitchExclusionsSha256(exclusions) {
+  return sha256(stableJson(normalizeExclusionManifest(exclusions)));
+}
+
+export function calculateStorageSwitchPlanSha256(plan) {
+  const payload = { ...(plan ?? {}) };
+  delete payload.switchPlanSha256;
+  return sha256(stableJson(payload));
+}
+
+function buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys }) {
+  const findings = new Map();
+  const copyResults = new Map(copyReport.results.map((result) => [result.objectKey, result]));
+  const add = (finding) => {
+    const key = [finding.code, finding.exclusionKey, finding.objectKey ?? ""].join("|");
+    findings.set(key, finding);
+  };
+
+  for (const object of inventory.sourceObjects ?? []) {
+    if (verifiedKeys.has(object.objectKey)) continue;
+    const result = copyResults.get(object.objectKey);
+    add({
+      code: "source-object-not-byte-verified",
+      exclusionKey: `source-object:${object.objectKey}`,
+      objectKey: object.objectKey,
+      copyStatus: result?.status ?? "not-processed",
+      byteVerificationStatus: result?.byteVerification?.status ?? "not-checked",
+    });
+  }
+
+  for (const record of inventory.records) {
+    if (record.requiresMigration === false) continue;
+    const exclusionKey = `media:${record.id}`;
+    if (!record.objectKey) {
+      add({ code: "media-object-key-missing", exclusionKey, mediaId: record.id });
+    } else if (
+      record.sourceUrlReferencesOldBucket &&
+      record.sourceUrlObjectKey !== record.objectKey
+    ) {
+      add({
+        code: "media-source-url-object-key-mismatch",
+        exclusionKey,
+        mediaId: record.id,
+        objectKey: record.objectKey,
+        sourceUrlObjectKey: record.sourceUrlObjectKey,
+      });
+    } else if (!isConfirmedObject(record.sourceObject)) {
+      add({
+        code: "media-source-object-missing",
+        exclusionKey,
+        mediaId: record.id,
+        objectKey: record.objectKey,
+      });
+    } else if (!verifiedKeys.has(record.objectKey)) {
+      const result = copyResults.get(record.objectKey);
+      add({
+        code: "media-object-not-byte-verified",
+        exclusionKey,
+        mediaId: record.id,
+        objectKey: record.objectKey,
+        copyStatus: result?.status ?? "not-processed",
+        byteVerificationStatus: result?.byteVerification?.status ?? "not-checked",
+      });
+    }
+    if (record.thumbnailUrlReferencesOldBucket && !record.thumbnailObjectKey) {
+      add({ code: "thumbnail-object-key-missing", exclusionKey, mediaId: record.id });
+    } else if (record.thumbnailObjectKey) {
+      if (!isConfirmedObject(record.thumbnailSourceObject)) {
+        add({
+          code: "thumbnail-source-object-missing",
+          exclusionKey,
+          mediaId: record.id,
+          objectKey: record.thumbnailObjectKey,
+        });
+      } else if (!verifiedKeys.has(record.thumbnailObjectKey)) {
+        const result = copyResults.get(record.thumbnailObjectKey);
+        add({
+          code: "thumbnail-not-byte-verified",
+          exclusionKey,
+          mediaId: record.id,
+          objectKey: record.thumbnailObjectKey,
+          copyStatus: result?.status ?? "not-processed",
+          byteVerificationStatus: result?.byteVerification?.status ?? "not-checked",
+        });
+      }
+    }
+  }
+
+  for (const conflict of inventory.duplicateKeyConflicts ?? []) {
+    for (const mediaId of conflict.mediaIds) {
+      add({
+        code: "duplicate-key-metadata-conflict",
+        exclusionKey: `media:${mediaId}`,
+        objectKey: conflict.objectKey,
+        mediaId,
+        mediaIds: conflict.mediaIds,
+        conflictingFields: conflict.conflictingFields,
+      });
+    }
+  }
+
+  for (const reference of inventory.jsonReferences ?? []) {
+    addReferenceFinding({ add, inventory, reference, verifiedKeys });
+  }
+  for (const reference of inventory.userAvatarReferences ?? []) {
+    addReferenceFinding({ add, inventory, reference, verifiedKeys });
+  }
+  return [...findings.values()].sort((left, right) =>
+    `${left.exclusionKey}:${left.code}`.localeCompare(`${right.exclusionKey}:${right.code}`),
+  );
+}
+
+function addReferenceFinding({ add, inventory, reference, verifiedKeys }) {
+  const exclusionKey = referenceExclusionKey(reference);
+  const supported = ["cat", "fixed_page", "media_asset", "user"].includes(reference.model);
+  if (!supported) {
+    add({
+      code: "reference-has-no-automatic-switch-path",
+      exclusionKey,
+      reference,
+    });
+    return;
+  }
+  const parsed = parseStorageObjectReference(
+    reference.value,
+    inventory.sourceBaseUrls ?? inventory.sourceOrigins,
+  );
+  if (!parsed || parsed.objectKey !== reference.objectKey) {
+    add({ code: "reference-is-not-safely-resolvable", exclusionKey, reference });
+  } else if (!verifiedKeys.has(parsed.objectKey)) {
+    add({
+      code: "reference-object-not-byte-verified",
+      exclusionKey,
+      objectKey: parsed.objectKey,
+      reference,
+    });
+  }
+}
+
+function resolveApprovedExclusions({
+  approvedExclusionsSha256,
+  exclusions,
+  findings,
+  inventory,
+  inventorySha256,
+}) {
+  if (!exclusions) {
+    if (approvedExclusionsSha256) {
+      throw new CosMigrationError("An exclusion approval hash was provided without a manifest");
+    }
+    return [];
+  }
+  const normalized = normalizeExclusionManifest(exclusions);
+  if (normalized.inventorySha256 !== inventorySha256) {
+    throw new CosMigrationError("Exclusion manifest does not belong to this inventory");
+  }
+  const calculatedSha256 = sha256(stableJson(normalized));
+  if (approvedExclusionsSha256 !== calculatedSha256) {
+    throw new CosMigrationError(
+      "Exclusions require a separate approval using the exact manifest SHA-256",
+      { calculatedExclusionsSha256: calculatedSha256 },
+    );
+  }
+  const validKeys = new Set([
+    ...findings.map((finding) => finding.exclusionKey),
+    ...inventory.records
+      .filter((record) => record.requiresMigration !== false)
+      .map((record) => `media:${record.id}`),
+    ...(inventory.sourceObjects ?? []).map((object) => `source-object:${object.objectKey}`),
+    ...(inventory.jsonReferences ?? []).map(referenceExclusionKey),
+    ...(inventory.userAvatarReferences ?? []).map(referenceExclusionKey),
+  ]);
+  const unknownKeys = normalized.exclusions
+    .map((item) => item.key)
+    .filter((key) => !validKeys.has(key));
+  if (unknownKeys.length > 0) {
+    throw new CosMigrationError("Exclusion manifest contains unknown subjects", {
+      keys: unknownKeys,
+    });
+  }
+  return normalized.exclusions;
+}
+
+function normalizeExclusionManifest(value) {
+  if (value?.schemaVersion !== 1 || !value.inventorySha256 || !Array.isArray(value.exclusions)) {
+    throw new CosMigrationError("A valid storage-switch exclusion manifest is required");
+  }
+  const seen = new Set();
+  const exclusions = value.exclusions.map((item) => {
+    const key = stringOrNull(item?.key);
+    const reason = stringOrNull(item?.reason);
+    const approvalReference = stringOrNull(item?.approvalReference);
+    if (!key || !reason || !approvalReference) {
+      throw new CosMigrationError("Every exclusion requires key, reason, and approvalReference");
+    }
+    if (seen.has(key)) throw new CosMigrationError(`Duplicate exclusion subject: ${key}`);
+    seen.add(key);
+    return { key, reason, approvalReference };
+  });
+  exclusions.sort((left, right) => left.key.localeCompare(right.key));
+  return {
+    schemaVersion: 1,
+    inventorySha256: value.inventorySha256,
+    exclusions,
+  };
+}
+
+function referenceExclusionKey(reference) {
+  return `reference:${reference.model}:${reference.id}:${reference.field}:${JSON.stringify(reference.path ?? [])}`;
 }
 
 export function buildStorageRollbackPlan({ switchPlan, switchReport }) {
+  assertSwitchPlan(switchPlan);
   if (
     !switchPlan?.switchPlanSha256 ||
     switchReport?.switchPlanSha256 !== switchPlan.switchPlanSha256 ||
-    switchReport?.mode !== "apply"
+    switchReport?.mode !== "apply" ||
+    !Array.isArray(switchReport.mediaStates) ||
+    !Array.isArray(switchReport.jsonStates) ||
+    !Array.isArray(switchReport.userStates)
   ) {
     throw new CosMigrationError("A matching applied switch report is required for rollback");
   }
@@ -472,6 +814,7 @@ export function buildStorageRollbackPlan({ switchPlan, switchReport }) {
   const jsonStates = new Map(
     switchReport.jsonStates.map((state) => [`${state.model}:${state.id}:${state.field}`, state]),
   );
+  const userStates = new Map((switchReport.userStates ?? []).map((state) => [state.id, state]));
   const mediaUpdates = switchPlan.mediaUpdates.map((update) => {
     const state = mediaStates.get(update.id);
     if (!state || !update.previous) {
@@ -508,37 +851,60 @@ export function buildStorageRollbackPlan({ switchPlan, switchReport }) {
       replacementValue: update.value,
     };
   });
+  const userUpdates = (switchPlan.userUpdates ?? []).map((update) => {
+    const state = userStates.get(update.id);
+    if (!state) {
+      throw new CosMigrationError("Switch report is missing a rollback user state", {
+        userId: update.id,
+      });
+    }
+    return {
+      id: update.id,
+      expectedUpdatedAt: state.updatedAt,
+      objectKey: update.objectKey,
+      previousAvatarUrl: update.avatarUrl,
+      avatarUrl: update.previousAvatarUrl,
+    };
+  });
   const plan = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     inventorySha256: switchPlan.inventorySha256,
     sourceBucket: switchPlan.targetBucket,
     targetBucket: switchPlan.sourceBucket,
     mediaUpdates,
     jsonUpdates,
+    userUpdates,
     rollbackOf: switchPlan.switchPlanSha256,
   };
-  return { ...plan, switchPlanSha256: sha256(stableJson(plan)) };
+  return { ...plan, switchPlanSha256: calculateStorageSwitchPlanSha256(plan) };
 }
 
 export async function applyStorageSwitchPlan({
   client = prisma,
   plan,
   apply = false,
+  backupEvidence = null,
   confirmDatabaseWrite = false,
 } = {}) {
-  if (!plan?.switchPlanSha256 || !Array.isArray(plan.mediaUpdates)) {
-    throw new CosMigrationError("A valid storage switch plan is required");
-  }
+  assertSwitchPlan(plan);
   if (!apply) {
     return {
       mode: "dry-run",
       switchPlanSha256: plan.switchPlanSha256,
       mediaUpdateCount: plan.mediaUpdates.length,
       jsonUpdateCount: plan.jsonUpdates.length,
+      userUpdateCount: plan.userUpdates?.length ?? 0,
     };
   }
   if (!confirmDatabaseWrite) {
     throw new CosMigrationError("Database writes require both apply and confirmDatabaseWrite");
+  }
+  if (
+    backupEvidence?.status !== "verified" ||
+    !/^[a-f0-9]{64}$/.test(backupEvidence.backupSha256 ?? "") ||
+    !/^[a-f0-9]{64}$/.test(backupEvidence.databaseUrlSha256 ?? "")
+  ) {
+    throw new CosMigrationError("Database writes require verified SQLite backup evidence");
   }
 
   return client.$transaction(async (transaction) => {
@@ -598,13 +964,34 @@ export async function applyStorageSwitchPlan({
       });
     }
 
+    const userStates = [];
+    for (const update of plan.userUpdates ?? []) {
+      const result = await transaction.user.updateMany({
+        where: { id: update.id, updated_at: new Date(update.expectedUpdatedAt) },
+        data: { avatar_url: update.avatarUrl },
+      });
+      if (result.count !== 1) {
+        const current = await transaction.user.findUnique({ where: { id: update.id } });
+        if (!matchesUserUpdate(current, update)) {
+          throw new CosMigrationError("User avatar changed after inventory; switch aborted", {
+            userId: update.id,
+          });
+        }
+      }
+      const current = await transaction.user.findUnique({ where: { id: update.id } });
+      userStates.push({ id: update.id, updatedAt: toIsoString(current.updated_at) });
+    }
+
     return {
       mode: "apply",
       switchPlanSha256: plan.switchPlanSha256,
       mediaUpdateCount: plan.mediaUpdates.length,
       jsonUpdateCount: plan.jsonUpdates.length,
+      userUpdateCount: plan.userUpdates?.length ?? 0,
       mediaStates,
       jsonStates,
+      userStates,
+      backupEvidence,
     };
   });
 }
@@ -640,6 +1027,16 @@ async function listAllObjects(storage, bucket) {
 
 function buildCopyActions(inventory) {
   const actions = new Map();
+  for (const object of inventory.sourceObjects ?? []) {
+    addCopyAction(actions, {
+      checksum: null,
+      mediaId: null,
+      mimeType: object.contentType ?? null,
+      object,
+      objectKey: object.objectKey,
+      sizeBytes: object.sizeBytes,
+    });
+  }
   for (const record of inventory.records) {
     addCopyAction(actions, {
       checksum: record.checksum,
@@ -666,7 +1063,7 @@ function addCopyAction(actions, { checksum, mediaId, mimeType, object, objectKey
   const existing = actions.get(objectKey);
   actions.set(objectKey, {
     objectKey,
-    mediaIds: [...new Set([...(existing?.mediaIds ?? []), mediaId])],
+    mediaIds: [...new Set([...(existing?.mediaIds ?? []), mediaId].filter(Boolean))],
     sizeBytes: existing?.sizeBytes ?? object.sizeBytes ?? sizeBytes,
     mimeType: existing?.mimeType ?? object.contentType ?? mimeType,
     checksum: existing?.checksum ?? checksum,
@@ -788,12 +1185,32 @@ function collectJsonReferences(records, model, field, sourceBaseUrls) {
           expectedUpdatedAt: toIsoString(record.updated_at),
           switchHandling: ["cat", "fixed_page"].includes(model)
             ? "exact-path-update"
-            : "manual-review",
+            : model === "media_asset"
+              ? "media-metadata-update"
+              : "manual-review",
         });
       }
     });
   }
   return references;
+}
+
+function collectScalarReferences(records, model, field, sourceBaseUrls) {
+  return records
+    .map((record) => {
+      const parsed = parseStorageObjectReference(record[field], sourceBaseUrls);
+      if (!parsed) return null;
+      return {
+        model,
+        id: record.id,
+        field,
+        value: record[field],
+        objectKey: parsed.objectKey,
+        expectedUpdatedAt: toIsoString(record.updated_at),
+        switchHandling: "scalar-update",
+      };
+    })
+    .filter(Boolean);
 }
 
 function walkJson(value, path, visit) {
@@ -858,6 +1275,10 @@ function matchesMediaUpdate(media, update) {
   );
 }
 
+function matchesUserUpdate(user, update) {
+  return user && user.avatar_url === update.avatarUrl;
+}
+
 function withUploadBucket(value, bucket) {
   const metadata =
     value && typeof value === "object" && !Array.isArray(value) ? structuredClone(value) : {};
@@ -869,10 +1290,11 @@ function withUploadBucket(value, bucket) {
   return metadata;
 }
 
-function rewriteStableObjectUrl(value, objectKey, sourceOrigins, targetBaseUrl) {
+function rewriteStableObjectUrl(value, objectKey, sourceBaseUrls, targetBaseUrl) {
   try {
     const sourceUrl = new URL(value);
-    if (!sourceOrigins.includes(sourceUrl.origin)) return value;
+    const parsed = parseStorageObjectReference(value, sourceBaseUrls);
+    if (!parsed || parsed.objectKey !== objectKey) return value;
     const targetUrl = new URL(targetBaseUrl);
     targetUrl.pathname = [
       targetUrl.pathname.replace(/^\/+|\/+$/g, ""),
@@ -937,10 +1359,6 @@ function originOf(value) {
   }
 }
 
-function containsOrigin(value, origins) {
-  return typeof value === "string" && origins.some((origin) => value.includes(origin));
-}
-
 function inferObjectKey(value, baseUrls) {
   return parseStorageObjectReference(value, baseUrls)?.objectKey ?? null;
 }
@@ -970,6 +1388,8 @@ function parseStorageObjectReference(value, baseUrls) {
 function isByteVerifiedCopyResult(result) {
   return (
     ["copied-and-verified", "verified-existing"].includes(result?.status) &&
+    result.sourceVerification?.ok === true &&
+    result.checksumVerification?.status !== "mismatch" &&
     result.byteVerification?.algorithm === "sha256" &&
     result.byteVerification.status === "match" &&
     /^[a-f0-9]{64}$/.test(result.byteVerification.actual ?? "") &&
@@ -1012,8 +1432,29 @@ function isConfirmedObject(object) {
 }
 
 function assertInventory(inventory) {
-  if (!inventory?.inventorySha256 || !Array.isArray(inventory.records)) {
-    throw new CosMigrationError("A valid migration inventory is required");
+  if (
+    inventory?.schemaVersion !== 2 ||
+    !inventory.inventorySha256 ||
+    !Array.isArray(inventory.records) ||
+    !Array.isArray(inventory.sourceObjects) ||
+    !Array.isArray(inventory.jsonReferences) ||
+    !Array.isArray(inventory.userAvatarReferences) ||
+    calculateCosMigrationInventorySha256(inventory) !== inventory.inventorySha256
+  ) {
+    throw new CosMigrationError("A valid untampered migration inventory is required");
+  }
+}
+
+function assertSwitchPlan(plan) {
+  if (
+    plan?.schemaVersion !== 2 ||
+    !plan.switchPlanSha256 ||
+    !Array.isArray(plan.mediaUpdates) ||
+    !Array.isArray(plan.jsonUpdates) ||
+    !Array.isArray(plan.userUpdates) ||
+    calculateStorageSwitchPlanSha256(plan) !== plan.switchPlanSha256
+  ) {
+    throw new CosMigrationError("A valid untampered storage switch plan is required");
   }
 }
 

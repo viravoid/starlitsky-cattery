@@ -7,6 +7,7 @@ import {
   applyStorageSwitchPlan,
   buildStorageRollbackPlan,
   buildStorageSwitchPlan,
+  calculateStorageSwitchExclusionsSha256,
   CosMigrationError,
   createCosMigrationInventory,
   executeCosObjectCopies,
@@ -14,6 +15,7 @@ import {
 import {
   assertMigrationWriteRuntime,
   databaseUrlFingerprint,
+  verifyMigrationSqliteBackup,
 } from "../services/cos-migration-runtime-guard.mjs";
 
 const options = parseArgs(process.argv.slice(2));
@@ -47,7 +49,15 @@ try {
     result = buildStorageSwitchPlan({
       inventory: readJson(required(options.inventory, "--inventory")),
       copyReport: readJson(required(options.copyReport, "--copy-report")),
+      exclusions: options.exclusions ? readJson(options.exclusions) : null,
+      approvedExclusionsSha256: options.approveExclusionsSha256,
     });
+  } else if (options.command === "exclusions-hash") {
+    result = {
+      exclusionsSha256: calculateStorageSwitchExclusionsSha256(
+        readJson(required(options.exclusions, "--exclusions")),
+      ),
+    };
   } else if (options.command === "rollback-plan") {
     result = buildStorageRollbackPlan({
       switchPlan: readJson(required(options.plan, "--plan")),
@@ -67,15 +77,23 @@ try {
       operationConfirmed: options.confirmDatabaseWrite,
       runtimeEnvironment: options.writeEnvironment,
     });
+    const backupEvidence = options.apply
+      ? await verifyMigrationSqliteBackup({
+          backupPath: required(options.backupFile, "--backup-file"),
+          databaseUrl: required(process.env.DATABASE_URL, "DATABASE_URL"),
+          expectedSha256: required(options.confirmBackupSha256, "--confirm-backup-sha256"),
+        })
+      : null;
     result = await applyStorageSwitchPlan({
       client: prisma,
       plan,
       apply: options.apply,
+      backupEvidence,
       confirmDatabaseWrite: options.confirmDatabaseWrite,
     });
   } else {
     throw new CosMigrationError(
-      "Command must be inventory, copy, switch-plan, rollback-plan, or switch",
+      "Command must be inventory, copy, exclusions-hash, switch-plan, rollback-plan, or switch",
     );
   }
 
@@ -96,12 +114,16 @@ function parseArgs(args) {
   const parsed = {
     command: args[0] ?? "",
     apply: false,
+    approveExclusionsSha256: "",
+    backupFile: "",
+    confirmBackupSha256: "",
     confirmDatabaseWrite: false,
     confirmDatabaseUrlSha256: "",
     confirmObjectWrite: false,
     confirmProduction: false,
     confirmTargetBucket: "",
     copyReport: "",
+    exclusions: "",
     inventory: "",
     output: "",
     plan: "",
@@ -121,9 +143,13 @@ function parseArgs(args) {
       const value = inlineValue ?? args[++index] ?? "";
       const field = {
         "--copy-report": "copyReport",
+        "--approve-exclusions-sha256": "approveExclusionsSha256",
+        "--backup-file": "backupFile",
+        "--confirm-backup-sha256": "confirmBackupSha256",
         "--confirm-database-url-sha256": "confirmDatabaseUrlSha256",
         "--confirm-target-bucket": "confirmTargetBucket",
         "--inventory": "inventory",
+        "--exclusions": "exclusions",
         "--output": "output",
         "--plan": "plan",
         "--source-bucket": "sourceBucket",

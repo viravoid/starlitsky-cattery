@@ -15,6 +15,7 @@ const DEFAULT_SECRET_VALUES = new Set([
 ]);
 
 const STORAGE_PROVIDERS = new Set(["s3", "cos"]);
+const STORAGE_READ_PROVIDERS = new Set([...STORAGE_PROVIDERS, "lightcos"]);
 
 const failures = [];
 const warnings = [];
@@ -215,10 +216,24 @@ function validateStorageReadBuckets() {
     if (entry.region != null && typeof entry.region !== "string") {
       fail(`STORAGE_READ_BUCKETS_JSON[${index}].region must be a string.`);
     }
+    const readProvider =
+      typeof entry.provider === "string"
+        ? entry.provider.trim()
+        : readEnv("STORAGE_PROVIDER") || "s3";
+    if (!STORAGE_READ_PROVIDERS.has(readProvider)) {
+      fail(
+        `STORAGE_READ_BUCKETS_JSON[${index}].provider must be one of: ${Array.from(STORAGE_READ_PROVIDERS).join(", ")}.`,
+      );
+    }
     if (entry.endpoint)
       validateHttpUrl(`STORAGE_READ_BUCKETS_JSON[${index}].endpoint`, entry.endpoint);
     if (entry.publicBaseUrl) {
       validateHttpUrl(`STORAGE_READ_BUCKETS_JSON[${index}].publicBaseUrl`, entry.publicBaseUrl);
+    }
+    if (readProvider === "lightcos" && !entry.publicBaseUrl) {
+      fail(
+        `STORAGE_READ_BUCKETS_JSON[${index}].publicBaseUrl is required for LightCOS so stored legacy-domain references are not inferred from the API endpoint.`,
+      );
     }
   }
   if (legacyBucket && !buckets.has(legacyBucket)) {

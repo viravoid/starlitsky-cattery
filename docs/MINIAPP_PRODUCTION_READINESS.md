@@ -15,6 +15,8 @@ This repository is configured for the real StarlitSky Mini Program.
 
 Configure exact hostnames in WeChat Public Platform. Query strings and presigned signatures do not change the hostname requirement.
 
+Migration caveat: the checked-in COS hostname and assertions below describe current code/configuration only. They do not prove that the legacy LightCOS bucket actually serves objects on that hostname or that WeChat production has accepted it. The exact LightCOS API endpoint and public/custom object domain remain **待真实只读验证**; do not remove or replace a domain until the separately approved read-only probe and real-device trial identify both the old and new hosts.
+
 | Category                  | Domain to enter                                                     | Required by                                                                                                                                                                           |
 | ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | request legal domain      | `https://api.starlitskycattery.top`                                 | `wx.request` API calls through `apps/miniapp/utils/request/index.ts`, including auth, fixed pages, cats, community, parent invite, selection application, and admin QR approval APIs. |
