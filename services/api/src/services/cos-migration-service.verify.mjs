@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,7 +12,12 @@ process.env.STORAGE_ACCESS_KEY_ID = "verify-access-key";
 process.env.STORAGE_ACCESS_KEY_SECRET = "verify-secret-key";
 process.env.STORAGE_LEGACY_BUCKET = "verify-old-bucket";
 process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
-  { bucket: "verify-old-bucket", provider: "cos", region: "ap-chengdu" },
+  {
+    bucket: "verify-old-bucket",
+    provider: "lightcos",
+    endpoint: "https://verify-old-bucket.light-cos.com",
+    publicBaseUrl: "https://verify-old-bucket.light-cos.com",
+  },
 ]);
 
 rmLocalSqlite(process.env.DATABASE_URL);
@@ -23,40 +28,52 @@ const {
   applyStorageSwitchPlan,
   buildStorageRollbackPlan,
   buildStorageSwitchPlan,
+  calculateCosMigrationInventorySha256,
+  calculateStorageSwitchExclusionsSha256,
+  calculateStorageSwitchPlanSha256,
   createCosMigrationInventory,
   executeCosObjectCopies,
 } = await import("./cos-migration-service.mjs");
-const { assertMigrationWriteRuntime, databaseUrlFingerprint } =
+const { assertMigrationWriteRuntime, databaseUrlFingerprint, verifyMigrationSqliteBackup } =
   await import("./cos-migration-runtime-guard.mjs");
 
 const PREFIX = "verify-cos-migration";
 const SOURCE_BUCKET = "verify-old-bucket";
 const TARGET_BUCKET = "verify-new-bucket";
-const SOURCE_HOST = `${SOURCE_BUCKET}.cos.ap-chengdu.myqcloud.com`;
+const SOURCE_HOST = `${SOURCE_BUCKET}.light-cos.com`;
 const TARGET_HOST = `${TARGET_BUCKET}.cos.ap-chengdu.myqcloud.com`;
 const OBJECT_KEY = "media/images/shared.jpg";
 const THUMBNAIL_KEY = "media/images/z-shared-thumb.jpg";
 const MISSING_KEY = "media/images/missing.jpg";
+const AVATAR_KEY = "media/images/user-avatar.jpg";
 const BODY = Buffer.from("verified-cos-migration-object");
 const CHECKSUM = crypto.createHash("sha256").update(BODY).digest("hex");
+const BACKUP_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../prisma/cos-migration-backup-verify.db",
+);
+const INVALID_BACKUP_PATH = `${BACKUP_PATH}.invalid`;
+const INCOMPLETE_BACKUP_PATH = `${BACKUP_PATH}.incomplete`;
 
 await cleanup();
 
 try {
   const seeded = await seed();
+  const backupEvidence = await createAndVerifyBackupEvidence();
   const sourceObjects = new Map([
     [OBJECT_KEY, storedObject(BODY, "image/jpeg")],
     [THUMBNAIL_KEY, storedObject(Buffer.from("thumbnail"), "image/jpeg")],
     ["media/images/orphan.jpg", storedObject(Buffer.from("orphan"), "image/jpeg")],
+    [AVATAR_KEY, storedObject(Buffer.from("avatar"), "image/jpeg")],
   ]);
   const targetObjects = new Map();
-  let failNextPut = false;
+  let failObjectKey = "";
   let readCount = 0;
   let writeCount = 0;
   const storage = createFakeStorage({
-    failNextPut: () => failNextPut,
+    failNextPut: (objectKey) => objectKey === failObjectKey,
     onFailedPut: () => {
-      failNextPut = false;
+      failObjectKey = "";
     },
     onRead: () => {
       readCount += 1;
@@ -85,6 +102,8 @@ try {
   );
   assert.deepEqual(inventory.statusGroups.archived, [seeded.archivedDuplicate.id]);
   assert.equal(inventory.jsonReferences.length, 2);
+  assert.equal(inventory.userAvatarReferences.length, 1);
+  assert.equal(inventory.userAvatarReferences[0].objectKey, AVATAR_KEY);
   assert.equal(inventory.records[0].bindings.length, 3);
   assert.equal(inventory.records[0].bindings[0].usage, "cover");
   assert.equal(inventory.jsonReferences[0].objectKey, OBJECT_KEY);
@@ -93,12 +112,26 @@ try {
   assert.equal(dryRun.mode, "dry-run");
   assert.equal(
     dryRun.actions.length,
-    2,
-    "duplicate primary keys must copy once while a distinct thumbnail is retained",
+    4,
+    "all source objects, including the orphan and referenced avatar/thumbnail, must be planned",
   );
   assert.equal(readCount, 0, "dry-run must not read object bodies");
   assert.equal(writeCount, 0, "dry-run must not write objects");
   assert.equal(targetObjects.size, 0);
+  assert.throws(
+    () => buildStorageSwitchPlan({ inventory, copyReport: dryRun }),
+    /matching applied copy report/,
+    "a dry-run copy report cannot authorize switch planning",
+  );
+  await assert.rejects(
+    () =>
+      executeCosObjectCopies({
+        inventory: { ...inventory, sourceBucket: "tampered-source-bucket" },
+        storage,
+      }),
+    /untampered migration inventory/,
+    "inventory contents must remain bound to their SHA-256",
+  );
 
   targetObjects.set(OBJECT_KEY, storedObject(Buffer.alloc(BODY.length, "x"), "image/jpeg"));
   const conflictingTarget = await executeCosObjectCopies({
@@ -115,7 +148,7 @@ try {
   assert.equal(contentConflict.byteVerification.status, "mismatch");
   targetObjects.delete(OBJECT_KEY);
 
-  failNextPut = true;
+  failObjectKey = OBJECT_KEY;
   const failedCopy = await executeCosObjectCopies({
     inventory,
     apply: true,
@@ -128,15 +161,17 @@ try {
   );
   assert.equal(
     targetObjects.size,
-    1,
+    3,
     "independently verified objects may survive a partial failure",
   );
-  assert.equal(
-    buildStorageSwitchPlan({
-      inventory: { ...inventory, jsonReferences: [] },
-      copyReport: failedCopy,
-    }).mediaUpdates.length,
-    0,
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: failedCopy,
+      }),
+    /integrity findings block/,
+    "a partial copy must hard-block switch planning",
   );
 
   const copied = await executeCosObjectCopies({
@@ -159,6 +194,129 @@ try {
     "match",
     "a checksum-less independent thumbnail must still receive byte-level verification",
   );
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: { ...copied, results: [...copied.results, copied.results[0]] },
+      }),
+    /duplicate object results/,
+    "duplicate copy conclusions must not be accepted",
+  );
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: {
+          ...copied,
+          results: [
+            ...copied.results,
+            {
+              ...copied.results[0],
+              objectKey: "media/images/not-in-inventory.jpg",
+            },
+          ],
+        },
+      }),
+    /outside the bound inventory/,
+    "copy conclusions for objects outside the inventory must not be accepted",
+  );
+
+  const mismatchedSourceUrlFixture = rebindInventoryAndCopyReport(inventory, copied, {
+    records: inventory.records.map((record) =>
+      record.id === seeded.primary.id
+        ? { ...record, sourceUrlObjectKey: AVATAR_KEY, sourceUrlReferencesOldBucket: true }
+        : record,
+    ),
+  });
+  assert.throws(
+    () => buildStorageSwitchPlan(mismatchedSourceUrlFixture),
+    (error) =>
+      error?.details?.findings?.some(
+        (finding) => finding.code === "media-source-url-object-key-mismatch",
+      ),
+    "a legacy source URL that disagrees with upload metadata must hard-block",
+  );
+
+  for (const [mutate, expectedCode, label] of [
+    [
+      (report) => {
+        report.results = report.results.filter((result) => result.objectKey !== OBJECT_KEY);
+      },
+      "media-object-not-byte-verified",
+      "missing copy result",
+    ],
+    [
+      (report) => {
+        report.results.find((result) => result.objectKey === OBJECT_KEY).byteVerification.status =
+          "mismatch";
+      },
+      "media-object-not-byte-verified",
+      "SHA-256 mismatch",
+    ],
+    [
+      (report) => {
+        report.results.find((result) => result.objectKey === THUMBNAIL_KEY).status = "failed";
+      },
+      "thumbnail-not-byte-verified",
+      "thumbnail copy failure",
+    ],
+    [
+      (report) => {
+        report.results = report.results.filter(
+          (result) => result.objectKey !== "media/images/orphan.jpg",
+        );
+      },
+      "source-object-not-byte-verified",
+      "unhandled orphan",
+    ],
+  ]) {
+    const unsafeReport = structuredClone(copied);
+    mutate(unsafeReport);
+    assert.throws(
+      () => buildStorageSwitchPlan({ inventory, copyReport: unsafeReport }),
+      (error) => error?.details?.findings?.some((finding) => finding.code === expectedCode),
+      `${label} must hard-block switch planning`,
+    );
+  }
+
+  const unsupportedReferenceFixture = rebindInventoryAndCopyReport(inventory, copied, {
+    jsonReferences: [
+      ...inventory.jsonReferences,
+      {
+        ...inventory.jsonReferences[0],
+        model: "parent_application",
+        id: "unsupported-reference",
+        objectKey: OBJECT_KEY,
+      },
+    ],
+  });
+  assert.throws(
+    () => buildStorageSwitchPlan(unsupportedReferenceFixture),
+    (error) =>
+      error?.details?.findings?.some(
+        (finding) => finding.code === "reference-has-no-automatic-switch-path",
+      ),
+    "a legacy reference without an audited automatic path must block",
+  );
+
+  const duplicateConflictFixture = rebindInventoryAndCopyReport(inventory, copied, {
+    duplicateKeyConflicts: [
+      {
+        objectKey: OBJECT_KEY,
+        mediaIds: [seeded.primary.id, seeded.archivedDuplicate.id],
+        conflictingFields: ["checksum"],
+      },
+    ],
+  });
+  assert.throws(
+    () => buildStorageSwitchPlan(duplicateConflictFixture),
+    (error) =>
+      error?.details?.findings?.some(
+        (finding) => finding.code === "duplicate-key-metadata-conflict",
+      ),
+    "duplicate-key metadata conflicts must block",
+  );
 
   const repeated = await executeCosObjectCopies({
     inventory,
@@ -168,7 +326,7 @@ try {
   });
   assert.ok(repeated.results.every((result) => result.status === "verified-existing"));
   assert.ok(repeated.results.every((result) => result.byteVerification.status === "match"));
-  assert.equal(writeCount, 2, "verified target objects must not be copied again");
+  assert.equal(writeCount, 4, "verified target objects must not be copied again");
 
   await verifyChecksumlessHistoricalMedia();
 
@@ -176,48 +334,101 @@ try {
   statusOnlyReport.results = statusOnlyReport.results.map(
     ({ byteVerification, ...result }) => result,
   );
-  assert.equal(
-    buildStorageSwitchPlan({
-      inventory: { ...inventory, jsonReferences: [] },
-      copyReport: statusOnlyReport,
-    }).mediaUpdates.length,
-    0,
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: statusOnlyReport,
+      }),
+    /integrity findings block/,
     "success labels without SHA-256 evidence must never authorize switching",
   );
 
-  for (const [objectKey, label] of [
-    ["media/images/orphan.jpg", "JSON-only orphan"],
-    [MISSING_KEY, "uncopied object"],
-  ]) {
+  for (const [objectKey, label] of [[MISSING_KEY, "uncopied object"]]) {
+    const missingReferenceFixture = rebindInventoryAndCopyReport(inventory, copied, {
+      jsonReferences: [
+        ...inventory.jsonReferences,
+        {
+          ...inventory.jsonReferences[0],
+          objectKey,
+          value: `https://${SOURCE_HOST}/${objectKey}?variant=original`,
+        },
+      ],
+    });
     assert.throws(
-      () =>
-        buildStorageSwitchPlan({
-          inventory: {
-            ...inventory,
-            jsonReferences: [
-              ...inventory.jsonReferences,
-              {
-                ...inventory.jsonReferences[0],
-                objectKey,
-                value: `https://${SOURCE_HOST}/${objectKey}?variant=original`,
-              },
-            ],
-          },
-          copyReport: copied,
-        }),
+      () => buildStorageSwitchPlan(missingReferenceFixture),
       (error) =>
-        error?.details?.references?.some(
-          (reference) =>
-            reference.objectKey === objectKey &&
-            reference.blockingReason === "object-not-byte-verified",
+        error?.details?.findings?.some(
+          (finding) =>
+            finding.objectKey === objectKey &&
+            finding.code === "reference-object-not-byte-verified",
         ),
       `${label} must block switch-plan generation`,
     );
   }
 
-  const plan = buildStorageSwitchPlan({ inventory, copyReport: copied });
-  assert.equal(plan.mediaUpdates.length, 2, "only records backed by verified objects may switch");
+  assert.throws(
+    () => buildStorageSwitchPlan({ inventory, copyReport: copied }),
+    (error) =>
+      error?.details?.findings?.some(
+        (finding) => finding.exclusionKey === `media:${seeded.missing.id}`,
+      ),
+    "an unhandled media record must block instead of being silently skipped",
+  );
+  const exclusions = {
+    schemaVersion: 1,
+    inventorySha256: inventory.inventorySha256,
+    exclusions: [
+      {
+        key: `media:${seeded.missing.id}`,
+        reason: "synthetic fixture intentionally has no source object",
+        approvalReference: "VERIFY-EXCLUSION-1",
+      },
+    ],
+  };
+  const approvedExclusionsSha256 = calculateStorageSwitchExclusionsSha256(exclusions);
+  assert.throws(
+    () => buildStorageSwitchPlan({ inventory, copyReport: copied, exclusions }),
+    /separate approval using the exact manifest SHA-256/,
+  );
+  const unknownExclusions = {
+    ...exclusions,
+    exclusions: [
+      {
+        key: "media:not-in-the-bound-inventory",
+        reason: "synthetic unknown subject",
+        approvalReference: "VERIFY-EXCLUSION-UNKNOWN",
+      },
+    ],
+  };
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: copied,
+        exclusions: unknownExclusions,
+        approvedExclusionsSha256: calculateStorageSwitchExclusionsSha256(unknownExclusions),
+      }),
+    /unknown subjects/,
+    "an approved digest cannot introduce an exclusion outside the bound inventory",
+  );
+  const plan = buildStorageSwitchPlan({
+    inventory,
+    copyReport: copied,
+    exclusions,
+    approvedExclusionsSha256,
+  });
+  assert.equal(plan.mediaUpdates.length, 2, "approved exclusions must be explicit and audited");
+  assert.equal(plan.userUpdates.length, 1, "User.avatar_url must have an exact switch update");
+  assert.equal(plan.integrity.approvedExclusionsSha256, approvedExclusionsSha256);
   const changedReference = plan.jsonUpdates[0];
+  const changedReferencePlan = {
+    ...plan,
+    jsonUpdates: [changedReference],
+    mediaUpdates: [],
+    userUpdates: [],
+  };
+  changedReferencePlan.switchPlanSha256 = calculateStorageSwitchPlanSha256(changedReferencePlan);
   await assert.rejects(
     () =>
       applyStorageSwitchPlan({
@@ -234,12 +445,9 @@ try {
               fixedPage: { findUnique: async () => null },
             }),
         },
-        plan: {
-          ...plan,
-          jsonUpdates: [changedReference],
-          mediaUpdates: [],
-        },
+        plan: changedReferencePlan,
         apply: true,
+        backupEvidence,
         confirmDatabaseWrite: true,
       }),
     /JSON reference changed after inventory/,
@@ -247,11 +455,30 @@ try {
   );
   const drySwitch = await applyStorageSwitchPlan({ client: prisma, plan });
   assert.equal(drySwitch.mode, "dry-run");
+  await assert.rejects(
+    () =>
+      applyStorageSwitchPlan({
+        client: prisma,
+        plan: { ...plan, mediaUpdates: [] },
+      }),
+    /untampered storage switch plan/,
+    "switch plan contents must remain bound to their SHA-256",
+  );
   assert.equal(
     (await prisma.mediaAsset.findUnique({ where: { id: seeded.primary.id } })).metadata_json.upload
       .bucket,
     SOURCE_BUCKET,
     "dry-run must not change media metadata",
+  );
+  await assert.rejects(
+    () =>
+      applyStorageSwitchPlan({
+        client: prisma,
+        plan,
+        apply: true,
+        confirmDatabaseWrite: true,
+      }),
+    /verified SQLite backup evidence/,
   );
 
   const beforeBindings = await prisma.mediaBinding.findMany({
@@ -262,12 +489,14 @@ try {
     client: prisma,
     plan,
     apply: true,
+    backupEvidence,
     confirmDatabaseWrite: true,
   });
   const primaryAfter = await prisma.mediaAsset.findUnique({ where: { id: seeded.primary.id } });
   const missingAfter = await prisma.mediaAsset.findUnique({ where: { id: seeded.missing.id } });
   const catAfter = await prisma.cat.findUnique({ where: { id: seeded.cat.id } });
   const pageAfter = await prisma.fixedPage.findUnique({ where: { id: seeded.page.id } });
+  const authorAfter = await prisma.user.findUnique({ where: { id: seeded.author.id } });
   const afterBindings = await prisma.mediaBinding.findMany({
     where: { media_id: seeded.primary.id },
     orderBy: { id: "asc" },
@@ -287,6 +516,7 @@ try {
   assert.equal(new URL(catAfter.story_json.imagePresentation.url).host, TARGET_HOST);
   assert.equal(new URL(pageAfter.content_json.hero.imageUrl).host, TARGET_HOST);
   assert.equal(new URL(pageAfter.content_json.hero.imageUrl).search, "?width=128");
+  assert.equal(new URL(authorAfter.avatar_url).host, TARGET_HOST);
   assert.equal(
     catAfter.story_json.note,
     `Do not rewrite https://${SOURCE_HOST}.example.invalid/${OBJECT_KEY}`,
@@ -296,6 +526,7 @@ try {
     client: prisma,
     plan,
     apply: true,
+    backupEvidence,
     confirmDatabaseWrite: true,
   });
   assert.equal(repeatedSwitch.mediaUpdateCount, 2, "an applied switch must be safely repeatable");
@@ -320,19 +551,30 @@ try {
     switchPlan: plan,
     switchReport: repeatedSwitch,
   });
+  assert.throws(
+    () =>
+      buildStorageRollbackPlan({
+        switchPlan: plan,
+        switchReport: { ...repeatedSwitch, userStates: [] },
+      }),
+    /missing a rollback user state/,
+  );
   await applyStorageSwitchPlan({
     client: prisma,
     plan: rollbackPlan,
     apply: true,
+    backupEvidence,
     confirmDatabaseWrite: true,
   });
   const primaryRolledBack = await prisma.mediaAsset.findUnique({
     where: { id: seeded.primary.id },
   });
   const catRolledBack = await prisma.cat.findUnique({ where: { id: seeded.cat.id } });
+  const authorRolledBack = await prisma.user.findUnique({ where: { id: seeded.author.id } });
   assert.equal(primaryRolledBack.metadata_json.upload.bucket, SOURCE_BUCKET);
   assert.equal(new URL(primaryRolledBack.source_url).host, SOURCE_HOST);
   assert.equal(new URL(catRolledBack.story_json.imagePresentation.url).host, SOURCE_HOST);
+  assert.equal(new URL(authorRolledBack.avatar_url).host, SOURCE_HOST);
   assert.equal(
     (await prisma.fixedPage.findUnique({ where: { id: seeded.page.id } })).content_json.hero
       .imageUrl,
@@ -382,7 +624,12 @@ async function seed() {
     },
   });
   const author = await prisma.user.create({
-    data: { id: `${PREFIX}-author`, nickname: "Migration Author", status: "active" },
+    data: {
+      id: `${PREFIX}-author`,
+      nickname: "Migration Author",
+      avatar_url: `https://${SOURCE_HOST}/${AVATAR_KEY}`,
+      status: "active",
+    },
   });
   const post = await prisma.post.create({
     data: {
@@ -527,9 +774,12 @@ async function verifyChecksumlessHistoricalMedia() {
     targetObjects,
   });
   const inventory = {
-    inventorySha256: "checksumless-history-inventory",
+    schemaVersion: 2,
     sourceBucket: SOURCE_BUCKET,
     targetBucket: TARGET_BUCKET,
+    sourceObjects: [],
+    jsonReferences: [],
+    userAvatarReferences: [],
     records: [
       {
         checksum: null,
@@ -545,6 +795,7 @@ async function verifyChecksumlessHistoricalMedia() {
       },
     ],
   };
+  inventory.inventorySha256 = calculateCosMigrationInventorySha256(inventory);
   const report = await executeCosObjectCopies({
     inventory,
     apply: true,
@@ -555,6 +806,81 @@ async function verifyChecksumlessHistoricalMedia() {
   assert.equal(report.results[0].checksumVerification.status, "unavailable");
   assert.equal(report.results[0].byteVerification.status, "match");
   assert.equal(targetObjects.get(objectKey).body.equals(body), true);
+}
+
+function rebindInventoryAndCopyReport(inventory, copyReport, overrides) {
+  const reboundInventory = { ...inventory, ...overrides };
+  reboundInventory.inventorySha256 = calculateCosMigrationInventorySha256(reboundInventory);
+  return {
+    inventory: reboundInventory,
+    copyReport: { ...copyReport, inventorySha256: reboundInventory.inventorySha256 },
+  };
+}
+
+async function createAndVerifyBackupEvidence() {
+  rmSync(BACKUP_PATH, { force: true });
+  rmSync(INVALID_BACKUP_PATH, { force: true });
+  rmSync(INCOMPLETE_BACKUP_PATH, { force: true });
+  const { DatabaseSync } = await import("node:sqlite");
+  const database = new DatabaseSync(BACKUP_PATH);
+  database.exec(
+    `
+      CREATE TABLE _prisma_migrations (id TEXT PRIMARY KEY);
+      CREATE TABLE User (id TEXT PRIMARY KEY);
+      CREATE TABLE MediaAsset (id TEXT PRIMARY KEY, user_id TEXT, FOREIGN KEY (user_id) REFERENCES User(id));
+      INSERT INTO User VALUES ('backup-user');
+      INSERT INTO MediaAsset VALUES ('backup-media', 'backup-user');
+    `,
+  );
+  database.close();
+  const expectedSha256 = crypto
+    .createHash("sha256")
+    .update(readFileSync(BACKUP_PATH))
+    .digest("hex");
+  await assert.rejects(
+    () =>
+      verifyMigrationSqliteBackup({
+        backupPath: BACKUP_PATH,
+        databaseUrl: process.env.DATABASE_URL,
+        expectedSha256: "0".repeat(64),
+      }),
+    /SHA-256 does not match/,
+  );
+  writeFileSync(INVALID_BACKUP_PATH, "not sqlite", "utf8");
+  const invalidSha256 = crypto
+    .createHash("sha256")
+    .update(readFileSync(INVALID_BACKUP_PATH))
+    .digest("hex");
+  await assert.rejects(
+    () =>
+      verifyMigrationSqliteBackup({
+        backupPath: INVALID_BACKUP_PATH,
+        databaseUrl: process.env.DATABASE_URL,
+        expectedSha256: invalidSha256,
+      }),
+    /not a readable SQLite database/,
+  );
+  const incompleteDatabase = new DatabaseSync(INCOMPLETE_BACKUP_PATH);
+  incompleteDatabase.exec("CREATE TABLE unrelated_data (id TEXT PRIMARY KEY)");
+  incompleteDatabase.close();
+  const incompleteSha256 = crypto
+    .createHash("sha256")
+    .update(readFileSync(INCOMPLETE_BACKUP_PATH))
+    .digest("hex");
+  await assert.rejects(
+    () =>
+      verifyMigrationSqliteBackup({
+        backupPath: INCOMPLETE_BACKUP_PATH,
+        databaseUrl: process.env.DATABASE_URL,
+        expectedSha256: incompleteSha256,
+      }),
+    /missing required application tables/,
+  );
+  return verifyMigrationSqliteBackup({
+    backupPath: BACKUP_PATH,
+    databaseUrl: process.env.DATABASE_URL,
+    expectedSha256,
+  });
 }
 
 function binding(ownerType, ownerId, usage, sortOrder) {
@@ -606,7 +932,7 @@ function createFakeStorage({
       return value ? { exists: true, ...value } : { exists: false };
     },
     async putObject({ bucket, objectKey, body, contentType }) {
-      if (failNextPut()) {
+      if (failNextPut(objectKey)) {
         onFailedPut();
         throw new Error("simulated object write failure");
       }
@@ -634,6 +960,9 @@ async function cleanup() {
   await prisma.fixedPage.deleteMany({ where: { id: { startsWith: PREFIX } } });
   await prisma.cat.deleteMany({ where: { id: { startsWith: PREFIX } } });
   await prisma.user.deleteMany({ where: { id: { startsWith: PREFIX } } });
+  rmSync(BACKUP_PATH, { force: true });
+  rmSync(INVALID_BACKUP_PATH, { force: true });
+  rmSync(INCOMPLETE_BACKUP_PATH, { force: true });
 }
 
 async function ensureLocalSqliteSchema(databaseUrl) {

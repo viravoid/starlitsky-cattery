@@ -4,6 +4,8 @@ import { serviceUnavailable } from "../utils/errors.mjs";
 
 const SIGNING_ALGORITHM = "AWS4-HMAC-SHA256";
 const SIGNING_SERVICE = "s3";
+const LIGHTCOS_PROVIDER = "lightcos";
+const LIGHTCOS_SIGNING_ALGORITHM = "sha1";
 let testObjectStorageClient = null;
 
 export function setObjectStorageTestClient(client) {
@@ -49,20 +51,25 @@ export function createPresignedGetUrl({ objectKey, bucket }) {
   const now = new Date();
   const expiresSeconds = Math.min(storage.readExpiresSeconds, 3600);
 
+  const url =
+    storage.provider === LIGHTCOS_PROVIDER
+      ? createPresignedLightCosGetUrl({ objectKey, storage, now, expiresSeconds })
+      : createPresignedObjectUrl({
+          method: "GET",
+          objectKey,
+          storage,
+          now,
+          expiresSeconds,
+          signedHeaders: "host",
+          canonicalHeaders: (requestUrl) => `host:${requestUrl.host}\n`,
+        });
+
   return {
     provider: storage.provider,
     bucket: storage.bucket,
     objectKey,
     method: "GET",
-    url: createPresignedObjectUrl({
-      method: "GET",
-      objectKey,
-      storage,
-      now,
-      expiresSeconds,
-      signedHeaders: "host",
-      canonicalHeaders: (url) => `host:${url.host}\n`,
-    }).toString(),
+    url: url.toString(),
     expiresAt: new Date(now.getTime() + expiresSeconds * 1000).toISOString(),
     expiresInSeconds: expiresSeconds,
   };
@@ -78,9 +85,7 @@ export async function headObject({ objectKey, bucket }) {
   const response = await fetchSignedStorageRequest({ method: "HEAD", objectKey, storage });
   if (response.status === 404) return { exists: false };
   if (!response.ok) {
-    throw serviceUnavailable("Object storage metadata check failed", {
-      statusCode: response.status,
-    });
+    throwStorageReadFailure("Object storage metadata check failed", response, storage);
   }
 
   return {
@@ -103,12 +108,16 @@ export async function listObjects({ bucket, prefix = "", continuationToken = "" 
     });
   }
 
-  const queryParams = [
-    ["list-type", "2"],
-    ["max-keys", "1000"],
-  ];
+  const queryParams = [["max-keys", "1000"]];
+  if (storage.provider === LIGHTCOS_PROVIDER) queryParams.unshift(["encoding-type", "url"]);
+  else queryParams.unshift(["list-type", "2"]);
   if (prefix) queryParams.push(["prefix", prefix]);
-  if (continuationToken) queryParams.push(["continuation-token", continuationToken]);
+  if (continuationToken) {
+    queryParams.push([
+      storage.provider === LIGHTCOS_PROVIDER ? "marker" : "continuation-token",
+      continuationToken,
+    ]);
+  }
   const response = await fetchSignedStorageRequest({
     method: "GET",
     objectKey: "",
@@ -116,13 +125,10 @@ export async function listObjects({ bucket, prefix = "", continuationToken = "" 
     storage,
   });
   if (!response.ok) {
-    throw serviceUnavailable("Object storage inventory listing failed", {
-      bucket: storage.bucket,
-      statusCode: response.status,
-    });
+    throwStorageReadFailure("Object storage inventory listing failed", response, storage);
   }
 
-  return parseListObjectsResponse(await response.text());
+  return parseListObjectsResponse(await response.text(), storage.provider);
 }
 
 export async function getObject({ bucket, objectKey }) {
@@ -135,10 +141,7 @@ export async function getObject({ bucket, objectKey }) {
   const response = await fetchSignedStorageRequest({ method: "GET", objectKey, storage });
   if (response.status === 404) return { exists: false };
   if (!response.ok) {
-    throw serviceUnavailable("Object storage read failed", {
-      bucket: storage.bucket,
-      statusCode: response.status,
-    });
+    throwStorageReadFailure("Object storage read failed", response, storage);
   }
   return {
     exists: true,
@@ -152,6 +155,7 @@ export async function getObject({ bucket, objectKey }) {
 export async function putObject({ bucket, objectKey, body, contentType }) {
   assertStorageObjectKey(objectKey);
   const storage = getStorageConfig({ bucket });
+  assertStorageWriteSupported(storage);
   if (testObjectStorageClient?.putObject) {
     return testObjectStorageClient.putObject({
       body,
@@ -181,6 +185,7 @@ export async function putObject({ bucket, objectKey, body, contentType }) {
 export async function deleteObject({ objectKey, bucket }) {
   assertStorageObjectKey(objectKey);
   const storage = getStorageConfig({ bucket });
+  assertStorageWriteSupported(storage);
   if (testObjectStorageClient?.deleteObject) {
     return testObjectStorageClient.deleteObject({ bucket: storage.bucket, objectKey, storage });
   }
@@ -257,6 +262,17 @@ async function fetchSignedStorageRequest({
   body = null,
   contentType = null,
 }) {
+  if (storage.provider === LIGHTCOS_PROVIDER) {
+    return fetchSignedLightCosRequest({
+      method,
+      objectKey,
+      storage,
+      queryParams,
+      body,
+      contentType,
+    });
+  }
+
   const now = new Date();
   const amzDate = formatAmzDate(now);
   const dateStamp = amzDate.slice(0, 8);
@@ -304,6 +320,116 @@ async function fetchSignedStorageRequest({
   });
 }
 
+async function fetchSignedLightCosRequest({
+  method,
+  objectKey,
+  storage,
+  queryParams = [],
+  body = null,
+  contentType = null,
+}) {
+  if (!new Set(["GET", "HEAD"]).has(method) || body != null || contentType != null) {
+    throw serviceUnavailable("LightCOS compatibility is read-only", {
+      bucket: storage.bucket,
+      method,
+      provider: storage.provider,
+    });
+  }
+  const requestUrl = buildStorageUrl(storage, objectKey);
+  requestUrl.search = canonicalizeQuery(queryParams);
+  const authorization = createLightCosAuthorization({
+    accessKeyId: storage.accessKeyId,
+    accessKeySecret: storage.accessKeySecret,
+    expiresSeconds: Math.min(storage.readExpiresSeconds, 3600),
+    headers: [["host", requestUrl.host]],
+    method,
+    pathname: decodeURIComponent(requestUrl.pathname),
+    queryParams,
+  });
+  return fetch(requestUrl, {
+    method,
+    headers: { Authorization: authorization },
+  });
+}
+
+function createPresignedLightCosGetUrl({ objectKey, storage, now, expiresSeconds }) {
+  const requestUrl = buildStorageUrl(storage, objectKey);
+  const authorization = createLightCosAuthorization({
+    accessKeyId: storage.accessKeyId,
+    accessKeySecret: storage.accessKeySecret,
+    expiresSeconds,
+    headers: [["host", requestUrl.host]],
+    method: "GET",
+    now,
+    pathname: decodeURIComponent(requestUrl.pathname),
+    queryParams: [],
+  });
+  for (const part of authorization.split("&")) {
+    const separator = part.indexOf("=");
+    requestUrl.searchParams.append(part.slice(0, separator), part.slice(separator + 1));
+  }
+  return requestUrl;
+}
+
+function createLightCosAuthorization({
+  accessKeyId,
+  accessKeySecret,
+  expiresSeconds,
+  headers,
+  method,
+  now = new Date(),
+  pathname,
+  queryParams,
+}) {
+  const startTimestamp = Math.floor(now.getTime() / 1000) - 1;
+  const keyTime = `${startTimestamp};${startTimestamp + expiresSeconds}`;
+  const canonicalHeaders = canonicalizeLightCosEntries(headers);
+  const canonicalParams = canonicalizeLightCosEntries(queryParams);
+  const headerList = canonicalLightCosKeyList(headers);
+  const urlParamList = canonicalLightCosKeyList(queryParams);
+  const httpString = [method.toLowerCase(), pathname, canonicalParams, canonicalHeaders, ""].join(
+    "\n",
+  );
+  const signKey = crypto.createHmac("sha1", accessKeySecret).update(keyTime).digest("hex");
+  const stringToSign = [
+    LIGHTCOS_SIGNING_ALGORITHM,
+    keyTime,
+    crypto.createHash("sha1").update(httpString).digest("hex"),
+    "",
+  ].join("\n");
+  const signature = crypto.createHmac("sha1", signKey).update(stringToSign).digest("hex");
+  return [
+    `q-sign-algorithm=${LIGHTCOS_SIGNING_ALGORITHM}`,
+    `q-ak=${accessKeyId}`,
+    `q-sign-time=${keyTime}`,
+    `q-key-time=${keyTime}`,
+    `q-header-list=${headerList}`,
+    `q-url-param-list=${urlParamList}`,
+    `q-signature=${signature}`,
+  ].join("&");
+}
+
+function canonicalizeLightCosEntries(entries) {
+  return normalizeLightCosEntries(entries)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+}
+
+function canonicalLightCosKeyList(entries) {
+  return normalizeLightCosEntries(entries)
+    .map(([key]) => key)
+    .join(";");
+}
+
+function normalizeLightCosEntries(entries) {
+  return entries
+    .map(([key, value]) => [
+      encodeRfc3986(String(key)).toLowerCase(),
+      encodeRfc3986(value == null ? "" : String(value)),
+    ])
+    .sort(([left], [right]) => left.localeCompare(right));
+}
+
 export function getAllowedStorageBuckets() {
   const primary = getStorageConfig();
   return [primary, ...config.storage.readBuckets.map((entry) => hydrateStorageConfig(entry))].map(
@@ -347,7 +473,7 @@ function hydrateStorageConfig(entry) {
 function assertStorageConfigured(storage) {
   const missing = [];
   if (!storage.bucket) missing.push("STORAGE_BUCKET");
-  if (!storage.region) missing.push("STORAGE_REGION");
+  if (!storage.region && storage.provider !== LIGHTCOS_PROVIDER) missing.push("STORAGE_REGION");
   if (!storage.accessKeyId) missing.push("STORAGE_ACCESS_KEY_ID");
   if (!storage.accessKeySecret) missing.push("STORAGE_ACCESS_KEY_SECRET");
 
@@ -360,7 +486,13 @@ function assertStorageConfigured(storage) {
 }
 
 function deriveEndpoint(storage) {
-  if (!storage.bucket || !storage.region) return "";
+  if (!storage.bucket) return "";
+
+  if (storage.provider === LIGHTCOS_PROVIDER) {
+    return `https://${storage.bucket}.light-cos.com`;
+  }
+
+  if (!storage.region) return "";
 
   if (storage.provider === "cos") {
     return `https://${storage.bucket}.cos.${storage.region}.myqcloud.com`;
@@ -371,6 +503,24 @@ function deriveEndpoint(storage) {
   }
 
   return "";
+}
+
+function assertStorageWriteSupported(storage) {
+  if (storage.provider === LIGHTCOS_PROVIDER) {
+    throw serviceUnavailable("LightCOS compatibility is read-only", {
+      bucket: storage.bucket,
+      provider: storage.provider,
+    });
+  }
+}
+
+function throwStorageReadFailure(message, response, storage) {
+  const permissionDenied = response.status === 401 || response.status === 403;
+  throw serviceUnavailable(permissionDenied ? `${message}: permission denied` : message, {
+    bucket: storage.bucket,
+    provider: storage.provider,
+    statusCode: response.status,
+  });
 }
 
 function buildStorageUrl(storage, objectKey) {
@@ -491,9 +641,19 @@ function assertStorageObjectKey(value) {
   }
 }
 
-function parseListObjectsResponse(xml) {
+function parseListObjectsResponse(xml, provider) {
+  const encodingType = decodeXml(readXmlTag(xml, "EncodingType"));
+  const decodeListValue = (value) => {
+    const decoded = decodeXml(value);
+    if (encodingType !== "url") return decoded;
+    try {
+      return decodeURIComponent(decoded);
+    } catch {
+      return decoded;
+    }
+  };
   const objects = [...String(xml).matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map((match) => ({
-    objectKey: decodeXml(readXmlTag(match[1], "Key")),
+    objectKey: decodeListValue(readXmlTag(match[1], "Key")),
     sizeBytes: parseNullableInteger(readXmlTag(match[1], "Size")),
     etag: decodeXml(readXmlTag(match[1], "ETag")) || null,
     lastModified: decodeXml(readXmlTag(match[1], "LastModified")) || null,
@@ -501,7 +661,10 @@ function parseListObjectsResponse(xml) {
   return {
     objects,
     isTruncated: readXmlTag(xml, "IsTruncated") === "true",
-    nextContinuationToken: decodeXml(readXmlTag(xml, "NextContinuationToken")) || null,
+    nextContinuationToken:
+      decodeListValue(
+        readXmlTag(xml, provider === LIGHTCOS_PROVIDER ? "NextMarker" : "NextContinuationToken"),
+      ) || null,
   };
 }
 

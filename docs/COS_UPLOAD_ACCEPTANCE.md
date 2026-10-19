@@ -112,11 +112,14 @@ bucket CORS rule, and that object CAM permissions can be restricted to an exact 
 
 ## Miniapp domain change scope (do not apply during preparation)
 
-The current code names only the legacy host
-`starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`. During an approved migration window,
-both the legacy host and `starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com` must be
-accepted for `request` and `downloadFile`. Upload uses `wx.request` with `PUT`, so this is not an
-`uploadFile` legal-domain entry.
+The current code names only
+`starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`. This is a checked-in assumption, not
+evidence that the legacy LightCOS bucket actually serves objects there. The exact old API and
+public/custom object domains are **待真实只读验证**. During an approved migration window, the
+validated legacy object host and
+`starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com` must both be accepted for `request`
+and `downloadFile`. Upload uses `wx.request` with `PUT`, so this is not an `uploadFile` legal-domain
+entry.
 
 Reviewed code/documentation scope:
 

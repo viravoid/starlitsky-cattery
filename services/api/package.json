@@ -16,7 +16,7 @@
     "verify:community": "node src/services/community-service.verify.mjs",
     "verify:media-upload": "node src/services/media-upload-service.verify.mjs",
     "verify:private-cos-read": "node src/services/private-cos-read-delivery.verify.mjs",
-    "verify:cos-migration": "node src/services/cos-migration-service.verify.mjs",
+    "verify:cos-migration": "node src/services/object-storage-lightcos.verify.mjs && node src/services/cos-migration-service.verify.mjs",
     "verify:fixed-page-media": "node src/services/fixed-page-media-service.verify.mjs",
     "verify:migration-smoke": "node src/services/prisma-migration-smoke.verify.mjs",
     "verify:production-env": "node src/config/production-env.verify.mjs",
