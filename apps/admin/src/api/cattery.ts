@@ -55,6 +55,7 @@ import type {
   UpdateMediaBindingRequest,
   UpdateParentCatLinkRequest,
 } from "@starlitsky/shared";
+import { getMediaUploadTimeoutMs } from "../config/env";
 import { adminDelete, adminGet, adminPatch, adminPost } from "./request";
 
 export interface ListCatsParams {
@@ -439,11 +440,7 @@ async function uploadImageForOwner({
     width,
   });
 
-  const uploadResponse = await fetch(imageUpload.upload.url, {
-    body: file,
-    headers: imageUpload.upload.headers,
-    method: imageUpload.upload.method,
-  });
+  const uploadResponse = await putMediaFile(imageUpload.upload, file);
 
   if (!uploadResponse.ok) {
     throw new Error(`Object storage upload failed with HTTP ${uploadResponse.status}`);
@@ -454,6 +451,31 @@ async function uploadImageForOwner({
     sizeBytes: file.size,
     width,
   });
+}
+
+async function putMediaFile(
+  upload: ImageUploadData["upload"],
+  file: File,
+) {
+  const timeoutMs = getMediaUploadTimeoutMs();
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(upload.url, {
+      body: file,
+      headers: upload.headers,
+      method: upload.method,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Object storage upload timed out after ${timeoutMs} ms`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export function uploadMediaImage({
