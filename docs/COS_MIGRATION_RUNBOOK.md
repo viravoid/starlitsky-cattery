@@ -27,8 +27,8 @@ the API endpoint:
 
 ```dotenv
 STORAGE_BUCKET=standard-target-bucket
-STORAGE_LEGACY_BUCKET=legacy-source-bucket
-STORAGE_READ_BUCKETS_JSON=[{"bucket":"legacy-source-bucket","provider":"lightcos","endpoint":"https://legacy-source-bucket.light-cos.com","publicBaseUrl":"https://legacy-domain.example"}]
+STORAGE_LEGACY_BUCKET=legacy-source-bucket-1234567890
+STORAGE_READ_BUCKETS_JSON=[{"bucket":"legacy-source-bucket-1234567890","provider":"lightcos","endpoint":"https://legacy-source-bucket-1234567890.light-cos.com","publicBaseUrl":"https://legacy-domain.example"}]
 ```
 
 `provider: "lightcos"` is read-only in this code. It supports signed ListObjects, HEAD, GET, and
@@ -59,6 +59,52 @@ The compatibility code follows these Tencent Cloud documents:
 All of the above has automated synthetic-response coverage only. No request in this PR was sent to a
 real LightCOS bucket. The exact production API endpoint, stored legacy public/custom domain, signing
 acceptance, response headers, object-key edge cases, and IAM behavior are **待真实只读验证**.
+
+The synthetic signer test also pins one fixed Unicode/space/percent/query vector generated
+independently by `cos-nodejs-sdk-v5@3.0.0`. This cross-checks the repository implementation against
+Tencent's SDK; it is still not evidence that the real legacy bucket accepts the request.
+
+### Bounded real read-only probe (requires separate approval)
+
+The existing provider is exposed through one narrow CLI for the future real compatibility check.
+It is not an inventory command and cannot write. Before it starts, it requires an allowlisted
+`provider: "lightcos"` bucket, a non-empty prefix, two exact expected keys under that prefix, one of
+those keys as the object probe target, an exact configured endpoint confirmation, and the explicit
+`--confirm-read-only-probe` flag. The command performs exactly five requests on success:
+
+1. `GET Bucket` with `max-keys=1` and the approved prefix.
+2. `GET Bucket` with `max-keys=1`, the same prefix, and only the first response's `NextMarker`.
+3. One signed `HEAD` for the approved object.
+4. One Authorization-header `GET` for that object.
+5. One presigned `GET` for that object.
+
+It has no retries, uses a 10-second timeout per request, refuses redirects and cross-origin requests,
+blocks every method except GET/HEAD, limits each list body to 128 KiB, defaults object downloads to
+256 KiB, and has a hard 1 MiB ceiling. It compares the two GET bodies by SHA-256. Output contains
+only the confirmed origin, key/prefix hashes, sizes, MIME, ETag presence, status codes, error code
+when safely available, and RequestId. It never prints keys, SecretId, SecretKey, Authorization, or a
+presigned URL.
+
+Do not run this command until the owner separately approves the exact endpoint, prefix, two keys,
+object key, byte limit, time window, and least-privilege identity:
+
+```powershell
+npm run probe:lightcos-read-only -- `
+  --source-bucket <exact-BucketName-APPID> `
+  --prefix <exact-approved-prefix> `
+  --expected-first-key <exact-first-key> `
+  --expected-second-key <exact-second-key> `
+  --object-key <one-of-those-two-keys> `
+  --confirm-endpoint <exact-HTTPS-LightCOS-API-endpoint> `
+  --max-download-bytes 262144 `
+  --confirm-read-only-probe
+```
+
+The command reuses `STORAGE_ACCESS_KEY_ID` and `STORAGE_ACCESS_KEY_SECRET`; the read-bucket JSON must
+not contain credentials. The approved identity needs only `lightcos:GetBucket`,
+`lightcos:HeadObject`, and `lightcos:GetObject` for this probe. Temporary-session-token signing is
+not implemented, so a temporary key that requires `x-cos-security-token` must not be supplied until
+that support is explicitly added and tested.
 
 ## 1. Preparation and read-only inventory
 
@@ -94,6 +140,11 @@ and object path. Encoded paths are decoded to the object key and query/fragment 
 preserved. Similar hostnames and legacy-looking prose are not rewritten. If a managed media
 `source_url` resolves to a different key from its upload metadata, switch planning blocks rather
 than choosing one silently.
+
+Inventories and switch plans generated before the database snapshot field was introduced are
+intentionally rejected. No production inventory existed at the time of this change; future work
+must generate fresh artifacts from the approved, quiesced database instead of adapting an older
+JSON file by hand.
 
 Every copy attempt reads the source bytes and computes SHA-256. An existing or newly written target
 is then read back and must produce the same SHA-256; size, MIME, ETag, a successful HTTP response, or
@@ -208,11 +259,15 @@ switch transaction. These checks cannot prove snapshot recency, so the quiesced-
 and separate digest approval remain mandatory. Keep the immutable backup and its digest with the
 inventory/report evidence.
 
-The switch transaction updates only records whose object copy was verified. It checks each
-`updated_at` value from inventory, preserves IDs/bindings/sort/visibility/presentation data, and
-rewrites only enumerated legacy URL fields and exact JSON paths. Any concurrent change aborts the
-transaction; there is no whole-database string replacement. Repeating an already completed switch
-is idempotent when every selected field still equals the plan.
+The inventory binds a SHA-256 snapshot of every migration-relevant database row and field, including
+all media rows/bindings and every inspected JSON/avatar field. The switch transaction updates only
+records whose object copy was verified, normalizes its own exact planned replacements, and compares
+the complete current snapshot with the inventory before commit. A new media row, a new legacy JSON
+reference, a deletion, or an unplanned change therefore rolls back the entire transaction instead of
+being left outside the plan. It also checks each selected `updated_at` value, preserves
+IDs/bindings/sort/visibility/presentation data, and rewrites only enumerated legacy URL fields and
+exact JSON paths. Repeating an already completed switch is idempotent when every selected field still
+equals the plan. Rollback intentionally remains per-record so post-cutover rows are preserved.
 
 ## 3. New-upload acceptance in staging
 

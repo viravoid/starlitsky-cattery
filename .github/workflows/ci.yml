@@ -143,8 +143,8 @@ jobs:
           STORAGE_ACCESS_KEY_SECRET: ci-storage-secret-release-readiness-32-chars
           STORAGE_PUBLIC_BASE_URL: https://media.staging.starlitsky.example.org
           STORAGE_READ_EXPIRES_SECONDS: "3600"
-          STORAGE_LEGACY_BUCKET: starlitsky-ci-legacy
-          STORAGE_READ_BUCKETS_JSON: '[{"bucket":"starlitsky-ci-legacy","provider":"lightcos","publicBaseUrl":"https://starlitsky-ci-legacy.light-cos.com"}]'
+          STORAGE_LEGACY_BUCKET: starlitsky-ci-legacy-1234567890
+          STORAGE_READ_BUCKETS_JSON: '[{"bucket":"starlitsky-ci-legacy-1234567890","provider":"lightcos","publicBaseUrl":"https://starlitsky-ci-legacy-1234567890.light-cos.com"}]'
         run: npm run verify:production-env
 
       - name: Verify deployment assets

@@ -9,13 +9,13 @@ process.env.STORAGE_ACCESS_KEY_SECRET = "verify-lightcos-secret-key";
 process.env.STORAGE_PUBLIC_BASE_URL = "https://verify-standard-target.cos.ap-chengdu.myqcloud.com";
 process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
   {
-    bucket: "verify-lightcos-source",
+    bucket: "verify-lightcos-source-1234567890",
     provider: "lightcos",
-    publicBaseUrl: "https://verify-lightcos-source.light-cos.com",
+    publicBaseUrl: "https://verify-lightcos-source-1234567890.light-cos.com",
   },
 ]);
 
-const SOURCE_BUCKET = "verify-lightcos-source";
+const SOURCE_BUCKET = "verify-lightcos-source-1234567890";
 const TARGET_BUCKET = "verify-standard-target";
 const SECRET = process.env.STORAGE_ACCESS_KEY_SECRET;
 const requests = [];
@@ -32,6 +32,7 @@ global.fetch = async (input, init = {}) => {
 const {
   createPresignedGetUrl,
   createPresignedPutUpload,
+  createLightCosAuthorization,
   deleteObject,
   getObject,
   headObject,
@@ -82,6 +83,27 @@ try {
   for (const request of requests.splice(0)) assertValidHeaderSignature(request);
 
   responses.push(
+    xmlResponse(
+      "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated></ListBucketResult>",
+    ),
+  );
+  await listObjects({
+    bucket: SOURCE_BUCKET,
+    maxKeys: 1,
+    prefix: "media/猫 % folder/",
+  });
+  const boundedListRequest = requests.shift();
+  assert.equal(boundedListRequest.url.searchParams.get("max-keys"), "1");
+  assert.equal(boundedListRequest.url.searchParams.get("prefix"), "media/猫 % folder/");
+  assertValidHeaderSignature(boundedListRequest);
+
+  await assert.rejects(
+    () => listObjects({ bucket: SOURCE_BUCKET, maxKeys: 0 }),
+    /maxKeys must be an integer from 1 to 1000/,
+  );
+  assert.equal(requests.length, 0);
+
+  responses.push(
     new Response(null, {
       status: 200,
       headers: {
@@ -102,6 +124,40 @@ try {
   });
   assert.equal(requests[0].init.method, "HEAD");
   assertValidHeaderSignature(requests.shift());
+
+  for (const invalidXml of [
+    "not xml",
+    "<ListBucketResult><EncodingType>url</EncodingType></ListBucketResult>",
+    "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Contents><Key>a</Key><Size>1</Size></ListBucketResult>",
+    "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Contents><Size>1</Size></Contents></ListBucketResult>",
+    "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Contents><Key>bad%ZZ</Key><Size>1</Size></Contents></ListBucketResult>",
+  ]) {
+    responses.push(xmlResponse(invalidXml));
+    await assert.rejects(() => listObjects({ bucket: SOURCE_BUCKET }), /listing/);
+    assertValidHeaderSignature(requests.shift());
+  }
+
+  responses.push(
+    xmlResponse(
+      "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>true</IsTruncated><NextMarker>a</NextMarker><Contents><Key>a</Key><Size>1</Size></Contents></ListBucketResult>",
+    ),
+    xmlResponse(
+      "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>true</IsTruncated><NextMarker>a</NextMarker><Contents><Key>b</Key><Size>1</Size></Contents></ListBucketResult>",
+    ),
+  );
+  await assert.rejects(() => createInventoryFromLightCos(), /continuation token did not advance/);
+  for (const request of requests.splice(0)) assertValidHeaderSignature(request);
+
+  responses.push(
+    xmlResponse(
+      "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>true</IsTruncated><NextMarker>a</NextMarker><Contents><Key>a</Key><Size>1</Size></Contents></ListBucketResult>",
+    ),
+    xmlResponse(
+      "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Contents><Key>a</Key><Size>1</Size></Contents></ListBucketResult>",
+    ),
+  );
+  await assert.rejects(() => createInventoryFromLightCos(), /duplicate object key/);
+  for (const request of requests.splice(0)) assertValidHeaderSignature(request);
 
   responses.push(new Response(null, { status: 404 }));
   assert.deepEqual(
@@ -162,7 +218,7 @@ try {
 
   responses.push(
     xmlResponse(
-      "<ListBucketResult><IsTruncated>true</IsTruncated><Contents><Key>a</Key><Size>1</Size></Contents></ListBucketResult>",
+      "<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>true</IsTruncated><Contents><Key>a</Key><Size>1</Size></Contents></ListBucketResult>",
     ),
   );
   await assert.rejects(
@@ -206,6 +262,25 @@ try {
   assert.equal(signedLightCosRead.provider, "lightcos");
   assertValidQuerySignature(new URL(signedLightCosRead.url));
 
+  assert.equal(
+    createLightCosAuthorization({
+      accessKeyId: "AKIDEXAMPLE",
+      accessKeySecret: "SECRETEXAMPLE",
+      expiresSeconds: 600,
+      headers: [["host", "verify-lightcos-source.light-cos.com"]],
+      method: "GET",
+      now: new Date(1700000001000),
+      pathname: "/media/猫 image%(1).jpg",
+      queryParams: [
+        ["encoding-type", "url"],
+        ["max-keys", "1"],
+        ["prefix", "media/猫 %"],
+      ],
+    }),
+    "q-sign-algorithm=sha1&q-ak=AKIDEXAMPLE&q-sign-time=1700000000;1700000600&q-key-time=1700000000;1700000600&q-header-list=host&q-url-param-list=encoding-type;max-keys;prefix&q-signature=c3ec87d86350b4dbd26a480bf7ba5a22a85e8b81",
+    "signing must match the independent cos-nodejs-sdk-v5@3.0.0 vector",
+  );
+
   const standardRead = new URL(
     createPresignedGetUrl({ bucket: TARGET_BUCKET, objectKey: "media/images/a.jpg" }).url,
   );
@@ -233,6 +308,21 @@ function emptyInventoryClient() {
     litter: empty,
     selectionApplication: empty,
   };
+}
+
+function createInventoryFromLightCos() {
+  return createCosMigrationInventory({
+    client: emptyInventoryClient(),
+    sourceBucket: SOURCE_BUCKET,
+    targetBucket: TARGET_BUCKET,
+    storage: {
+      headObject: async () => ({ exists: false }),
+      listObjects: (input) =>
+        input.bucket === SOURCE_BUCKET
+          ? listObjects(input)
+          : Promise.resolve({ objects: [], isTruncated: false, nextContinuationToken: null }),
+    },
+  });
 }
 
 function xmlResponse(xml) {

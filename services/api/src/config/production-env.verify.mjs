@@ -235,6 +235,16 @@ function validateStorageReadBuckets() {
         `STORAGE_READ_BUCKETS_JSON[${index}].publicBaseUrl is required for LightCOS so stored legacy-domain references are not inferred from the API endpoint.`,
       );
     }
+    if (readProvider === "lightcos" && !/^[a-z0-9][a-z0-9-]*-\d+$/.test(bucket)) {
+      fail(
+        `STORAGE_READ_BUCKETS_JSON[${index}].bucket must include the numeric APPID suffix for LightCOS.`,
+      );
+    }
+    if (readProvider === "lightcos" && entry.forcePathStyle === true) {
+      fail(
+        `STORAGE_READ_BUCKETS_JSON[${index}].forcePathStyle must be false for LightCOS virtual-hosted requests.`,
+      );
+    }
   }
   if (legacyBucket && !buckets.has(legacyBucket)) {
     fail("STORAGE_LEGACY_BUCKET must be present in STORAGE_READ_BUCKETS_JSON.");

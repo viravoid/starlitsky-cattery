@@ -97,18 +97,30 @@ export async function headObject({ objectKey, bucket }) {
   };
 }
 
-export async function listObjects({ bucket, prefix = "", continuationToken = "" }) {
+export async function listObjects({
+  bucket,
+  prefix = "",
+  continuationToken = "",
+  maxKeys = 1000,
+  maxResponseBytes = null,
+}) {
   const storage = getStorageConfig({ bucket });
+  if (!Number.isInteger(maxKeys) || maxKeys < 1 || maxKeys > 1000) {
+    throw serviceUnavailable("Object storage list maxKeys must be an integer from 1 to 1000");
+  }
+  assertOptionalMaxBytes(maxResponseBytes);
   if (testObjectStorageClient?.listObjects) {
     return testObjectStorageClient.listObjects({
       bucket: storage.bucket,
       continuationToken,
+      maxKeys,
+      maxResponseBytes,
       prefix,
       storage,
     });
   }
 
-  const queryParams = [["max-keys", "1000"]];
+  const queryParams = [["max-keys", String(maxKeys)]];
   if (storage.provider === LIGHTCOS_PROVIDER) queryParams.unshift(["encoding-type", "url"]);
   else queryParams.unshift(["list-type", "2"]);
   if (prefix) queryParams.push(["prefix", prefix]);
@@ -128,14 +140,31 @@ export async function listObjects({ bucket, prefix = "", continuationToken = "" 
     throwStorageReadFailure("Object storage inventory listing failed", response, storage);
   }
 
-  return parseListObjectsResponse(await response.text(), storage.provider);
+  const contentLength = parseNullableInteger(response.headers.get("content-length"));
+  if (maxResponseBytes != null && contentLength != null && contentLength > maxResponseBytes) {
+    await response.body?.cancel();
+    throw serviceUnavailable("Object storage listing exceeds the configured byte limit", {
+      bucket: storage.bucket,
+      contentLength,
+      maxResponseBytes,
+      provider: storage.provider,
+    });
+  }
+  const body = await readResponseBodyLimited(response, maxResponseBytes);
+  return parseListObjectsResponse(body.toString("utf8"), storage.provider);
 }
 
-export async function getObject({ bucket, objectKey }) {
+export async function getObject({ bucket, objectKey, maxBytes = null }) {
   assertStorageObjectKey(objectKey);
+  assertOptionalMaxBytes(maxBytes);
   const storage = getStorageConfig({ bucket });
   if (testObjectStorageClient?.getObject) {
-    return testObjectStorageClient.getObject({ bucket: storage.bucket, objectKey, storage });
+    return testObjectStorageClient.getObject({
+      bucket: storage.bucket,
+      maxBytes,
+      objectKey,
+      storage,
+    });
   }
 
   const response = await fetchSignedStorageRequest({ method: "GET", objectKey, storage });
@@ -143,10 +172,20 @@ export async function getObject({ bucket, objectKey }) {
   if (!response.ok) {
     throwStorageReadFailure("Object storage read failed", response, storage);
   }
+  const contentLength = parseNullableInteger(response.headers.get("content-length"));
+  if (maxBytes != null && contentLength != null && contentLength > maxBytes) {
+    await response.body?.cancel();
+    throw serviceUnavailable("Object storage read exceeds the configured byte limit", {
+      bucket: storage.bucket,
+      contentLength,
+      maxBytes,
+      provider: storage.provider,
+    });
+  }
   return {
     exists: true,
-    body: Buffer.from(await response.arrayBuffer()),
-    contentLength: parseNullableInteger(response.headers.get("content-length")),
+    body: await readResponseBodyLimited(response, maxBytes),
+    contentLength,
     contentType: response.headers.get("content-type") || null,
     etag: response.headers.get("etag") || null,
   };
@@ -371,7 +410,7 @@ function createPresignedLightCosGetUrl({ objectKey, storage, now, expiresSeconds
   return requestUrl;
 }
 
-function createLightCosAuthorization({
+export function createLightCosAuthorization({
   accessKeyId,
   accessKeySecret,
   expiresSeconds,
@@ -432,15 +471,15 @@ function normalizeLightCosEntries(entries) {
 
 export function getAllowedStorageBuckets() {
   const primary = getStorageConfig();
-  return [primary, ...config.storage.readBuckets.map((entry) => hydrateStorageConfig(entry))].map(
-    (storage) => ({
+  return [primary, ...config.storage.readBuckets.map((entry) => hydrateStorageConfig(entry))]
+    .map((storage) => assertStorageConfigured(storage))
+    .map((storage) => ({
       bucket: storage.bucket,
       endpoint: storage.endpoint,
       provider: storage.provider,
       publicBaseUrl: storage.publicBaseUrl,
       region: storage.region,
-    }),
-  );
+    }));
 }
 
 function getStorageConfig({ bucket } = {}) {
@@ -481,8 +520,39 @@ function assertStorageConfigured(storage) {
   if (missing.length > 0) {
     throw serviceUnavailable("Object storage is not configured", { missing });
   }
+  if (storage.provider === LIGHTCOS_PROVIDER) assertLightCosReadConfig(storage);
 
   return storage;
+}
+
+function assertLightCosReadConfig(storage) {
+  if (!/^[a-z0-9][a-z0-9-]*-\d+$/.test(storage.bucket)) {
+    throw serviceUnavailable("LightCOS bucket must include its numeric APPID suffix", {
+      bucket: storage.bucket,
+    });
+  }
+  if (storage.forcePathStyle) {
+    throw serviceUnavailable("LightCOS compatibility requires virtual-hosted requests", {
+      bucket: storage.bucket,
+    });
+  }
+  let endpoint;
+  try {
+    endpoint = new URL(storage.endpoint);
+  } catch {
+    throw serviceUnavailable("LightCOS endpoint is invalid", { bucket: storage.bucket });
+  }
+  if (
+    endpoint.protocol !== "https:" ||
+    endpoint.username ||
+    endpoint.password ||
+    endpoint.search ||
+    endpoint.hash
+  ) {
+    throw serviceUnavailable("LightCOS endpoint must be a plain HTTPS URL", {
+      bucket: storage.bucket,
+    });
+  }
 }
 
 function deriveEndpoint(storage) {
@@ -604,6 +674,32 @@ function parseNullableInteger(value) {
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
+function assertOptionalMaxBytes(value) {
+  if (value != null && (!Number.isSafeInteger(value) || value < 1)) {
+    throw serviceUnavailable("Object storage read maxBytes must be a positive safe integer");
+  }
+}
+
+async function readResponseBodyLimited(response, maxBytes) {
+  if (maxBytes == null) return Buffer.from(await response.arrayBuffer());
+  if (!response.body) return Buffer.alloc(0);
+
+  const chunks = [];
+  let totalBytes = 0;
+  for await (const chunk of response.body) {
+    const buffer = Buffer.from(chunk);
+    totalBytes += buffer.length;
+    if (totalBytes > maxBytes) {
+      await response.body.cancel().catch(() => {});
+      throw serviceUnavailable("Object storage read exceeds the configured byte limit", {
+        maxBytes,
+      });
+    }
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks, totalBytes);
+}
+
 function encodePath(path) {
   return trimSlashes(path).split("/").map(encodeRfc3986).join("/");
 }
@@ -642,30 +738,77 @@ function assertStorageObjectKey(value) {
 }
 
 function parseListObjectsResponse(xml, provider) {
+  const document = String(xml);
+  const normalizedDocument = document.trim().replace(/^<\?xml[^?]*\?>\s*/i, "");
+  if (!/^<ListBucketResult(?:\s[^>]*)?>[\s\S]*<\/ListBucketResult>$/.test(normalizedDocument)) {
+    throw serviceUnavailable("Object storage listing returned malformed XML");
+  }
+  if (countXmlTag(document, "IsTruncated") !== 1) {
+    throw serviceUnavailable("Object storage listing returned malformed pagination XML");
+  }
   const encodingType = decodeXml(readXmlTag(xml, "EncodingType"));
+  if (
+    provider === LIGHTCOS_PROVIDER &&
+    (countXmlTag(document, "EncodingType") !== 1 || encodingType !== "url")
+  ) {
+    throw serviceUnavailable("LightCOS listing did not confirm URL-encoded object keys");
+  }
   const decodeListValue = (value) => {
     const decoded = decodeXml(value);
     if (encodingType !== "url") return decoded;
     try {
       return decodeURIComponent(decoded);
     } catch {
-      return decoded;
+      throw serviceUnavailable("Object storage listing returned invalid URL encoding");
     }
   };
-  const objects = [...String(xml).matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map((match) => ({
-    objectKey: decodeListValue(readXmlTag(match[1], "Key")),
-    sizeBytes: parseNullableInteger(readXmlTag(match[1], "Size")),
-    etag: decodeXml(readXmlTag(match[1], "ETag")) || null,
-    lastModified: decodeXml(readXmlTag(match[1], "LastModified")) || null,
-  }));
+  const truncatedValue = decodeXml(readXmlTag(xml, "IsTruncated"));
+  if (!new Set(["true", "false"]).has(truncatedValue)) {
+    throw serviceUnavailable("Object storage listing returned an invalid IsTruncated value");
+  }
+  const contentMatches = [...document.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)];
+  const contentOpeningCount = (document.match(/<Contents(?:\s[^>]*)?>/g) ?? []).length;
+  const contentClosingCount = (document.match(/<\/Contents>/g) ?? []).length;
+  if (
+    contentOpeningCount !== contentClosingCount ||
+    contentMatches.length !== contentOpeningCount
+  ) {
+    throw serviceUnavailable("Object storage listing returned malformed object XML");
+  }
+  const objects = contentMatches.map((match) => {
+    const objectKey = decodeListValue(readRequiredXmlTag(match[1], "Key"));
+    const sizeValue = readRequiredXmlTag(match[1], "Size");
+    const sizeBytes = parseNullableInteger(sizeValue);
+    if (!objectKey || sizeBytes == null || sizeBytes < 0) {
+      throw serviceUnavailable("Object storage listing returned an invalid object entry");
+    }
+    return {
+      objectKey,
+      sizeBytes,
+      etag: decodeXml(readXmlTag(match[1], "ETag")) || null,
+      lastModified: decodeXml(readXmlTag(match[1], "LastModified")) || null,
+    };
+  });
   return {
     objects,
-    isTruncated: readXmlTag(xml, "IsTruncated") === "true",
+    isTruncated: truncatedValue === "true",
     nextContinuationToken:
       decodeListValue(
         readXmlTag(xml, provider === LIGHTCOS_PROVIDER ? "NextMarker" : "NextContinuationToken"),
       ) || null,
   };
+}
+
+function countXmlTag(xml, name) {
+  return (String(xml).match(new RegExp(`<${name}>[\\s\\S]*?<\\/${name}>`, "g")) ?? []).length;
+}
+
+function readRequiredXmlTag(xml, name) {
+  const value = readXmlTag(xml, name);
+  if (value === "") {
+    throw serviceUnavailable(`Object storage listing is missing ${name}`);
+  }
+  return value;
 }
 
 function readXmlTag(xml, name) {
