@@ -41,6 +41,7 @@
     "import:public-content": "npm --workspace @starlitsky/api run import:public-content --",
     "media:apply-environment-batch": "npm --workspace @starlitsky/api run media:apply-environment-batch --",
     "media:cos-migration": "npm --workspace @starlitsky/api run media:cos-migration --",
+    "probe:lightcos-read-only": "npm --workspace @starlitsky/api run probe:lightcos-read-only --",
     "verify:production-env": "node services/api/src/config/production-env.verify.mjs",
     "verify:deployment-assets": "node deploy/production/validate-deployment-assets.mjs",
     "lint": "eslint .",

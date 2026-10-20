@@ -26,7 +26,12 @@ export async function createCosMigrationInventory({
 } = {}) {
   const buckets = assertMigrationBuckets(sourceBucket, targetBucket);
   const generatedAt = new Date().toISOString();
-  const [
+  const [databaseRecords, sourceObjects, targetObjects] = await Promise.all([
+    loadMigrationDatabaseRecordsConsistently(client),
+    listAllObjects(storage, sourceBucket),
+    listAllObjects(storage, targetBucket),
+  ]);
+  const {
     media,
     users,
     cats,
@@ -35,57 +40,8 @@ export async function createCosMigrationInventory({
     kittenProfiles,
     litters,
     selectionApplications,
-    sourceObjects,
-    targetObjects,
-  ] = await Promise.all([
-    client.mediaAsset.findMany({
-      include: { bindings: { orderBy: [{ sort_order: "asc" }, { id: "asc" }] } },
-      orderBy: [{ created_at: "asc" }, { id: "asc" }],
-    }),
-    client.user.findMany({
-      select: { avatar_url: true, id: true, updated_at: true },
-      orderBy: { id: "asc" },
-    }),
-    client.cat.findMany({
-      select: { id: true, story_json: true, updated_at: true },
-      orderBy: { id: "asc" },
-    }),
-    client.fixedPage.findMany({
-      select: { content_json: true, id: true, updated_at: true },
-      orderBy: { id: "asc" },
-    }),
-    client.parentApplication.findMany({
-      select: {
-        existing_cat_claims_json: true,
-        id: true,
-        new_cats_json: true,
-        updated_at: true,
-      },
-      orderBy: { id: "asc" },
-    }),
-    client.kittenProfile.findMany({
-      select: { cat_id: true, structure_rating_json: true },
-      orderBy: { cat_id: "asc" },
-    }),
-    client.litter.findMany({
-      select: { id: true, possible_colors_json: true, updated_at: true },
-      orderBy: { id: "asc" },
-    }),
-    client.selectionApplication.findMany({
-      select: {
-        cat_experience_json: true,
-        commitments_json: true,
-        existing_pets_json: true,
-        id: true,
-        living_environment_json: true,
-        preferences_json: true,
-        updated_at: true,
-      },
-      orderBy: { id: "asc" },
-    }),
-    listAllObjects(storage, sourceBucket),
-    listAllObjects(storage, targetBucket),
-  ]);
+  } = databaseRecords;
+  const databaseSnapshotSha256 = calculateMigrationDatabaseSnapshotSha256(databaseRecords);
 
   const sourceObjectMap = new Map(sourceObjects.map((object) => [object.objectKey, object]));
   const targetObjectMap = new Map(targetObjects.map((object) => [object.objectKey, object]));
@@ -249,6 +205,7 @@ export async function createCosMigrationInventory({
       mediaCreatedAt: maxIso(media.map((item) => item.created_at)),
       mediaUpdatedAt: maxIso(media.map((item) => item.updated_at)),
     },
+    databaseSnapshotSha256,
     records,
     recordsRequiringMigration: records
       .filter((record) => record.requiresMigration)
@@ -294,6 +251,209 @@ export function calculateCosMigrationInventorySha256(inventory) {
   const payload = { ...(inventory ?? {}) };
   delete payload.inventorySha256;
   return sha256(stableJson(payload));
+}
+
+async function loadMigrationDatabaseRecords(client) {
+  const [
+    media,
+    users,
+    cats,
+    fixedPages,
+    parentApplications,
+    kittenProfiles,
+    litters,
+    selectionApplications,
+  ] = await Promise.all([
+    client.mediaAsset.findMany({
+      include: { bindings: { orderBy: [{ sort_order: "asc" }, { id: "asc" }] } },
+      orderBy: [{ created_at: "asc" }, { id: "asc" }],
+    }),
+    client.user.findMany({
+      select: { avatar_url: true, id: true, updated_at: true },
+      orderBy: { id: "asc" },
+    }),
+    client.cat.findMany({
+      select: { id: true, story_json: true, updated_at: true },
+      orderBy: { id: "asc" },
+    }),
+    client.fixedPage.findMany({
+      select: { content_json: true, id: true, updated_at: true },
+      orderBy: { id: "asc" },
+    }),
+    client.parentApplication.findMany({
+      select: {
+        existing_cat_claims_json: true,
+        id: true,
+        new_cats_json: true,
+        updated_at: true,
+      },
+      orderBy: { id: "asc" },
+    }),
+    client.kittenProfile.findMany({
+      select: { cat_id: true, structure_rating_json: true },
+      orderBy: { cat_id: "asc" },
+    }),
+    client.litter.findMany({
+      select: { id: true, possible_colors_json: true, updated_at: true },
+      orderBy: { id: "asc" },
+    }),
+    client.selectionApplication.findMany({
+      select: {
+        cat_experience_json: true,
+        commitments_json: true,
+        existing_pets_json: true,
+        id: true,
+        living_environment_json: true,
+        preferences_json: true,
+        updated_at: true,
+      },
+      orderBy: { id: "asc" },
+    }),
+  ]);
+  return {
+    media,
+    users,
+    cats,
+    fixedPages,
+    parentApplications,
+    kittenProfiles,
+    litters,
+    selectionApplications,
+  };
+}
+
+async function loadMigrationDatabaseRecordsConsistently(client) {
+  if (typeof client.$transaction !== "function") return loadMigrationDatabaseRecords(client);
+  return client.$transaction((transaction) => loadMigrationDatabaseRecords(transaction));
+}
+
+function calculateMigrationDatabaseSnapshotSha256(records) {
+  return sha256(stableJson(normalizeMigrationDatabaseRecords(records)));
+}
+
+function normalizeMigrationDatabaseRecords(records) {
+  return normalizeSnapshotValue({
+    media: records.media,
+    users: records.users,
+    cats: records.cats,
+    fixedPages: records.fixedPages,
+    parentApplications: records.parentApplications,
+    kittenProfiles: records.kittenProfiles,
+    litters: records.litters,
+    selectionApplications: records.selectionApplications,
+  });
+}
+
+function normalizeSnapshotValue(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(normalizeSnapshotValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeSnapshotValue(item)]),
+    );
+  }
+  return value;
+}
+
+function calculateNormalizedPlanDatabaseSnapshotSha256(records, plan) {
+  const snapshot = normalizeMigrationDatabaseRecords(records);
+  const mediaById = new Map(snapshot.media.map((record) => [record.id, record]));
+  for (const update of plan.mediaUpdates) {
+    const record = mediaById.get(update.id);
+    if (!record) {
+      throw new CosMigrationError("Migration media disappeared after inventory", {
+        mediaId: update.id,
+      });
+    }
+    const current = {
+      metadataJson: record.metadata_json,
+      sourceUrl: record.source_url,
+      thumbnailUrl: record.thumbnail_url,
+    };
+    if (matchesStorageValues(current, update)) {
+      record.metadata_json = update.previous.metadataJson;
+      record.source_url = update.previous.sourceUrl;
+      record.thumbnail_url = update.previous.thumbnailUrl;
+      record.updated_at = update.expectedUpdatedAt;
+    } else if (
+      !matchesStorageValues(current, update.previous) ||
+      record.updated_at !== update.expectedUpdatedAt
+    ) {
+      throw new CosMigrationError("Media changed after inventory; switch aborted", {
+        mediaId: update.id,
+      });
+    }
+  }
+
+  const groupedJsonUpdates = groupJsonUpdates(plan.jsonUpdates);
+  for (const update of groupedJsonUpdates) {
+    const recordsForModel = update.model === "cat" ? snapshot.cats : snapshot.fixedPages;
+    const record = recordsForModel.find((item) => item.id === update.id);
+    if (!record) {
+      throw new CosMigrationError("Migration JSON record disappeared after inventory", {
+        id: update.id,
+        model: update.model,
+      });
+    }
+    if (jsonReferencesAlreadyApplied(record[update.field], update.references)) {
+      record[update.field] = applyExactJsonReplacements(
+        record[update.field],
+        update.references.map((reference) => ({
+          ...reference,
+          value: reference.replacementValue,
+          replacementValue: reference.value,
+        })),
+      );
+      record.updated_at = update.expectedUpdatedAt;
+    } else if (
+      !jsonReferencesMatchOriginal(record[update.field], update.references) ||
+      record.updated_at !== update.expectedUpdatedAt
+    ) {
+      throw new CosMigrationError("JSON document changed after inventory; switch aborted", {
+        id: update.id,
+        model: update.model,
+      });
+    }
+  }
+
+  const usersById = new Map(snapshot.users.map((record) => [record.id, record]));
+  for (const update of plan.userUpdates ?? []) {
+    const user = usersById.get(update.id);
+    if (!user) {
+      throw new CosMigrationError("Migration user disappeared after inventory", {
+        userId: update.id,
+      });
+    }
+    if (user.avatar_url === update.avatarUrl) {
+      user.avatar_url = update.previousAvatarUrl;
+      user.updated_at = update.expectedUpdatedAt;
+    } else if (
+      user.avatar_url !== update.previousAvatarUrl ||
+      user.updated_at !== update.expectedUpdatedAt
+    ) {
+      throw new CosMigrationError("User avatar changed after inventory; switch aborted", {
+        userId: update.id,
+      });
+    }
+  }
+
+  return sha256(stableJson(snapshot));
+}
+
+function matchesStorageValues(current, expected) {
+  return (
+    current?.sourceUrl === expected?.sourceUrl &&
+    current?.thumbnailUrl === expected?.thumbnailUrl &&
+    stableJson(current?.metadataJson) === stableJson(expected?.metadataJson)
+  );
+}
+
+function jsonReferencesMatchOriginal(value, references) {
+  return references.every((reference) => {
+    let cursor = value;
+    for (const part of reference.path) cursor = cursor?.[part];
+    return cursor === reference.value;
+  });
 }
 
 async function enrichListedObject(storage, bucket, objectKey, objectMap) {
@@ -565,6 +725,7 @@ export function buildStorageSwitchPlan({
   const plan = {
     schemaVersion: 2,
     inventorySha256: inventory.inventorySha256,
+    databaseSnapshotSha256: inventory.databaseSnapshotSha256,
     sourceBucket: inventory.sourceBucket,
     targetBucket: inventory.targetBucket,
     mediaUpdates,
@@ -804,6 +965,7 @@ export function buildStorageRollbackPlan({ switchPlan, switchReport }) {
     !switchPlan?.switchPlanSha256 ||
     switchReport?.switchPlanSha256 !== switchPlan.switchPlanSha256 ||
     switchReport?.mode !== "apply" ||
+    !/^[a-f0-9]{64}$/.test(switchReport?.postSwitchDatabaseSnapshotSha256 ?? "") ||
     !Array.isArray(switchReport.mediaStates) ||
     !Array.isArray(switchReport.jsonStates) ||
     !Array.isArray(switchReport.userStates)
@@ -869,6 +1031,7 @@ export function buildStorageRollbackPlan({ switchPlan, switchReport }) {
   const plan = {
     schemaVersion: 2,
     inventorySha256: switchPlan.inventorySha256,
+    databaseSnapshotSha256: switchReport.postSwitchDatabaseSnapshotSha256,
     sourceBucket: switchPlan.targetBucket,
     targetBucket: switchPlan.sourceBucket,
     mediaUpdates,
@@ -982,6 +1145,22 @@ export async function applyStorageSwitchPlan({
       userStates.push({ id: update.id, updatedAt: toIsoString(current.updated_at) });
     }
 
+    const postSwitchDatabaseRecords = await loadMigrationDatabaseRecords(transaction);
+    const normalizedSnapshotSha256 = calculateNormalizedPlanDatabaseSnapshotSha256(
+      postSwitchDatabaseRecords,
+      plan,
+    );
+    if (!plan.rollbackOf && normalizedSnapshotSha256 !== plan.databaseSnapshotSha256) {
+      throw new CosMigrationError(
+        "Migration-relevant database state changed after inventory; switch aborted",
+        {
+          actualSha256: normalizedSnapshotSha256,
+          expectedSha256: plan.databaseSnapshotSha256,
+        },
+      );
+    }
+    const postSwitchDatabaseSnapshotSha256 =
+      calculateMigrationDatabaseSnapshotSha256(postSwitchDatabaseRecords);
     return {
       mode: "apply",
       switchPlanSha256: plan.switchPlanSha256,
@@ -991,6 +1170,7 @@ export async function applyStorageSwitchPlan({
       mediaStates,
       jsonStates,
       userStates,
+      postSwitchDatabaseSnapshotSha256,
       backupEvidence,
     };
   });
@@ -1011,16 +1191,50 @@ function assertMigrationBuckets(sourceBucket, targetBucket) {
 
 async function listAllObjects(storage, bucket) {
   const objects = [];
+  const objectKeys = new Set();
+  const requestedTokens = new Set();
   let continuationToken = "";
   do {
+    if (requestedTokens.has(continuationToken)) {
+      throw new CosMigrationError("Object listing repeated a continuation token", {
+        bucket,
+        continuationToken,
+      });
+    }
+    requestedTokens.add(continuationToken);
     const page = await storage.listObjects({ bucket, continuationToken });
-    objects.push(...page.objects);
-    continuationToken = page.isTruncated ? page.nextContinuationToken : "";
-    if (page.isTruncated && !continuationToken) {
+    if (!page || !Array.isArray(page.objects) || typeof page.isTruncated !== "boolean") {
+      throw new CosMigrationError("Object listing returned an invalid page", { bucket });
+    }
+    for (const object of page.objects) {
+      if (!safeObjectKey(object?.objectKey)) {
+        throw new CosMigrationError("Object listing returned an invalid object key", { bucket });
+      }
+      if (objectKeys.has(object.objectKey)) {
+        throw new CosMigrationError("Object listing returned a duplicate object key", {
+          bucket,
+          objectKey: object.objectKey,
+        });
+      }
+      objectKeys.add(object.objectKey);
+      objects.push(object);
+    }
+    const nextContinuationToken = page.isTruncated ? page.nextContinuationToken : "";
+    if (page.isTruncated && !nextContinuationToken) {
       throw new CosMigrationError("Truncated object listing did not return a continuation token", {
         bucket,
       });
     }
+    if (page.isTruncated && page.objects.length === 0) {
+      throw new CosMigrationError("Truncated object listing returned an empty page", { bucket });
+    }
+    if (page.isTruncated && nextContinuationToken === continuationToken) {
+      throw new CosMigrationError("Object listing continuation token did not advance", {
+        bucket,
+        continuationToken,
+      });
+    }
+    continuationToken = nextContinuationToken;
   } while (continuationToken);
   return objects.sort((left, right) => left.objectKey.localeCompare(right.objectKey));
 }
@@ -1435,6 +1649,7 @@ function assertInventory(inventory) {
   if (
     inventory?.schemaVersion !== 2 ||
     !inventory.inventorySha256 ||
+    !/^[a-f0-9]{64}$/.test(inventory.databaseSnapshotSha256 ?? "") ||
     !Array.isArray(inventory.records) ||
     !Array.isArray(inventory.sourceObjects) ||
     !Array.isArray(inventory.jsonReferences) ||
@@ -1449,6 +1664,7 @@ function assertSwitchPlan(plan) {
   if (
     plan?.schemaVersion !== 2 ||
     !plan.switchPlanSha256 ||
+    !/^[a-f0-9]{64}$/.test(plan.databaseSnapshotSha256 ?? "") ||
     !Array.isArray(plan.mediaUpdates) ||
     !Array.isArray(plan.jsonUpdates) ||
     !Array.isArray(plan.userUpdates) ||

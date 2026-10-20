@@ -10,13 +10,13 @@ process.env.STORAGE_BUCKET = "verify-new-bucket";
 process.env.STORAGE_REGION = "ap-chengdu";
 process.env.STORAGE_ACCESS_KEY_ID = "verify-access-key";
 process.env.STORAGE_ACCESS_KEY_SECRET = "verify-secret-key";
-process.env.STORAGE_LEGACY_BUCKET = "verify-old-bucket";
+process.env.STORAGE_LEGACY_BUCKET = "verify-old-bucket-1234567890";
 process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
   {
-    bucket: "verify-old-bucket",
+    bucket: "verify-old-bucket-1234567890",
     provider: "lightcos",
-    endpoint: "https://verify-old-bucket.light-cos.com",
-    publicBaseUrl: "https://verify-old-bucket.light-cos.com",
+    endpoint: "https://verify-old-bucket-1234567890.light-cos.com",
+    publicBaseUrl: "https://verify-old-bucket-1234567890.light-cos.com",
   },
 ]);
 
@@ -38,7 +38,7 @@ const { assertMigrationWriteRuntime, databaseUrlFingerprint, verifyMigrationSqli
   await import("./cos-migration-runtime-guard.mjs");
 
 const PREFIX = "verify-cos-migration";
-const SOURCE_BUCKET = "verify-old-bucket";
+const SOURCE_BUCKET = "verify-old-bucket-1234567890";
 const TARGET_BUCKET = "verify-new-bucket";
 const SOURCE_HOST = `${SOURCE_BUCKET}.light-cos.com`;
 const TARGET_HOST = `${TARGET_BUCKET}.cos.ap-chengdu.myqcloud.com`;
@@ -481,6 +481,35 @@ try {
     /verified SQLite backup evidence/,
   );
 
+  const lateLegacyMedia = await prisma.mediaAsset.create({
+    data: {
+      id: `${PREFIX}-late-legacy-media`,
+      kind: "image",
+      source_url: `https://${SOURCE_HOST}/media/images/late-legacy.jpg`,
+      status: "active",
+      metadata_json: {
+        upload: {
+          bucket: SOURCE_BUCKET,
+          objectKey: "media/images/late-legacy.jpg",
+          provider: "lightcos",
+        },
+      },
+    },
+  });
+  await assert.rejects(
+    () =>
+      applyStorageSwitchPlan({
+        client: prisma,
+        plan,
+        apply: true,
+        backupEvidence,
+        confirmDatabaseWrite: true,
+      }),
+    /database state changed after inventory/,
+    "a media row created after inventory must abort the entire switch transaction",
+  );
+  await prisma.mediaAsset.delete({ where: { id: lateLegacyMedia.id } });
+
   const beforeBindings = await prisma.mediaBinding.findMany({
     where: { media_id: seeded.primary.id },
     orderBy: { id: "asc" },
@@ -775,6 +804,7 @@ async function verifyChecksumlessHistoricalMedia() {
   });
   const inventory = {
     schemaVersion: 2,
+    databaseSnapshotSha256: "0".repeat(64),
     sourceBucket: SOURCE_BUCKET,
     targetBucket: TARGET_BUCKET,
     sourceObjects: [],
