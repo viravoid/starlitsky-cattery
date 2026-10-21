@@ -144,3 +144,8 @@ After the offline report and mappings are reviewed, the next production action i
 operator to create a quiesced SQLite online backup, record its SHA-256, transfer the backup to the
 protected offline workstation, and run this command against that copy. Online COS `HEAD` validation
 is a later, separately authorized stage.
+
+Use `docs/PRODUCTION_SQLITE_OFFLINE_HANDOFF.md` for the exact backup, two-boundary validation,
+encrypted transfer, offline execution, result protection, retention, and abort procedure. It also
+distinguishes SQLite transaction consistency from the optional business write freeze used to keep a
+migration inventory from becoming stale.

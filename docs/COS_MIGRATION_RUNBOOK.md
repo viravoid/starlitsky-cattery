@@ -105,6 +105,10 @@ request. The `media:cos-migration -- inventory` command below is a later **onlin
 step**: it automatically performs source and target object `HEAD` calls for every discovered Key.
 Do not run that command when only offline preparation is authorized.
 
+The production-to-offline handoff commands, checksums, transfer boundary, evidence retention, and
+abort conditions are defined in `docs/PRODUCTION_SQLITE_OFFLINE_HANDOFF.md`. Complete that handoff
+before using an offline report as migration evidence.
+
 1. After separate approval, confirm a least-privilege source identity can perform only object HEAD
    and GET on the required source keys. Target write permissions belong to a separate identity and
    are a later, separately approved step. Do not use a root key.
