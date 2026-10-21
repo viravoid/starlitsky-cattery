@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 
 process.env.STORAGE_PROVIDER = "cos";
-process.env.STORAGE_BUCKET = "probe-standard-target";
+process.env.STORAGE_BUCKET = "probe-standard-target-1234567890";
 process.env.STORAGE_REGION = "ap-chengdu";
-process.env.STORAGE_ACCESS_KEY_ID = "probe-synthetic-access-key";
-process.env.STORAGE_ACCESS_KEY_SECRET = "probe-synthetic-secret-key";
+process.env.STORAGE_ACCESS_KEY_ID = "probe-target-access-key";
+process.env.STORAGE_ACCESS_KEY_SECRET = "probe-target-secret-key";
+process.env.STORAGE_LEGACY_BUCKET = "probe-lightcos-source-1234567890";
+process.env.STORAGE_LEGACY_ACCESS_KEY_ID = "probe-source-access-key";
+process.env.STORAGE_LEGACY_ACCESS_KEY_SECRET = "probe-source-secret-key";
 process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
   {
     bucket: "probe-lightcos-source-1234567890",
     provider: "lightcos",
-    endpoint: "https://probe-lightcos-source-1234567890.light-cos.com",
+    region: "ap-chengdu",
+    endpoint: "https://probe-lightcos-source-1234567890.cos.ap-chengdu.myqcloud.com",
     publicBaseUrl: "https://legacy-media.example.test",
   },
 ]);
@@ -17,80 +22,68 @@ process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
 const { LightCosReadProbeError, runLightCosReadProbe } = await import("./lightcos-read-probe.mjs");
 
 const BUCKET = "probe-lightcos-source-1234567890";
-const ENDPOINT = `https://${BUCKET}.light-cos.com/`;
-const PREFIX = "approved/猫 %/";
-const FIRST_KEY = `${PREFIX}first image.jpg`;
-const SECOND_KEY = `${PREFIX}second%image.jpg`;
+const ENDPOINT = `https://${BUCKET}.cos.ap-chengdu.myqcloud.com`;
+const OBJECT_KEY = "approved/猫 image.jpg";
 const BODY = Buffer.from("synthetic-lightcos-probe-body");
-
-const requests = [];
-const responses = [
-  xmlResponse(
-    `<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>true</IsTruncated><NextMarker>${encodeURIComponent(FIRST_KEY)}</NextMarker><Contents><Key>${encodeURIComponent(FIRST_KEY)}</Key><Size>${BODY.length}</Size></Contents></ListBucketResult>`,
-    "request-list-1",
-  ),
-  xmlResponse(
-    `<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Contents><Key>${encodeURIComponent(SECOND_KEY)}</Key><Size>${BODY.length}</Size></Contents></ListBucketResult>`,
-    "request-list-2",
-  ),
-  new Response(null, {
-    status: 200,
-    headers: {
-      "content-length": String(BODY.length),
-      "content-type": "image/jpeg",
+const SHA256 = crypto.createHash("sha256").update(BODY).digest("hex");
+const calls = [];
+const storage = {
+  async headObject(input) {
+    calls.push({ method: "HEAD", input });
+    return {
+      exists: true,
+      contentLength: BODY.length,
+      contentType: "image/jpeg",
       etag: '"probe-etag"',
-      "x-cos-request-id": "request-head",
-    },
-  }),
-  objectResponse(BODY, "request-authorized-get"),
-  objectResponse(BODY, "request-presigned-get"),
-];
+    };
+  },
+  async getObject(input) {
+    calls.push({ method: "GET", input });
+    return {
+      exists: true,
+      body: BODY,
+      contentLength: BODY.length,
+      contentType: "image/jpeg",
+      etag: '"probe-etag"',
+    };
+  },
+};
 
 const report = await runLightCosReadProbe({
   bucket: BUCKET,
-  prefix: PREFIX,
-  expectedFirstKey: FIRST_KEY,
-  expectedSecondKey: SECOND_KEY,
-  objectKey: FIRST_KEY,
+  objectKey: OBJECT_KEY,
   confirmedEndpoint: ENDPOINT,
   confirmReadOnlyProbe: true,
+  expectedSizeBytes: BODY.length,
+  expectedSha256: SHA256,
   maxDownloadBytes: 1024,
-  fetchImplementation: syntheticFetch(responses, requests),
+  storage,
 });
 
 assert.equal(report.status, "passed");
-assert.equal(report.requestCount, 5);
-assert.equal(report.http.length, 5);
+assert.equal(report.requestCount, 2);
 assert.equal(report.object.bytes, BODY.length);
-assert.equal(report.http[0].requestId, "request-list-1");
+assert.equal(report.object.sha256, SHA256);
 assert.deepEqual(
-  requests.map((request) => request.init.method),
-  ["GET", "GET", "HEAD", "GET", "GET"],
+  calls.map((item) => item.method),
+  ["HEAD", "GET"],
 );
-assert.ok(requests.every((request) => request.init.redirect === "manual"));
-assert.equal(requests[0].url.searchParams.get("max-keys"), "1");
-assert.equal(requests[0].url.searchParams.get("prefix"), PREFIX);
-assert.equal(requests[1].url.searchParams.get("marker"), FIRST_KEY);
-assert.ok(requests[4].url.searchParams.has("q-signature"));
-const serializedReport = JSON.stringify(report);
-assert.equal(serializedReport.includes(process.env.STORAGE_ACCESS_KEY_ID), false);
-assert.equal(serializedReport.includes(process.env.STORAGE_ACCESS_KEY_SECRET), false);
-assert.equal(serializedReport.includes("q-signature"), false);
-assert.equal(serializedReport.includes(FIRST_KEY), false);
+assert.equal(calls[1].input.maxBytes, 1024);
+assert.equal(JSON.stringify(report).includes(OBJECT_KEY), false);
+assert.equal(JSON.stringify(report).includes(process.env.STORAGE_LEGACY_ACCESS_KEY_ID), false);
 
-let networkCalls = 0;
+let requestCount = 0;
 await assert.rejects(
   () =>
     runLightCosReadProbe({
       bucket: BUCKET,
-      prefix: PREFIX,
-      expectedFirstKey: FIRST_KEY,
-      expectedSecondKey: SECOND_KEY,
-      objectKey: FIRST_KEY,
+      objectKey: OBJECT_KEY,
       confirmedEndpoint: ENDPOINT,
-      fetchImplementation: async () => {
-        networkCalls += 1;
-        throw new Error("must not run");
+      expectedSha256: SHA256,
+      storage: {
+        headObject: async () => {
+          requestCount += 1;
+        },
       },
     }),
   /explicit read-only confirmation/,
@@ -99,104 +92,34 @@ await assert.rejects(
   () =>
     runLightCosReadProbe({
       bucket: BUCKET,
-      prefix: PREFIX,
-      expectedFirstKey: FIRST_KEY,
-      expectedSecondKey: SECOND_KEY,
-      objectKey: FIRST_KEY,
+      objectKey: OBJECT_KEY,
       confirmedEndpoint: "https://unapproved.example.test",
       confirmReadOnlyProbe: true,
-      fetchImplementation: async () => {
-        networkCalls += 1;
-        throw new Error("must not run");
+      expectedSizeBytes: BODY.length,
+      expectedSha256: SHA256,
+      storage: {
+        headObject: async () => {
+          requestCount += 1;
+        },
       },
     }),
   /exact confirmation/,
 );
-assert.equal(networkCalls, 0);
+assert.equal(requestCount, 0);
 
-const redirectRequests = [];
 await assert.rejects(
   () =>
     runLightCosReadProbe({
       bucket: BUCKET,
-      prefix: PREFIX,
-      expectedFirstKey: FIRST_KEY,
-      expectedSecondKey: SECOND_KEY,
-      objectKey: FIRST_KEY,
+      objectKey: OBJECT_KEY,
       confirmedEndpoint: ENDPOINT,
       confirmReadOnlyProbe: true,
-      fetchImplementation: syntheticFetch(
-        [new Response(null, { status: 302, headers: { location: "https://elsewhere.test" } })],
-        redirectRequests,
-      ),
+      expectedSizeBytes: BODY.length,
+      expectedSha256: "0".repeat(64),
+      maxDownloadBytes: 1024,
+      storage,
     }),
-  (error) =>
-    error instanceof LightCosReadProbeError &&
-    /refused an HTTP redirect/.test(error.message) &&
-    error.report.requestCount === 1,
+  (error) => error instanceof LightCosReadProbeError && /SHA-256/.test(error.message),
 );
-assert.equal(redirectRequests.length, 1);
 
-const oversizedRequests = [];
-await assert.rejects(
-  () =>
-    runLightCosReadProbe({
-      bucket: BUCKET,
-      prefix: PREFIX,
-      expectedFirstKey: FIRST_KEY,
-      expectedSecondKey: SECOND_KEY,
-      objectKey: FIRST_KEY,
-      confirmedEndpoint: ENDPOINT,
-      confirmReadOnlyProbe: true,
-      maxDownloadBytes: 4,
-      fetchImplementation: syntheticFetch(
-        [
-          xmlResponse(
-            `<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>true</IsTruncated><NextMarker>${encodeURIComponent(FIRST_KEY)}</NextMarker><Contents><Key>${encodeURIComponent(FIRST_KEY)}</Key><Size>${BODY.length}</Size></Contents></ListBucketResult>`,
-          ),
-          xmlResponse(
-            `<ListBucketResult><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Contents><Key>${encodeURIComponent(SECOND_KEY)}</Key><Size>${BODY.length}</Size></Contents></ListBucketResult>`,
-          ),
-          new Response(null, {
-            status: 200,
-            headers: { "content-length": String(BODY.length), "content-type": "image/jpeg" },
-          }),
-        ],
-        oversizedRequests,
-      ),
-    }),
-  (error) =>
-    error instanceof LightCosReadProbeError &&
-    /exceeds the approved download/.test(error.message) &&
-    error.report.requestCount === 3,
-);
-assert.equal(oversizedRequests.length, 3);
-
-console.info("Synthetic bounded LightCOS read probe verification passed");
-
-function syntheticFetch(queue, log) {
-  return async (input, init = {}) => {
-    log.push({ init, url: new URL(input) });
-    const response = queue.shift();
-    if (!response) throw new Error("synthetic probe response queue exhausted");
-    return response;
-  };
-}
-
-function xmlResponse(xml, requestId = null) {
-  const headers = { "content-type": "application/xml" };
-  if (requestId) headers["x-cos-request-id"] = requestId;
-  return new Response(xml, { status: 200, headers });
-}
-
-function objectResponse(body, requestId) {
-  return new Response(body, {
-    status: 200,
-    headers: {
-      "content-length": String(body.length),
-      "content-type": "image/jpeg",
-      etag: '"probe-etag"',
-      "x-cos-request-id": requestId,
-    },
-  });
-}
+console.info("Synthetic bounded Lighthouse COS object probe verification passed");

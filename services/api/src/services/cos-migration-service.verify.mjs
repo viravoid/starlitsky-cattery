@@ -11,12 +11,16 @@ process.env.STORAGE_REGION = "ap-chengdu";
 process.env.STORAGE_ACCESS_KEY_ID = "verify-access-key";
 process.env.STORAGE_ACCESS_KEY_SECRET = "verify-secret-key";
 process.env.STORAGE_LEGACY_BUCKET = "verify-old-bucket-1234567890";
+process.env.STORAGE_LEGACY_ACCESS_KEY_ID = "verify-legacy-access-key";
+process.env.STORAGE_LEGACY_ACCESS_KEY_SECRET = "verify-legacy-secret-key";
 process.env.STORAGE_READ_BUCKETS_JSON = JSON.stringify([
   {
     bucket: "verify-old-bucket-1234567890",
     provider: "lightcos",
-    endpoint: "https://verify-old-bucket-1234567890.light-cos.com",
-    publicBaseUrl: "https://verify-old-bucket-1234567890.light-cos.com",
+    region: "ap-chengdu",
+    endpoint: "https://verify-old-bucket-1234567890.cos.ap-chengdu.myqcloud.com",
+    publicBaseUrl: "https://verify-old-bucket-1234567890.cos.ap-chengdu.myqcloud.com",
+    historicalBaseUrls: ["https://historical-media.example.test/archive"],
   },
 ]);
 
@@ -29,8 +33,10 @@ const {
   buildStorageRollbackPlan,
   buildStorageSwitchPlan,
   calculateCosMigrationInventorySha256,
+  calculateStorageSwitchCoverageAcknowledgementSha256,
   calculateStorageSwitchExclusionsSha256,
   calculateStorageSwitchPlanSha256,
+  calculateSupplementalObjectManifestSha256,
   createCosMigrationInventory,
   executeCosObjectCopies,
 } = await import("./cos-migration-service.mjs");
@@ -40,8 +46,9 @@ const { assertMigrationWriteRuntime, databaseUrlFingerprint, verifyMigrationSqli
 const PREFIX = "verify-cos-migration";
 const SOURCE_BUCKET = "verify-old-bucket-1234567890";
 const TARGET_BUCKET = "verify-new-bucket";
-const SOURCE_HOST = `${SOURCE_BUCKET}.light-cos.com`;
+const SOURCE_HOST = `${SOURCE_BUCKET}.cos.ap-chengdu.myqcloud.com`;
 const TARGET_HOST = `${TARGET_BUCKET}.cos.ap-chengdu.myqcloud.com`;
+const HISTORICAL_BASE_URL = "https://historical-media.example.test/archive";
 const OBJECT_KEY = "media/images/shared.jpg";
 const THUMBNAIL_KEY = "media/images/z-shared-thumb.jpg";
 const MISSING_KEY = "media/images/missing.jpg";
@@ -85,10 +92,64 @@ try {
     targetObjects,
   });
 
+  const supplementalManifest = {
+    schemaVersion: 1,
+    approvalReference: "VERIFY-SUPPLEMENTAL-1",
+    objects: [
+      {
+        objectKey: "media/images/orphan.jpg",
+        checksum: crypto.createHash("sha256").update(Buffer.from("orphan")).digest("hex"),
+        evidence: "synthetic operator-reviewed manifest",
+      },
+    ],
+  };
+  await assert.rejects(
+    () =>
+      createCosMigrationInventory({
+        client: prisma,
+        sourceBucket: SOURCE_BUCKET,
+        targetBucket: TARGET_BUCKET,
+        supplementalManifest: {
+          ...supplementalManifest,
+          objects: [{ objectKey: "media/images/orphan.jpg" }],
+        },
+        storage,
+      }),
+    /non-empty source evidence/,
+    "an unproven supplemental Key must be rejected",
+  );
+  await assert.rejects(
+    () =>
+      createCosMigrationInventory({
+        client: prisma,
+        sourceBucket: SOURCE_BUCKET,
+        targetBucket: TARGET_BUCKET,
+        supplementalManifest: { ...supplementalManifest, approvalReference: " " },
+        storage,
+      }),
+    /valid supplemental object manifest/,
+    "a supplemental manifest must carry an approval reference",
+  );
+  await assert.rejects(
+    () =>
+      createCosMigrationInventory({
+        client: prisma,
+        sourceBucket: SOURCE_BUCKET,
+        targetBucket: TARGET_BUCKET,
+        supplementalManifest,
+        storage,
+      }),
+    /separate approval using the exact manifest SHA-256/,
+    "supplemental evidence must be bound to a separately approved digest",
+  );
+  const approvedSupplementalManifestSha256 =
+    calculateSupplementalObjectManifestSha256(supplementalManifest);
   const inventory = await createCosMigrationInventory({
     client: prisma,
     sourceBucket: SOURCE_BUCKET,
     targetBucket: TARGET_BUCKET,
+    supplementalManifest,
+    approvedSupplementalManifestSha256,
     storage,
   });
   assert.equal(inventory.records.length, 3);
@@ -96,9 +157,20 @@ try {
     { objectKey: OBJECT_KEY, mediaIds: [seeded.primary.id, seeded.archivedDuplicate.id] },
   ]);
   assert.deepEqual(inventory.missingSourceRecords, [seeded.missing.id]);
+  assert.equal(inventory.orphanSourceObjects, null);
+  assert.equal(inventory.coverage.fullBucketCoverage, "unknown");
+  assert.equal(inventory.coverage.bucketListingAttempted, false);
+  assert.ok(inventory.sourceBaseUrls.includes(HISTORICAL_BASE_URL));
+  assert.ok(inventory.discoveredObjectKeys.includes(THUMBNAIL_KEY));
+  assert.ok(inventory.discoveredObjectKeys.includes(AVATAR_KEY));
+  assert.ok(inventory.missingSourceObjectKeys.includes(MISSING_KEY));
   assert.deepEqual(
-    inventory.orphanSourceObjects.map((item) => item.objectKey),
+    inventory.supplementalObjects.map((item) => item.objectKey),
     ["media/images/orphan.jpg"],
+  );
+  assert.equal(
+    inventory.supplementalManifestAudit.approvedManifestSha256,
+    approvedSupplementalManifestSha256,
   );
   assert.deepEqual(inventory.statusGroups.archived, [seeded.archivedDuplicate.id]);
   assert.equal(inventory.jsonReferences.length, 2);
@@ -300,6 +372,47 @@ try {
     "a legacy reference without an audited automatic path must block",
   );
 
+  const unresolvedLegacyUrlFixture = rebindInventoryAndCopyReport(inventory, copied, {
+    unresolvedLegacyUrlReferences: [
+      {
+        model: "fixed_page",
+        id: seeded.page.id,
+        field: "content_json",
+        path: ["legacyMarkup"],
+        value: `image: https://${SOURCE_HOST}/${OBJECT_KEY}`,
+        reason: "contains-configured-legacy-origin-but-is-not-an-exact-object-url",
+      },
+    ],
+  });
+  assert.throws(
+    () => buildStorageSwitchPlan(unresolvedLegacyUrlFixture),
+    (error) =>
+      error?.details?.findings?.some(
+        (finding) => finding.code === "legacy-url-reference-unresolved",
+      ),
+    "an embedded or otherwise unresolved legacy URL must block",
+  );
+
+  const externalUrlFixture = rebindInventoryAndCopyReport(inventory, copied, {
+    externalUrlReferences: [
+      {
+        model: "media_asset",
+        id: seeded.primary.id,
+        field: "thumbnail_url",
+        path: null,
+        value: "https://unmapped-media.example.invalid/history.jpg",
+      },
+    ],
+  });
+  assert.throws(
+    () => buildStorageSwitchPlan(externalUrlFixture),
+    (error) =>
+      error?.details?.findings?.some(
+        (finding) => finding.code === "external-url-reference-requires-review",
+      ),
+    "an unmapped external URL must require an explicit review conclusion",
+  );
+
   const duplicateConflictFixture = rebindInventoryAndCopyReport(inventory, copied, {
     duplicateKeyConflicts: [
       {
@@ -316,6 +429,37 @@ try {
         (finding) => finding.code === "duplicate-key-metadata-conflict",
       ),
     "duplicate-key metadata conflicts must block",
+  );
+
+  const supplementalConflictFixture = rebindInventoryAndCopyReport(inventory, copied, {
+    supplementalObjectConflicts: [
+      {
+        objectKey: OBJECT_KEY,
+        mediaIds: [seeded.primary.id],
+        conflictingFields: ["media:checksum"],
+      },
+    ],
+  });
+  assert.throws(
+    () => buildStorageSwitchPlan(supplementalConflictFixture),
+    (error) =>
+      error?.details?.findings?.some(
+        (finding) => finding.code === "supplemental-object-metadata-conflict",
+      ),
+    "a supplemental/database Key conflict must block",
+  );
+
+  const oversizedFixture = rebindInventoryAndCopyReport(inventory, copied, {
+    limits: { ...inventory.limits, maxObjectBytes: 1 },
+    oversizedSourceObjectKeys: [OBJECT_KEY],
+  });
+  assert.throws(
+    () => buildStorageSwitchPlan(oversizedFixture),
+    (error) =>
+      error?.details?.findings?.some(
+        (finding) => finding.code === "source-object-exceeds-read-limit",
+      ),
+    "an object beyond the inventory read limit must block even with stale copy evidence",
   );
 
   const repeated = await executeCosObjectCopies({
@@ -412,15 +556,70 @@ try {
     /unknown subjects/,
     "an approved digest cannot introduce an exclusion outside the bound inventory",
   );
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: copied,
+        exclusions,
+        approvedExclusionsSha256,
+      }),
+    /Unknown full-bucket coverage requires.*known-reference switch acknowledgement/,
+    "unknown bucket coverage must never be silently treated as completed migration",
+  );
+  const coverageAcknowledgement = {
+    schemaVersion: 1,
+    inventorySha256: inventory.inventorySha256,
+    switchScope: "known-referenced-objects-only",
+    fullBucketCoverage: "unknown",
+    approvalReference: "VERIFY-LIMITED-COVERAGE-1",
+  };
+  const approvedCoverageAcknowledgementSha256 =
+    calculateStorageSwitchCoverageAcknowledgementSha256(coverageAcknowledgement);
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: copied,
+        exclusions,
+        approvedExclusionsSha256,
+        coverageAcknowledgement,
+        approvedCoverageAcknowledgementSha256: "0".repeat(64),
+      }),
+    /separate approval using the exact acknowledgement SHA-256/,
+    "the limited-coverage decision must be bound to the exact acknowledgement",
+  );
   const plan = buildStorageSwitchPlan({
     inventory,
     copyReport: copied,
     exclusions,
     approvedExclusionsSha256,
+    coverageAcknowledgement,
+    approvedCoverageAcknowledgementSha256,
   });
   assert.equal(plan.mediaUpdates.length, 2, "approved exclusions must be explicit and audited");
   assert.equal(plan.userUpdates.length, 1, "User.avatar_url must have an exact switch update");
   assert.equal(plan.integrity.approvedExclusionsSha256, approvedExclusionsSha256);
+  assert.equal(plan.integrity.switchScope, "known-referenced-objects-only");
+  assert.equal(plan.integrity.fullBucketMigrationComplete, false);
+  assert.equal(
+    plan.integrity.approvedCoverageAcknowledgementSha256,
+    approvedCoverageAcknowledgementSha256,
+  );
+  const unacknowledgedPlan = {
+    ...plan,
+    integrity: {
+      ...plan.integrity,
+      coverageAcknowledgement: null,
+      approvedCoverageAcknowledgementSha256: null,
+    },
+  };
+  unacknowledgedPlan.switchPlanSha256 = calculateStorageSwitchPlanSha256(unacknowledgedPlan);
+  await assert.rejects(
+    () => applyStorageSwitchPlan({ client: prisma, plan: unacknowledgedPlan }),
+    /valid untampered storage switch plan/,
+    "re-hashing a plan cannot remove its limited-coverage approval evidence",
+  );
   const changedReference = plan.jsonUpdates[0];
   const changedReferencePlan = {
     ...plan,
@@ -607,7 +806,7 @@ try {
   assert.equal(
     (await prisma.fixedPage.findUnique({ where: { id: seeded.page.id } })).content_json.hero
       .imageUrl,
-    `https://${SOURCE_HOST}/media/images/%73hared.jpg?width=128`,
+    `${HISTORICAL_BASE_URL}/media/images/%73hared.jpg?width=128`,
     "rollback must restore the exact encoded source URL and query",
   );
   assert.ok(
@@ -647,7 +846,7 @@ async function seed() {
       title: "Migration Page",
       content_json: {
         hero: {
-          imageUrl: `https://${SOURCE_HOST}/media/images/%73hared.jpg?width=128`,
+          imageUrl: `${HISTORICAL_BASE_URL}/media/images/%73hared.jpg?width=128`,
         },
       },
     },
@@ -803,13 +1002,25 @@ async function verifyChecksumlessHistoricalMedia() {
     targetObjects,
   });
   const inventory = {
-    schemaVersion: 2,
+    schemaVersion: 4,
     databaseSnapshotSha256: "0".repeat(64),
     sourceBucket: SOURCE_BUCKET,
     targetBucket: TARGET_BUCKET,
     sourceObjects: [],
+    discoveredObjectKeys: [objectKey],
     jsonReferences: [],
     userAvatarReferences: [],
+    unresolvedLegacyUrlReferences: [],
+    externalUrlReferences: [],
+    supplementalObjects: [],
+    supplementalManifestAudit: null,
+    supplementalObjectConflicts: [],
+    coverage: {
+      fullBucketCoverage: "unknown",
+    },
+    limits: {
+      maxObjectBytes: 1024,
+    },
     records: [
       {
         checksum: null,
@@ -819,7 +1030,7 @@ async function verifyChecksumlessHistoricalMedia() {
         sizeBytes: body.length,
         sourceObject: {
           ...sourceObjects.get(objectKey),
-          inventoryConsistency: "listed-and-head-confirmed",
+          inventoryConsistency: "head-confirmed",
           sizeBytes: body.length,
         },
       },
@@ -933,17 +1144,8 @@ function createFakeStorage({
 }) {
   const bucketMap = (bucket) => (bucket === SOURCE_BUCKET ? sourceObjects : targetObjects);
   return {
-    async listObjects({ bucket }) {
-      return {
-        objects: [...bucketMap(bucket)].map(([objectKey, value]) => ({
-          objectKey,
-          sizeBytes: value.body.length,
-          etag: value.etag,
-          lastModified: "2026-10-18T00:00:00.000Z",
-        })),
-        isTruncated: false,
-        nextContinuationToken: null,
-      };
+    async listObjects() {
+      throw new Error("inventory must not call bucket listing");
     },
     async headObject({ bucket, objectKey }) {
       const value = bucketMap(bucket).get(objectKey);

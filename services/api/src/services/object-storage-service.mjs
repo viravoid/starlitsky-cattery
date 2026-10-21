@@ -1,15 +1,20 @@
 import crypto from "node:crypto";
+import COS from "cos-nodejs-sdk-v5";
 import { config } from "../config/env.mjs";
 import { serviceUnavailable } from "../utils/errors.mjs";
 
 const SIGNING_ALGORITHM = "AWS4-HMAC-SHA256";
 const SIGNING_SERVICE = "s3";
 const LIGHTCOS_PROVIDER = "lightcos";
-const LIGHTCOS_SIGNING_ALGORITHM = "sha1";
 let testObjectStorageClient = null;
+let testCosSdkClientFactory = null;
 
 export function setObjectStorageTestClient(client) {
   testObjectStorageClient = client;
+}
+
+export function setCosSdkTestClientFactory(factory) {
+  testCosSdkClientFactory = factory;
 }
 
 export function createPresignedPutUpload({ objectKey, mimeType }) {
@@ -53,7 +58,16 @@ export function createPresignedGetUrl({ objectKey, bucket }) {
 
   const url =
     storage.provider === LIGHTCOS_PROVIDER
-      ? createPresignedLightCosGetUrl({ objectKey, storage, now, expiresSeconds })
+      ? new URL(
+          createCosSdkClient(storage).getObjectUrl({
+            Bucket: storage.bucket,
+            Expires: expiresSeconds,
+            Key: objectKey,
+            Method: "GET",
+            Region: storage.region,
+            Sign: true,
+          }),
+        )
       : createPresignedObjectUrl({
           method: "GET",
           objectKey,
@@ -82,6 +96,10 @@ export async function headObject({ objectKey, bucket }) {
     return testObjectStorageClient.headObject({ bucket: storage.bucket, objectKey, storage });
   }
 
+  if (storage.provider === LIGHTCOS_PROVIDER) {
+    return headObjectWithCosSdk({ objectKey, storage });
+  }
+
   const response = await fetchSignedStorageRequest({ method: "HEAD", objectKey, storage });
   if (response.status === 404) return { exists: false };
   if (!response.ok) {
@@ -105,6 +123,12 @@ export async function listObjects({
   maxResponseBytes = null,
 }) {
   const storage = getStorageConfig({ bucket });
+  if (storage.provider === LIGHTCOS_PROVIDER) {
+    throw serviceUnavailable("Lighthouse source bucket listing is unsupported", {
+      bucket: storage.bucket,
+      provider: storage.provider,
+    });
+  }
   if (!Number.isInteger(maxKeys) || maxKeys < 1 || maxKeys > 1000) {
     throw serviceUnavailable("Object storage list maxKeys must be an integer from 1 to 1000");
   }
@@ -121,14 +145,10 @@ export async function listObjects({
   }
 
   const queryParams = [["max-keys", String(maxKeys)]];
-  if (storage.provider === LIGHTCOS_PROVIDER) queryParams.unshift(["encoding-type", "url"]);
-  else queryParams.unshift(["list-type", "2"]);
+  queryParams.unshift(["list-type", "2"]);
   if (prefix) queryParams.push(["prefix", prefix]);
   if (continuationToken) {
-    queryParams.push([
-      storage.provider === LIGHTCOS_PROVIDER ? "marker" : "continuation-token",
-      continuationToken,
-    ]);
+    queryParams.push(["continuation-token", continuationToken]);
   }
   const response = await fetchSignedStorageRequest({
     method: "GET",
@@ -151,7 +171,7 @@ export async function listObjects({
     });
   }
   const body = await readResponseBodyLimited(response, maxResponseBytes);
-  return parseListObjectsResponse(body.toString("utf8"), storage.provider);
+  return parseListObjectsResponse(body.toString("utf8"));
 }
 
 export async function getObject({ bucket, objectKey, maxBytes = null }) {
@@ -165,6 +185,10 @@ export async function getObject({ bucket, objectKey, maxBytes = null }) {
       objectKey,
       storage,
     });
+  }
+
+  if (storage.provider === LIGHTCOS_PROVIDER) {
+    return getObjectWithCosSdk({ maxBytes, objectKey, storage });
   }
 
   const response = await fetchSignedStorageRequest({ method: "GET", objectKey, storage });
@@ -189,6 +213,116 @@ export async function getObject({ bucket, objectKey, maxBytes = null }) {
     contentType: response.headers.get("content-type") || null,
     etag: response.headers.get("etag") || null,
   };
+}
+
+function createCosSdkClient(storage) {
+  const options = {
+    ChunkRetryTimes: 0,
+    SecretId: storage.accessKeyId,
+    SecretKey: storage.accessKeySecret,
+    SecurityToken: storage.sessionToken || undefined,
+    Timeout: 10_000,
+  };
+  return testCosSdkClientFactory ? testCosSdkClientFactory(options, storage) : new COS(options);
+}
+
+async function headObjectWithCosSdk({ objectKey, storage }) {
+  try {
+    const data = await callCosSdk(createCosSdkClient(storage), "headObject", {
+      Bucket: storage.bucket,
+      Key: objectKey,
+      Region: storage.region,
+    });
+    return {
+      exists: true,
+      contentLength: parseNullableInteger(readHeader(data?.headers, "content-length")),
+      contentType: readHeader(data?.headers, "content-type") || null,
+      etag: data?.ETag || readHeader(data?.headers, "etag") || null,
+      lastModified: readHeader(data?.headers, "last-modified") || null,
+    };
+  } catch (error) {
+    if (Number(error?.statusCode) === 404) return { exists: false };
+    throwCosSdkReadFailure("Object storage metadata check failed", error, storage);
+  }
+}
+
+async function getObjectWithCosSdk({ maxBytes, objectKey, storage }) {
+  const client = createCosSdkClient(storage);
+  let stream;
+  const metadataPromise = new Promise((resolve, reject) => {
+    stream = client.getObjectStream(
+      { Bucket: storage.bucket, Key: objectKey, Region: storage.region },
+      (error, data) => (error ? reject(error) : resolve(data)),
+    );
+  });
+  try {
+    const [body, data] = await Promise.all([
+      readNodeStreamLimited(stream, maxBytes),
+      metadataPromise,
+    ]);
+    const contentLength = parseNullableInteger(readHeader(data?.headers, "content-length"));
+    if (maxBytes != null && contentLength != null && contentLength > maxBytes) {
+      throw serviceUnavailable("Object storage read exceeds the configured byte limit", {
+        bucket: storage.bucket,
+        contentLength,
+        maxBytes,
+        provider: storage.provider,
+      });
+    }
+    return {
+      exists: true,
+      body,
+      contentLength,
+      contentType: readHeader(data?.headers, "content-type") || null,
+      etag: data?.ETag || readHeader(data?.headers, "etag") || null,
+    };
+  } catch (error) {
+    if (Number(error?.statusCode) === 404) return { exists: false };
+    if (error?.code === "SERVICE_UNAVAILABLE" && error?.details?.maxBytes) throw error;
+    throwCosSdkReadFailure("Object storage read failed", error, storage);
+  }
+}
+
+function callCosSdk(client, method, params) {
+  return new Promise((resolve, reject) => {
+    client[method](params, (error, data) => (error ? reject(error) : resolve(data)));
+  });
+}
+
+function readHeader(headers, name) {
+  if (!headers || typeof headers !== "object") return "";
+  const entry = Object.entries(headers).find(([key]) => key.toLowerCase() === name);
+  return entry?.[1] == null ? "" : String(entry[1]);
+}
+
+async function readNodeStreamLimited(stream, maxBytes) {
+  if (!stream || typeof stream[Symbol.asyncIterator] !== "function") {
+    throw serviceUnavailable("COS SDK did not return a readable object stream");
+  }
+  const chunks = [];
+  let totalBytes = 0;
+  for await (const chunk of stream) {
+    const buffer = Buffer.from(chunk);
+    totalBytes += buffer.length;
+    if (maxBytes != null && totalBytes > maxBytes) {
+      stream.destroy?.();
+      throw serviceUnavailable("Object storage read exceeds the configured byte limit", {
+        maxBytes,
+      });
+    }
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks, totalBytes);
+}
+
+function throwCosSdkReadFailure(message, error, storage) {
+  const statusCode = Number(error?.statusCode) || null;
+  const permissionDenied = statusCode === 401 || statusCode === 403;
+  throw serviceUnavailable(permissionDenied ? `${message}: permission denied` : message, {
+    bucket: storage.bucket,
+    provider: storage.provider,
+    statusCode,
+  });
 }
 
 export async function putObject({ bucket, objectKey, body, contentType }) {
@@ -271,6 +405,9 @@ function createPresignedObjectUrl({
     ["X-Amz-Expires", String(expiresSeconds)],
     ["X-Amz-SignedHeaders", signedHeaders],
   ];
+  if (storage.sessionToken) {
+    presignParams.push(["X-Amz-Security-Token", storage.sessionToken]);
+  }
   const canonicalQuery = canonicalizeQuery(presignParams);
   const canonicalRequest = [
     method,
@@ -301,17 +438,6 @@ async function fetchSignedStorageRequest({
   body = null,
   contentType = null,
 }) {
-  if (storage.provider === LIGHTCOS_PROVIDER) {
-    return fetchSignedLightCosRequest({
-      method,
-      objectKey,
-      storage,
-      queryParams,
-      body,
-      contentType,
-    });
-  }
-
   const now = new Date();
   const amzDate = formatAmzDate(now);
   const dateStamp = amzDate.slice(0, 8);
@@ -323,6 +449,9 @@ async function fetchSignedStorageRequest({
     ["x-amz-content-sha256", payloadHash],
     ["x-amz-date", amzDate],
   ];
+  if (storage.sessionToken) {
+    headerEntries.push(["x-amz-security-token", storage.sessionToken]);
+  }
   if (contentType) headerEntries.push(["content-type", contentType]);
   headerEntries.sort(([left], [right]) => left.localeCompare(right));
   const signedHeaders = headerEntries.map(([name]) => name).join(";");
@@ -351,122 +480,13 @@ async function fetchSignedStorageRequest({
     "x-amz-content-sha256": payloadHash,
     "x-amz-date": amzDate,
   };
+  if (storage.sessionToken) headers["x-amz-security-token"] = storage.sessionToken;
   if (contentType) headers["content-type"] = contentType;
   return fetch(requestUrl, {
     body,
     method,
     headers,
   });
-}
-
-async function fetchSignedLightCosRequest({
-  method,
-  objectKey,
-  storage,
-  queryParams = [],
-  body = null,
-  contentType = null,
-}) {
-  if (!new Set(["GET", "HEAD"]).has(method) || body != null || contentType != null) {
-    throw serviceUnavailable("LightCOS compatibility is read-only", {
-      bucket: storage.bucket,
-      method,
-      provider: storage.provider,
-    });
-  }
-  const requestUrl = buildStorageUrl(storage, objectKey);
-  requestUrl.search = canonicalizeQuery(queryParams);
-  const authorization = createLightCosAuthorization({
-    accessKeyId: storage.accessKeyId,
-    accessKeySecret: storage.accessKeySecret,
-    expiresSeconds: Math.min(storage.readExpiresSeconds, 3600),
-    headers: [["host", requestUrl.host]],
-    method,
-    pathname: decodeURIComponent(requestUrl.pathname),
-    queryParams,
-  });
-  return fetch(requestUrl, {
-    method,
-    headers: { Authorization: authorization },
-  });
-}
-
-function createPresignedLightCosGetUrl({ objectKey, storage, now, expiresSeconds }) {
-  const requestUrl = buildStorageUrl(storage, objectKey);
-  const authorization = createLightCosAuthorization({
-    accessKeyId: storage.accessKeyId,
-    accessKeySecret: storage.accessKeySecret,
-    expiresSeconds,
-    headers: [["host", requestUrl.host]],
-    method: "GET",
-    now,
-    pathname: decodeURIComponent(requestUrl.pathname),
-    queryParams: [],
-  });
-  for (const part of authorization.split("&")) {
-    const separator = part.indexOf("=");
-    requestUrl.searchParams.append(part.slice(0, separator), part.slice(separator + 1));
-  }
-  return requestUrl;
-}
-
-export function createLightCosAuthorization({
-  accessKeyId,
-  accessKeySecret,
-  expiresSeconds,
-  headers,
-  method,
-  now = new Date(),
-  pathname,
-  queryParams,
-}) {
-  const startTimestamp = Math.floor(now.getTime() / 1000) - 1;
-  const keyTime = `${startTimestamp};${startTimestamp + expiresSeconds}`;
-  const canonicalHeaders = canonicalizeLightCosEntries(headers);
-  const canonicalParams = canonicalizeLightCosEntries(queryParams);
-  const headerList = canonicalLightCosKeyList(headers);
-  const urlParamList = canonicalLightCosKeyList(queryParams);
-  const httpString = [method.toLowerCase(), pathname, canonicalParams, canonicalHeaders, ""].join(
-    "\n",
-  );
-  const signKey = crypto.createHmac("sha1", accessKeySecret).update(keyTime).digest("hex");
-  const stringToSign = [
-    LIGHTCOS_SIGNING_ALGORITHM,
-    keyTime,
-    crypto.createHash("sha1").update(httpString).digest("hex"),
-    "",
-  ].join("\n");
-  const signature = crypto.createHmac("sha1", signKey).update(stringToSign).digest("hex");
-  return [
-    `q-sign-algorithm=${LIGHTCOS_SIGNING_ALGORITHM}`,
-    `q-ak=${accessKeyId}`,
-    `q-sign-time=${keyTime}`,
-    `q-key-time=${keyTime}`,
-    `q-header-list=${headerList}`,
-    `q-url-param-list=${urlParamList}`,
-    `q-signature=${signature}`,
-  ].join("&");
-}
-
-function canonicalizeLightCosEntries(entries) {
-  return normalizeLightCosEntries(entries)
-    .map(([key, value]) => `${key}=${value}`)
-    .join("&");
-}
-
-function canonicalLightCosKeyList(entries) {
-  return normalizeLightCosEntries(entries)
-    .map(([key]) => key)
-    .join(";");
-}
-
-function normalizeLightCosEntries(entries) {
-  return entries
-    .map(([key, value]) => [
-      encodeRfc3986(String(key)).toLowerCase(),
-      encodeRfc3986(value == null ? "" : String(value)),
-    ])
-    .sort(([left], [right]) => left.localeCompare(right));
 }
 
 export function getAllowedStorageBuckets() {
@@ -476,6 +496,7 @@ export function getAllowedStorageBuckets() {
     .map((storage) => ({
       bucket: storage.bucket,
       endpoint: storage.endpoint,
+      historicalBaseUrls: storage.historicalBaseUrls,
       provider: storage.provider,
       publicBaseUrl: storage.publicBaseUrl,
       region: storage.region,
@@ -494,6 +515,12 @@ function getStorageConfig({ bucket } = {}) {
 }
 
 function hydrateStorageConfig(entry) {
+  const isLegacyBucket = entry.bucket === config.storage.legacyBucket;
+  const useLegacyCredentials =
+    entry.provider === LIGHTCOS_PROVIDER ||
+    (isLegacyBucket &&
+      Boolean(config.storage.legacyAccessKeyId) &&
+      Boolean(config.storage.legacyAccessKeySecret));
   const storage = {
     ...config.storage,
     ...entry,
@@ -501,8 +528,16 @@ function hydrateStorageConfig(entry) {
     region: entry.region || config.storage.region,
     endpoint: entry.endpoint || "",
     publicBaseUrl: entry.publicBaseUrl || "",
-    accessKeyId: config.storage.accessKeyId,
-    accessKeySecret: config.storage.accessKeySecret,
+    accessKeyId: useLegacyCredentials
+      ? config.storage.legacyAccessKeyId
+      : config.storage.accessKeyId,
+    accessKeySecret: useLegacyCredentials
+      ? config.storage.legacyAccessKeySecret
+      : config.storage.accessKeySecret,
+    sessionToken: useLegacyCredentials
+      ? config.storage.legacySessionToken
+      : config.storage.sessionToken,
+    historicalBaseUrls: entry.historicalBaseUrls ?? [],
   };
   storage.endpoint = storage.endpoint || deriveEndpoint(storage);
   storage.publicBaseUrl = storage.publicBaseUrl || storage.endpoint;
@@ -512,9 +547,21 @@ function hydrateStorageConfig(entry) {
 function assertStorageConfigured(storage) {
   const missing = [];
   if (!storage.bucket) missing.push("STORAGE_BUCKET");
-  if (!storage.region && storage.provider !== LIGHTCOS_PROVIDER) missing.push("STORAGE_REGION");
-  if (!storage.accessKeyId) missing.push("STORAGE_ACCESS_KEY_ID");
-  if (!storage.accessKeySecret) missing.push("STORAGE_ACCESS_KEY_SECRET");
+  if (!storage.region) missing.push("STORAGE_REGION");
+  if (!storage.accessKeyId) {
+    missing.push(
+      storage.provider === LIGHTCOS_PROVIDER
+        ? "STORAGE_LEGACY_ACCESS_KEY_ID"
+        : "STORAGE_ACCESS_KEY_ID",
+    );
+  }
+  if (!storage.accessKeySecret) {
+    missing.push(
+      storage.provider === LIGHTCOS_PROVIDER
+        ? "STORAGE_LEGACY_ACCESS_KEY_SECRET"
+        : "STORAGE_ACCESS_KEY_SECRET",
+    );
+  }
 
   if (!storage.endpoint) missing.push("STORAGE_ENDPOINT");
   if (missing.length > 0) {
@@ -532,7 +579,7 @@ function assertLightCosReadConfig(storage) {
     });
   }
   if (storage.forcePathStyle) {
-    throw serviceUnavailable("LightCOS compatibility requires virtual-hosted requests", {
+    throw serviceUnavailable("Lighthouse COS reads require virtual-hosted requests", {
       bucket: storage.bucket,
     });
   }
@@ -549,8 +596,15 @@ function assertLightCosReadConfig(storage) {
     endpoint.search ||
     endpoint.hash
   ) {
-    throw serviceUnavailable("LightCOS endpoint must be a plain HTTPS URL", {
+    throw serviceUnavailable("Lighthouse COS endpoint must be a plain HTTPS URL", {
       bucket: storage.bucket,
+    });
+  }
+  const expectedHost = `${storage.bucket}.cos.${storage.region}.myqcloud.com`;
+  if (endpoint.host !== expectedHost || endpoint.pathname !== "/") {
+    throw serviceUnavailable("Lighthouse COS reads require the standard regional COS endpoint", {
+      bucket: storage.bucket,
+      expectedEndpoint: `https://${expectedHost}`,
     });
   }
 }
@@ -559,7 +613,8 @@ function deriveEndpoint(storage) {
   if (!storage.bucket) return "";
 
   if (storage.provider === LIGHTCOS_PROVIDER) {
-    return `https://${storage.bucket}.light-cos.com`;
+    if (!storage.region) return "";
+    return `https://${storage.bucket}.cos.${storage.region}.myqcloud.com`;
   }
 
   if (!storage.region) return "";
@@ -737,7 +792,7 @@ function assertStorageObjectKey(value) {
   }
 }
 
-function parseListObjectsResponse(xml, provider) {
+function parseListObjectsResponse(xml) {
   const document = String(xml);
   const normalizedDocument = document.trim().replace(/^<\?xml[^?]*\?>\s*/i, "");
   if (!/^<ListBucketResult(?:\s[^>]*)?>[\s\S]*<\/ListBucketResult>$/.test(normalizedDocument)) {
@@ -747,12 +802,6 @@ function parseListObjectsResponse(xml, provider) {
     throw serviceUnavailable("Object storage listing returned malformed pagination XML");
   }
   const encodingType = decodeXml(readXmlTag(xml, "EncodingType"));
-  if (
-    provider === LIGHTCOS_PROVIDER &&
-    (countXmlTag(document, "EncodingType") !== 1 || encodingType !== "url")
-  ) {
-    throw serviceUnavailable("LightCOS listing did not confirm URL-encoded object keys");
-  }
   const decodeListValue = (value) => {
     const decoded = decodeXml(value);
     if (encodingType !== "url") return decoded;
@@ -792,10 +841,7 @@ function parseListObjectsResponse(xml, provider) {
   return {
     objects,
     isTruncated: truncatedValue === "true",
-    nextContinuationToken:
-      decodeListValue(
-        readXmlTag(xml, provider === LIGHTCOS_PROVIDER ? "NextMarker" : "NextContinuationToken"),
-      ) || null,
+    nextContinuationToken: decodeListValue(readXmlTag(xml, "NextContinuationToken")) || null,
   };
 }
 

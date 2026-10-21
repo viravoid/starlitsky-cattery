@@ -7,12 +7,11 @@ const options = parseArgs(process.argv.slice(2));
 try {
   const result = await runLightCosReadProbe({
     bucket: required(options.sourceBucket, "--source-bucket"),
-    prefix: required(options.prefix, "--prefix"),
-    expectedFirstKey: required(options.expectedFirstKey, "--expected-first-key"),
-    expectedSecondKey: required(options.expectedSecondKey, "--expected-second-key"),
     objectKey: required(options.objectKey, "--object-key"),
     confirmedEndpoint: required(options.confirmEndpoint, "--confirm-endpoint"),
     confirmReadOnlyProbe: options.confirmReadOnlyProbe,
+    expectedSha256: required(options.expectedSha256, "--expected-sha256"),
+    expectedSizeBytes: required(options.expectedSizeBytes, "--expected-size-bytes"),
     maxDownloadBytes: options.maxDownloadBytes,
   });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -28,11 +27,10 @@ function parseArgs(args) {
   const parsed = {
     confirmEndpoint: "",
     confirmReadOnlyProbe: false,
-    expectedFirstKey: "",
-    expectedSecondKey: "",
-    maxDownloadBytes: 256 * 1024,
+    expectedSha256: "",
+    expectedSizeBytes: null,
+    maxDownloadBytes: 1024 * 1024,
     objectKey: "",
-    prefix: "",
     sourceBucket: "",
   };
   for (let index = 0; index < args.length; index += 1) {
@@ -46,15 +44,16 @@ function parseArgs(args) {
     const value = inlineValue ?? args[++index] ?? "";
     const field = {
       "--confirm-endpoint": "confirmEndpoint",
-      "--expected-first-key": "expectedFirstKey",
-      "--expected-second-key": "expectedSecondKey",
+      "--expected-sha256": "expectedSha256",
+      "--expected-size-bytes": "expectedSizeBytes",
       "--max-download-bytes": "maxDownloadBytes",
       "--object-key": "objectKey",
-      "--prefix": "prefix",
       "--source-bucket": "sourceBucket",
     }[name];
     if (!field) throw new LightCosReadProbeError(`Unsupported argument: ${arg}`);
-    parsed[field] = field === "maxDownloadBytes" ? Number(value) : value;
+    parsed[field] = ["expectedSizeBytes", "maxDownloadBytes"].includes(field)
+      ? Number(value)
+      : value;
   }
   return parsed;
 }

@@ -230,6 +230,22 @@ function validateStorageReadBuckets() {
     if (entry.publicBaseUrl) {
       validateHttpUrl(`STORAGE_READ_BUCKETS_JSON[${index}].publicBaseUrl`, entry.publicBaseUrl);
     }
+    if (entry.historicalBaseUrls != null && !Array.isArray(entry.historicalBaseUrls)) {
+      fail(`STORAGE_READ_BUCKETS_JSON[${index}].historicalBaseUrls must be an array.`);
+    } else {
+      for (const [urlIndex, value] of (entry.historicalBaseUrls ?? []).entries()) {
+        if (typeof value !== "string") {
+          fail(
+            `STORAGE_READ_BUCKETS_JSON[${index}].historicalBaseUrls[${urlIndex}] must be a string.`,
+          );
+          continue;
+        }
+        validateHttpUrl(
+          `STORAGE_READ_BUCKETS_JSON[${index}].historicalBaseUrls[${urlIndex}]`,
+          value,
+        );
+      }
+    }
     if (readProvider === "lightcos" && !entry.publicBaseUrl) {
       fail(
         `STORAGE_READ_BUCKETS_JSON[${index}].publicBaseUrl is required for LightCOS so stored legacy-domain references are not inferred from the API endpoint.`,
@@ -244,6 +260,23 @@ function validateStorageReadBuckets() {
       fail(
         `STORAGE_READ_BUCKETS_JSON[${index}].forcePathStyle must be false for LightCOS virtual-hosted requests.`,
       );
+    }
+    if (readProvider === "lightcos") {
+      const region =
+        typeof entry.region === "string" && entry.region.trim()
+          ? entry.region.trim()
+          : readEnv("STORAGE_REGION");
+      if (!region) {
+        fail(`STORAGE_READ_BUCKETS_JSON[${index}].region is required for Lighthouse COS reads.`);
+      }
+      const expectedEndpoint = `https://${bucket}.cos.${region}.myqcloud.com`;
+      if (entry.endpoint && entry.endpoint.replace(/\/$/, "") !== expectedEndpoint) {
+        fail(
+          `STORAGE_READ_BUCKETS_JSON[${index}].endpoint must be the standard regional COS endpoint ${expectedEndpoint}.`,
+        );
+      }
+      requireNonPlaceholder("STORAGE_LEGACY_ACCESS_KEY_ID");
+      requireNonPlaceholder("STORAGE_LEGACY_ACCESS_KEY_SECRET");
     }
   }
   if (legacyBucket && !buckets.has(legacyBucket)) {
