@@ -25,6 +25,7 @@ const serviceDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(serviceDirectory, "../../../..");
 const fixtureRoot = mkdtempSync(resolve(tmpdir(), "starlitsky-offline-image-inventory-"));
 const databasePath = resolve(fixtureRoot, "consistent-backup.sqlite");
+const incompleteDatabasePath = resolve(fixtureRoot, "incomplete-backup.sqlite");
 const sourceMapPath = resolve(fixtureRoot, "legacy-source-map.json");
 const supplementalPath = resolve(fixtureRoot, "supplemental.json");
 const reportPath = resolve(fixtureRoot, "report.json");
@@ -32,6 +33,7 @@ const syntheticRepo = resolve(fixtureRoot, "repository");
 
 try {
   createFixtureDatabase(databasePath);
+  createIncompleteDatabase(incompleteDatabasePath);
   createRepositoryEvidenceFixture(syntheticRepo);
 
   const legacySourceMap = {
@@ -188,6 +190,25 @@ try {
     /separate approval using the exact manifest SHA-256/,
     "unapproved supplemental Keys must fail closed",
   );
+
+  const incompleteBeforeHash = fileSha256(incompleteDatabasePath);
+  assert.throws(
+    () =>
+      createOfflineImageInventory({
+        databasePath: incompleteDatabasePath,
+        legacySourceMap,
+        repositoryRoot: syntheticRepo,
+      }),
+    /missing required application tables/,
+    "an incomplete backup must fail with an actionable error",
+  );
+  assert.equal(
+    fileSha256(incompleteDatabasePath),
+    incompleteBeforeHash,
+    "a failed inventory must not modify the input database",
+  );
+  assert.equal(existsSync(`${incompleteDatabasePath}-wal`), false);
+  assert.equal(existsSync(`${incompleteDatabasePath}-shm`), false);
 
   const cli = spawnSync(
     process.execPath,
@@ -381,6 +402,12 @@ function createFixtureDatabase(path) {
   database
     .prepare("INSERT INTO posts VALUES (?, ?)")
     .run("post-2", "Photo https://other-old.example.test/cats/nested.jpg");
+  database.close();
+}
+
+function createIncompleteDatabase(path) {
+  const database = new DatabaseSync(path);
+  database.exec("CREATE TABLE users (id TEXT PRIMARY KEY, avatar_url TEXT)");
   database.close();
 }
 
