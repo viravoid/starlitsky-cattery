@@ -6,6 +6,12 @@ import {
   headObject,
   putObject,
 } from "./object-storage-service.mjs";
+import {
+  calculateSupplementalObjectManifestSha256 as calculateSupplementalManifestSha256,
+  resolveApprovedSupplementalObjectManifest,
+  safeObjectKey,
+  SupplementalManifestError,
+} from "./cos-migration-manifest.mjs";
 
 const COPY_CONCURRENCY = 4;
 const INVENTORY_HEAD_CONCURRENCY = 8;
@@ -32,11 +38,20 @@ export async function createCosMigrationInventory({
   if (!Number.isSafeInteger(maxObjectBytes) || maxObjectBytes < 1) {
     throw new CosMigrationError("maxObjectBytes must be a positive safe integer");
   }
-  const { audit: supplementalManifestAudit, objects: supplementalObjects } =
-    resolveApprovedSupplementalObjectManifest({
+  let supplementalManifestResolution;
+  try {
+    supplementalManifestResolution = resolveApprovedSupplementalObjectManifest({
       approvedSupplementalManifestSha256,
       manifest: supplementalManifest,
     });
+  } catch (error) {
+    if (error instanceof SupplementalManifestError) {
+      throw new CosMigrationError(error.message, error.details);
+    }
+    throw error;
+  }
+  const { audit: supplementalManifestAudit, objects: supplementalObjects } =
+    supplementalManifestResolution;
   const generatedAt = new Date().toISOString();
   const databaseRecords = await loadMigrationDatabaseRecordsConsistently(client);
   const {
@@ -311,87 +326,14 @@ export function calculateCosMigrationInventorySha256(inventory) {
 }
 
 export function calculateSupplementalObjectManifestSha256(manifest) {
-  return sha256(stableJson(normalizeSupplementalObjectManifest(manifest)));
-}
-
-function normalizeSupplementalObjectManifest(manifest) {
-  const approvalReference = stringOrNull(manifest?.approvalReference);
-  if (
-    manifest?.schemaVersion !== 1 ||
-    !approvalReference ||
-    !Array.isArray(manifest.objects) ||
-    manifest.objects.length === 0
-  ) {
-    throw new CosMigrationError("A valid supplemental object manifest is required");
-  }
-  const seen = new Set();
-  const objects = manifest.objects
-    .map((item, index) => {
-      const objectKey = safeObjectKey(item?.objectKey);
-      if (!objectKey) {
-        throw new CosMigrationError("Supplemental manifest contains an invalid object key", {
-          index,
-        });
-      }
-      if (seen.has(objectKey)) {
-        throw new CosMigrationError("Supplemental manifest contains a duplicate object key", {
-          objectKey,
-        });
-      }
-      seen.add(objectKey);
-      const sizeBytes = item.sizeBytes == null ? null : Number(item.sizeBytes);
-      if (sizeBytes != null && (!Number.isSafeInteger(sizeBytes) || sizeBytes < 0)) {
-        throw new CosMigrationError("Supplemental manifest contains an invalid size", {
-          objectKey,
-        });
-      }
-      const evidence = stringOrNull(item.evidence);
-      if (!evidence) {
-        throw new CosMigrationError(
-          "Every supplemental object requires non-empty source evidence",
-          { objectKey },
-        );
-      }
-      return {
-        objectKey,
-        sizeBytes,
-        mimeType: stringOrNull(item.mimeType),
-        checksum: stringOrNull(item.checksum),
-        evidence,
-      };
-    })
-    .sort((left, right) => left.objectKey.localeCompare(right.objectKey));
-  return { schemaVersion: 1, approvalReference, objects };
-}
-
-function resolveApprovedSupplementalObjectManifest({
-  approvedSupplementalManifestSha256,
-  manifest,
-}) {
-  if (manifest == null) {
-    if (approvedSupplementalManifestSha256) {
-      throw new CosMigrationError(
-        "A supplemental manifest approval hash was provided without a manifest",
-      );
+  try {
+    return calculateSupplementalManifestSha256(manifest);
+  } catch (error) {
+    if (error instanceof SupplementalManifestError) {
+      throw new CosMigrationError(error.message, error.details);
     }
-    return { audit: null, objects: [] };
+    throw error;
   }
-  const normalized = normalizeSupplementalObjectManifest(manifest);
-  const manifestSha256 = sha256(stableJson(normalized));
-  if (approvedSupplementalManifestSha256 !== manifestSha256) {
-    throw new CosMigrationError(
-      "Supplemental objects require a separate approval using the exact manifest SHA-256",
-      { calculatedSupplementalManifestSha256: manifestSha256 },
-    );
-  }
-  return {
-    audit: {
-      approvalReference: normalized.approvalReference,
-      approvedManifestSha256: approvedSupplementalManifestSha256,
-      manifestSha256,
-    },
-    objects: normalized.objects,
-  };
 }
 
 function buildSupplementalObjectConflicts(supplementalObjects, records, sourceObjectMap) {
@@ -1993,20 +1935,6 @@ function readUploadMetadata(value) {
   return value?.upload && typeof value.upload === "object" && !Array.isArray(value.upload)
     ? value.upload
     : null;
-}
-
-function safeObjectKey(value) {
-  const normalized = stringOrNull(value);
-  if (
-    !normalized ||
-    normalized.startsWith("/") ||
-    normalized.includes("\0") ||
-    normalized.includes("\\") ||
-    normalized.split("/").some((segment) => !segment || segment === "." || segment === "..")
-  ) {
-    return null;
-  }
-  return normalized;
 }
 
 function classifyActualBucket(sourceObject, targetObject, sourceBucket, targetBucket) {

@@ -99,6 +99,12 @@ permissions accepted by the actual Lighthouse bucket. Temporary credentials are 
 User approval is required before reading production database or bucket inventory with production
 credentials.
 
+Start with the fully offline database-reference workflow in
+`docs/OFFLINE_IMAGE_INVENTORY.md`. It reads only an explicit SQLite backup and performs no COS
+request. The `media:cos-migration -- inventory` command below is a later **online object-validation
+step**: it automatically performs source and target object `HEAD` calls for every discovered Key.
+Do not run that command when only offline preparation is authorized.
+
 1. After separate approval, confirm a least-privilege source identity can perform only object HEAD
    and GET on the required source keys. Target write permissions belong to a separate identity and
    are a later, separately approved step. Do not use a root key.
