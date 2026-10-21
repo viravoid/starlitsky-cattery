@@ -139,6 +139,7 @@ Known Keys outside the database may be added only through a reviewed supplementa
 ```json
 {
   "schemaVersion": 1,
+  "approvalReference": "change ticket or separate approval reference",
   "objects": [
     {
       "objectKey": "exact/source/key.jpg",
@@ -151,8 +152,28 @@ Known Keys outside the database may be added only through a reviewed supplementa
 }
 ```
 
-Pass it with `--supplemental-manifest <path>`. A filename or hash without a proven COS Key is not
-enough to add an object.
+Every object needs non-empty source evidence, and the manifest needs a non-empty approval reference.
+Calculate the canonical digest and obtain separate approval for that exact digest:
+
+```powershell
+npm run media:cos-migration -- supplemental-manifest-hash `
+  --supplemental-manifest cos-migration-supplemental.json
+```
+
+Then pass both the artifact and approved digest to inventory generation:
+
+```powershell
+npm run media:cos-migration -- inventory `
+  --source-bucket legacy-source-bucket `
+  --target-bucket standard-target-bucket `
+  --supplemental-manifest cos-migration-supplemental.json `
+  --approve-supplemental-manifest-sha256 <separately-approved-exact-sha256> `
+  --output cos-migration-inventory.json
+```
+
+The normalized objects, approval reference, calculated digest, and approved digest are embedded in
+the hash-bound inventory. A filename, unapproved digest, blank evidence, or hash without a proven
+COS Key is not enough to add an object.
 
 Repository audit boundary:
 
@@ -168,7 +189,7 @@ Repository audit boundary:
 - An object with no database reference and no reviewed supplemental Key is an unknowable orphan.
   This tool never claims it was inventoried and never deletes it.
 
-Inventory schema versions before v3 are rejected. Generate a fresh artifact from the approved,
+Inventory schema versions before v4 are rejected. Generate a fresh artifact from the approved,
 quiesced database rather than editing an old JSON file.
 
 Every copy attempt reads the source bytes and computes SHA-256. An existing or newly written target
@@ -186,6 +207,41 @@ thumbnail, user avatar, JSON reference, external URL, supplemental item, and che
 before writes. Consistent duplicate
 keys are migrated once and all referencing rows are switched; conflicting size/MIME/checksum
 metadata blocks. The inventory hash binds later reports to this exact snapshot.
+
+### Required limited-coverage acknowledgement
+
+This inventory can authorize only a safe switch for the known database and approved supplemental
+references. It does **not** prove that the entire legacy bucket was inventoried or migrated. Before
+generating a switch plan, create a separately reviewed acknowledgement bound to the exact inventory:
+
+```json
+{
+  "schemaVersion": 1,
+  "inventorySha256": "<exact inventorySha256>",
+  "switchScope": "known-referenced-objects-only",
+  "fullBucketCoverage": "unknown",
+  "approvalReference": "change ticket or separate approval reference"
+}
+```
+
+Calculate its canonical digest and obtain separate approval for that exact digest:
+
+```powershell
+npm run media:cos-migration -- coverage-acknowledgement-hash `
+  --coverage-acknowledgement cos-migration-coverage-acknowledgement.json
+```
+
+Pass the acknowledgement and approved digest to every `switch-plan` command:
+
+```powershell
+  --coverage-acknowledgement cos-migration-coverage-acknowledgement.json `
+  --approve-coverage-acknowledgement-sha256 <separately-approved-exact-sha256>
+```
+
+Missing, stale, malformed, or digest-mismatched acknowledgement data blocks plan generation. The
+plan records `switchScope = "known-referenced-objects-only"` and
+`fullBucketMigrationComplete = false`; it cannot be used as evidence that the legacy bucket is empty
+or ready for retirement. Switch-plan schema versions before v3 are rejected.
 
 ### Explicit exclusions
 
@@ -222,6 +278,8 @@ Obtain a separate approval for that exact digest, then pass both the artifact an
 npm run media:cos-migration -- switch-plan `
   --inventory cos-migration-inventory.json `
   --copy-report cos-migration-copy-report.json `
+  --coverage-acknowledgement cos-migration-coverage-acknowledgement.json `
+  --approve-coverage-acknowledgement-sha256 <separately-approved-exact-sha256> `
   --exclusions cos-migration-exclusions.json `
   --approve-exclusions-sha256 <separately-approved-exact-sha256> `
   --output cos-migration-switch-plan.json
@@ -257,6 +315,8 @@ npm run media:cos-migration -- copy `
 npm run media:cos-migration -- switch-plan `
   --inventory cos-migration-inventory.json `
   --copy-report cos-migration-copy-report.json `
+  --coverage-acknowledgement cos-migration-coverage-acknowledgement.json `
+  --approve-coverage-acknowledgement-sha256 <separately-approved-exact-sha256> `
   --output cos-migration-switch-plan.json
 ```
 
@@ -327,7 +387,9 @@ Each numbered write/configuration action requires explicit user approval at that
    - keep uploads on the legacy bucket, regenerate inventory, and copy all records created/updated
      after the first inventory cutoff before switching.
 5. Approve the final delta copy and verification.
-6. Approve per-record database switching. The production switch command requires
+6. Approve the exact limited-coverage acknowledgement digest, generate the per-record switch plan,
+   and approve per-record database switching. This is approval to switch known references, not a
+   declaration that the legacy bucket was fully migrated. The production switch command requires
    `--apply --confirm-database-write --confirm-database-url-sha256 <exact-current-fingerprint>
 --backup-file <separate-backup> --confirm-backup-sha256 <exact-backup-sha256>
 --write-environment production --confirm-production`. A missing environment declaration, target

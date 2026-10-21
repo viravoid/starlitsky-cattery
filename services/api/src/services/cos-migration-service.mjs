@@ -25,12 +25,18 @@ export async function createCosMigrationInventory({
   targetBucket,
   maxObjectBytes = DEFAULT_MAX_OBJECT_BYTES,
   supplementalManifest = null,
+  approvedSupplementalManifestSha256 = "",
   storage = { headObject },
 } = {}) {
   const buckets = assertMigrationBuckets(sourceBucket, targetBucket);
   if (!Number.isSafeInteger(maxObjectBytes) || maxObjectBytes < 1) {
     throw new CosMigrationError("maxObjectBytes must be a positive safe integer");
   }
+  const { audit: supplementalManifestAudit, objects: supplementalObjects } =
+    resolveApprovedSupplementalObjectManifest({
+      approvedSupplementalManifestSha256,
+      manifest: supplementalManifest,
+    });
   const generatedAt = new Date().toISOString();
   const databaseRecords = await loadMigrationDatabaseRecordsConsistently(client);
   const {
@@ -82,7 +88,6 @@ export async function createCosMigrationInventory({
     ),
   ];
   const userAvatarReferences = collectScalarReferences(users, "user", "avatar_url", sourceBaseUrls);
-  const supplementalObjects = normalizeSupplementalObjectManifest(supplementalManifest);
   const referencedObjectKeys = [
     ...new Set(
       [
@@ -215,7 +220,7 @@ export async function createCosMigrationInventory({
     sourceObjectMap,
   );
   const inventory = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     generatedAt,
     sourceBucket,
     targetBucket,
@@ -283,6 +288,7 @@ export async function createCosMigrationInventory({
     sourceObjects,
     targetObjects,
     supplementalObjects,
+    supplementalManifestAudit,
     jsonReferences,
     userAvatarReferences,
     unresolvedLegacyUrlReferences,
@@ -304,13 +310,22 @@ export function calculateCosMigrationInventorySha256(inventory) {
   return sha256(stableJson(payload));
 }
 
+export function calculateSupplementalObjectManifestSha256(manifest) {
+  return sha256(stableJson(normalizeSupplementalObjectManifest(manifest)));
+}
+
 function normalizeSupplementalObjectManifest(manifest) {
-  if (manifest == null) return [];
-  if (manifest?.schemaVersion !== 1 || !Array.isArray(manifest.objects)) {
+  const approvalReference = stringOrNull(manifest?.approvalReference);
+  if (
+    manifest?.schemaVersion !== 1 ||
+    !approvalReference ||
+    !Array.isArray(manifest.objects) ||
+    manifest.objects.length === 0
+  ) {
     throw new CosMigrationError("A valid supplemental object manifest is required");
   }
   const seen = new Set();
-  return manifest.objects
+  const objects = manifest.objects
     .map((item, index) => {
       const objectKey = safeObjectKey(item?.objectKey);
       if (!objectKey) {
@@ -330,15 +345,53 @@ function normalizeSupplementalObjectManifest(manifest) {
           objectKey,
         });
       }
+      const evidence = stringOrNull(item.evidence);
+      if (!evidence) {
+        throw new CosMigrationError(
+          "Every supplemental object requires non-empty source evidence",
+          { objectKey },
+        );
+      }
       return {
         objectKey,
         sizeBytes,
         mimeType: stringOrNull(item.mimeType),
         checksum: stringOrNull(item.checksum),
-        evidence: stringOrNull(item.evidence),
+        evidence,
       };
     })
     .sort((left, right) => left.objectKey.localeCompare(right.objectKey));
+  return { schemaVersion: 1, approvalReference, objects };
+}
+
+function resolveApprovedSupplementalObjectManifest({
+  approvedSupplementalManifestSha256,
+  manifest,
+}) {
+  if (manifest == null) {
+    if (approvedSupplementalManifestSha256) {
+      throw new CosMigrationError(
+        "A supplemental manifest approval hash was provided without a manifest",
+      );
+    }
+    return { audit: null, objects: [] };
+  }
+  const normalized = normalizeSupplementalObjectManifest(manifest);
+  const manifestSha256 = sha256(stableJson(normalized));
+  if (approvedSupplementalManifestSha256 !== manifestSha256) {
+    throw new CosMigrationError(
+      "Supplemental objects require a separate approval using the exact manifest SHA-256",
+      { calculatedSupplementalManifestSha256: manifestSha256 },
+    );
+  }
+  return {
+    audit: {
+      approvalReference: normalized.approvalReference,
+      approvedManifestSha256: approvedSupplementalManifestSha256,
+      manifestSha256,
+    },
+    objects: normalized.objects,
+  };
 }
 
 function buildSupplementalObjectConflicts(supplementalObjects, records, sourceObjectMap) {
@@ -822,6 +875,8 @@ export function buildStorageSwitchPlan({
   copyReport,
   exclusions = null,
   approvedExclusionsSha256 = "",
+  coverageAcknowledgement = null,
+  approvedCoverageAcknowledgementSha256 = "",
 }) {
   assertInventory(inventory);
   if (copyReport?.inventorySha256 !== inventory.inventorySha256) {
@@ -885,6 +940,11 @@ export function buildStorageSwitchPlan({
       },
     });
   }
+  const approvedCoverageAcknowledgement = resolveApprovedCoverageAcknowledgement({
+    acknowledgement: coverageAcknowledgement,
+    approvedCoverageAcknowledgementSha256,
+    inventory,
+  });
 
   const mediaUpdates = inventory.records
     .filter(
@@ -951,7 +1011,7 @@ export function buildStorageSwitchPlan({
       avatarUrl: rewriteExactStorageObjectUrl(reference, targetBaseUrl),
     }));
   const plan = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     inventorySha256: inventory.inventorySha256,
     databaseSnapshotSha256: inventory.databaseSnapshotSha256,
     sourceBucket: inventory.sourceBucket,
@@ -972,6 +1032,10 @@ export function buildStorageSwitchPlan({
       findings,
       approvedExclusions,
       approvedExclusionsSha256: approvedExclusions.length ? approvedExclusionsSha256 : null,
+      switchScope: "known-referenced-objects-only",
+      fullBucketMigrationComplete: false,
+      coverageAcknowledgement: approvedCoverageAcknowledgement,
+      approvedCoverageAcknowledgementSha256,
     },
   };
   return { ...plan, switchPlanSha256: calculateStorageSwitchPlanSha256(plan) };
@@ -979,6 +1043,10 @@ export function buildStorageSwitchPlan({
 
 export function calculateStorageSwitchExclusionsSha256(exclusions) {
   return sha256(stableJson(normalizeExclusionManifest(exclusions)));
+}
+
+export function calculateStorageSwitchCoverageAcknowledgementSha256(acknowledgement) {
+  return sha256(stableJson(normalizeCoverageAcknowledgement(acknowledgement)));
 }
 
 export function calculateStorageSwitchPlanSha256(plan) {
@@ -1231,6 +1299,64 @@ function normalizeExclusionManifest(value) {
   };
 }
 
+function resolveApprovedCoverageAcknowledgement({
+  acknowledgement,
+  approvedCoverageAcknowledgementSha256,
+  inventory,
+}) {
+  if (!acknowledgement) {
+    if (approvedCoverageAcknowledgementSha256) {
+      throw new CosMigrationError(
+        "A coverage acknowledgement approval hash was provided without an acknowledgement",
+      );
+    }
+    throw new CosMigrationError(
+      "Unknown full-bucket coverage requires a separately approved known-reference switch acknowledgement",
+      {
+        coverageAcknowledgementSchema: {
+          schemaVersion: 1,
+          inventorySha256: inventory.inventorySha256,
+          switchScope: "known-referenced-objects-only",
+          fullBucketCoverage: "unknown",
+          approvalReference: "change ticket or separate approval reference",
+        },
+      },
+    );
+  }
+  const normalized = normalizeCoverageAcknowledgement(acknowledgement);
+  if (normalized.inventorySha256 !== inventory.inventorySha256) {
+    throw new CosMigrationError("Coverage acknowledgement does not belong to this inventory");
+  }
+  const calculatedSha256 = sha256(stableJson(normalized));
+  if (approvedCoverageAcknowledgementSha256 !== calculatedSha256) {
+    throw new CosMigrationError(
+      "Limited coverage requires a separate approval using the exact acknowledgement SHA-256",
+      { calculatedCoverageAcknowledgementSha256: calculatedSha256 },
+    );
+  }
+  return normalized;
+}
+
+function normalizeCoverageAcknowledgement(value) {
+  const approvalReference = stringOrNull(value?.approvalReference);
+  if (
+    value?.schemaVersion !== 1 ||
+    !/^[a-f0-9]{64}$/.test(value.inventorySha256 ?? "") ||
+    value.switchScope !== "known-referenced-objects-only" ||
+    value.fullBucketCoverage !== "unknown" ||
+    !approvalReference
+  ) {
+    throw new CosMigrationError("A valid limited-coverage acknowledgement is required");
+  }
+  return {
+    schemaVersion: 1,
+    inventorySha256: value.inventorySha256,
+    switchScope: "known-referenced-objects-only",
+    fullBucketCoverage: "unknown",
+    approvalReference,
+  };
+}
+
 function referenceExclusionKey(reference) {
   return `reference:${reference.model}:${reference.id}:${reference.field}:${JSON.stringify(reference.path ?? [])}`;
 }
@@ -1313,7 +1439,7 @@ export function buildStorageRollbackPlan({ switchPlan, switchReport }) {
     };
   });
   const plan = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     inventorySha256: switchPlan.inventorySha256,
     databaseSnapshotSha256: switchReport.postSwitchDatabaseSnapshotSha256,
     sourceBucket: switchPlan.targetBucket,
@@ -1321,6 +1447,7 @@ export function buildStorageRollbackPlan({ switchPlan, switchReport }) {
     mediaUpdates,
     jsonUpdates,
     userUpdates,
+    integrity: switchPlan.integrity,
     rollbackOf: switchPlan.switchPlanSha256,
   };
   return { ...plan, switchPlanSha256: calculateStorageSwitchPlanSha256(plan) };
@@ -1897,7 +2024,7 @@ function isConfirmedObject(object) {
 
 function assertInventory(inventory) {
   if (
-    inventory?.schemaVersion !== 3 ||
+    inventory?.schemaVersion !== 4 ||
     !inventory.inventorySha256 ||
     !/^[a-f0-9]{64}$/.test(inventory.databaseSnapshotSha256 ?? "") ||
     !Array.isArray(inventory.records) ||
@@ -1909,6 +2036,7 @@ function assertInventory(inventory) {
     !Array.isArray(inventory.externalUrlReferences) ||
     !Array.isArray(inventory.supplementalObjects) ||
     !Array.isArray(inventory.supplementalObjectConflicts) ||
+    !hasValidSupplementalManifestAudit(inventory) ||
     inventory.coverage?.fullBucketCoverage !== "unknown" ||
     !Number.isSafeInteger(inventory.limits?.maxObjectBytes) ||
     calculateCosMigrationInventorySha256(inventory) !== inventory.inventorySha256
@@ -1919,15 +2047,63 @@ function assertInventory(inventory) {
 
 function assertSwitchPlan(plan) {
   if (
-    plan?.schemaVersion !== 2 ||
+    plan?.schemaVersion !== 3 ||
     !plan.switchPlanSha256 ||
     !/^[a-f0-9]{64}$/.test(plan.databaseSnapshotSha256 ?? "") ||
     !Array.isArray(plan.mediaUpdates) ||
     !Array.isArray(plan.jsonUpdates) ||
     !Array.isArray(plan.userUpdates) ||
+    !hasValidCoverageAcknowledgement(plan) ||
     calculateStorageSwitchPlanSha256(plan) !== plan.switchPlanSha256
   ) {
     throw new CosMigrationError("A valid untampered storage switch plan is required");
+  }
+}
+
+function hasValidCoverageAcknowledgement(plan) {
+  const integrity = plan?.integrity;
+  if (
+    integrity?.switchScope !== "known-referenced-objects-only" ||
+    integrity.fullBucketMigrationComplete !== false ||
+    !/^[a-f0-9]{64}$/.test(integrity.approvedCoverageAcknowledgementSha256 ?? "")
+  ) {
+    return false;
+  }
+  try {
+    const normalized = normalizeCoverageAcknowledgement(integrity.coverageAcknowledgement);
+    return (
+      normalized.inventorySha256 === plan.inventorySha256 &&
+      calculateStorageSwitchCoverageAcknowledgementSha256(normalized) ===
+        integrity.approvedCoverageAcknowledgementSha256
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasValidSupplementalManifestAudit(inventory) {
+  if (inventory.supplementalObjects.length === 0) {
+    return inventory.supplementalManifestAudit == null;
+  }
+  const audit = inventory.supplementalManifestAudit;
+  const approvalReference = stringOrNull(audit?.approvalReference);
+  if (
+    !approvalReference ||
+    !/^[a-f0-9]{64}$/.test(audit?.manifestSha256 ?? "") ||
+    audit.approvedManifestSha256 !== audit.manifestSha256
+  ) {
+    return false;
+  }
+  try {
+    return (
+      calculateSupplementalObjectManifestSha256({
+        schemaVersion: 1,
+        approvalReference,
+        objects: inventory.supplementalObjects,
+      }) === audit.manifestSha256
+    );
+  } catch {
+    return false;
   }
 }
 

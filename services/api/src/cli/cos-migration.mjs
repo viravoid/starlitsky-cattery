@@ -7,7 +7,9 @@ import {
   applyStorageSwitchPlan,
   buildStorageRollbackPlan,
   buildStorageSwitchPlan,
+  calculateStorageSwitchCoverageAcknowledgementSha256,
   calculateStorageSwitchExclusionsSha256,
+  calculateSupplementalObjectManifestSha256,
   CosMigrationError,
   createCosMigrationInventory,
   executeCosObjectCopies,
@@ -31,6 +33,7 @@ try {
       supplementalManifest: options.supplementalManifest
         ? readJson(options.supplementalManifest)
         : null,
+      approvedSupplementalManifestSha256: options.approveSupplementalManifestSha256,
     });
   } else if (options.command === "copy") {
     const inventory = readJson(required(options.inventory, "--inventory"));
@@ -55,11 +58,27 @@ try {
       copyReport: readJson(required(options.copyReport, "--copy-report")),
       exclusions: options.exclusions ? readJson(options.exclusions) : null,
       approvedExclusionsSha256: options.approveExclusionsSha256,
+      coverageAcknowledgement: options.coverageAcknowledgement
+        ? readJson(options.coverageAcknowledgement)
+        : null,
+      approvedCoverageAcknowledgementSha256: options.approveCoverageAcknowledgementSha256,
     });
   } else if (options.command === "exclusions-hash") {
     result = {
       exclusionsSha256: calculateStorageSwitchExclusionsSha256(
         readJson(required(options.exclusions, "--exclusions")),
+      ),
+    };
+  } else if (options.command === "supplemental-manifest-hash") {
+    result = {
+      supplementalManifestSha256: calculateSupplementalObjectManifestSha256(
+        readJson(required(options.supplementalManifest, "--supplemental-manifest")),
+      ),
+    };
+  } else if (options.command === "coverage-acknowledgement-hash") {
+    result = {
+      coverageAcknowledgementSha256: calculateStorageSwitchCoverageAcknowledgementSha256(
+        readJson(required(options.coverageAcknowledgement, "--coverage-acknowledgement")),
       ),
     };
   } else if (options.command === "rollback-plan") {
@@ -97,7 +116,7 @@ try {
     });
   } else {
     throw new CosMigrationError(
-      "Command must be inventory, copy, exclusions-hash, switch-plan, rollback-plan, or switch",
+      "Command must be inventory, copy, supplemental-manifest-hash, exclusions-hash, coverage-acknowledgement-hash, switch-plan, rollback-plan, or switch",
     );
   }
 
@@ -118,7 +137,9 @@ function parseArgs(args) {
   const parsed = {
     command: args[0] ?? "",
     apply: false,
+    approveCoverageAcknowledgementSha256: "",
     approveExclusionsSha256: "",
+    approveSupplementalManifestSha256: "",
     backupFile: "",
     confirmBackupSha256: "",
     confirmDatabaseWrite: false,
@@ -127,6 +148,7 @@ function parseArgs(args) {
     confirmProduction: false,
     confirmTargetBucket: "",
     copyReport: "",
+    coverageAcknowledgement: "",
     exclusions: "",
     inventory: "",
     maxObjectBytes: 10 * 1024 * 1024,
@@ -148,12 +170,15 @@ function parseArgs(args) {
       const [name, inlineValue] = arg.split("=", 2);
       const value = inlineValue ?? args[++index] ?? "";
       const field = {
-        "--copy-report": "copyReport",
+        "--approve-coverage-acknowledgement-sha256": "approveCoverageAcknowledgementSha256",
         "--approve-exclusions-sha256": "approveExclusionsSha256",
+        "--approve-supplemental-manifest-sha256": "approveSupplementalManifestSha256",
         "--backup-file": "backupFile",
         "--confirm-backup-sha256": "confirmBackupSha256",
         "--confirm-database-url-sha256": "confirmDatabaseUrlSha256",
         "--confirm-target-bucket": "confirmTargetBucket",
+        "--copy-report": "copyReport",
+        "--coverage-acknowledgement": "coverageAcknowledgement",
         "--inventory": "inventory",
         "--max-object-bytes": "maxObjectBytes",
         "--exclusions": "exclusions",

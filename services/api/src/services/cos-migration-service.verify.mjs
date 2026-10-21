@@ -33,8 +33,10 @@ const {
   buildStorageRollbackPlan,
   buildStorageSwitchPlan,
   calculateCosMigrationInventorySha256,
+  calculateStorageSwitchCoverageAcknowledgementSha256,
   calculateStorageSwitchExclusionsSha256,
   calculateStorageSwitchPlanSha256,
+  calculateSupplementalObjectManifestSha256,
   createCosMigrationInventory,
   executeCosObjectCopies,
 } = await import("./cos-migration-service.mjs");
@@ -90,20 +92,64 @@ try {
     targetObjects,
   });
 
+  const supplementalManifest = {
+    schemaVersion: 1,
+    approvalReference: "VERIFY-SUPPLEMENTAL-1",
+    objects: [
+      {
+        objectKey: "media/images/orphan.jpg",
+        checksum: crypto.createHash("sha256").update(Buffer.from("orphan")).digest("hex"),
+        evidence: "synthetic operator-reviewed manifest",
+      },
+    ],
+  };
+  await assert.rejects(
+    () =>
+      createCosMigrationInventory({
+        client: prisma,
+        sourceBucket: SOURCE_BUCKET,
+        targetBucket: TARGET_BUCKET,
+        supplementalManifest: {
+          ...supplementalManifest,
+          objects: [{ objectKey: "media/images/orphan.jpg" }],
+        },
+        storage,
+      }),
+    /non-empty source evidence/,
+    "an unproven supplemental Key must be rejected",
+  );
+  await assert.rejects(
+    () =>
+      createCosMigrationInventory({
+        client: prisma,
+        sourceBucket: SOURCE_BUCKET,
+        targetBucket: TARGET_BUCKET,
+        supplementalManifest: { ...supplementalManifest, approvalReference: " " },
+        storage,
+      }),
+    /valid supplemental object manifest/,
+    "a supplemental manifest must carry an approval reference",
+  );
+  await assert.rejects(
+    () =>
+      createCosMigrationInventory({
+        client: prisma,
+        sourceBucket: SOURCE_BUCKET,
+        targetBucket: TARGET_BUCKET,
+        supplementalManifest,
+        storage,
+      }),
+    /separate approval using the exact manifest SHA-256/,
+    "supplemental evidence must be bound to a separately approved digest",
+  );
+  const approvedSupplementalManifestSha256 =
+    calculateSupplementalObjectManifestSha256(supplementalManifest);
   const inventory = await createCosMigrationInventory({
     client: prisma,
     sourceBucket: SOURCE_BUCKET,
     targetBucket: TARGET_BUCKET,
-    supplementalManifest: {
-      schemaVersion: 1,
-      objects: [
-        {
-          objectKey: "media/images/orphan.jpg",
-          checksum: crypto.createHash("sha256").update(Buffer.from("orphan")).digest("hex"),
-          evidence: "synthetic operator-reviewed manifest",
-        },
-      ],
-    },
+    supplementalManifest,
+    approvedSupplementalManifestSha256,
     storage,
   });
   assert.equal(inventory.records.length, 3);
@@ -121,6 +167,10 @@ try {
   assert.deepEqual(
     inventory.supplementalObjects.map((item) => item.objectKey),
     ["media/images/orphan.jpg"],
+  );
+  assert.equal(
+    inventory.supplementalManifestAudit.approvedManifestSha256,
+    approvedSupplementalManifestSha256,
   );
   assert.deepEqual(inventory.statusGroups.archived, [seeded.archivedDuplicate.id]);
   assert.equal(inventory.jsonReferences.length, 2);
@@ -506,15 +556,70 @@ try {
     /unknown subjects/,
     "an approved digest cannot introduce an exclusion outside the bound inventory",
   );
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: copied,
+        exclusions,
+        approvedExclusionsSha256,
+      }),
+    /Unknown full-bucket coverage requires.*known-reference switch acknowledgement/,
+    "unknown bucket coverage must never be silently treated as completed migration",
+  );
+  const coverageAcknowledgement = {
+    schemaVersion: 1,
+    inventorySha256: inventory.inventorySha256,
+    switchScope: "known-referenced-objects-only",
+    fullBucketCoverage: "unknown",
+    approvalReference: "VERIFY-LIMITED-COVERAGE-1",
+  };
+  const approvedCoverageAcknowledgementSha256 =
+    calculateStorageSwitchCoverageAcknowledgementSha256(coverageAcknowledgement);
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory,
+        copyReport: copied,
+        exclusions,
+        approvedExclusionsSha256,
+        coverageAcknowledgement,
+        approvedCoverageAcknowledgementSha256: "0".repeat(64),
+      }),
+    /separate approval using the exact acknowledgement SHA-256/,
+    "the limited-coverage decision must be bound to the exact acknowledgement",
+  );
   const plan = buildStorageSwitchPlan({
     inventory,
     copyReport: copied,
     exclusions,
     approvedExclusionsSha256,
+    coverageAcknowledgement,
+    approvedCoverageAcknowledgementSha256,
   });
   assert.equal(plan.mediaUpdates.length, 2, "approved exclusions must be explicit and audited");
   assert.equal(plan.userUpdates.length, 1, "User.avatar_url must have an exact switch update");
   assert.equal(plan.integrity.approvedExclusionsSha256, approvedExclusionsSha256);
+  assert.equal(plan.integrity.switchScope, "known-referenced-objects-only");
+  assert.equal(plan.integrity.fullBucketMigrationComplete, false);
+  assert.equal(
+    plan.integrity.approvedCoverageAcknowledgementSha256,
+    approvedCoverageAcknowledgementSha256,
+  );
+  const unacknowledgedPlan = {
+    ...plan,
+    integrity: {
+      ...plan.integrity,
+      coverageAcknowledgement: null,
+      approvedCoverageAcknowledgementSha256: null,
+    },
+  };
+  unacknowledgedPlan.switchPlanSha256 = calculateStorageSwitchPlanSha256(unacknowledgedPlan);
+  await assert.rejects(
+    () => applyStorageSwitchPlan({ client: prisma, plan: unacknowledgedPlan }),
+    /valid untampered storage switch plan/,
+    "re-hashing a plan cannot remove its limited-coverage approval evidence",
+  );
   const changedReference = plan.jsonUpdates[0];
   const changedReferencePlan = {
     ...plan,
@@ -897,7 +1002,7 @@ async function verifyChecksumlessHistoricalMedia() {
     targetObjects,
   });
   const inventory = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     databaseSnapshotSha256: "0".repeat(64),
     sourceBucket: SOURCE_BUCKET,
     targetBucket: TARGET_BUCKET,
@@ -908,6 +1013,7 @@ async function verifyChecksumlessHistoricalMedia() {
     unresolvedLegacyUrlReferences: [],
     externalUrlReferences: [],
     supplementalObjects: [],
+    supplementalManifestAudit: null,
     supplementalObjectConflicts: [],
     coverage: {
       fullBucketCoverage: "unknown",
