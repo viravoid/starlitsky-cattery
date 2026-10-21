@@ -16,7 +16,7 @@
     "verify:community": "node src/services/community-service.verify.mjs",
     "verify:media-upload": "node src/services/media-upload-service.verify.mjs",
     "verify:private-cos-read": "node src/services/private-cos-read-delivery.verify.mjs",
-    "verify:cos-migration": "node src/services/object-storage-lightcos.verify.mjs && node src/services/lightcos-read-probe.verify.mjs && node src/services/cos-migration-service.verify.mjs",
+    "verify:cos-migration": "node src/services/object-storage-lightcos.verify.mjs && node src/services/lightcos-read-probe.verify.mjs && node src/services/cos-migration-service.verify.mjs && node src/services/offline-image-inventory.verify.mjs",
     "verify:fixed-page-media": "node src/services/fixed-page-media-service.verify.mjs",
     "verify:migration-smoke": "node src/services/prisma-migration-smoke.verify.mjs",
     "verify:production-env": "node src/config/production-env.verify.mjs",
@@ -31,6 +31,7 @@
     "apply:demo-recovery-update": "node src/cli/apply-demo-recovery-update.mjs",
     "media:apply-environment-batch": "node src/cli/apply-environment-media-batch.mjs",
     "media:cos-migration": "node src/cli/cos-migration.mjs",
+    "media:offline-image-inventory": "node src/cli/offline-image-inventory.mjs",
     "probe:lightcos-read-only": "node src/cli/lightcos-read-probe.mjs"
   },
   "dependencies": {

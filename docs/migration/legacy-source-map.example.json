@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "legacy-lightcos-primary",
+      "bucket": "starlitsky-cattery-1480740947",
+      "baseUrls": ["https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com"]
+    }
+  ]
+}
