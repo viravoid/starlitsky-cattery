@@ -27,6 +27,10 @@ try {
       client: prisma,
       sourceBucket: required(options.sourceBucket, "--source-bucket"),
       targetBucket: required(options.targetBucket, "--target-bucket"),
+      maxObjectBytes: options.maxObjectBytes,
+      supplementalManifest: options.supplementalManifest
+        ? readJson(options.supplementalManifest)
+        : null,
     });
   } else if (options.command === "copy") {
     const inventory = readJson(required(options.inventory, "--inventory"));
@@ -125,10 +129,12 @@ function parseArgs(args) {
     copyReport: "",
     exclusions: "",
     inventory: "",
+    maxObjectBytes: 10 * 1024 * 1024,
     output: "",
     plan: "",
     sourceBucket: "",
     switchReport: "",
+    supplementalManifest: "",
     targetBucket: "",
     writeEnvironment: "",
   };
@@ -149,16 +155,18 @@ function parseArgs(args) {
         "--confirm-database-url-sha256": "confirmDatabaseUrlSha256",
         "--confirm-target-bucket": "confirmTargetBucket",
         "--inventory": "inventory",
+        "--max-object-bytes": "maxObjectBytes",
         "--exclusions": "exclusions",
         "--output": "output",
         "--plan": "plan",
         "--source-bucket": "sourceBucket",
         "--switch-report": "switchReport",
+        "--supplemental-manifest": "supplementalManifest",
         "--target-bucket": "targetBucket",
         "--write-environment": "writeEnvironment",
       }[name];
       if (!field) throw new CosMigrationError(`Unsupported argument: ${arg}`);
-      parsed[field] = value;
+      parsed[field] = field === "maxObjectBytes" ? Number(value) : value;
     } else {
       throw new CosMigrationError(`Unsupported argument: ${arg}`);
     }

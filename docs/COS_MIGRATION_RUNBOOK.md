@@ -12,7 +12,12 @@ deletion, or PR merge.
 - Records without a bucket first use an exact configured storage URL origin match, then the explicit
   `STORAGE_LEGACY_BUCKET` fallback. If neither is available, the stored URL is returned unchanged.
 - Unknown bucket names are rejected. Client input cannot select bucket, endpoint, or credentials.
-- The read allowlist inherits server-side credentials. Never put access keys in its JSON.
+- Never put access keys in the read-allowlist JSON. The standard target uses
+  `STORAGE_ACCESS_KEY_ID` / `STORAGE_ACCESS_KEY_SECRET` (and optional `STORAGE_SESSION_TOKEN`). The
+  Lighthouse source uses the separate `STORAGE_LEGACY_ACCESS_KEY_ID` /
+  `STORAGE_LEGACY_ACCESS_KEY_SECRET` (and optional `STORAGE_LEGACY_SESSION_TOKEN`). This permits a
+  source identity limited to object HEAD/GET and a distinct target identity limited to the required
+  destination operations.
 - Copy and database switching are separate commands. Both default to dry-run. Every write requires
   an operation-specific confirmation, an exact target confirmation, and matching host/CLI
   environment declarations. Production additionally requires `--confirm-production`.
@@ -22,141 +27,163 @@ deletion, or PR merge.
 - No code in this change deletes source objects or changes bucket ACL/CORS.
 
 Example non-secret shape (values must be supplied through the approved environment process). The
-legacy `publicBaseUrl` must be the exact old URL base found in stored records; do not infer it from
-the API endpoint:
+source endpoint is the standard regional COS domain verified for the Lighthouse bucket. Never use
+`.light-cos.com`. `publicBaseUrl` and every `historicalBaseUrls` entry must be an exact URL base
+found in stored records; they are URL-to-Key mappings, not alternate API endpoints:
 
 ```dotenv
-STORAGE_BUCKET=standard-target-bucket
-STORAGE_LEGACY_BUCKET=legacy-source-bucket-1234567890
-STORAGE_READ_BUCKETS_JSON=[{"bucket":"legacy-source-bucket-1234567890","provider":"lightcos","endpoint":"https://legacy-source-bucket-1234567890.light-cos.com","publicBaseUrl":"https://legacy-domain.example"}]
+STORAGE_BUCKET=starlitsky-cattery-media-1480740947
+STORAGE_REGION=ap-chengdu
+STORAGE_ACCESS_KEY_ID=<target-only-secret-id>
+STORAGE_ACCESS_KEY_SECRET=<target-only-secret-key>
+STORAGE_LEGACY_BUCKET=starlitsky-cattery-1480740947
+STORAGE_LEGACY_ACCESS_KEY_ID=<source-read-only-secret-id>
+STORAGE_LEGACY_ACCESS_KEY_SECRET=<source-read-only-secret-key>
+STORAGE_READ_BUCKETS_JSON=[{"bucket":"starlitsky-cattery-1480740947","provider":"lightcos","region":"ap-chengdu","endpoint":"https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com","publicBaseUrl":"https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com","historicalBaseUrls":[]}]
 ```
 
-`provider: "lightcos"` is read-only in this code. It supports signed ListObjects, HEAD, GET, and
-presigned GET only. PUT and DELETE stop before an HTTP request. The standard COS target continues to
-use the already accepted implementation.
+`provider: "lightcos"` now means "Lighthouse-origin bucket accessed through standard COS object
+APIs". It uses `cos-nodejs-sdk-v5@3.0.0` for HEAD, bounded streaming GET, temporary-session-token
+signing, and presigned GET. Bucket listing is deliberately unsupported. PUT and DELETE stop before
+an SDK request. The standard COS target continues to use the existing accepted implementation.
 
-## LightCOS protocol assumptions and validation boundary
+## Verified protocol boundary
 
-The compatibility code follows these Tencent Cloud documents:
+The owner previously performed exactly one HEAD and one ranged GET against
+`starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com` with the official SDK. Both succeeded and
+the 656260-byte object produced SHA-256
+`4cece66a185b2eba2d04c5a8a0b011332521f248e0ec8b32b3b7fa884ae6c35c`. That evidence establishes
+object-level readability through the standard COS endpoint. It does not establish bucket-list
+support or full-bucket contents.
 
-- LightCOS API requests use `<BucketName-APPID>.light-cos.com` as the documented Host. An explicit
-  `endpoint` remains supported for a reviewed API endpoint. The configured `bucket` is assumed to
-  be the complete `BucketName-APPID`, and requests use virtual-host style rather than path style.
-- LightCOS authentication uses the COS XML HMAC-SHA1 `q-sign-*` algorithm. The implementation signs
-  only the automatically sent `host` header for GET/HEAD and signs every ListObjects query
-  parameter. It reuses the server-side SecretId/SecretKey configured for storage; per-bucket
-  credentials and temporary session-token signing are not implemented.
-- LightCOS GetBucket is ListObjects V1: the request uses `marker` and `max-keys`, and a truncated XML
-  response must contain `NextMarker`. The next request sends that value as `marker`. It does not send
-  standard COS/S3 V2 `list-type=2` or `continuation-token`.
-- Listing asks for `encoding-type=url`; object keys and `NextMarker` are URL-decoded after XML entity
-- The XML reader expects the unprefixed element names shown in the official response examples
-  (`Contents`, `Key`, `IsTruncated`, and `NextMarker`). A namespaced or structurally different real
-  response must fail the read-only probe and be handled before migration.
-- 404 means an individual HEAD/GET object is absent. 401/403 are permission failures, not absence.
-  Other non-2xx responses are errors.
+- The runtime requires bucket name with APPID, `ap-chengdu`, virtual-host style, and exactly
+  `https://<Bucket-APPID>.cos.<region>.myqcloud.com` for a Lighthouse source.
+- Inventory and copy never call GetBucket/ListObjects for that provider.
+- 404 means the specific Key is missing. Permission and other SDK failures abort the inventory/copy;
+  they are not converted to absence.
+- Object bodies are consumed as streams with a hard byte ceiling. Copy concurrency is four and
+  inventory HEAD concurrency is eight. The selected byte ceiling is embedded in and hash-bound to
+  the inventory (default 10 MiB; override with `--max-object-bytes`).
 
-All of the above has automated synthetic-response coverage only. No request in this PR was sent to a
-real LightCOS bucket. The exact production API endpoint, stored legacy public/custom domain, signing
-acceptance, response headers, object-key edge cases, and IAM behavior are **待真实只读验证**.
-
-The synthetic signer test also pins one fixed Unicode/space/percent/query vector generated
-independently by `cos-nodejs-sdk-v5@3.0.0`. This cross-checks the repository implementation against
-Tencent's SDK; it is still not evidence that the real legacy bucket accepts the request.
+This PR performs synthetic SDK and storage-response tests only. It does not repeat the real reads,
+read production data, or validate the future least-privilege identities.
 
 ### Bounded real read-only probe (requires separate approval)
 
-The existing provider is exposed through one narrow CLI for the future real compatibility check.
-It is not an inventory command and cannot write. Before it starts, it requires an allowlisted
-`provider: "lightcos"` bucket, a non-empty prefix, two exact expected keys under that prefix, one of
-those keys as the object probe target, an exact configured endpoint confirmation, and the explicit
-`--confirm-read-only-probe` flag. The command performs exactly five requests on success:
+The retained probe is object-only and cannot write. It requires an exact Key, expected size,
+expected SHA-256, configured standard endpoint confirmation, byte limit, and explicit confirmation.
+It performs exactly one HEAD and one bounded GET through the official SDK. Output hashes the Key and
+never prints credentials or signed URLs. Do not run it without separate approval; it was not run in
+this change.
 
-1. `GET Bucket` with `max-keys=1` and the approved prefix.
-2. `GET Bucket` with `max-keys=1`, the same prefix, and only the first response's `NextMarker`.
-3. One signed `HEAD` for the approved object.
-4. One Authorization-header `GET` for that object.
-5. One presigned `GET` for that object.
-
-It has no retries, uses a 10-second timeout per request, refuses redirects and cross-origin requests,
-blocks every method except GET/HEAD, limits each list body to 128 KiB, defaults object downloads to
-256 KiB, and has a hard 1 MiB ceiling. It compares the two GET bodies by SHA-256. Output contains
-only the confirmed origin, key/prefix hashes, sizes, MIME, ETag presence, status codes, error code
-when safely available, and RequestId. It never prints keys, SecretId, SecretKey, Authorization, or a
-presigned URL.
-
-Do not run this command until the owner separately approves the exact endpoint, prefix, two keys,
-object key, byte limit, time window, and least-privilege identity:
+Do not run this command until the owner separately approves the exact endpoint, Key, byte limit,
+expected values, time window, and least-privilege identity:
 
 ```powershell
 npm run probe:lightcos-read-only -- `
   --source-bucket <exact-BucketName-APPID> `
-  --prefix <exact-approved-prefix> `
-  --expected-first-key <exact-first-key> `
-  --expected-second-key <exact-second-key> `
-  --object-key <one-of-those-two-keys> `
-  --confirm-endpoint <exact-HTTPS-LightCOS-API-endpoint> `
-  --max-download-bytes 262144 `
+  --object-key <exact-approved-key> `
+  --confirm-endpoint <exact-standard-COS-endpoint> `
+  --expected-size-bytes <approved-size> `
+  --expected-sha256 <approved-sha256> `
+  --max-download-bytes <approved-limit> `
   --confirm-read-only-probe
 ```
 
-The command reuses `STORAGE_ACCESS_KEY_ID` and `STORAGE_ACCESS_KEY_SECRET`; the read-bucket JSON must
-not contain credentials. The approved identity needs only `lightcos:GetBucket`,
-`lightcos:HeadObject`, and `lightcos:GetObject` for this probe. Temporary-session-token signing is
-not implemented, so a temporary key that requires `x-cos-security-token` must not be supplied until
-that support is explicitly added and tested.
+The source identity is separate from the target identity and needs only the object HEAD/GET
+permissions accepted by the actual Lighthouse bucket. Temporary credentials are supported through
+`STORAGE_LEGACY_SESSION_TOKEN`.
 
 ## 1. Preparation and read-only inventory
 
 User approval is required before reading production database or bucket inventory with production
 credentials.
 
-1. After separate approval, confirm a least-privilege CAM identity can perform only
-   `lightcos:GetBucket`, `lightcos:HeadObject`, and `lightcos:GetObject` on the source. Target write
-   permissions are a later, separately approved step. Do not use a root key or a previously issued
-   test key.
+1. After separate approval, confirm a least-privilege source identity can perform only object HEAD
+   and GET on the required source keys. Target write permissions belong to a separate identity and
+   are a later, separately approved step. Do not use a root key.
 2. Review COS request, storage, egress, and retrieval pricing/budget alerts.
 3. Take a consistent SQLite backup while database writes are quiesced long enough to make the
    backup valid. Record its hash and retention location; do not commit it.
-4. Capture the old bucket's read-only object listing.
-5. Generate the joined database/object inventory:
+4. Quiesce relevant database writes (or use a reviewed database snapshot) so the transaction-level
+   inventory snapshot and backup refer to the same operational point.
+5. Generate the database-reference inventory. This performs object HEAD requests only for discovered
+   keys and does not attempt bucket listing:
 
 ```powershell
 npm run media:cos-migration -- inventory `
   --source-bucket legacy-source-bucket `
   --target-bucket standard-target-bucket `
+  --max-object-bytes 10485760 `
   --output cos-migration-inventory.json
 ```
 
-The inventory contains media ID, object key, declared and observed bucket, stable source and
-thumbnail URLs, database size/MIME/checksum, storage list/HEAD metadata, bindings, record status,
-deleted state, duplicate keys and conflicting duplicate metadata, missing records, orphan source
-objects, `User.avatar_url`, and exact legacy-host references across every current Prisma JSON field,
-including `MediaAsset.metadata_json`. `Cat.story_json`, `FixedPage.content_json`, media metadata, and
-`User.avatar_url` have exact, optimistic-concurrency switch paths. A legacy URL in any other JSON
-field blocks switch-plan generation for explicit review instead of being silently skipped. JSON
-strings are recognized only when the entire value is a URL with an exact configured source origin
-and object path. Encoded paths are decoded to the object key and query/fragment components are
-preserved. Similar hostnames and legacy-looking prose are not rewritten. If a managed media
-`source_url` resolves to a different key from its upload metadata, switch planning blocks rather
-than choosing one silently.
+The deterministic Key set covers `MediaAsset` upload metadata/source URLs, thumbnails, every media
+binding's referenced asset, `User.avatar_url`, `Cat.story_json`, `FixedPage.content_json`, media
+metadata, parent-application JSON, kitten structure JSON, litter color JSON, and selection-form JSON.
+Every Key is HEADed in source and target. `Cat.story_json`, `FixedPage.content_json`, media metadata,
+and `User.avatar_url` have exact optimistic-concurrency switch paths. Legacy URLs in other JSON
+fields block for explicit review. Encoded paths are decoded, query/fragment components are
+preserved, similar hostnames are not rewritten, and a metadata/URL Key mismatch blocks.
 
-Inventories and switch plans generated before the database snapshot field was introduced are
-intentionally rejected. No production inventory existed at the time of this change; future work
-must generate fresh artifacts from the approved, quiesced database instead of adapting an older
-JSON file by hand.
+The inventory also records:
+
+- missing Keys, oversized source objects, duplicate-Key metadata conflicts, unresolved strings that
+  contain an exact configured legacy origin, and external HTTP(S) URLs for review;
+- `coverage.fullBucketCoverage = "unknown"`, `bucketListingAttempted = false`, and
+  `orphanObjectCoverage = "unknown"`;
+- `orphanSourceObjects = null`, not an empty claim that no orphans exist.
+
+Known Keys outside the database may be added only through a reviewed supplemental manifest:
+
+```json
+{
+  "schemaVersion": 1,
+  "objects": [
+    {
+      "objectKey": "exact/source/key.jpg",
+      "sizeBytes": 656260,
+      "mimeType": "image/jpeg",
+      "checksum": "4cece66a185b2eba2d04c5a8a0b011332521f248e0ec8b32b3b7fa884ae6c35c",
+      "evidence": "reviewed material manifest and Key mapping"
+    }
+  ]
+}
+```
+
+Pass it with `--supplemental-manifest <path>`. A filename or hash without a proven COS Key is not
+enough to add an object.
+
+Repository audit boundary:
+
+- `docs/media-source-manifests/environment-2026-09-05.json` and
+  `environment-2026-10-08.json` contain filenames, hashes, sizes, and business slots but no legacy
+  COS Keys or URLs. They support later hash-based reconciliation but cannot automatically enumerate
+  source objects. The already verified 656260-byte hash appears in the 2026-09-05 manifest.
+- `public/real-photos/**` and `apps/miniapp/assets/**` are checked-in local/bundled assets. Their
+  repository paths are not assumed to be legacy COS Keys. If an import created `MediaAsset` rows,
+  those rows are discovered normally; otherwise mapping requires human evidence.
+- `public-content-manifest.mjs` explicitly records deferred/unextracted source images, so those
+  originals remain a manual completeness item.
+- An object with no database reference and no reviewed supplemental Key is an unknowable orphan.
+  This tool never claims it was inventoried and never deletes it.
+
+Inventory schema versions before v3 are rejected. Generate a fresh artifact from the approved,
+quiesced database rather than editing an old JSON file.
 
 Every copy attempt reads the source bytes and computes SHA-256. An existing or newly written target
 is then read back and must produce the same SHA-256; size, MIME, ETag, a successful HTTP response, or
 an absent historical checksum can never substitute for this comparison. A JSON URL can enter the
 switch plan only when its parsed object key has that byte-verification evidence in the matching copy
-report. Every source-list object, including an orphan, is a copy action by default. Untracked,
-missing, changed, unreadable, failed, not-yet-processed, or SHA-256-unverified objects block plan
-generation and are listed with a stable exclusion subject. Copy results outside the bound
-inventory are rejected. A successful status label without the SHA-256 evidence is not sufficient.
+report. Every discovered or supplemental source object is a copy action. Missing, changed,
+oversized, unreadable, failed, not-yet-processed, or SHA-256-unverified objects block plan generation
+and receive a stable exclusion subject. Existing targets are GET-read and SHA-256 compared before
+they can be `verified-existing`; size/MIME/ETag/upload success cannot substitute. Copy results
+outside the bound inventory are rejected.
 
-Reconcile every missing object, duplicate key, orphan, pending/rejected item, archived/deleted item,
-thumbnail, user avatar, JSON reference, and checksum mismatch before writes. Consistent duplicate
+Reconcile every missing object, duplicate key, pending/rejected item, archived/deleted item,
+thumbnail, user avatar, JSON reference, external URL, supplemental item, and checksum mismatch
+before writes. Consistent duplicate
 keys are migrated once and all referencing rows are switched; conflicting size/MIME/checksum
 metadata blocks. The inventory hash binds later reports to this exact snapshot.
 
@@ -180,8 +207,9 @@ create a separately reviewed JSON artifact:
 ```
 
 Allowed subjects are exact items from the bound inventory: `media:<id>`,
-`source-object:<object-key>`, or the `reference:...` key reported by switch-plan. Unknown subjects,
-duplicates, blank reasons, and blank approval references fail. Calculate the canonical digest:
+`source-object:<object-key>`, `supplemental-object:<object-key>`, or a reported `reference:...`,
+`unresolved-reference:...`, or `external-reference:...` key. Unknown subjects, duplicates, blank
+reasons, and blank approval references fail. Calculate the canonical digest:
 
 ```powershell
 npm run media:cos-migration -- exclusions-hash `
@@ -200,8 +228,9 @@ npm run media:cos-migration -- switch-plan `
 ```
 
 The plan embeds the approved exclusions, digest, complete findings, verified object keys, duplicate
-keys, and orphan keys for audit. Excluding a failed media record does not silently exclude its
-source object or another reference; each affected subject must have an explicit conclusion.
+keys, and the explicit unknown-coverage statement for audit. Excluding a failed media record does
+not silently exclude its source object or another reference; each affected subject must have an
+explicit conclusion.
 
 ## 2. Staging rehearsal
 
@@ -337,13 +366,12 @@ The checked-in miniapp currently has one hard-coded COS hostname,
 - The checked-in legal-domain matrix includes that hostname for request/download and the API host
   for request.
 
-Those code assertions do **not** prove that this hostname is the real LightCOS object-access domain,
-that a LightCOS custom domain is configured, or that WeChat has accepted it. The expected standard
-COS target hostname is documented in `COS_UPLOAD_ACCEPTANCE.md`, but changing the checked-in matrix
-or WeChat console remains a separate approved release. Before cutover, the read-only probe must
-identify the exact old API endpoint and the exact old public/custom hostname; then a WeChat
-trial/release on real devices must validate both old and new request/download domains. Until that
-evidence exists, the old domain is **待真实只读验证**.
+The standard COS source hostname has been verified for object HEAD/GET, but these code assertions do
+**not** prove that WeChat has accepted it or that every stored row uses that exact base. The target
+hostname is documented in `COS_UPLOAD_ACCEPTANCE.md`; changing the checked-in matrix or WeChat
+console remains a separate approved release. Before cutover, inventory the real stored URL bases,
+configure any exact historical aliases, and validate both old and new request/download domains on a
+WeChat trial/release and real devices.
 
 ## 5. Observation and eventual retirement
 
@@ -351,7 +379,9 @@ During the observation period, monitor read-signing errors, HEAD completion fail
 Admin upload errors, miniapp download failures, COS costs, and new legacy-bucket writes. Retain the
 SQLite backup, inventories, copy reports, and switch plan outside Git.
 
-Only after a separately approved retention period and a fresh zero-difference inventory may the old
-bucket be considered for retirement. Disabling legacy reads, removing WeChat legacy domains,
-revoking legacy CAM permissions, and deleting any old object are separate destructive changes and
-are not authorized by this runbook or PR.
+The database-reference inventory cannot authorize bucket retirement because orphan coverage is
+unknown. Retirement requires a separately obtained authoritative full-bucket inventory/export (or
+equivalent provider evidence), reconciliation against the database/supplemental manifest, and an
+approved retention period. Disabling legacy reads, removing WeChat legacy domains, revoking legacy
+CAM permissions, and deleting any old object are separate destructive changes and are not
+authorized by this runbook or PR.

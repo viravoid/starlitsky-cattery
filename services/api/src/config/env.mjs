@@ -63,6 +63,7 @@ export const config = {
     publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL || "",
     accessKeyId: process.env.STORAGE_ACCESS_KEY_ID || "",
     accessKeySecret: process.env.STORAGE_ACCESS_KEY_SECRET || "",
+    sessionToken: process.env.STORAGE_SESSION_TOKEN || "",
     keyPrefix: process.env.STORAGE_KEY_PREFIX || "media",
     forcePathStyle: parseBoolean(process.env.STORAGE_FORCE_PATH_STYLE),
     uploadExpiresSeconds: parsePositiveInteger(process.env.STORAGE_UPLOAD_EXPIRES_SECONDS, 600),
@@ -73,6 +74,9 @@ export const config = {
     ),
     maxImageBytes: parsePositiveInteger(process.env.STORAGE_MAX_IMAGE_BYTES, 10 * 1024 * 1024),
     legacyBucket: process.env.STORAGE_LEGACY_BUCKET || "",
+    legacyAccessKeyId: process.env.STORAGE_LEGACY_ACCESS_KEY_ID || "",
+    legacyAccessKeySecret: process.env.STORAGE_LEGACY_ACCESS_KEY_SECRET || "",
+    legacySessionToken: process.env.STORAGE_LEGACY_SESSION_TOKEN || "",
     readBuckets: parseStorageReadBuckets(process.env.STORAGE_READ_BUCKETS_JSON),
   },
 };
@@ -121,6 +125,12 @@ function parseStorageReadBuckets(value) {
         region: typeof entry.region === "string" ? entry.region.trim() : "",
         endpoint: typeof entry.endpoint === "string" ? entry.endpoint.trim() : "",
         publicBaseUrl: typeof entry.publicBaseUrl === "string" ? entry.publicBaseUrl.trim() : "",
+        historicalBaseUrls: Array.isArray(entry.historicalBaseUrls)
+          ? entry.historicalBaseUrls
+              .filter((item) => typeof item === "string")
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : [],
         forcePathStyle: entry.forcePathStyle === true,
       }))
       .filter((entry) => entry.bucket);

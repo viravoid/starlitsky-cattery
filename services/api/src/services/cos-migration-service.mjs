@@ -4,11 +4,12 @@ import {
   getAllowedStorageBuckets,
   getObject,
   headObject,
-  listObjects,
   putObject,
 } from "./object-storage-service.mjs";
 
 const COPY_CONCURRENCY = 4;
+const INVENTORY_HEAD_CONCURRENCY = 8;
+const DEFAULT_MAX_OBJECT_BYTES = 10 * 1024 * 1024;
 
 export class CosMigrationError extends Error {
   constructor(message, details = null) {
@@ -22,15 +23,16 @@ export async function createCosMigrationInventory({
   client = prisma,
   sourceBucket,
   targetBucket,
-  storage = { headObject, listObjects },
+  maxObjectBytes = DEFAULT_MAX_OBJECT_BYTES,
+  supplementalManifest = null,
+  storage = { headObject },
 } = {}) {
   const buckets = assertMigrationBuckets(sourceBucket, targetBucket);
+  if (!Number.isSafeInteger(maxObjectBytes) || maxObjectBytes < 1) {
+    throw new CosMigrationError("maxObjectBytes must be a positive safe integer");
+  }
   const generatedAt = new Date().toISOString();
-  const [databaseRecords, sourceObjects, targetObjects] = await Promise.all([
-    loadMigrationDatabaseRecordsConsistently(client),
-    listAllObjects(storage, sourceBucket),
-    listAllObjects(storage, targetBucket),
-  ]);
+  const databaseRecords = await loadMigrationDatabaseRecordsConsistently(client);
   const {
     media,
     users,
@@ -42,9 +44,6 @@ export async function createCosMigrationInventory({
     selectionApplications,
   } = databaseRecords;
   const databaseSnapshotSha256 = calculateMigrationDatabaseSnapshotSha256(databaseRecords);
-
-  const sourceObjectMap = new Map(sourceObjects.map((object) => [object.objectKey, object]));
-  const targetObjectMap = new Map(targetObjects.map((object) => [object.objectKey, object]));
   const sourceOrigins = storageOrigins(buckets.source);
   const targetOrigins = storageOrigins(buckets.target);
   const sourceBaseUrls = storageBaseUrls(buckets.source);
@@ -83,6 +82,7 @@ export async function createCosMigrationInventory({
     ),
   ];
   const userAvatarReferences = collectScalarReferences(users, "user", "avatar_url", sourceBaseUrls);
+  const supplementalObjects = normalizeSupplementalObjectManifest(supplementalManifest);
   const referencedObjectKeys = [
     ...new Set(
       [
@@ -95,14 +95,38 @@ export async function createCosMigrationInventory({
         }),
         ...jsonReferences.map((reference) => reference.objectKey),
         ...userAvatarReferences.map((reference) => reference.objectKey),
+        ...supplementalObjects.map((object) => object.objectKey),
       ].filter(Boolean),
     ),
-  ];
-  await mapLimit(referencedObjectKeys, 8, async (objectKey) => {
-    await Promise.all([
-      enrichListedObject(storage, sourceBucket, objectKey, sourceObjectMap),
-      enrichListedObject(storage, targetBucket, objectKey, targetObjectMap),
-    ]);
+  ].sort((left, right) => left.localeCompare(right));
+  const [sourceObjects, targetObjects] = await Promise.all([
+    headReferencedObjects(storage, sourceBucket, referencedObjectKeys),
+    headReferencedObjects(storage, targetBucket, referencedObjectKeys),
+  ]);
+  const sourceObjectMap = new Map(sourceObjects.map((object) => [object.objectKey, object]));
+  const targetObjectMap = new Map(targetObjects.map((object) => [object.objectKey, object]));
+  const unresolvedLegacyUrlReferences = collectUnresolvedLegacyUrlReferences({
+    cats,
+    fixedPages,
+    kittenProfiles,
+    litters,
+    media,
+    parentApplications,
+    selectionApplications,
+    sourceBaseUrls,
+    users,
+  });
+  const externalUrlReferences = collectExternalUrlReferences({
+    cats,
+    fixedPages,
+    kittenProfiles,
+    litters,
+    media,
+    parentApplications,
+    selectionApplications,
+    sourceBaseUrls,
+    targetBaseUrls,
+    users,
   });
   const records = media.map((item) => {
     const upload = readUploadMetadata(item.metadata_json);
@@ -167,13 +191,6 @@ export async function createCosMigrationInventory({
     };
   });
 
-  const referencedKeys = new Set(
-    [
-      ...records.flatMap((record) => [record.objectKey, record.thumbnailObjectKey]),
-      ...jsonReferences.map((reference) => reference.objectKey),
-      ...userAvatarReferences.map((reference) => reference.objectKey),
-    ].filter(Boolean),
-  );
   const duplicateKeys = [
     ...groupBy(
       records.filter((record) => record.objectKey),
@@ -192,8 +209,13 @@ export async function createCosMigrationInventory({
       return conflictingFields.length > 0 ? { ...duplicate, conflictingFields } : null;
     })
     .filter(Boolean);
+  const supplementalObjectConflicts = buildSupplementalObjectConflicts(
+    supplementalObjects,
+    records,
+    sourceObjectMap,
+  );
   const inventory = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt,
     sourceBucket,
     targetBucket,
@@ -206,12 +228,26 @@ export async function createCosMigrationInventory({
       mediaUpdatedAt: maxIso(media.map((item) => item.updated_at)),
     },
     databaseSnapshotSha256,
+    limits: {
+      copyConcurrency: COPY_CONCURRENCY,
+      inventoryHeadConcurrency: INVENTORY_HEAD_CONCURRENCY,
+      maxObjectBytes,
+    },
+    coverage: {
+      strategy: "database-and-supplemental-reference-head",
+      bucketListingAttempted: false,
+      bucketListingSupported: false,
+      fullBucketCoverage: "unknown",
+      orphanObjectCoverage: "unknown",
+      note: "Only object keys discoverable from the database snapshot or the supplemental manifest are included; unreferenced source objects cannot be enumerated.",
+    },
     records,
     recordsRequiringMigration: records
       .filter((record) => record.requiresMigration)
       .map((record) => record.id),
     duplicateKeys,
     duplicateKeyConflicts,
+    supplementalObjectConflicts,
     missingSourceRecords: records
       .filter(
         (record) =>
@@ -231,11 +267,26 @@ export async function createCosMigrationInventory({
     recordsWithoutObjectKey: records
       .filter((record) => record.requiresMigration && !record.objectKey)
       .map((record) => record.id),
-    orphanSourceObjects: sourceObjects.filter((object) => !referencedKeys.has(object.objectKey)),
+    orphanSourceObjects: null,
+    discoveredObjectKeys: referencedObjectKeys,
+    missingSourceObjectKeys: referencedObjectKeys.filter(
+      (objectKey) => !sourceObjectMap.has(objectKey),
+    ),
+    missingReferencedObjectKeys: referencedObjectKeys.filter(
+      (objectKey) => !sourceObjectMap.has(objectKey) && !targetObjectMap.has(objectKey),
+    ),
+    oversizedSourceObjectKeys: sourceObjects
+      .filter(
+        (object) => Number.isSafeInteger(object.sizeBytes) && object.sizeBytes > maxObjectBytes,
+      )
+      .map((object) => object.objectKey),
     sourceObjects,
     targetObjects,
+    supplementalObjects,
     jsonReferences,
     userAvatarReferences,
+    unresolvedLegacyUrlReferences,
+    externalUrlReferences,
     statusGroups: {
       pending: records.filter((record) => record.status === "pending").map((record) => record.id),
       rejected: records.filter((record) => record.status === "rejected").map((record) => record.id),
@@ -251,6 +302,169 @@ export function calculateCosMigrationInventorySha256(inventory) {
   const payload = { ...(inventory ?? {}) };
   delete payload.inventorySha256;
   return sha256(stableJson(payload));
+}
+
+function normalizeSupplementalObjectManifest(manifest) {
+  if (manifest == null) return [];
+  if (manifest?.schemaVersion !== 1 || !Array.isArray(manifest.objects)) {
+    throw new CosMigrationError("A valid supplemental object manifest is required");
+  }
+  const seen = new Set();
+  return manifest.objects
+    .map((item, index) => {
+      const objectKey = safeObjectKey(item?.objectKey);
+      if (!objectKey) {
+        throw new CosMigrationError("Supplemental manifest contains an invalid object key", {
+          index,
+        });
+      }
+      if (seen.has(objectKey)) {
+        throw new CosMigrationError("Supplemental manifest contains a duplicate object key", {
+          objectKey,
+        });
+      }
+      seen.add(objectKey);
+      const sizeBytes = item.sizeBytes == null ? null : Number(item.sizeBytes);
+      if (sizeBytes != null && (!Number.isSafeInteger(sizeBytes) || sizeBytes < 0)) {
+        throw new CosMigrationError("Supplemental manifest contains an invalid size", {
+          objectKey,
+        });
+      }
+      return {
+        objectKey,
+        sizeBytes,
+        mimeType: stringOrNull(item.mimeType),
+        checksum: stringOrNull(item.checksum),
+        evidence: stringOrNull(item.evidence),
+      };
+    })
+    .sort((left, right) => left.objectKey.localeCompare(right.objectKey));
+}
+
+function buildSupplementalObjectConflicts(supplementalObjects, records, sourceObjectMap) {
+  return supplementalObjects
+    .map((supplemental) => {
+      const source = sourceObjectMap.get(supplemental.objectKey);
+      const media = records.filter((record) => record.objectKey === supplemental.objectKey);
+      const conflictingFields = [];
+      if (
+        supplemental.sizeBytes != null &&
+        source?.sizeBytes != null &&
+        supplemental.sizeBytes !== source.sizeBytes
+      ) {
+        conflictingFields.push("sourceSizeBytes");
+      }
+      if (
+        supplemental.mimeType &&
+        source?.contentType &&
+        supplemental.mimeType.toLowerCase() !==
+          source.contentType.split(";")[0].trim().toLowerCase()
+      ) {
+        conflictingFields.push("sourceMimeType");
+      }
+      for (const field of ["checksum", "mimeType", "sizeBytes"]) {
+        const values = [supplemental[field], ...media.map((record) => record[field])]
+          .filter((value) => value != null)
+          .map((value) => (typeof value === "string" ? value.toLowerCase() : value));
+        if (new Set(values).size > 1) conflictingFields.push(`media:${field}`);
+      }
+      return conflictingFields.length > 0
+        ? {
+            objectKey: supplemental.objectKey,
+            mediaIds: media.map((record) => record.id),
+            conflictingFields: [...new Set(conflictingFields)],
+          }
+        : null;
+    })
+    .filter(Boolean);
+}
+
+function collectUnresolvedLegacyUrlReferences(records) {
+  const baseUrls = records.sourceBaseUrls;
+  const sourceOrigins = new Set(baseUrls.map(originOf).filter(Boolean));
+  return collectDatabaseStringReferences(records)
+    .filter((reference) => {
+      if (parseStorageObjectReference(reference.value, baseUrls)) return false;
+      return extractHttpUrls(reference.value).some((value) => {
+        try {
+          return sourceOrigins.has(new URL(value).origin);
+        } catch {
+          return false;
+        }
+      });
+    })
+    .map((reference) => ({
+      ...reference,
+      reason: "contains-configured-legacy-origin-but-is-not-an-exact-object-url",
+    }));
+}
+
+function extractHttpUrls(value) {
+  if (typeof value !== "string") return [];
+  return value.match(/https?:\/\/[^\s"'<>]+/gi) ?? [];
+}
+
+function collectExternalUrlReferences(records) {
+  const knownBaseUrls = [...records.sourceBaseUrls, ...records.targetBaseUrls];
+  return collectDatabaseStringReferences(records).filter((reference) => {
+    try {
+      const url = new URL(reference.value);
+      if (!new Set(["http:", "https:"]).has(url.protocol)) return false;
+      return !parseStorageObjectReference(reference.value, knownBaseUrls);
+    } catch {
+      return false;
+    }
+  });
+}
+
+function collectDatabaseStringReferences({
+  cats,
+  fixedPages,
+  kittenProfiles,
+  litters,
+  media,
+  parentApplications,
+  selectionApplications,
+  users,
+}) {
+  const references = [];
+  const addScalar = (records, model, field) => {
+    for (const record of records) {
+      if (typeof record[field] !== "string") continue;
+      references.push({ model, id: record.id, field, path: null, value: record[field] });
+    }
+  };
+  const addJson = (records, model, field) => {
+    for (const record of records) {
+      walkJson(record[field], [], (path, value) => {
+        references.push({ model, id: record.id, field, path, value });
+      });
+    }
+  };
+  addScalar(media, "media_asset", "source_url");
+  addScalar(media, "media_asset", "thumbnail_url");
+  addScalar(users, "user", "avatar_url");
+  addJson(media, "media_asset", "metadata_json");
+  addJson(cats, "cat", "story_json");
+  addJson(fixedPages, "fixed_page", "content_json");
+  addJson(parentApplications, "parent_application", "existing_cat_claims_json");
+  addJson(parentApplications, "parent_application", "new_cats_json");
+  addJson(
+    kittenProfiles.map((record) => ({ ...record, id: record.cat_id })),
+    "kitten_profile",
+    "structure_rating_json",
+  );
+  addJson(litters, "litter", "possible_colors_json");
+  for (const field of [
+    "cat_experience_json",
+    "existing_pets_json",
+    "living_environment_json",
+    "preferences_json",
+    "commitments_json",
+  ]) {
+    addJson(selectionApplications, "selection_application", field);
+  }
+  return references;
 }
 
 async function loadMigrationDatabaseRecords(client) {
@@ -456,18 +670,23 @@ function jsonReferencesMatchOriginal(value, references) {
   });
 }
 
-async function enrichListedObject(storage, bucket, objectKey, objectMap) {
-  const listed = objectMap.get(objectKey);
-  if (!listed) return;
-  const metadata = await storage.headObject({ bucket, objectKey });
-  if (!metadata?.exists) {
-    listed.inventoryConsistency = "listed-but-head-missing";
-    return;
-  }
-  listed.contentType = metadata.contentType ?? null;
-  listed.contentLength = metadata.contentLength ?? listed.sizeBytes ?? null;
-  listed.etag = metadata.etag ?? listed.etag ?? null;
-  listed.inventoryConsistency = "listed-and-head-confirmed";
+async function headReferencedObjects(storage, bucket, objectKeys) {
+  const objects = await mapLimit(objectKeys, INVENTORY_HEAD_CONCURRENCY, async (objectKey) => {
+    const metadata = await storage.headObject({ bucket, objectKey });
+    if (!metadata?.exists) return null;
+    return {
+      objectKey,
+      sizeBytes: metadata.contentLength ?? null,
+      contentType: metadata.contentType ?? null,
+      contentLength: metadata.contentLength ?? null,
+      etag: metadata.etag ?? null,
+      lastModified: metadata.lastModified ?? null,
+      inventoryConsistency: "head-confirmed",
+    };
+  });
+  return objects
+    .filter(Boolean)
+    .sort((left, right) => left.objectKey.localeCompare(right.objectKey));
 }
 
 export async function executeCosObjectCopies({
@@ -495,8 +714,15 @@ export async function executeCosObjectCopies({
 
   const results = await mapLimit(actions, COPY_CONCURRENCY, async (action) => {
     try {
+      if (
+        Number.isSafeInteger(action.sizeBytes) &&
+        action.sizeBytes > inventory.limits.maxObjectBytes
+      ) {
+        return { ...action, status: "source-too-large" };
+      }
       const source = await storage.getObject({
         bucket: inventory.sourceBucket,
+        maxBytes: inventory.limits.maxObjectBytes,
         objectKey: action.objectKey,
       });
       if (!source.exists) return { ...action, status: "missing-source" };
@@ -521,6 +747,7 @@ export async function executeCosObjectCopies({
           ? await verifyRemoteContent({
               bucket: inventory.targetBucket,
               expectedSha256: sourceContentSha256,
+              maxBytes: inventory.limits.maxObjectBytes,
               objectKey: action.objectKey,
               storage,
             })
@@ -554,6 +781,7 @@ export async function executeCosObjectCopies({
         ? await verifyRemoteContent({
             bucket: inventory.targetBucket,
             expectedSha256: sourceContentSha256,
+            maxBytes: inventory.limits.maxObjectBytes,
             objectKey: action.objectKey,
             storage,
           })
@@ -733,6 +961,7 @@ export function buildStorageSwitchPlan({
     userUpdates,
     integrity: {
       sourceObjectCount: inventory.sourceObjects?.length ?? 0,
+      coverage: inventory.coverage,
       migratingMediaCount: inventory.records.filter((record) => record.requiresMigration !== false)
         .length,
       duplicateKeys: inventory.duplicateKeys ?? [],
@@ -767,6 +996,16 @@ function buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys }) {
   };
 
   for (const object of inventory.sourceObjects ?? []) {
+    if ((inventory.oversizedSourceObjectKeys ?? []).includes(object.objectKey)) {
+      add({
+        code: "source-object-exceeds-read-limit",
+        exclusionKey: `source-object:${object.objectKey}`,
+        objectKey: object.objectKey,
+        maxObjectBytes: inventory.limits.maxObjectBytes,
+        sizeBytes: object.sizeBytes,
+      });
+      continue;
+    }
     if (verifiedKeys.has(object.objectKey)) continue;
     const result = copyResults.get(object.objectKey);
     add({
@@ -848,12 +1087,44 @@ function buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys }) {
       });
     }
   }
+  for (const conflict of inventory.supplementalObjectConflicts ?? []) {
+    add({
+      code: "supplemental-object-metadata-conflict",
+      exclusionKey: `supplemental-object:${conflict.objectKey}`,
+      objectKey: conflict.objectKey,
+      mediaIds: conflict.mediaIds,
+      conflictingFields: conflict.conflictingFields,
+    });
+  }
 
   for (const reference of inventory.jsonReferences ?? []) {
     addReferenceFinding({ add, inventory, reference, verifiedKeys });
   }
   for (const reference of inventory.userAvatarReferences ?? []) {
     addReferenceFinding({ add, inventory, reference, verifiedKeys });
+  }
+  for (const reference of inventory.unresolvedLegacyUrlReferences ?? []) {
+    add({
+      code: "legacy-url-reference-unresolved",
+      exclusionKey: unresolvedReferenceExclusionKey(reference),
+      reference,
+    });
+  }
+  for (const reference of inventory.externalUrlReferences ?? []) {
+    add({
+      code: "external-url-reference-requires-review",
+      exclusionKey: externalReferenceExclusionKey(reference),
+      reference,
+    });
+  }
+  for (const object of inventory.supplementalObjects ?? []) {
+    if ((inventory.sourceObjects ?? []).some((item) => item.objectKey === object.objectKey))
+      continue;
+    add({
+      code: "supplemental-source-object-missing",
+      exclusionKey: `supplemental-object:${object.objectKey}`,
+      objectKey: object.objectKey,
+    });
   }
   return [...findings.values()].sort((left, right) =>
     `${left.exclusionKey}:${left.code}`.localeCompare(`${right.exclusionKey}:${right.code}`),
@@ -919,6 +1190,11 @@ function resolveApprovedExclusions({
     ...(inventory.sourceObjects ?? []).map((object) => `source-object:${object.objectKey}`),
     ...(inventory.jsonReferences ?? []).map(referenceExclusionKey),
     ...(inventory.userAvatarReferences ?? []).map(referenceExclusionKey),
+    ...(inventory.unresolvedLegacyUrlReferences ?? []).map(unresolvedReferenceExclusionKey),
+    ...(inventory.externalUrlReferences ?? []).map(externalReferenceExclusionKey),
+    ...(inventory.supplementalObjects ?? []).map(
+      (object) => `supplemental-object:${object.objectKey}`,
+    ),
   ]);
   const unknownKeys = normalized.exclusions
     .map((item) => item.key)
@@ -957,6 +1233,14 @@ function normalizeExclusionManifest(value) {
 
 function referenceExclusionKey(reference) {
   return `reference:${reference.model}:${reference.id}:${reference.field}:${JSON.stringify(reference.path ?? [])}`;
+}
+
+function unresolvedReferenceExclusionKey(reference) {
+  return `unresolved-reference:${reference.model}:${reference.id}:${reference.field}:${JSON.stringify(reference.path ?? [])}`;
+}
+
+function externalReferenceExclusionKey(reference) {
+  return `external-reference:${reference.model}:${reference.id}:${reference.field}:${JSON.stringify(reference.path ?? [])}`;
 }
 
 export function buildStorageRollbackPlan({ switchPlan, switchReport }) {
@@ -1189,56 +1473,6 @@ function assertMigrationBuckets(sourceBucket, targetBucket) {
   return { source: allowed.get(sourceBucket), target: allowed.get(targetBucket) };
 }
 
-async function listAllObjects(storage, bucket) {
-  const objects = [];
-  const objectKeys = new Set();
-  const requestedTokens = new Set();
-  let continuationToken = "";
-  do {
-    if (requestedTokens.has(continuationToken)) {
-      throw new CosMigrationError("Object listing repeated a continuation token", {
-        bucket,
-        continuationToken,
-      });
-    }
-    requestedTokens.add(continuationToken);
-    const page = await storage.listObjects({ bucket, continuationToken });
-    if (!page || !Array.isArray(page.objects) || typeof page.isTruncated !== "boolean") {
-      throw new CosMigrationError("Object listing returned an invalid page", { bucket });
-    }
-    for (const object of page.objects) {
-      if (!safeObjectKey(object?.objectKey)) {
-        throw new CosMigrationError("Object listing returned an invalid object key", { bucket });
-      }
-      if (objectKeys.has(object.objectKey)) {
-        throw new CosMigrationError("Object listing returned a duplicate object key", {
-          bucket,
-          objectKey: object.objectKey,
-        });
-      }
-      objectKeys.add(object.objectKey);
-      objects.push(object);
-    }
-    const nextContinuationToken = page.isTruncated ? page.nextContinuationToken : "";
-    if (page.isTruncated && !nextContinuationToken) {
-      throw new CosMigrationError("Truncated object listing did not return a continuation token", {
-        bucket,
-      });
-    }
-    if (page.isTruncated && page.objects.length === 0) {
-      throw new CosMigrationError("Truncated object listing returned an empty page", { bucket });
-    }
-    if (page.isTruncated && nextContinuationToken === continuationToken) {
-      throw new CosMigrationError("Object listing continuation token did not advance", {
-        bucket,
-        continuationToken,
-      });
-    }
-    continuationToken = nextContinuationToken;
-  } while (continuationToken);
-  return objects.sort((left, right) => left.objectKey.localeCompare(right.objectKey));
-}
-
 function buildCopyActions(inventory) {
   const actions = new Map();
   for (const object of inventory.sourceObjects ?? []) {
@@ -1247,6 +1481,18 @@ function buildCopyActions(inventory) {
       mediaId: null,
       mimeType: object.contentType ?? null,
       object,
+      objectKey: object.objectKey,
+      sizeBytes: object.sizeBytes,
+    });
+  }
+  for (const object of inventory.supplementalObjects ?? []) {
+    addCopyAction(actions, {
+      checksum: object.checksum,
+      mediaId: null,
+      mimeType: object.mimeType,
+      object: (inventory.sourceObjects ?? []).find(
+        (sourceObject) => sourceObject.objectKey === object.objectKey,
+      ),
       objectKey: object.objectKey,
       sizeBytes: object.sizeBytes,
     });
@@ -1349,8 +1595,8 @@ function verifyChecksum(checksum, body, etag) {
     : { status: "unsupported-format" };
 }
 
-async function verifyRemoteContent({ bucket, expectedSha256, objectKey, storage }) {
-  const object = await storage.getObject({ bucket, objectKey });
+async function verifyRemoteContent({ bucket, expectedSha256, maxBytes, objectKey, storage }) {
+  const object = await storage.getObject({ bucket, maxBytes, objectKey });
   if (!object.exists) {
     return {
       algorithm: "sha256",
@@ -1550,7 +1796,11 @@ function storageOrigins(storage) {
 
 function storageBaseUrls(storage) {
   return [
-    ...new Set([storage.publicBaseUrl, storage.endpoint].map(normalizeBaseUrl).filter(Boolean)),
+    ...new Set(
+      [storage.publicBaseUrl, storage.endpoint, ...(storage.historicalBaseUrls ?? [])]
+        .map(normalizeBaseUrl)
+        .filter(Boolean),
+    ),
   ];
 }
 
@@ -1647,13 +1897,20 @@ function isConfirmedObject(object) {
 
 function assertInventory(inventory) {
   if (
-    inventory?.schemaVersion !== 2 ||
+    inventory?.schemaVersion !== 3 ||
     !inventory.inventorySha256 ||
     !/^[a-f0-9]{64}$/.test(inventory.databaseSnapshotSha256 ?? "") ||
     !Array.isArray(inventory.records) ||
     !Array.isArray(inventory.sourceObjects) ||
+    !Array.isArray(inventory.discoveredObjectKeys) ||
     !Array.isArray(inventory.jsonReferences) ||
     !Array.isArray(inventory.userAvatarReferences) ||
+    !Array.isArray(inventory.unresolvedLegacyUrlReferences) ||
+    !Array.isArray(inventory.externalUrlReferences) ||
+    !Array.isArray(inventory.supplementalObjects) ||
+    !Array.isArray(inventory.supplementalObjectConflicts) ||
+    inventory.coverage?.fullBucketCoverage !== "unknown" ||
+    !Number.isSafeInteger(inventory.limits?.maxObjectBytes) ||
     calculateCosMigrationInventorySha256(inventory) !== inventory.inventorySha256
   ) {
     throw new CosMigrationError("A valid untampered migration inventory is required");
