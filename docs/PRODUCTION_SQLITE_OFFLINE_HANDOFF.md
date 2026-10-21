@@ -6,6 +6,14 @@ to access production, stop the API, transfer data, read COS, change configuratio
 migrate objects. The production owner must approve the window, operator, paths, transfer channel,
 retention period, and evidence destination before execution.
 
+Use this runbook only after the owner or an authorized server operator confirms that a current
+production deployment and its SQLite database actually exist and that the database is a relevant
+source of historical image references. Deployment templates, configured production domains, old
+API captures, and a local development database do not establish that current server state. If no
+current production database exists, or an inspected database contains no relevant legacy
+references, do not schedule a write freeze or maintenance window. Follow the case-B evidence route
+in `docs/OFFLINE_IMAGE_INVENTORY.md` instead.
+
 ## What consistency means
 
 `deploy/production/scripts/backup-sqlite.sh` uses SQLite's online `.backup` API. The resulting

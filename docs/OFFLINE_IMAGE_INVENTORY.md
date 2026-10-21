@@ -140,12 +140,48 @@ that were uploaded but never persisted. Full-bucket coverage remains `unknown` u
 authoritative provider inventory/export or equivalent evidence is separately obtained and
 reconciled.
 
-After the offline report and mappings are reviewed, the next production action is for an authorized
-operator to create a quiesced SQLite online backup, record its SHA-256, transfer the backup to the
-protected offline workstation, and run this command against that copy. Online COS `HEAD` validation
-is a later, separately authorized stage.
+## Choose the evidence source before requesting a maintenance window
 
-Use `docs/PRODUCTION_SQLITE_OFFLINE_HANDOFF.md` for the exact backup, two-boundary validation,
+Do not infer a current production deployment from the deployment assets in this repository. Choose
+one of these routes from evidence supplied or confirmed by the project owner.
+
+### Case A: a current production deployment and relevant SQLite database are confirmed
+
+An authorized server operator must first confirm the deployed commit, actual `DATABASE_URL`,
+database path, and that the database is the relevant source of historical image references. Then
+use `docs/PRODUCTION_SQLITE_OFFLINE_HANDOFF.md` for the exact backup, two-boundary validation,
 encrypted transfer, offline execution, result protection, retention, and abort procedure. It also
 distinguishes SQLite transaction consistency from the optional business write freeze used to keep a
 migration inventory from becoming stale.
+
+The offline analyst should return only the approved privacy-minimized summary and evidence digests.
+The database, full report, source map, and discovered Keys remain in the protected evidence store.
+Online COS `HEAD` validation is a later, separately authorized stage.
+
+### Case B: no current production database exists, or it has no historical references
+
+Do not schedule an API stop, write freeze, or nonexistent server handoff. Start with the best
+available historical source that has independently reviewable provenance:
+
+1. a previous SQLite backup or data export whose origin, capture time, and SHA-256 are recorded;
+2. a historical API response/capture that contains exact legacy-host URLs;
+3. an approved provider-generated object inventory/export; or
+4. approved upload/import records that contain exact object Keys.
+
+For a historical API capture, preserve the original privately and record its SHA-256 before
+analysis. Never commit or share bearer tokens, signed query parameters, private response data, or
+the raw capture. Derive a candidate Key only from an exact reviewed legacy base URL after removing
+the query and fragment. Record the capture time, source artifact digest, and row or response locator
+as evidence. Similar hostnames, filenames, repository paths, and byte sizes are corroboration only;
+they do not prove a Key or prove byte identity. A matching cryptographic hash is stronger evidence,
+but still does not establish full-bucket coverage.
+
+Exact Keys from these sources may be proposed in a supplemental manifest. They enter an inventory
+only after the manifest has a real approval reference and its exact canonical SHA-256 is separately
+approved. Do not use a placeholder approval reference as authorization.
+
+Database and API sources cannot reveal objects that were never referenced or whose references were
+deleted. To cover possible orphan objects, obtain an authoritative provider inventory/export (Key,
+size, modification time, and preferably checksum/version metadata) or an equivalent complete
+bucket-side record, then reconcile it offline with database/API Keys and source media hashes. Do not
+claim full-bucket coverage from path conventions or sampled object reads.
