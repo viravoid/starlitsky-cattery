@@ -194,6 +194,12 @@ Repository audit boundary:
 - `public/real-photos/**` and `apps/miniapp/assets/**` are checked-in local/bundled assets. Their
   repository paths are not assumed to be legacy COS Keys. If an import created `MediaAsset` rows,
   those rows are discovered normally; otherwise mapping requires human evidence.
+- Historical API exports or capture artifacts may provide exact legacy-host URLs even when the
+  current database is unavailable. Preserve such artifacts privately, hash them before analysis,
+  remove query/fragment data before deriving a candidate Key, and bind each proposed supplemental
+  Key to its artifact digest and response locator. Never commit bearer tokens, signed query
+  parameters, private response data, or the raw capture. A reviewed supplemental manifest and its
+  separately approved canonical digest are still required.
 - `public-content-manifest.mjs` explicitly records deferred/unextracted source images, so those
   originals remain a manual completeness item.
 - An object with no database reference and no reviewed supplemental Key is an unknowable orphan.
