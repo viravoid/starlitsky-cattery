@@ -765,6 +765,7 @@ export async function executeCosObjectCopies({
         body,
         bucket: inventory.targetBucket,
         contentType: source.contentType || action.mimeType || "application/octet-stream",
+        forbidOverwrite: true,
         objectKey: action.objectKey,
       });
       const target = await storage.headObject({

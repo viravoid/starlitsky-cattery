@@ -182,6 +182,7 @@ try {
     objectKey: "media/copied.jpg",
     body: BODY,
     contentType: "image/jpeg",
+    forbidOverwrite: true,
   });
   assert.equal(
     signedTargetWrite.init.headers["x-amz-security-token"],
@@ -189,8 +190,9 @@ try {
   );
   assert.match(
     signedTargetWrite.init.headers.Authorization,
-    /SignedHeaders=.*x-amz-security-token/,
+    /SignedHeaders=.*x-amz-security-token;x-cos-forbid-overwrite/,
   );
+  assert.equal(signedTargetWrite.init.headers["x-cos-forbid-overwrite"], "true");
 
   console.info("Synthetic Lighthouse COS SDK object-read verification passed");
 } finally {
