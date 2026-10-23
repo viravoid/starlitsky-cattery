@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { verifyExternalCosCopyEvidence } from "./cos-migration-external-evidence.mjs";
 import { prisma } from "../db/prisma.mjs";
 import {
   getAllowedStorageBuckets,
@@ -815,25 +816,50 @@ export async function executeCosObjectCopies({
 
 export function buildStorageSwitchPlan({
   inventory,
-  copyReport,
+  copyReport = null,
+  externalEvidence = null,
+  approvedExternalEvidenceSha256 = "",
   exclusions = null,
   approvedExclusionsSha256 = "",
   coverageAcknowledgement = null,
   approvedCoverageAcknowledgementSha256 = "",
 }) {
   assertInventory(inventory);
-  if (copyReport?.inventorySha256 !== inventory.inventorySha256) {
+  if (Boolean(copyReport) === Boolean(externalEvidence)) {
+    throw new CosMigrationError(
+      "Provide exactly one native copy report or external evidence index",
+    );
+  }
+  if (externalEvidence && !approvedExternalEvidenceSha256) {
+    throw new CosMigrationError("External evidence requires exact index SHA-256 approval");
+  }
+  if (copyReport && copyReport.inventorySha256 !== inventory.inventorySha256) {
     throw new CosMigrationError("Copy report does not belong to this inventory");
   }
   if (
-    copyReport?.mode !== "apply" ||
-    copyReport.sourceBucket !== inventory.sourceBucket ||
-    copyReport.targetBucket !== inventory.targetBucket ||
-    !Array.isArray(copyReport.results)
+    copyReport &&
+    (copyReport?.mode !== "apply" ||
+      copyReport.sourceBucket !== inventory.sourceBucket ||
+      copyReport.targetBucket !== inventory.targetBucket ||
+      !Array.isArray(copyReport.results))
   ) {
     throw new CosMigrationError("A matching applied copy report is required for switch planning");
   }
-  const duplicateCopyResultKeys = [...groupBy(copyReport.results, "objectKey")]
+  const externalVerification = externalEvidence
+    ? verifyExternalCosCopyEvidence({
+        inventory,
+        index: externalEvidence.index,
+        bundles: externalEvidence.bundles,
+        approvedIndexSha256: approvedExternalEvidenceSha256,
+      })
+    : null;
+  const evidenceResults =
+    copyReport?.results ??
+    externalVerification.provenance.map((item) => ({
+      objectKey: item.objectKey,
+      status: item.status,
+    }));
+  const duplicateCopyResultKeys = [...groupBy(evidenceResults, "objectKey")]
     .filter(([, results]) => results.length !== 1)
     .map(([objectKey]) => objectKey);
   if (duplicateCopyResultKeys.length > 0) {
@@ -842,7 +868,7 @@ export function buildStorageSwitchPlan({
     });
   }
   const expectedCopyKeys = new Set(buildCopyActions(inventory).map((action) => action.objectKey));
-  const unexpectedCopyResultKeys = copyReport.results
+  const unexpectedCopyResultKeys = evidenceResults
     .map((result) => result.objectKey)
     .filter((objectKey) => !expectedCopyKeys.has(objectKey));
   if (unexpectedCopyResultKeys.length > 0) {
@@ -851,11 +877,16 @@ export function buildStorageSwitchPlan({
     });
   }
   const verifiedKeys = new Set(
-    copyReport.results.filter(isByteVerifiedCopyResult).map((result) => result.objectKey),
+    externalVerification?.verifiedKeys ??
+      evidenceResults.filter(isByteVerifiedCopyResult).map((result) => result.objectKey),
   );
   const targetBaseUrl = inventory.targetBaseUrls?.[0] ?? inventory.targetOrigins[0];
   if (!targetBaseUrl) throw new CosMigrationError("Target bucket has no configured stable origin");
-  const findings = buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys });
+  const findings = buildSwitchIntegrityFindings({
+    inventory,
+    copyResults: evidenceResults,
+    verifiedKeys,
+  });
   const approvedExclusions = resolveApprovedExclusions({
     approvedExclusionsSha256,
     exclusions,
@@ -972,6 +1003,7 @@ export function buildStorageSwitchPlan({
         (object) => object.objectKey,
       ),
       verifiedObjectKeys: [...verifiedKeys].sort(),
+      externalEvidenceIndexSha256: externalVerification?.approvedIndexSha256 ?? null,
       findings,
       approvedExclusions,
       approvedExclusionsSha256: approvedExclusions.length ? approvedExclusionsSha256 : null,
@@ -998,9 +1030,9 @@ export function calculateStorageSwitchPlanSha256(plan) {
   return sha256(stableJson(payload));
 }
 
-function buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys }) {
+function buildSwitchIntegrityFindings({ inventory, copyResults, verifiedKeys }) {
   const findings = new Map();
-  const copyResults = new Map(copyReport.results.map((result) => [result.objectKey, result]));
+  const copyResultsByKey = new Map(copyResults.map((result) => [result.objectKey, result]));
   const add = (finding) => {
     const key = [finding.code, finding.exclusionKey, finding.objectKey ?? ""].join("|");
     findings.set(key, finding);
@@ -1018,7 +1050,7 @@ function buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys }) {
       continue;
     }
     if (verifiedKeys.has(object.objectKey)) continue;
-    const result = copyResults.get(object.objectKey);
+    const result = copyResultsByKey.get(object.objectKey);
     add({
       code: "source-object-not-byte-verified",
       exclusionKey: `source-object:${object.objectKey}`,
@@ -1052,7 +1084,7 @@ function buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys }) {
         objectKey: record.objectKey,
       });
     } else if (!verifiedKeys.has(record.objectKey)) {
-      const result = copyResults.get(record.objectKey);
+      const result = copyResultsByKey.get(record.objectKey);
       add({
         code: "media-object-not-byte-verified",
         exclusionKey,
@@ -1073,7 +1105,7 @@ function buildSwitchIntegrityFindings({ inventory, copyReport, verifiedKeys }) {
           objectKey: record.thumbnailObjectKey,
         });
       } else if (!verifiedKeys.has(record.thumbnailObjectKey)) {
-        const result = copyResults.get(record.thumbnailObjectKey);
+        const result = copyResultsByKey.get(record.thumbnailObjectKey);
         add({
           code: "thumbnail-not-byte-verified",
           exclusionKey,

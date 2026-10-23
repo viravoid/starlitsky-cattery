@@ -40,6 +40,8 @@ const {
   createCosMigrationInventory,
   executeCosObjectCopies,
 } = await import("./cos-migration-service.mjs");
+const { calculateExternalEvidenceIndexSha256 } =
+  await import("./cos-migration-external-evidence.mjs");
 const { assertMigrationWriteRuntime, databaseUrlFingerprint, verifyMigrationSqliteBackup } =
   await import("./cos-migration-runtime-guard.mjs");
 
@@ -594,7 +596,7 @@ try {
     /separate approval using the exact acknowledgement SHA-256/,
     "the limited-coverage decision must be bound to the exact acknowledgement",
   );
-  const plan = buildStorageSwitchPlan({
+  const nativePlan = buildStorageSwitchPlan({
     inventory,
     copyReport: copied,
     exclusions,
@@ -602,14 +604,82 @@ try {
     coverageAcknowledgement,
     approvedCoverageAcknowledgementSha256,
   });
+  const externalInventory = structuredClone(inventory);
+  externalInventory.targetObjects = copied.results.map((result) => ({
+    objectKey: result.objectKey,
+    sizeBytes: result.sizeBytes,
+    contentType: result.mimeType,
+    inventoryConsistency: "head-confirmed",
+  }));
+  externalInventory.inventorySha256 = calculateCosMigrationInventorySha256(externalInventory);
+  const externalExclusions = { ...exclusions, inventorySha256: externalInventory.inventorySha256 };
+  const externalCoverageAcknowledgement = {
+    ...coverageAcknowledgement,
+    inventorySha256: externalInventory.inventorySha256,
+  };
+  const externalEvidence = syntheticExternalEvidence(externalInventory, copied);
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory: externalInventory,
+        externalEvidence,
+        approvedExternalEvidenceSha256: "0".repeat(64),
+        exclusions: externalExclusions,
+        approvedExclusionsSha256: calculateStorageSwitchExclusionsSha256(externalExclusions),
+        coverageAcknowledgement: externalCoverageAcknowledgement,
+        approvedCoverageAcknowledgementSha256: calculateStorageSwitchCoverageAcknowledgementSha256(
+          externalCoverageAcknowledgement,
+        ),
+      }),
+    /index approval\/hash mismatch/,
+  );
+  const externalPlan = buildStorageSwitchPlan({
+    inventory: externalInventory,
+    externalEvidence,
+    approvedExternalEvidenceSha256: externalEvidence.index.indexSha256,
+    exclusions: externalExclusions,
+    approvedExclusionsSha256: calculateStorageSwitchExclusionsSha256(externalExclusions),
+    coverageAcknowledgement: externalCoverageAcknowledgement,
+    approvedCoverageAcknowledgementSha256: calculateStorageSwitchCoverageAcknowledgementSha256(
+      externalCoverageAcknowledgement,
+    ),
+  });
+  assert.deepEqual(externalPlan.mediaUpdates, nativePlan.mediaUpdates);
+  assert.equal(
+    externalPlan.integrity.externalEvidenceIndexSha256,
+    externalEvidence.index.indexSha256,
+  );
+  const plan = externalPlan;
+  const tampered = structuredClone(externalEvidence);
+  tampered.bundles[0].copyJournal.objects[
+    copied.results[0].objectKey
+  ].result.byteVerification.actual = "0".repeat(64);
+  assert.throws(
+    () =>
+      buildStorageSwitchPlan({
+        inventory: externalInventory,
+        externalEvidence: tampered,
+        approvedExternalEvidenceSha256: externalEvidence.index.indexSha256,
+        exclusions: externalExclusions,
+        approvedExclusionsSha256: calculateStorageSwitchExclusionsSha256(externalExclusions),
+        coverageAcknowledgement: externalCoverageAcknowledgement,
+        approvedCoverageAcknowledgementSha256: calculateStorageSwitchCoverageAcknowledgementSha256(
+          externalCoverageAcknowledgement,
+        ),
+      }),
+    /digest mismatch/,
+  );
   assert.equal(plan.mediaUpdates.length, 2, "approved exclusions must be explicit and audited");
   assert.equal(plan.userUpdates.length, 1, "User.avatar_url must have an exact switch update");
-  assert.equal(plan.integrity.approvedExclusionsSha256, approvedExclusionsSha256);
+  assert.equal(
+    plan.integrity.approvedExclusionsSha256,
+    calculateStorageSwitchExclusionsSha256(externalExclusions),
+  );
   assert.equal(plan.integrity.switchScope, "known-referenced-objects-only");
   assert.equal(plan.integrity.fullBucketMigrationComplete, false);
   assert.equal(
     plan.integrity.approvedCoverageAcknowledgementSha256,
-    approvedCoverageAcknowledgementSha256,
+    calculateStorageSwitchCoverageAcknowledgementSha256(externalCoverageAcknowledgement),
   );
   const unacknowledgedPlan = {
     ...plan,
@@ -1237,4 +1307,157 @@ function resolveSqlitePath(rawPath) {
   const normalized = rawPath.trim().replace(/^"|"$/g, "");
   if (isAbsolute(normalized) || /^[A-Za-z]:[\\/]/.test(normalized)) return normalized;
   return resolve(dirname(fileURLToPath(import.meta.url)), "../../prisma", normalized);
+}
+
+function syntheticExternalEvidence(inventory, copied) {
+  const hash = (value) => crypto.createHash("sha256").update(value).digest("hex");
+  const stable = (value) => JSON.stringify(sort(value));
+  const sort = (value) =>
+    Array.isArray(value)
+      ? value.map(sort)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((key) => [key, sort(value[key])]),
+          )
+        : value;
+  const objects = copied.results.map((result) => ({
+    objectKey: result.objectKey,
+    objectKeySha256: hash(result.objectKey),
+    sizeBytes: result.sizeBytes,
+    mimeType: result.mimeType,
+    sha256: result.sourceContentSha256,
+  }));
+  const bytes = objects.reduce((sum, item) => sum + item.sizeBytes, 0);
+  const sourceReport = {
+    status: "completed",
+    stopReason: null,
+    sourceBucket: inventory.sourceBucket,
+    candidateKeysetSha256: "c".repeat(64),
+    bytesRead: bytes,
+    requests: { head: objects.length, get: objects.length, total: 2 * objects.length },
+    transport: { actualHttpRequests: 2 * objects.length, blockedRetryAttempts: 0 },
+    requestLedger: objects.flatMap((item) => [
+      {
+        objectKeySha256: item.objectKeySha256,
+        method: "HEAD",
+        status: "completed",
+        statusCode: 200,
+        bytesRead: 0,
+      },
+      {
+        objectKeySha256: item.objectKeySha256,
+        method: "GET",
+        status: "completed",
+        statusCode: 206,
+        bytesRead: item.sizeBytes,
+      },
+    ]),
+    summary: { processed: objects.length, unprocessed: 0 },
+    results: objects.map((item) => ({
+      objectKey: item.objectKey,
+      objectKeySha256: item.objectKeySha256,
+      expectedSizeBytes: item.sizeBytes,
+      expectedSha256: item.sha256,
+      status: "current-exists-complete-read-trusted-hash-match",
+      head: { exists: true, contentLength: item.sizeBytes },
+      get: { exists: true, bytesRead: item.sizeBytes, sha256: item.sha256 },
+    })),
+  };
+  const sourceEvidenceIndex = {
+    reportStatus: "completed",
+    reportSha256: hash(JSON.stringify(sourceReport)),
+    candidateKeysetSha256: sourceReport.candidateKeysetSha256,
+    requestCounts: sourceReport.requests,
+    bytesRead: bytes,
+  };
+  const manifestCore = {
+    sourceBucket: inventory.sourceBucket,
+    targetBucket: inventory.targetBucket,
+    sourceReportCanonicalSha256: hash(JSON.stringify(sourceReport)),
+    candidateKeysetSha256: sourceReport.candidateKeysetSha256,
+    objects,
+  };
+  const copyManifest = { ...manifestCore, copyManifestSha256: hash(stable(manifestCore)) };
+  const planCore = {
+    copyManifestSha256: copyManifest.copyManifestSha256,
+    targetPolicySetSha256: "d".repeat(64),
+    sourceEvidence: { reportCanonicalSha256: hash(JSON.stringify(sourceReport)) },
+    scope: {
+      objectCount: objects.length,
+      totalBytes: bytes,
+      sourceBucket: inventory.sourceBucket,
+      targetBucket: inventory.targetBucket,
+    },
+    execution: {
+      automaticNetworkRetries: 0,
+      stopOnAnyNonSuccessStatus: true,
+      preserveConflictingTarget: true,
+      deleteSource: false,
+      modifyDatabase: false,
+      switchUrls: false,
+    },
+  };
+  const copyPlan = { ...planCore, planSha256: hash(stable(planCore)) };
+  const copyJournal = {
+    status: `completed-${objects.length}-byte-verified`,
+    planSha256: copyPlan.planSha256,
+    targetPolicySetSha256: copyPlan.targetPolicySetSha256,
+    actualRequests: {
+      sourceGet: objects.length,
+      targetHead: copied.results.reduce(
+        (sum, result) => sum + (result.status === "copied-and-verified" ? 2 : 1),
+        0,
+      ),
+      targetGet: objects.length,
+      targetPut: copied.results.filter((result) => result.status === "copied-and-verified").length,
+      downloadBytes: bytes * 2,
+      uploadBytes: copied.results
+        .filter((result) => result.status === "copied-and-verified")
+        .reduce((sum, result) => sum + result.sizeBytes, 0),
+    },
+    objects: Object.fromEntries(
+      copied.results.map((result) => [
+        result.objectKey,
+        {
+          status: "verified",
+          attempts: 1,
+          objectKeySha256: hash(result.objectKey),
+          result,
+          counters: {
+            sourceGet: 1,
+            targetGet: 1,
+            targetHead: result.status === "copied-and-verified" ? 2 : 1,
+            targetPut: result.status === "copied-and-verified" ? 1 : 0,
+            downloadBytes: result.sizeBytes * 2,
+            uploadBytes: result.status === "copied-and-verified" ? result.sizeBytes : 0,
+          },
+        },
+      ]),
+    ),
+  };
+  const bundle = { sourceReport, sourceEvidenceIndex, copyManifest, copyPlan, copyJournal };
+  const artifacts = Object.fromEntries(
+    Object.entries(bundle).map(([name, value]) => [
+      name,
+      {
+        canonicalSha256: hash(JSON.stringify(value)),
+        rawSha256: hash(JSON.stringify(value)),
+        path: `synthetic/${name}.json`,
+      },
+    ]),
+  );
+  const core = {
+    schemaVersion: 1,
+    inventorySha256: inventory.inventorySha256,
+    databaseSnapshotSha256: inventory.databaseSnapshotSha256,
+    sourceBucket: inventory.sourceBucket,
+    targetBucket: inventory.targetBucket,
+    bundles: [{ id: "synthetic-only", artifacts }],
+  };
+  return {
+    index: { ...core, indexSha256: calculateExternalEvidenceIndexSha256(core) },
+    bundles: [bundle],
+  };
 }
