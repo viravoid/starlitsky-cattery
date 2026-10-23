@@ -77,6 +77,7 @@ try {
   let failObjectKey = "";
   let readCount = 0;
   let writeCount = 0;
+  let unprotectedWriteCount = 0;
   const storage = createFakeStorage({
     failNextPut: (objectKey) => objectKey === failObjectKey,
     onFailedPut: () => {
@@ -87,6 +88,9 @@ try {
     },
     onWrite: () => {
       writeCount += 1;
+    },
+    onUnprotectedWrite: () => {
+      unprotectedWriteCount += 1;
     },
     sourceObjects,
     targetObjects,
@@ -258,6 +262,7 @@ try {
   assert.equal(primaryCopy.byteVerification.status, "match");
   assert.equal(primaryCopy.byteVerification.actual, CHECKSUM);
   assert.equal(targetObjects.get(OBJECT_KEY).body.equals(BODY), true);
+  assert.equal(unprotectedWriteCount, 0, "migration PUTs must forbid overwriting target objects");
   const thumbnailCopy = copied.results.find((result) => result.objectKey === THUMBNAIL_KEY);
   assert.equal(thumbnailCopy.status, "verified-existing");
   assert.equal(thumbnailCopy.checksumVerification.status, "unavailable");
@@ -1139,6 +1144,7 @@ function createFakeStorage({
   onFailedPut,
   onRead,
   onWrite,
+  onUnprotectedWrite,
   sourceObjects,
   targetObjects,
 }) {
@@ -1163,7 +1169,8 @@ function createFakeStorage({
       const value = bucketMap(bucket).get(objectKey);
       return value ? { exists: true, ...value } : { exists: false };
     },
-    async putObject({ bucket, objectKey, body, contentType }) {
+    async putObject({ bucket, objectKey, body, contentType, forbidOverwrite }) {
+      if (forbidOverwrite !== true) onUnprotectedWrite();
       if (failNextPut(objectKey)) {
         onFailedPut();
         throw new Error("simulated object write failure");

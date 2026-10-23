@@ -325,7 +325,13 @@ function throwCosSdkReadFailure(message, error, storage) {
   });
 }
 
-export async function putObject({ bucket, objectKey, body, contentType }) {
+export async function putObject({
+  bucket,
+  objectKey,
+  body,
+  contentType,
+  forbidOverwrite = false,
+}) {
   assertStorageObjectKey(objectKey);
   const storage = getStorageConfig({ bucket });
   assertStorageWriteSupported(storage);
@@ -334,6 +340,7 @@ export async function putObject({ bucket, objectKey, body, contentType }) {
       body,
       bucket: storage.bucket,
       contentType,
+      forbidOverwrite,
       objectKey,
       storage,
     });
@@ -342,6 +349,7 @@ export async function putObject({ bucket, objectKey, body, contentType }) {
   const response = await fetchSignedStorageRequest({
     body,
     contentType,
+    forbidOverwrite,
     method: "PUT",
     objectKey,
     storage,
@@ -437,6 +445,7 @@ async function fetchSignedStorageRequest({
   queryParams = [],
   body = null,
   contentType = null,
+  forbidOverwrite = false,
 }) {
   const now = new Date();
   const amzDate = formatAmzDate(now);
@@ -453,6 +462,7 @@ async function fetchSignedStorageRequest({
     headerEntries.push(["x-amz-security-token", storage.sessionToken]);
   }
   if (contentType) headerEntries.push(["content-type", contentType]);
+  if (forbidOverwrite) headerEntries.push(["x-cos-forbid-overwrite", "true"]);
   headerEntries.sort(([left], [right]) => left.localeCompare(right));
   const signedHeaders = headerEntries.map(([name]) => name).join(";");
   const canonicalHeaders = headerEntries.map(([name, value]) => `${name}:${value}`).join("\n");
@@ -482,10 +492,12 @@ async function fetchSignedStorageRequest({
   };
   if (storage.sessionToken) headers["x-amz-security-token"] = storage.sessionToken;
   if (contentType) headers["content-type"] = contentType;
+  if (forbidOverwrite) headers["x-cos-forbid-overwrite"] = "true";
   return fetch(requestUrl, {
     body,
     method,
     headers,
+    redirect: "manual",
   });
 }
 

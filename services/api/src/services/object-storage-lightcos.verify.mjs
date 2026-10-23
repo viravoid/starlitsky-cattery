@@ -182,6 +182,7 @@ try {
     objectKey: "media/copied.jpg",
     body: BODY,
     contentType: "image/jpeg",
+    forbidOverwrite: true,
   });
   assert.equal(
     signedTargetWrite.init.headers["x-amz-security-token"],
@@ -189,8 +190,39 @@ try {
   );
   assert.match(
     signedTargetWrite.init.headers.Authorization,
-    /SignedHeaders=.*x-amz-security-token/,
+    /SignedHeaders=.*x-amz-security-token;x-cos-forbid-overwrite/,
   );
+  assert.equal(signedTargetWrite.init.headers["x-cos-forbid-overwrite"], "true");
+  assert.equal(signedTargetWrite.init.redirect, "manual");
+
+  for (const status of [301, 302, 307, 308]) {
+    const redirectedRequests = [];
+    global.fetch = async (input, init) => {
+      redirectedRequests.push({ input: String(input), init });
+      return new Response(null, {
+        status,
+        headers: { location: "https://unexpected-endpoint.example.test/redirected-object" },
+      });
+    };
+    await assert.rejects(
+      () =>
+        putObject({
+          bucket: TARGET_BUCKET,
+          objectKey: "media/redirected.jpg",
+          body: BODY,
+          contentType: "image/jpeg",
+          forbidOverwrite: true,
+        }),
+      /Object storage write failed/,
+    );
+    assert.equal(redirectedRequests.length, 1, `${status} must not trigger a second request`);
+    assert.equal(redirectedRequests[0].init.redirect, "manual");
+    assert.equal(redirectedRequests[0].init.body, BODY);
+    assert.match(
+      redirectedRequests[0].init.headers.Authorization,
+      /SignedHeaders=.*x-amz-security-token;x-cos-forbid-overwrite/,
+    );
+  }
 
   console.info("Synthetic Lighthouse COS SDK object-read verification passed");
 } finally {
