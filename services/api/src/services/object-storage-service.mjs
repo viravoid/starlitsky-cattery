@@ -497,6 +497,7 @@ async function fetchSignedStorageRequest({
     body,
     method,
     headers,
+    redirect: "manual",
   });
 }
 
