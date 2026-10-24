@@ -34,35 +34,56 @@ export function calculateExternalEvidenceIndexSha256(index) {
 }
 
 export function verifyExternalCosCopyEvidence({ inventory, index, bundles, approvedIndexSha256 }) {
-  requireEvidence(index?.schemaVersion === 1 && Array.isArray(index.bundles), "invalid index");
+  requireEvidence(
+    [1, 2].includes(index?.schemaVersion) && Array.isArray(index.bundles),
+    "invalid index",
+  );
   requireEvidence(
     HASH.test(approvedIndexSha256 ?? "") &&
       calculateExternalEvidenceIndexSha256(index) === approvedIndexSha256 &&
       index.indexSha256 === approvedIndexSha256,
     "index approval/hash mismatch",
   );
-  requireEvidence(
-    index.inventorySha256 === inventory.inventorySha256 &&
-      index.databaseSnapshotSha256 === inventory.databaseSnapshotSha256,
-    "inventory or database snapshot mismatch",
-  );
-  requireEvidence(
-    index.sourceBucket === inventory.sourceBucket && index.targetBucket === inventory.targetBucket,
-    "bucket mismatch",
-  );
+  if (index.schemaVersion === 1) {
+    requireEvidence(inventory, "version 1 index requires an inventory");
+    requireEvidence(
+      index.inventorySha256 === inventory.inventorySha256 &&
+        index.databaseSnapshotSha256 === inventory.databaseSnapshotSha256,
+      "inventory or database snapshot mismatch",
+    );
+  } else {
+    requireEvidence(
+      !Object.hasOwn(index, "inventorySha256") && !Object.hasOwn(index, "databaseSnapshotSha256"),
+      "version 2 evidence index must not claim a database snapshot",
+    );
+  }
+  if (inventory) {
+    requireEvidence(
+      index.sourceBucket === inventory.sourceBucket &&
+        index.targetBucket === inventory.targetBucket,
+      "bucket mismatch",
+    );
+    requireEvidence(Array.isArray(inventory.targetObjects), "target HEAD inventory is missing");
+  }
   requireEvidence(
     bundles?.length === index.bundles.length && bundles.length > 0,
     "missing evidence bundle",
   );
-  requireEvidence(Array.isArray(inventory.targetObjects), "target HEAD inventory is missing");
-  const expected = new Map((inventory.sourceObjects ?? []).map((item) => [item.objectKey, item]));
-  const targetObjects = new Map(inventory.targetObjects.map((item) => [item.objectKey, item]));
-  requireEvidence(
-    expected.size === inventory.sourceObjects.length &&
-      targetObjects.size === inventory.targetObjects.length,
-    "duplicate source or target inventory key",
-  );
+  const expected = inventory
+    ? new Map((inventory.sourceObjects ?? []).map((item) => [item.objectKey, item]))
+    : null;
+  const targetObjects = inventory
+    ? new Map(inventory.targetObjects.map((item) => [item.objectKey, item]))
+    : null;
+  if (inventory) {
+    requireEvidence(
+      expected.size === inventory.sourceObjects.length &&
+        targetObjects.size === inventory.targetObjects.length,
+      "duplicate source or target inventory key",
+    );
+  }
   const verified = new Map();
+  const bundleIds = new Set();
   for (let n = 0; n < bundles.length; n += 1) {
     const {
       sourceReport: source,
@@ -76,6 +97,8 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
       pins?.id && Object.keys(pins.artifacts ?? {}).length === 5,
       "incomplete artifact pins",
     );
+    requireEvidence(!bundleIds.has(pins.id), "duplicate bundle id");
+    bundleIds.add(pins.id);
     for (const [name, value] of Object.entries({
       sourceReport: source,
       sourceEvidenceIndex,
@@ -92,7 +115,7 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
     requireEvidence(
       source?.status === "completed" &&
         !source.stopReason &&
-        source.sourceBucket === inventory.sourceBucket,
+        source.sourceBucket === index.sourceBucket,
       `${pins.id}: source report incomplete`,
     );
     requireEvidence(
@@ -102,8 +125,8 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
       `${pins.id}: source index mismatch`,
     );
     requireEvidence(
-      manifest?.sourceBucket === inventory.sourceBucket &&
-        manifest.targetBucket === inventory.targetBucket &&
+      manifest?.sourceBucket === index.sourceBucket &&
+        manifest.targetBucket === index.targetBucket &&
         manifest.sourceReportCanonicalSha256 === sha256(JSON.stringify(source)) &&
         manifest.candidateKeysetSha256 === source.candidateKeysetSha256,
       `${pins.id}: manifest scope mismatch`,
@@ -138,8 +161,8 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
     requireEvidence(
       journal.status === `completed-${manifest.objects.length}-byte-verified` &&
         plan.scope?.objectCount === manifest.objects.length &&
-        plan.scope?.sourceBucket === inventory.sourceBucket &&
-        plan.scope?.targetBucket === inventory.targetBucket,
+        plan.scope?.sourceBucket === index.sourceBucket &&
+        plan.scope?.targetBucket === index.targetBucket,
       `${pins.id}: copy scope/count mismatch`,
     );
     requireEvidence(
@@ -194,12 +217,12 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
       const item = sourceByKey.get(key);
       const copy = journal.objects[key];
       const result = copy?.result;
-      const inventoryObject = expected.get(key);
-      const targetObject = targetObjects.get(key);
-      requireEvidence(
-        !verified.has(key) && inventoryObject,
-        `${pins.id}: duplicate or out-of-inventory key`,
-      );
+      const inventoryObject = expected?.get(key);
+      const targetObject = targetObjects?.get(key);
+      requireEvidence(!verified.has(key), `${pins.id}: duplicate key across bundles`);
+      if (inventory) {
+        requireEvidence(inventoryObject, `${pins.id}: out-of-inventory key`);
+      }
       requireEvidence(
         sha256(key) === object.objectKeySha256 &&
           item?.objectKeySha256 === object.objectKeySha256 &&
@@ -212,20 +235,22 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
           object.sizeBytes > 0,
         `${pins.id}: invalid object metadata`,
       );
-      requireEvidence(
-        inventoryObject.sizeBytes === object.sizeBytes &&
-          (!inventoryObject.contentType ||
-            inventoryObject.contentType.split(";")[0].toLowerCase() === object.mimeType),
-        `${pins.id}: inventory metadata mismatch`,
-      );
-      requireEvidence(
-        targetObject?.sizeBytes === object.sizeBytes &&
-          targetObject.inventoryConsistency !== "listed-but-head-missing" &&
-          (!targetObject.contentType ||
-            targetObject.contentType.split(";")[0].toLowerCase() === object.mimeType),
-        `${pins.id}: target HEAD inventory mismatch`,
-      );
-      for (const record of inventory.records ?? []) {
+      if (inventory) {
+        requireEvidence(
+          inventoryObject.sizeBytes === object.sizeBytes &&
+            (!inventoryObject.contentType ||
+              inventoryObject.contentType.split(";")[0].toLowerCase() === object.mimeType),
+          `${pins.id}: inventory metadata mismatch`,
+        );
+        requireEvidence(
+          targetObject?.sizeBytes === object.sizeBytes &&
+            targetObject.inventoryConsistency === "head-confirmed" &&
+            (!targetObject.contentType ||
+              targetObject.contentType.split(";")[0].toLowerCase() === object.mimeType),
+          `${pins.id}: target HEAD inventory mismatch`,
+        );
+      }
+      for (const record of inventory?.records ?? []) {
         if (record.objectKey !== key) continue;
         requireEvidence(
           record.sizeBytes === object.sizeBytes &&

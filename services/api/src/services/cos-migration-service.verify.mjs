@@ -40,7 +40,7 @@ const {
   createCosMigrationInventory,
   executeCosObjectCopies,
 } = await import("./cos-migration-service.mjs");
-const { calculateExternalEvidenceIndexSha256 } =
+const { calculateExternalEvidenceIndexSha256, verifyExternalCosCopyEvidence } =
   await import("./cos-migration-external-evidence.mjs");
 const { assertMigrationWriteRuntime, databaseUrlFingerprint, verifyMigrationSqliteBackup } =
   await import("./cos-migration-runtime-guard.mjs");
@@ -618,6 +618,37 @@ try {
     inventorySha256: externalInventory.inventorySha256,
   };
   const externalEvidence = syntheticExternalEvidence(externalInventory, copied);
+  const unboundEvidence = structuredClone(externalEvidence);
+  unboundEvidence.index = {
+    schemaVersion: 2,
+    sourceBucket: externalInventory.sourceBucket,
+    targetBucket: externalInventory.targetBucket,
+    bundles: externalEvidence.index.bundles,
+  };
+  unboundEvidence.index.indexSha256 = calculateExternalEvidenceIndexSha256(unboundEvidence.index);
+  assert.equal(
+    verifyExternalCosCopyEvidence({
+      inventory: null,
+      ...unboundEvidence,
+      approvedIndexSha256: unboundEvidence.index.indexSha256,
+    }).verifiedKeys.length,
+    copied.results.length,
+    "version 2 copy evidence must be independently verifiable before production inventory",
+  );
+  const missingTargetInventory = {
+    ...externalInventory,
+    targetObjects: externalInventory.targetObjects.slice(1),
+  };
+  assert.throws(
+    () =>
+      verifyExternalCosCopyEvidence({
+        inventory: missingTargetInventory,
+        ...unboundEvidence,
+        approvedIndexSha256: unboundEvidence.index.indexSha256,
+      }),
+    /target HEAD inventory mismatch/,
+    "standalone evidence must never waive fresh target HEAD verification during switching",
+  );
   assert.throws(
     () =>
       buildStorageSwitchPlan({
@@ -644,6 +675,19 @@ try {
       externalCoverageAcknowledgement,
     ),
   });
+  const unboundPlan = buildStorageSwitchPlan({
+    inventory: externalInventory,
+    externalEvidence: unboundEvidence,
+    approvedExternalEvidenceSha256: unboundEvidence.index.indexSha256,
+    exclusions: externalExclusions,
+    approvedExclusionsSha256: calculateStorageSwitchExclusionsSha256(externalExclusions),
+    coverageAcknowledgement: externalCoverageAcknowledgement,
+    approvedCoverageAcknowledgementSha256: calculateStorageSwitchCoverageAcknowledgementSha256(
+      externalCoverageAcknowledgement,
+    ),
+  });
+  assert.deepEqual(unboundPlan.mediaUpdates, externalPlan.mediaUpdates);
+  assert.deepEqual(unboundPlan.jsonUpdates, externalPlan.jsonUpdates);
   assert.deepEqual(externalPlan.mediaUpdates, nativePlan.mediaUpdates);
   assert.equal(
     externalPlan.integrity.externalEvidenceIndexSha256,

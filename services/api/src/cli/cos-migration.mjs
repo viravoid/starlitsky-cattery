@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { prisma } from "../db/prisma.mjs";
-import { calculateExternalEvidenceIndexSha256 } from "../services/cos-migration-external-evidence.mjs";
+import {
+  calculateExternalEvidenceIndexSha256,
+  verifyExternalCosCopyEvidence,
+} from "../services/cos-migration-external-evidence.mjs";
 import {
   applyStorageSwitchPlan,
   buildStorageRollbackPlan,
@@ -54,6 +57,24 @@ try {
       apply: options.apply,
       confirmObjectWrite: options.confirmObjectWrite,
     });
+  } else if (options.command === "external-evidence-verify") {
+    const evidence = readExternalEvidence(
+      required(options.externalEvidenceIndex, "--external-evidence-index"),
+      required(options.approveExternalEvidenceSha256, "--approve-external-evidence-sha256"),
+    );
+    const verification = verifyExternalCosCopyEvidence({
+      inventory: options.inventory ? readJson(options.inventory) : null,
+      index: evidence.index,
+      bundles: evidence.bundles,
+      approvedIndexSha256: options.approveExternalEvidenceSha256,
+    });
+    result = {
+      status: "verified-external-copy-evidence",
+      verifiedObjects: verification.verifiedKeys.length,
+      verifiedBytes: verification.provenance.reduce((sum, item) => sum + item.sizeBytes, 0),
+      indexSha256: verification.approvedIndexSha256,
+      inventoryChecked: Boolean(options.inventory),
+    };
   } else if (options.command === "switch-plan") {
     result = buildStorageSwitchPlan({
       inventory: readJson(required(options.inventory, "--inventory")),
@@ -122,7 +143,7 @@ try {
     });
   } else {
     throw new CosMigrationError(
-      "Command must be inventory, copy, supplemental-manifest-hash, exclusions-hash, coverage-acknowledgement-hash, switch-plan, rollback-plan, or switch",
+      "Command must be inventory, copy, external-evidence-verify, supplemental-manifest-hash, exclusions-hash, coverage-acknowledgement-hash, switch-plan, rollback-plan, or switch",
     );
   }
 
@@ -222,7 +243,7 @@ function readExternalEvidence(indexPath, approvedSha256) {
   ) {
     throw new CosMigrationError("External evidence index approval/hash mismatch");
   }
-  const base = dirname(resolve(indexPath));
+  const base = realpathSync(dirname(resolve(indexPath)));
   const bundles = (index.bundles ?? []).map((bundle) => {
     const artifacts = {};
     for (const name of [
@@ -245,7 +266,14 @@ function readExternalEvidence(indexPath, approvedSha256) {
           `External evidence ${bundle.id}/${name} path escapes its index directory`,
         );
       }
-      const raw = readFileSync(artifactPath);
+      const realArtifactPath = realpathSync(artifactPath);
+      const realLocalPath = relative(base, realArtifactPath);
+      if (realLocalPath.startsWith("..") || isAbsolute(realLocalPath)) {
+        throw new CosMigrationError(
+          `External evidence ${bundle.id}/${name} symlink escapes its index directory`,
+        );
+      }
+      const raw = readFileSync(realArtifactPath);
       if (createHash("sha256").update(raw).digest("hex") !== pin.rawSha256) {
         throw new CosMigrationError(`External evidence ${bundle.id}/${name} raw SHA-256 mismatch`);
       }

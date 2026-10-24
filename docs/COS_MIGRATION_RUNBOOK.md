@@ -301,6 +301,27 @@ npm run media:cos-migration -- switch-plan `
   --output cos-migration-switch-plan.json
 ```
 
+For externally executed copies, use `--external-evidence-index` and
+`--approve-external-evidence-sha256` in place of `--copy-report`. Keep the five original JSON
+artifacts for each batch beside the index in a protected directory. Each artifact has both raw-file
+and parsed-content SHA-256 pins. An index with `schemaVersion: 2` binds the original copy evidence
+to exact source and target buckets without claiming that a future production database snapshot has
+already been checked. Verify it offline first:
+
+```powershell
+npm run media:cos-migration -- external-evidence-verify `
+  --external-evidence-index <protected-index.json> `
+  --approve-external-evidence-sha256 <exact-index-sha256>
+```
+
+This confirms historical source reads, target read-backs, per-object SHA-256 and request ledgers.
+It does not confirm current bucket contents or current production references. At the cutover window,
+create a fresh read-only migration inventory from the frozen production database and both buckets,
+then run the same command with `--inventory <fresh-inventory.json>`. The inventory must contain
+current target HEAD results for every copied object. Generate `switch-plan` only with that inventory,
+the unchanged index and the exact approved digest. New or changed references, missing target HEAD
+results, or metadata conflicts stop the switch; never synthesize an `apply` copy report to bypass it.
+
 The plan embeds the approved exclusions, digest, complete findings, verified object keys, duplicate
 keys, and the explicit unknown-coverage statement for audit. Excluding a failed media record does
 not silently exclude its source object or another reference; each affected subject must have an
