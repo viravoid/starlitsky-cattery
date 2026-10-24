@@ -13,6 +13,7 @@ const miniappRoot = join(repoRoot, "apps/miniapp");
 const expectedAppId = "wx6d3a94b9d6eadeaa";
 const expectedApiBaseUrl = "https://api.starlitskycattery.top";
 const expectedCosHost = "starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com";
+const expectedMediaCosHost = "starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com";
 
 const envText = readFileSync(envPath, "utf8");
 const projectConfig = JSON.parse(readFileSync(projectConfigPath, "utf8"));
@@ -39,7 +40,9 @@ assert.equal(
   "Miniapp source must not contain loopback API defaults.",
 );
 assert.equal(
-  /MINIAPP_LOCAL_API_BASE_URL_STORAGE_KEY|getExplicitLocalApiBaseUrl|localApiBaseUrl/i.test(envText),
+  /MINIAPP_LOCAL_API_BASE_URL_STORAGE_KEY|getExplicitLocalApiBaseUrl|localApiBaseUrl/i.test(
+    envText,
+  ),
   false,
   "Miniapp API base URL must not be overridable from local storage.",
 );
@@ -57,6 +60,10 @@ assert.match(envText, /MINIAPP_PRODUCTION_API_HOST\s*=\s*"api\.starlitskycattery
 assert.match(
   envText,
   /MINIAPP_PRODUCTION_COS_HOST\s*=\s*"starlitsky-cattery-1480740947\.cos\.ap-chengdu\.myqcloud\.com"/,
+);
+assert.match(
+  envText,
+  /MINIAPP_MEDIA_COS_HOST\s*=\s*"starlitsky-cattery-media-1480740947\.cos\.ap-chengdu\.myqcloud\.com"/,
 );
 
 assert.equal(projectConfig.appid, expectedAppId, "project.config.json must use the real AppID.");
@@ -96,9 +103,13 @@ assert.ok(
 );
 
 const legalDomains = extractLegalDomainMatrix(envText);
-assert.deepEqual(legalDomains.request, ["api.starlitskycattery.top", expectedCosHost]);
+assert.deepEqual(legalDomains.request, [
+  "api.starlitskycattery.top",
+  expectedCosHost,
+  expectedMediaCosHost,
+]);
 assert.deepEqual(legalDomains.uploadFile, []);
-assert.deepEqual(legalDomains.downloadFile, [expectedCosHost]);
+assert.deepEqual(legalDomains.downloadFile, [expectedCosHost, expectedMediaCosHost]);
 assert.deepEqual(legalDomains.socket, []);
 
 console.log("Miniapp production config verification passed.");
@@ -144,6 +155,7 @@ function extractArray(key, text) {
     .map((item) => {
       if (item.startsWith('"')) return JSON.parse(item);
       if (item === "MINIAPP_PRODUCTION_COS_HOST") return expectedCosHost;
+      if (item === "MINIAPP_MEDIA_COS_HOST") return expectedMediaCosHost;
       if (item === "MINIAPP_PRODUCTION_API_HOST") return new URL(expectedApiBaseUrl).hostname;
       throw new Error(`Unsupported legal-domain entry: ${item}`);
     });

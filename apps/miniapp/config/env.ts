@@ -4,11 +4,13 @@ export const MINIAPP_PRODUCTION_API_BASE_URL = "https://api.starlitskycattery.to
 export const MINIAPP_PRODUCTION_API_HOST = "api.starlitskycattery.top";
 export const MINIAPP_PRODUCTION_COS_HOST =
   "starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com";
+export const MINIAPP_MEDIA_COS_HOST =
+  "starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com";
 
 export const MINIAPP_WECHAT_LEGAL_DOMAINS = {
-  request: [MINIAPP_PRODUCTION_API_HOST, MINIAPP_PRODUCTION_COS_HOST],
+  request: [MINIAPP_PRODUCTION_API_HOST, MINIAPP_PRODUCTION_COS_HOST, MINIAPP_MEDIA_COS_HOST],
   uploadFile: [],
-  downloadFile: [MINIAPP_PRODUCTION_COS_HOST],
+  downloadFile: [MINIAPP_PRODUCTION_COS_HOST, MINIAPP_MEDIA_COS_HOST],
   socket: [],
 } as const;
 

@@ -17,13 +17,15 @@ Configure exact hostnames in WeChat Public Platform. Query strings and presigned
 
 Migration caveat: the checked-in COS hostname and assertions below describe current code/configuration only. They do not prove that the legacy LightCOS bucket actually serves objects on that hostname or that WeChat production has accepted it. The exact LightCOS API endpoint and public/custom object domain remain **待真实只读验证**; do not remove or replace a domain until the separately approved read-only probe and real-device trial identify both the old and new hosts.
 
-| Category                  | Domain to enter                                                     | Required by                                                                                                                                                                           |
-| ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| request legal domain      | `https://api.starlitskycattery.top`                                 | `wx.request` API calls through `apps/miniapp/utils/request/index.ts`, including auth, fixed pages, cats, community, parent invite, selection application, and admin QR approval APIs. |
-| request legal domain      | `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com` | Community image upload uses `wx.request` with `PUT` to API-issued COS presigned upload URLs.                                                                                          |
-| uploadFile legal domain   | Not required by current code                                        | The miniapp does not call `wx.uploadFile`.                                                                                                                                            |
-| downloadFile legal domain | `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com` | Remote `<image>` components and `wx.previewImage` display API-issued signed COS image URLs.                                                                                           |
-| socket legal domain       | Not required by current code                                        | The miniapp does not call `wx.connectSocket`.                                                                                                                                         |
+| Category                  | Domain to enter                                                           | Required by                                                                                                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| request legal domain      | `https://api.starlitskycattery.top`                                       | `wx.request` API calls through `apps/miniapp/utils/request/index.ts`, including auth, fixed pages, cats, community, parent invite, selection application, and admin QR approval APIs. |
+| request legal domain      | `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`       | Community image upload uses `wx.request` with `PUT` to API-issued COS presigned upload URLs.                                                                                          |
+| request legal domain      | `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com` | Community image upload after the primary COS bucket changes.                                                                                                                          |
+| uploadFile legal domain   | Not required by current code                                              | The miniapp does not call `wx.uploadFile`.                                                                                                                                            |
+| downloadFile legal domain | `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`       | Remote `<image>` components and `wx.previewImage` display API-issued signed COS image URLs.                                                                                           |
+| downloadFile legal domain | `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com` | Signed image URLs after the reference switch.                                                                                                                                         |
+| socket legal domain       | Not required by current code                                              | The miniapp does not call `wx.connectSocket`.                                                                                                                                         |
 
 The Admin web domain `https://admin.starlitskycattery.top` is not a miniapp legal domain for the current code because the miniapp does not call it directly.
 
@@ -33,8 +35,10 @@ The Admin web domain `https://admin.starlitskycattery.top` is not a miniapp lega
 2. In development settings, add the request legal domains:
    - `https://api.starlitskycattery.top`
    - `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`
+   - `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com`
 3. Add the downloadFile legal domain:
    - `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`
+   - `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com`
 4. Do not add uploadFile or socket domains unless code later introduces `wx.uploadFile` or `wx.connectSocket`.
 5. Do not add AppSecret to the miniapp source tree.
 
