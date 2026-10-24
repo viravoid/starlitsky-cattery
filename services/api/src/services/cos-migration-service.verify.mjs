@@ -1186,10 +1186,10 @@ async function createAndVerifyBackupEvidence() {
   database.exec(
     `
       CREATE TABLE _prisma_migrations (id TEXT PRIMARY KEY);
-      CREATE TABLE User (id TEXT PRIMARY KEY);
-      CREATE TABLE MediaAsset (id TEXT PRIMARY KEY, user_id TEXT, FOREIGN KEY (user_id) REFERENCES User(id));
-      INSERT INTO User VALUES ('backup-user');
-      INSERT INTO MediaAsset VALUES ('backup-media', 'backup-user');
+      CREATE TABLE users (id TEXT PRIMARY KEY);
+      CREATE TABLE media_assets (id TEXT PRIMARY KEY, user_id TEXT, FOREIGN KEY (user_id) REFERENCES users(id));
+      INSERT INTO users VALUES ('backup-user');
+      INSERT INTO media_assets VALUES ('backup-media', 'backup-user');
     `,
   );
   database.close();
