@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { CosMigrationError } from "./cos-migration-service.mjs";
 
 const WRITE_ENVIRONMENTS = new Set(["staging", "production"]);
-const REQUIRED_MIGRATION_BACKUP_TABLES = new Set(["_prisma_migrations", "MediaAsset", "User"]);
+const REQUIRED_MIGRATION_BACKUP_TABLES = new Set(["_prisma_migrations", "media_assets", "users"]);
 
 export function assertMigrationWriteRuntime({
   apply = false,
