@@ -121,12 +121,18 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
     requireEvidence(
       sourceEvidenceIndex?.reportStatus === "completed" &&
         sourceEvidenceIndex.reportSha256 === sha256(JSON.stringify(source)) &&
-        sourceEvidenceIndex.candidateKeysetSha256 === source.candidateKeysetSha256,
+        sourceEvidenceIndex.candidateKeysetSha256 === source.candidateKeysetSha256 &&
+        (!sourceEvidenceIndex.policySetSha256 ||
+          sourceEvidenceIndex.policySetSha256 === source.policySetSha256),
       `${pins.id}: source index mismatch`,
     );
     requireEvidence(
       manifest?.sourceBucket === index.sourceBucket &&
         manifest.targetBucket === index.targetBucket &&
+        (!source.sourceRegion || source.sourceRegion === manifest.region) &&
+        (!source.sourceEndpoint ||
+          source.sourceEndpoint ===
+            `https://${index.sourceBucket}.cos.${manifest.region}.myqcloud.com`) &&
         manifest.sourceReportCanonicalSha256 === sha256(JSON.stringify(source)) &&
         manifest.candidateKeysetSha256 === source.candidateKeysetSha256,
       `${pins.id}: manifest scope mismatch`,
@@ -162,7 +168,8 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
       journal.status === `completed-${manifest.objects.length}-byte-verified` &&
         plan.scope?.objectCount === manifest.objects.length &&
         plan.scope?.sourceBucket === index.sourceBucket &&
-        plan.scope?.targetBucket === index.targetBucket,
+        plan.scope?.targetBucket === index.targetBucket &&
+        (!plan.scope.region || plan.scope.region === manifest.region),
       `${pins.id}: copy scope/count mismatch`,
     );
     requireEvidence(
@@ -300,7 +307,8 @@ export function verifyExternalCosCopyEvidence({ inventory, index, bundles, appro
           COPY_SUCCESS.has(result?.status) &&
           result.objectKey === key &&
           result.sizeBytes === object.sizeBytes &&
-          result.mimeType === object.mimeType,
+          result.mimeType === object.mimeType &&
+          (!result.checksum || result.checksum === object.sha256),
         `${pins.id}: copy status mismatch`,
       );
       requireEvidence(
