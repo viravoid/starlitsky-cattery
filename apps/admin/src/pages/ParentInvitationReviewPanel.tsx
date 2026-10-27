@@ -1,9 +1,11 @@
-import type { ParentApplicationData } from "@starlitsky/shared";
+import type { ParentApplicationData, ReviewParentApplicationRequest } from "@starlitsky/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   approveParentApplication,
   listParentApplications,
   rejectParentApplication,
+  searchAdminParentCatCandidates,
+  type AdminParentCatCandidate,
 } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
 
@@ -11,6 +13,18 @@ export function ParentApplicationsPanel() {
   const [applications, setApplications] = useState<ParentApplicationData[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [adminNote, setAdminNote] = useState("");
+  const [unlistedSelections, setUnlistedSelections] = useState<
+    Record<number, AdminParentCatCandidate>
+  >({});
+  const [unlistedConfirmed, setUnlistedConfirmed] = useState<Record<number, boolean>>({});
+  const [newCatConfirmed, setNewCatConfirmed] = useState<Record<number, boolean>>({});
+  const [newCatActions, setNewCatActions] = useState<Record<number, "create" | "link_existing">>(
+    {},
+  );
+  const [newCatSelections, setNewCatSelections] = useState<Record<number, AdminParentCatCandidate>>(
+    {},
+  );
+  const [newCatLinkConfirmed, setNewCatLinkConfirmed] = useState<Record<number, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -46,6 +60,12 @@ export function ParentApplicationsPanel() {
 
   useEffect(() => {
     setAdminNote(selectedApplication?.adminNote ?? "");
+    setUnlistedSelections({});
+    setUnlistedConfirmed({});
+    setNewCatConfirmed({});
+    setNewCatActions({});
+    setNewCatSelections({});
+    setNewCatLinkConfirmed({});
   }, [selectedApplication?.id, selectedApplication?.adminNote]);
 
   async function review(action: "approve" | "reject") {
@@ -54,7 +74,42 @@ export function ParentApplicationsPanel() {
     setNotice("");
     setError("");
     try {
-      const payload = { adminNote: emptyToNull(adminNote) };
+      const payload: ReviewParentApplicationRequest = { adminNote: emptyToNull(adminNote) };
+      if (action === "approve") {
+        if (
+          selectedApplication.unlistedCatClaims.some(
+            (_, index) => !unlistedSelections[index] || !unlistedConfirmed[index],
+          ) ||
+          selectedApplication.newCats.some((_, index) =>
+            newCatActions[index] === "create"
+              ? !newCatConfirmed[index]
+              : newCatActions[index] === "link_existing"
+                ? !newCatSelections[index] || !newCatLinkConfirmed[index]
+                : true,
+          )
+        ) {
+          throw new Error("请逐条确认未公开猫咪的关联目标与真正新猫的创建");
+        }
+        payload.unlistedCatResolutions = selectedApplication.unlistedCatClaims.map(
+          (claim, index) => ({
+            index,
+            catId: unlistedSelections[index].id,
+            confirmedCatName: unlistedSelections[index].name,
+            confirmedClaimName: claim.name,
+          }),
+        );
+        payload.newCatConfirmations = selectedApplication.newCats.map((cat, index) =>
+          newCatActions[index] === "link_existing"
+            ? {
+                index,
+                action: "link_existing" as const,
+                confirmedName: cat.name,
+                catId: newCatSelections[index].id,
+                confirmedCatName: newCatSelections[index].name,
+              }
+            : { index, action: "create" as const, confirmedName: cat.name },
+        );
+      }
       await (action === "approve"
         ? approveParentApplication(selectedApplication.id, payload)
         : rejectParentApplication(selectedApplication.id, payload));
@@ -112,8 +167,8 @@ export function ParentApplicationsPanel() {
                     <td>{application.displayName}</td>
                     <td>{formatApplicationStatus(application.status)}</td>
                     <td>
-                      现有 {application.existingCatClaims.length} / 新猫{" "}
-                      {application.newCats.length}
+                      公开 {application.existingCatClaims.length} / 未公开{" "}
+                      {application.unlistedCatClaims.length} / 新猫 {application.newCats.length}
                     </td>
                     <td>
                       {formatPhoneSource(application.contactPhoneSource, application.contactPhone)}
@@ -168,6 +223,28 @@ export function ParentApplicationsPanel() {
                     }`,
                 )}
               />
+              <div className="inline-form">
+                <h4>认领未公开猫咪 · 需确认档案</h4>
+                {selectedApplication.unlistedCatClaims.length === 0 ? (
+                  <p className="muted compact">无</p>
+                ) : null}
+                {selectedApplication.unlistedCatClaims.map((claim, index) => (
+                  <UnlistedCatResolution
+                    key={`${selectedApplication.id}-${index}`}
+                    name={claim.name}
+                    identification={claim.identification}
+                    selected={unlistedSelections[index]}
+                    confirmed={Boolean(unlistedConfirmed[index])}
+                    onSelect={(cat) => {
+                      setUnlistedSelections((current) => ({ ...current, [index]: cat }));
+                      setUnlistedConfirmed((current) => ({ ...current, [index]: false }));
+                    }}
+                    onConfirm={(checked) =>
+                      setUnlistedConfirmed((current) => ({ ...current, [index]: checked }))
+                    }
+                  />
+                ))}
+              </div>
               <MiniList
                 title="自行填写的新猫"
                 items={selectedApplication.newCats.map(
@@ -177,6 +254,65 @@ export function ParentApplicationsPanel() {
                     }`,
                 )}
               />
+              {selectedApplication.newCats.map((cat, index) => (
+                <div className="inline-form" key={`new-${index}`}>
+                  <p>
+                    <strong>{cat.name}</strong> · 请核查现有档案后决定
+                  </p>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`new-cat-${index}`}
+                      checked={newCatActions[index] === "link_existing"}
+                      onChange={() =>
+                        setNewCatActions((current) => ({ ...current, [index]: "link_existing" }))
+                      }
+                    />
+                    关联已有档案
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`new-cat-${index}`}
+                      checked={newCatActions[index] === "create"}
+                      onChange={() =>
+                        setNewCatActions((current) => ({ ...current, [index]: "create" }))
+                      }
+                    />
+                    确认尚无档案并新建
+                  </label>
+                  {newCatActions[index] === "link_existing" ? (
+                    <UnlistedCatResolution
+                      name={cat.name}
+                      identification={cat.note ?? cat.personality ?? "历史申请，请核对完整资料"}
+                      selected={newCatSelections[index]}
+                      confirmed={Boolean(newCatLinkConfirmed[index])}
+                      onSelect={(selected) => {
+                        setNewCatSelections((current) => ({ ...current, [index]: selected }));
+                        setNewCatLinkConfirmed((current) => ({ ...current, [index]: false }));
+                      }}
+                      onConfirm={(checked) =>
+                        setNewCatLinkConfirmed((current) => ({ ...current, [index]: checked }))
+                      }
+                    />
+                  ) : null}
+                  {newCatActions[index] === "create" ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(newCatConfirmed[index])}
+                        onChange={(event) =>
+                          setNewCatConfirmed((current) => ({
+                            ...current,
+                            [index]: event.target.checked,
+                          }))
+                        }
+                      />
+                      已核查现有档案，确认“{cat.name}”确实尚无档案并新建
+                    </label>
+                  ) : null}
+                </div>
+              ))}
 
               <label>
                 管理员备注
@@ -238,6 +374,83 @@ function MiniList({ title, items }: { title: string; items: string[] }) {
             <span>{item}</span>
           </div>
         ))
+      )}
+    </div>
+  );
+}
+
+function UnlistedCatResolution({
+  name,
+  identification,
+  selected,
+  confirmed,
+  onSelect,
+  onConfirm,
+}: {
+  name: string;
+  identification: string;
+  selected?: AdminParentCatCandidate;
+  confirmed: boolean;
+  onSelect: (cat: AdminParentCatCandidate) => void;
+  onConfirm: (checked: boolean) => void;
+}) {
+  const [query, setQuery] = useState(name);
+  const [candidates, setCandidates] = useState<AdminParentCatCandidate[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function search() {
+    setLoading(true);
+    setError("");
+    try {
+      setCandidates(await searchAdminParentCatCandidates(query));
+    } catch (searchError) {
+      setError(getErrorMessage(searchError));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="inline-form">
+      <p>
+        <strong>{name}</strong> · 识别说明：{identification}
+      </p>
+      <label>
+        私有档案查询
+        <input value={query} onChange={(event) => setQuery(event.target.value)} />
+      </label>
+      <button
+        className="secondary-button"
+        type="button"
+        disabled={loading || query.trim().length < 2}
+        onClick={() => void search()}
+      >
+        {loading ? "查询中..." : "查询已有档案"}
+      </button>
+      {error ? <p className="error-banner">{error}</p> : null}
+      {candidates.map((cat) => (
+        <button
+          className="secondary-button"
+          key={cat.id}
+          type="button"
+          onClick={() => onSelect(cat)}
+        >
+          {cat.name} · {cat.gender ?? "性别未知"} · {cat.color ?? "颜色未知"} · {cat.visibility} ·{" "}
+          {cat.id}
+        </button>
+      ))}
+      {selected ? (
+        <label>
+          <input
+            type="checkbox"
+            checked={confirmed}
+            onChange={(event) => onConfirm(event.target.checked)}
+          />
+          确认将申请“{name}”关联到“{selected.name}”（{selected.id}）
+        </label>
+      ) : (
+        <p className="muted compact">未确认对应档案，不能通过申请。</p>
       )}
     </div>
   );

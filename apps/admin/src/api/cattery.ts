@@ -268,6 +268,20 @@ export function approveParentApplication(id: string, data: ReviewParentApplicati
   );
 }
 
+export interface AdminParentCatCandidate {
+  id: string;
+  name: string;
+  gender: string | null;
+  color: string | null;
+  visibility: string;
+}
+
+export function searchAdminParentCatCandidates(query: string) {
+  return unwrap<AdminParentCatCandidate[]>(
+    adminGet(`/parent-applications/admin-cat-candidates?q=${encodeURIComponent(query.trim())}`),
+  );
+}
+
 export function rejectParentApplication(id: string, data: ReviewParentApplicationRequest = {}) {
   return unwrap<ParentApplicationData, ReviewParentApplicationRequest>(
     adminPost(`/parent-applications/${encodeURIComponent(id)}/reject`, data),

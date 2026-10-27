@@ -140,6 +140,7 @@ model ParentApplication {
   contact_wechat             String?
   city                       String?
   existing_cat_claims_json   Json?
+  unlisted_cat_claims_json   Json?
   new_cats_json              Json?
   admin_note                 String?
   reviewed_by                String?

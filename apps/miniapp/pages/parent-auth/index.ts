@@ -6,6 +6,7 @@ import type {
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 import {
   getMyParentApplication,
+  getParentPhoneVerificationCapability,
   searchCats,
   submitParentApplication,
   verifyParentPhone,
@@ -38,7 +39,7 @@ interface ParentAuthData {
   applicationStatusClass: string;
   applicationStatusLabel: string;
   cats: ParentClaimCatCandidateData[];
-  catMode: "existing" | "new";
+  catMode: "existing" | "unlisted" | "new";
   catQuery: string;
   city: string;
   contactWechat: string;
@@ -50,6 +51,7 @@ interface ParentAuthData {
   existingCatName: string;
   existingCatNote: string;
   phoneMessage: string;
+  phoneVerificationEnabled: boolean;
   isSearchingCats: boolean;
   isSubmitting: boolean;
   isVerifyingPhone: boolean;
@@ -58,6 +60,7 @@ interface ParentAuthData {
   newCatColor: string;
   newCatGender: string;
   newCatName: string;
+  unlistedCatIdentification: string;
   newCatPersonality: string;
   realName: string;
 }
@@ -79,6 +82,7 @@ const DEFAULT_DATA: ParentAuthData = {
   existingCatName: "",
   existingCatNote: "",
   phoneMessage: "",
+  phoneVerificationEnabled: false,
   isSearchingCats: false,
   isSubmitting: false,
   isVerifyingPhone: false,
@@ -87,6 +91,7 @@ const DEFAULT_DATA: ParentAuthData = {
   newCatColor: "",
   newCatGender: "",
   newCatName: "",
+  unlistedCatIdentification: "",
   newCatPersonality: "",
   realName: "",
 };
@@ -97,6 +102,11 @@ Page({
   async onLoad(this: ParentAuthPage) {
     await refreshCurrentUser();
     await this.loadMyApplication();
+    try {
+      this.setData({ phoneVerificationEnabled: await getParentPhoneVerificationCapability() });
+    } catch {
+      this.setData({ phoneVerificationEnabled: false });
+    }
   },
 
   async loadMyApplication(this: ParentAuthPage) {
@@ -117,6 +127,7 @@ Page({
   },
 
   async onGetPhoneNumber(this: ParentAuthPage, event: PhoneEvent) {
+    if (!this.data.phoneVerificationEnabled) return;
     if (!event.detail.code) {
       this.setData({ phoneMessage: "未获取手机号，可手动填写手机号或微信号" });
       return;
@@ -170,6 +181,10 @@ Page({
     this.setData({ catMode: "new" });
   },
 
+  useUnlistedCat(this: ParentAuthPage) {
+    this.setData({ catMode: "unlisted" });
+  },
+
   async onSubmit(this: ParentAuthPage) {
     const payload = toSubmitPayload(this.data);
     if (!payload) return;
@@ -218,6 +233,9 @@ Page({
   },
   onNewCatNameInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ newCatName: event.detail.value });
+  },
+  onUnlistedCatIdentificationInput(this: ParentAuthPage, event: InputEvent) {
+    this.setData({ unlistedCatIdentification: event.detail.value });
   },
   setNewCatGender(this: ParentAuthPage, event: TapEvent) {
     const gender = event.currentTarget.dataset.gender || "";
@@ -278,6 +296,20 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
   if (!data.newCatName.trim()) {
     showToast("请填写猫咪名字");
     return null;
+  }
+  if (data.catMode === "unlisted") {
+    if (!data.unlistedCatIdentification.trim()) {
+      showToast("请填写识别说明供主理人核对");
+      return null;
+    }
+    payload.unlistedCatClaims = [
+      {
+        name: data.newCatName.trim(),
+        identification: data.unlistedCatIdentification.trim(),
+        relationship: "owner",
+      },
+    ];
+    return payload;
   }
   payload.newCats = [
     {

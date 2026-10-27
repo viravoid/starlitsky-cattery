@@ -17,6 +17,9 @@ export async function verifyParentPhoneCode(
   config,
   { fetcher = fetchWithTimeout } = {},
 ) {
+  if (config?.wechat?.phoneVerificationEnabled !== true) {
+    throw serviceUnavailable("WeChat phone verification is unavailable; enter contact manually");
+  }
   limitParentRequest("phone", user.id, { max: 5, windowMs: 60 * 60 * 1000 });
   if (
     !input ||

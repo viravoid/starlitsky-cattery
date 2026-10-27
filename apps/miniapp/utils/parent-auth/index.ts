@@ -15,6 +15,14 @@ export async function verifyParentPhone(code: string) {
   return response.data;
 }
 
+export async function getParentPhoneVerificationCapability() {
+  const response = await get<{ enabled: boolean }>(
+    "/parent-applications/phone-verification-capability",
+  );
+  if (!response.success) throw new Error(response.message);
+  return response.data.enabled;
+}
+
 export async function submitParentApplication(data: SubmitParentApplicationRequest) {
   const response = await post<ParentApplicationData, SubmitParentApplicationRequest>(
     "/parent-applications",

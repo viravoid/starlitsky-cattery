@@ -32,7 +32,8 @@
 
   <view class="panel">
     <text class="section-title">联系方式（至少一种）</text>
-    <button class="secondary" style="width: 100%;" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{isVerifyingPhone}}">授权微信手机号</button>
+    <button wx:if="{{phoneVerificationEnabled}}" class="secondary" style="width: 100%;" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{isVerifyingPhone}}">授权微信手机号</button>
+    <text wx:else class="hint">请手动填写手机号或微信号</text>
     <text wx:if="{{verifiedPhone}}" class="hint">{{verifiedPhone}} · 微信获取</text>
     <button wx:if="{{verifiedPhone}}" class="secondary" style="width: 100%;" bindtap="useManualContact">取消授权结果，改为手动填写</button>
     <text wx:if="{{phoneMessage}}" class="hint">{{phoneMessage}}</text>
@@ -50,6 +51,7 @@
     <text class="section-title">我的猫</text>
     <view class="switch-row">
       <button class="{{catMode === 'existing' ? 'active' : 'secondary'}}" style="width: 100%;" bindtap="useExistingCat">猫库选择</button>
+      <button class="{{catMode === 'unlisted' ? 'active' : 'secondary'}}" style="width: 100%;" bindtap="useUnlistedCat">认领未公开猫咪</button>
       <button class="{{catMode === 'new' ? 'active' : 'secondary'}}" style="width: 100%;" bindtap="useNewCat">填写新猫</button>
     </view>
 
@@ -76,14 +78,19 @@
         <text>关系备注</text>
         <input class="field-control" placeholder="例如：主人" value="{{existingCatNote}}" bindinput="onExistingCatNoteInput" />
       </view>
-      <text class="hint">找不到猫咪？切换到「填写新猫」，写下名字和情况供主理人核对。</text>
+      <text class="hint">找不到猫咪？已有档案请选择「认领未公开猫咪」；确实没有档案才选择「填写新猫」。</text>
     </view>
 
-    <view wx:if="{{catMode === 'new'}}">
+    <view wx:if="{{catMode === 'unlisted' || catMode === 'new'}}">
       <view class="field">
         <text>猫咪名字</text>
         <input class="field-control" placeholder="必填" value="{{newCatName}}" bindinput="onNewCatNameInput" />
       </view>
+      <view wx:if="{{catMode === 'unlisted'}}" class="field">
+        <text>识别说明</text>
+        <textarea class="field-control textarea-control" placeholder="颜色、到家时间等供主理人核对的信息" value="{{unlistedCatIdentification}}" bindinput="onUnlistedCatIdentificationInput" />
+      </view>
+      <block wx:if="{{catMode === 'new'}}">
       <view class="field">
         <text>性别</text>
         <view class="gender-row">
@@ -108,6 +115,7 @@
         <text>性格/备注</text>
         <textarea class="field-control textarea-control" placeholder="可选" value="{{newCatPersonality}}" bindinput="onNewCatPersonalityInput" />
       </view>
+      </block>
     </view>
   </view>
 

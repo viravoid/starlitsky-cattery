@@ -44,6 +44,23 @@ const migration = readFileSync(
   "utf8",
 );
 database.exec(migration);
+database.exec(
+  readFileSync(
+    new URL(
+      "../../prisma/migrations/20261027190000_unlisted_parent_cat_claims/migration.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+assert.equal(
+  database
+    .prepare(
+      "SELECT unlisted_cat_claims_json FROM parent_applications WHERE id = 'legacy-application'",
+    )
+    .get().unlisted_cat_claims_json,
+  null,
+);
 const old = database
   .prepare(
     "SELECT invite_id, contact_phone, contact_phone_source, approved_parent_profile_id FROM parent_applications WHERE id = 'legacy-application'",

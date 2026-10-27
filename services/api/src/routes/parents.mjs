@@ -8,6 +8,7 @@ import {
   getMyParentApplication,
   listParentApplications,
   rejectParentApplication,
+  searchAdminParentCatCandidates,
   searchParentClaimCatCandidates,
   submitParentApplication,
 } from "../services/parent-application-service.mjs";
@@ -18,6 +19,18 @@ import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
 export async function routeParentsRequest(request, response, url, context) {
+  if (url.pathname === "/parent-applications/phone-verification-capability") {
+    if (request.method !== "GET") throw methodNotAllowed();
+    sendSuccess(response, {
+      data: {
+        enabled:
+          context.config.wechat.phoneVerificationEnabled === true &&
+          Boolean(context.config.wechat.appId && context.config.wechat.appSecret),
+      },
+    });
+    return;
+  }
+
   if (url.pathname === "/parent-applications/phone-verifications") {
     if (request.method !== "POST") throw methodNotAllowed();
     const user = await requireAuth(request, context.config);
@@ -45,6 +58,13 @@ export async function routeParentsRequest(request, response, url, context) {
       data: await searchParentClaimCatCandidates(url.searchParams, user),
       message: "Parent claim cat candidates",
     });
+    return;
+  }
+
+  if (url.pathname === "/parent-applications/admin-cat-candidates") {
+    if (request.method !== "GET") throw methodNotAllowed();
+    await requireAdminMutationRole(request, context.config);
+    sendSuccess(response, { data: await searchAdminParentCatCandidates(url.searchParams) });
     return;
   }
 

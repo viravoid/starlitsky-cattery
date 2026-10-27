@@ -381,6 +381,29 @@ export interface ParentInvitePublicData {
 
 export interface ReviewParentApplicationRequest {
   adminNote?: string | null;
+  unlistedCatResolutions?: Array<{
+    index: number;
+    catId: string;
+    confirmedCatName: string;
+    confirmedClaimName: string;
+  }>;
+  newCatConfirmations?: Array<
+    | { index: number; action: "create"; confirmedName: string }
+    | {
+        index: number;
+        action: "link_existing";
+        confirmedName: string;
+        catId: string;
+        confirmedCatName: string;
+      }
+  >;
+}
+
+export interface UnlistedCatClaimData {
+  name: string;
+  identification: string;
+  arrivedAt: string | null;
+  relationship: string;
 }
 
 export interface ExistingCatClaimData {
@@ -423,6 +446,12 @@ export interface SubmitParentApplicationRequest {
     startedAt?: string | null;
     note?: string | null;
   }>;
+  unlistedCatClaims?: Array<{
+    name: string;
+    identification: string;
+    arrivedAt?: string | null;
+    relationship?: string;
+  }>;
   newCats?: Array<{
     name: string;
     gender?: string | null;
@@ -447,6 +476,7 @@ export interface ParentApplicationData {
   contactWechat: string | null;
   city: string | null;
   existingCatClaims: ExistingCatClaimData[];
+  unlistedCatClaims: UnlistedCatClaimData[];
   newCats: NewCatApplicationData[];
   adminNote: string | null;
   reviewedAt: string | null;

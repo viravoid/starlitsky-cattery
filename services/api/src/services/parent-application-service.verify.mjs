@@ -17,6 +17,20 @@ const { approveParentApplication, rejectParentApplication, submitParentApplicati
 const { certifyExistingUserAsParent } = await import("./admin-user-service.mjs");
 const { verifyParentPhoneCode } = await import("./parent-phone-verification-service.mjs");
 
+const savedNodeEnv = process.env.NODE_ENV;
+const savedPhoneFlag = process.env.WECHAT_PHONE_VERIFICATION_ENABLED;
+process.env.NODE_ENV = "production";
+delete process.env.WECHAT_PHONE_VERIFICATION_ENABLED;
+const { config: productionPhoneDefaults } = await import("../config/env.mjs?phone-default-off");
+assert.equal(productionPhoneDefaults.wechat.phoneVerificationEnabled, false);
+process.env.WECHAT_PHONE_VERIFICATION_ENABLED = "true";
+const { config: enabledPhoneConfig } = await import("../config/env.mjs?phone-explicit-on");
+assert.equal(enabledPhoneConfig.wechat.phoneVerificationEnabled, true);
+if (savedNodeEnv === undefined) delete process.env.NODE_ENV;
+else process.env.NODE_ENV = savedNodeEnv;
+if (savedPhoneFlag === undefined) delete process.env.WECHAT_PHONE_VERIFICATION_ENABLED;
+else process.env.WECHAT_PHONE_VERIFICATION_ENABLED = savedPhoneFlag;
+
 const config = {
   auth: {
     tokenSecret: "parent-flow-verify-secret",
@@ -29,6 +43,7 @@ const config = {
   wechat: {
     appId: "",
     appSecret: "",
+    phoneVerificationEnabled: false,
     mockLoginEnabled: true,
     mockQrEnabled: true,
     qrEnvVersion: "trial",
@@ -383,6 +398,30 @@ await assertRouteRejects(
   user,
   400,
 );
+await assertRouteRejects(
+  "ordinary user cannot search private cat candidates",
+  "/parent-applications/admin-cat-candidates?q=Verify",
+  user,
+  403,
+);
+await assertRouteRejects(
+  "anonymous cannot search private cat candidates",
+  "/parent-applications/admin-cat-candidates?q=Verify",
+  null,
+  401,
+);
+const privateCandidates = await routeGet(
+  "/parent-applications/admin-cat-candidates?q=Verify",
+  admin,
+);
+assert.equal(
+  privateCandidates.some((item) => item.id === hiddenCat.id),
+  true,
+);
+assert.equal(
+  (await routeGet("/parent-applications/phone-verification-capability", user)).enabled,
+  false,
+);
 
 const application = await submitParentApplication(
   {
@@ -442,10 +481,37 @@ await assert.rejects(
 await assertRouteRejectsForbidden(application.id, user);
 
 const fakeConfig = {
-  wechat: { appId: "test-app", appSecret: "test-secret", upstreamTimeoutMs: 500 },
+  wechat: {
+    appId: "test-app",
+    appSecret: "test-secret",
+    phoneVerificationEnabled: true,
+    upstreamTimeoutMs: 500,
+  },
 };
-const mockWechat = async (url) =>
-  new Response(
+let disabledFetches = 0;
+await assert.rejects(
+  () =>
+    verifyParentPhoneCode(
+      { code: "disabled-code-123" },
+      secondUser,
+      {
+        wechat: { appId: "test-app", appSecret: "test-secret", phoneVerificationEnabled: false },
+      },
+      {
+        fetcher: async () => {
+          disabledFetches += 1;
+          throw new Error("must not fetch");
+        },
+      },
+    ),
+  (error) => error?.statusCode === 503,
+);
+assert.equal(disabledFetches, 0, "disabled verification must never call WeChat");
+assert.equal(await prisma.parentPhoneVerification.count({ where: { user_id: secondUser.id } }), 0);
+const mockWechatUrls = [];
+const mockWechat = async (url) => {
+  mockWechatUrls.push(String(url));
+  return new Response(
     JSON.stringify(
       String(url).includes("cgi-bin/token")
         ? { access_token: "mock-access-token" }
@@ -453,10 +519,14 @@ const mockWechat = async (url) =>
     ),
     { status: 200, headers: { "content-type": "application/json" } },
   );
+};
 const verified = await verifyParentPhoneCode({ code: "valid-code-123" }, secondUser, fakeConfig, {
   fetcher: mockWechat,
 });
 assert.equal(verified.phone, "13900000000");
+assert.equal(mockWechatUrls.length, 2);
+assert.equal(mockWechatUrls[0].includes("cgi-bin/token"), true);
+assert.equal(mockWechatUrls[1].includes("getuserphonenumber"), true);
 await assertRejects("phone code replay", () =>
   verifyParentPhoneCode({ code: "valid-code-123" }, secondUser, fakeConfig, {
     fetcher: mockWechat,
@@ -535,10 +605,20 @@ for (const [code, fetcher] of [
       ),
   ],
 ]) {
-  await assertRejects(`phone failure ${code}`, () =>
-    verifyParentPhoneCode({ code }, rejectedUser, fakeConfig, { fetcher }),
+  await assert.rejects(
+    () => verifyParentPhoneCode({ code }, rejectedUser, fakeConfig, { fetcher }),
+    (error) => error?.statusCode === 503 && !error.message.includes("mock-access-token"),
+    `phone failure ${code} must be handled without exposing upstream data`,
   );
 }
+await assertRouteJsonRejects(
+  "disabled phone route rejects request",
+  "/parent-applications/phone-verifications",
+  user,
+  "POST",
+  { code: "disabled-route-code" },
+  503,
+);
 await assertRouteJsonRejects(
   "phone verification requires login",
   "/parent-applications/phone-verifications",
@@ -569,7 +649,17 @@ assert.equal(
   }),
   1,
 );
-await approveParentApplication(newCatApplication.id, { adminNote: "new cat approved" }, admin);
+await assertRejects("new cat needs explicit creation confirmation", () =>
+  approveParentApplication(newCatApplication.id, { adminNote: "incomplete" }, admin),
+);
+await approveParentApplication(
+  newCatApplication.id,
+  {
+    adminNote: "new cat approved",
+    newCatConfirmations: [{ index: 0, action: "create", confirmedName: "Verify New Cat" }],
+  },
+  admin,
+);
 assert.equal(await prisma.cat.count(), catCountBeforeNewApplication + 1);
 const verifiedProfile = await prisma.parentProfile.findUnique({
   where: { user_id: secondUser.id },
@@ -621,8 +711,22 @@ const reapplication = await submitParentApplication(
 );
 assert.equal(reapplication.status, "pending");
 const concurrentReview = await Promise.allSettled([
-  approveParentApplication(reapplication.id, { adminNote: "first click" }, admin),
-  approveParentApplication(reapplication.id, { adminNote: "second click" }, admin),
+  approveParentApplication(
+    reapplication.id,
+    {
+      adminNote: "first click",
+      newCatConfirmations: [{ index: 0, action: "create", confirmedName: "Retry Cat" }],
+    },
+    admin,
+  ),
+  approveParentApplication(
+    reapplication.id,
+    {
+      adminNote: "second click",
+      newCatConfirmations: [{ index: 0, action: "create", confirmedName: "Retry Cat" }],
+    },
+    admin,
+  ),
 ]);
 assert.equal(
   concurrentReview.some((result) => result.status === "fulfilled"),
@@ -634,6 +738,130 @@ assert.equal(
   }),
   1,
   "concurrent review must create one cat link",
+);
+
+const hiddenClaimUser = await createUserWithRole("hidden-claim-user", "user");
+const hiddenClaimApplication = await submitParentApplication(
+  {
+    displayName: "Hidden Cat Parent",
+    contactWechat: "hidden-parent-contact",
+    unlistedCatClaims: [
+      { name: hiddenCat.name, identification: "female smoke, adopted in spring" },
+    ],
+  },
+  hiddenClaimUser,
+);
+assert.equal(hiddenClaimApplication.unlistedCatClaims[0].name, hiddenCat.name);
+assert.equal(JSON.stringify(hiddenClaimApplication).includes(hiddenCat.id), false);
+assert.equal(
+  JSON.stringify(await routeGet("/parent-applications/mine", hiddenClaimUser)).includes(
+    hiddenCat.id,
+  ),
+  false,
+);
+const beforeHiddenReview = await prisma.cat.count();
+await assertRejects("unidentified hidden cat must block approval", () =>
+  approveParentApplication(hiddenClaimApplication.id, {}, admin),
+);
+assert.equal(await prisma.parentProfile.count({ where: { user_id: hiddenClaimUser.id } }), 0);
+assert.equal(
+  await prisma.userRole.count({ where: { user_id: hiddenClaimUser.id, role: "parent" } }),
+  0,
+);
+assert.equal(
+  (await prisma.parentApplication.findUnique({ where: { id: hiddenClaimApplication.id } })).status,
+  "pending",
+);
+await assertRejects("wrong target name must block misbinding", () =>
+  approveParentApplication(
+    hiddenClaimApplication.id,
+    {
+      unlistedCatResolutions: [
+        {
+          index: 0,
+          catId: secondHiddenCat.id,
+          confirmedCatName: hiddenCat.name,
+          confirmedClaimName: hiddenCat.name,
+        },
+      ],
+    },
+    admin,
+  ),
+);
+assert.equal(await prisma.cat.count(), beforeHiddenReview);
+assert.equal(
+  await prisma.parentCatLink.count({
+    where: { cat_id: secondHiddenCat.id, parent_profile: { user_id: hiddenClaimUser.id } },
+  }),
+  0,
+);
+await approveParentApplication(
+  hiddenClaimApplication.id,
+  {
+    unlistedCatResolutions: [
+      {
+        index: 0,
+        catId: hiddenCat.id,
+        confirmedCatName: hiddenCat.name,
+        confirmedClaimName: hiddenCat.name,
+      },
+    ],
+  },
+  admin,
+);
+assert.equal(
+  await prisma.cat.count(),
+  beforeHiddenReview,
+  "hidden claim must not create a duplicate Cat",
+);
+assert.equal(
+  await prisma.parentCatLink.count({
+    where: { cat_id: hiddenCat.id, parent_profile: { user_id: hiddenClaimUser.id } },
+  }),
+  1,
+);
+
+const mistakenNewUser = await createUserWithRole("mistaken-new-user", "user");
+const mistakenNewApplication = await submitParentApplication(
+  {
+    displayName: "Mistaken New Cat",
+    contactWechat: "mistaken-new-contact",
+    newCats: [{ name: hiddenCat.name }],
+  },
+  mistakenNewUser,
+);
+await assertRejects("existing hidden cat name must block duplicate creation", () =>
+  approveParentApplication(
+    mistakenNewApplication.id,
+    {
+      newCatConfirmations: [{ index: 0, action: "create", confirmedName: hiddenCat.name }],
+    },
+    admin,
+  ),
+);
+assert.equal(await prisma.cat.count(), beforeHiddenReview);
+assert.equal(await prisma.parentProfile.count({ where: { user_id: mistakenNewUser.id } }), 0);
+await approveParentApplication(
+  mistakenNewApplication.id,
+  {
+    newCatConfirmations: [
+      {
+        index: 0,
+        action: "link_existing",
+        confirmedName: hiddenCat.name,
+        catId: hiddenCat.id,
+        confirmedCatName: hiddenCat.name,
+      },
+    ],
+  },
+  admin,
+);
+assert.equal(await prisma.cat.count(), beforeHiddenReview);
+assert.equal(
+  await prisma.parentCatLink.count({
+    where: { cat_id: hiddenCat.id, parent_profile: { user_id: mistakenNewUser.id } },
+  }),
+  1,
 );
 
 // A pre-migration invite remains available for audit and review.

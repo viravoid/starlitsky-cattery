@@ -20,9 +20,10 @@ const SUBMIT_APPLICATION_FIELDS = [
   "contactWechat",
   "city",
   "existingCatClaims",
+  "unlistedCatClaims",
   "newCats",
 ];
-const REVIEW_APPLICATION_FIELDS = ["adminNote"];
+const REVIEW_APPLICATION_FIELDS = ["adminNote", "unlistedCatResolutions", "newCatConfirmations"];
 
 export async function submitParentApplication(input, user) {
   limitParentRequest("submit", user.id, { max: 10, windowMs: 60 * 60 * 1000 });
@@ -37,8 +38,9 @@ export async function submitParentApplication(input, user) {
     throw badRequest("Choose either a WeChat phone or a manually entered phone");
   }
   const existingCatClaims = normalizeExistingCatClaims(input.existingCatClaims);
+  const unlistedCatClaims = normalizeUnlistedCatClaims(input.unlistedCatClaims);
   const newCats = normalizeNewCats(input.newCats);
-  if (existingCatClaims.length === 0 && newCats.length === 0) {
+  if (existingCatClaims.length + unlistedCatClaims.length + newCats.length === 0) {
     throw badRequest("At least one existing cat claim or new cat must be provided");
   }
 
@@ -80,6 +82,7 @@ export async function submitParentApplication(input, user) {
           contact_wechat: profile.contactWechat,
           city: profile.city,
           existing_cat_claims_json: existingCatClaims,
+          unlisted_cat_claims_json: unlistedCatClaims,
           new_cats_json: newCats,
         },
         include: applicationInclude,
@@ -128,6 +131,26 @@ export async function searchParentClaimCatCandidates(searchParams, user) {
     items: items.map(toParentClaimCatCandidateDto),
     pagination: buildPaginationMeta({ page, pageSize, total }),
   };
+}
+
+export async function searchAdminParentCatCandidates(searchParams) {
+  const query = searchParams.get("q")?.trim();
+  if (!query || query.length < 2 || query.length > 80) {
+    throw badRequest("Search requires 2 to 80 characters");
+  }
+  const cats = await prisma.cat.findMany({
+    where: { deleted_at: null, name: { contains: query } },
+    select: { id: true, name: true, gender: true, color: true, visibility: true },
+    orderBy: [{ updated_at: "desc" }, { id: "asc" }],
+    take: 20,
+  });
+  return cats.map((cat) => ({
+    id: cat.id,
+    name: cat.name,
+    gender: cat.gender,
+    color: cat.color,
+    visibility: cat.visibility,
+  }));
 }
 
 export async function getMyParentApplication(user) {
@@ -212,7 +235,20 @@ export async function approveParentApplication(applicationId, input, adminUser) 
     const parentProfile = await upsertActiveParentProfile(existing, transaction, now);
     await ensureParentRole(existing.user_id, adminUser.id, transaction);
     await createExistingCatLinks(existing, parentProfile.id, adminUser.id, transaction);
-    await createNewCatsAndLinks(existing, parentProfile.id, adminUser.id, transaction);
+    await createUnlistedCatLinks(
+      existing,
+      input.unlistedCatResolutions,
+      parentProfile.id,
+      adminUser.id,
+      transaction,
+    );
+    await createNewCatsAndLinks(
+      existing,
+      input.newCatConfirmations,
+      parentProfile.id,
+      adminUser.id,
+      transaction,
+    );
 
     return transaction.parentApplication.update({
       where: { id: applicationId },
@@ -327,9 +363,98 @@ async function createExistingCatLinks(application, parentProfileId, adminUserId,
   }
 }
 
-async function createNewCatsAndLinks(application, parentProfileId, adminUserId, transaction) {
+async function createUnlistedCatLinks(
+  application,
+  resolutions,
+  parentProfileId,
+  adminUserId,
+  transaction,
+) {
+  const claims = getJsonArray(application.unlisted_cat_claims_json);
+  const decisions = validateReviewDecisions(resolutions, claims, "unlistedCatResolutions");
+  for (const [index, claim] of claims.entries()) {
+    const decision = decisions.get(index);
+    assertPlainObject(decision, `unlistedCatResolutions[${index}]`);
+    assertNoUnknownFields(decision, ["index", "catId", "confirmedCatName", "confirmedClaimName"]);
+    if (decision.confirmedClaimName !== claim.name)
+      throw badRequest("Claim confirmation does not match application");
+    const catId = requiredString(decision.catId, "catId");
+    const cat = await transaction.cat.findFirst({
+      where: { id: catId, deleted_at: null },
+      select: { name: true },
+    });
+    if (!cat || cat.name !== decision.confirmedCatName) {
+      throw badRequest("Selected cat confirmation is missing or stale");
+    }
+    await ensureParentCatLink({
+      parentProfileId,
+      catId,
+      relationship: claim.relationship || "owner",
+      startedAt: parseNullableDate(claim.arrivedAt, "arrivedAt"),
+      note: claim.identification,
+      adminUserId,
+      transaction,
+    });
+  }
+}
+
+async function createNewCatsAndLinks(
+  application,
+  confirmations,
+  parentProfileId,
+  adminUserId,
+  transaction,
+) {
   const cats = getJsonArray(application.new_cats_json);
-  for (const input of cats) {
+  const decisions = validateReviewDecisions(confirmations, cats, "newCatConfirmations");
+  for (const [index, input] of cats.entries()) {
+    const decision = decisions.get(index);
+    assertPlainObject(decision, `newCatConfirmations[${index}]`);
+    assertNoUnknownFields(decision, [
+      "index",
+      "action",
+      "confirmedName",
+      "catId",
+      "confirmedCatName",
+    ]);
+    if (decision.confirmedName !== input.name)
+      throw badRequest("New cat confirmation does not match application");
+    if (decision.action === "link_existing") {
+      const catId = requiredString(decision.catId, "catId");
+      const target = await transaction.cat.findFirst({
+        where: { id: catId, deleted_at: null },
+        select: { name: true },
+      });
+      if (!target || target.name !== decision.confirmedCatName) {
+        throw badRequest("Selected cat confirmation is missing or stale");
+      }
+      await ensureParentCatLink({
+        parentProfileId,
+        catId,
+        relationship: input.relationship || "owner",
+        startedAt: parseNullableDate(input.arrivedAt, "arrivedAt"),
+        note: input.note || null,
+        adminUserId,
+        transaction,
+      });
+      continue;
+    }
+    if (decision.action !== "create" || decision.catId || decision.confirmedCatName) {
+      throw badRequest("New cat requires an explicit create or existing cat decision");
+    }
+    const sameName = await transaction.cat.findMany({
+      where: { deleted_at: null },
+      select: { name: true },
+    });
+    if (
+      sameName.some(
+        (cat) => cat.name.trim().toLocaleLowerCase() === input.name.trim().toLocaleLowerCase(),
+      )
+    ) {
+      throw badRequest(
+        "A cat with this name already exists; review its profile before creating a new cat",
+      );
+    }
     const cat = await transaction.cat.create({
       data: {
         name: input.name,
@@ -358,6 +483,26 @@ async function createNewCatsAndLinks(application, parentProfileId, adminUserId, 
       transaction,
     });
   }
+}
+
+function validateReviewDecisions(value, items, fieldName) {
+  if (items.length === 0 && value == null) return new Map();
+  if (!Array.isArray(value) || value.length !== items.length) {
+    throw badRequest(`Every ${fieldName} item must be explicitly confirmed`);
+  }
+  const decisions = new Map();
+  for (const decision of value) {
+    if (
+      !Number.isInteger(decision?.index) ||
+      decision.index < 0 ||
+      decision.index >= items.length ||
+      decisions.has(decision.index)
+    ) {
+      throw badRequest(`Invalid ${fieldName} index`);
+    }
+    decisions.set(decision.index, decision);
+  }
+  return decisions;
 }
 
 async function ensureParentCatLink({
@@ -528,6 +673,31 @@ function normalizeNewCats(value) {
   });
 }
 
+function normalizeUnlistedCatClaims(value) {
+  const claims = getOptionalArray(value, "unlistedCatClaims");
+  if (claims.length > 3) throw badRequest("Too many unlisted cat claims");
+  return claims.map((claim, index) => {
+    assertPlainObject(claim, `unlistedCatClaims[${index}]`);
+    assertNoUnknownFields(claim, ["name", "identification", "arrivedAt", "relationship"]);
+    const name = requiredString(claim.name, `unlistedCatClaims[${index}].name`);
+    const identification = requiredString(
+      claim.identification,
+      `unlistedCatClaims[${index}].identification`,
+    );
+    if (name.length > 80 || identification.length > 500)
+      throw badRequest("Unlisted cat claim is too long");
+    return {
+      name,
+      identification,
+      arrivedAt: optionalDateString(claim.arrivedAt, `unlistedCatClaims[${index}].arrivedAt`),
+      relationship: validateParentCatLinkRelationship(
+        optionalString(claim.relationship, `unlistedCatClaims[${index}].relationship`) ?? "owner",
+        `unlistedCatClaims[${index}].relationship`,
+      ),
+    };
+  });
+}
+
 function getOptionalArray(value, fieldName) {
   if (value == null) return [];
   if (!Array.isArray(value)) throw badRequest(`${fieldName} must be an array`);
@@ -565,6 +735,7 @@ async function toParentApplicationDto(application, { publicView = false } = {}) 
     contactWechat: application.contact_wechat,
     city: application.city,
     existingCatClaims: getJsonArray(application.existing_cat_claims_json),
+    unlistedCatClaims: getJsonArray(application.unlisted_cat_claims_json),
     newCats: getJsonArray(application.new_cats_json),
     adminNote: application.admin_note,
     reviewedAt: toIsoString(application.reviewed_at),
