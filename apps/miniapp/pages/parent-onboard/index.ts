@@ -1,14 +1,7 @@
 import { getSessionState } from "../../store/session/index";
 import { refreshCurrentUser } from "../../utils/session/auth";
 
-interface InputEvent {
-  detail: {
-    value: string;
-  };
-}
-
 interface ParentOnboardData {
-  inviteCode: string;
   isActiveParent: boolean;
   parentInactive: boolean;
 }
@@ -21,7 +14,6 @@ interface ParentOnboardPage {
 
 Page({
   data: {
-    inviteCode: "",
     isActiveParent: false,
     parentInactive: false,
   },
@@ -41,21 +33,13 @@ Page({
     const parentStatus = session.user?.parentProfile?.status || "";
     this.setData({
       isActiveParent: session.roles.includes("parent") && parentStatus === "active",
-      parentInactive: session.roles.includes("parent") && Boolean(parentStatus) && parentStatus !== "active",
+      parentInactive:
+        session.roles.includes("parent") && Boolean(parentStatus) && parentStatus !== "active",
     });
   },
 
-  onInviteCodeInput(this: ParentOnboardPage, event: InputEvent) {
-    this.setData({ inviteCode: event.detail.value });
-  },
-
-  openParentAuth(this: ParentOnboardPage) {
-    const code = this.data.inviteCode.trim();
-    wx.navigateTo({
-      url: code
-        ? `/pages/parent-auth/index?code=${encodeURIComponent(code)}`
-        : "/pages/parent-auth/index",
-    });
+  openParentAuth() {
+    wx.navigateTo({ url: "/pages/parent-auth/index" });
   },
 
   openMyCats() {

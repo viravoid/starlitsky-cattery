@@ -46,7 +46,7 @@ import { CommunityModerationPanel } from "./CommunityModerationPanel";
 import { DashboardPage } from "./DashboardPage";
 import { FixedPagesPanel } from "./FixedPagesPanel";
 import { MediaManagementPanel } from "./MediaManagementPanel";
-import { ParentApplicationsPanel, ParentInvitesPanel } from "./ParentInvitationReviewPanel";
+import { ParentApplicationsPanel } from "./ParentInvitationReviewPanel";
 import { ParentUsersPanel } from "./ParentUsersPanel";
 import { SelectionApplicationsPanel } from "./SelectionApplicationsPanel";
 
@@ -61,7 +61,6 @@ type SectionKey =
   | "communityModeration"
   | "communityComments"
   | "parentUsers"
-  | "parentInvites"
   | "parentApplications"
   | "selectionApplications";
 type EditorMode = "create" | "edit" | null;
@@ -795,7 +794,6 @@ export function CatteryManagementPage() {
             ["fixedPages", "固定页面"],
             ["communityModeration", "动态"],
             ["communityComments", "评论"],
-            ["parentInvites", "家长邀请"],
             ["parentUsers", "家长"],
             ["parentApplications", "申请审核"],
             ["selectionApplications", "选猫问卷"],
@@ -937,7 +935,6 @@ export function CatteryManagementPage() {
       {activeSection === "communityModeration" && <CommunityModerationPanel initialView="posts" />}
       {activeSection === "communityComments" && <CommunityModerationPanel initialView="comments" />}
       {activeSection === "parentUsers" && <ParentUsersPanel />}
-      {activeSection === "parentInvites" && <ParentInvitesPanel />}
       {activeSection === "parentApplications" && <ParentApplicationsPanel />}
       {activeSection === "selectionApplications" && <SelectionApplicationsPanel />}
     </PageContainer>
@@ -2566,7 +2563,6 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#community") return "communityModeration";
   if (window.location.hash === "#community-comments") return "communityComments";
   if (window.location.hash === "#parent-users") return "parentUsers";
-  if (window.location.hash === "#parent-invites") return "parentInvites";
   if (window.location.hash === "#parent-applications") return "parentApplications";
   if (window.location.hash === "#selection-applications") return "selectionApplications";
   return "kittens";

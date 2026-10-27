@@ -29,7 +29,6 @@ const NAV_GROUPS = [
       { label: "评论管理", href: "#community-comments" },
       { label: "家长列表", href: "#parent-users" },
       { label: "家长申请", href: "#parent-applications" },
-      { label: "家长邀请", href: "#parent-invites" },
     ],
   },
   {

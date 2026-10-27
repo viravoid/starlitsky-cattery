@@ -258,6 +258,8 @@ export interface ParentProfileData {
   displayName: string;
   realName: string | null;
   contactPhone: string | null;
+  contactPhoneSource: "wechat_verified" | "self_provided" | "unknown" | "none";
+  contactPhoneVerifiedAt: string | null;
   contactWechat: string | null;
   city: string | null;
   status: string;
@@ -366,37 +368,6 @@ export interface UserSummaryData {
   phone: string | null;
 }
 
-export interface ParentInviteData {
-  id: string;
-  shortCode: string;
-  status: ParentInviteStatus | string;
-  maxUses: number;
-  usedCount: number;
-  expiresAt: string | null;
-  note: string | null;
-  revokedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: UserSummaryData | null;
-  revokedBy: UserSummaryData | null;
-  isUsable: boolean;
-  invalidReason: string | null;
-}
-
-export interface CreatedParentInviteData extends ParentInviteData {
-  token: string;
-  qr: ParentInviteQrData;
-}
-
-export interface ParentInviteQrData {
-  provider: "wechat" | "dev-mock" | "unavailable";
-  status: "ready" | "mock" | "unavailable";
-  page: string;
-  scene: string;
-  imageDataUrl: string | null;
-  message: string;
-}
-
 export interface ParentInvitePublicData {
   id: string;
   shortCode: string;
@@ -406,18 +377,6 @@ export interface ParentInvitePublicData {
   expiresAt: string | null;
   isUsable: boolean;
   invalidReason: string | null;
-}
-
-export interface VerifyParentInviteData {
-  valid: boolean;
-  reason: string | null;
-  invite: ParentInvitePublicData | null;
-}
-
-export interface CreateParentInviteRequest {
-  expiresAt?: string | null;
-  maxUses?: number;
-  note?: string | null;
 }
 
 export interface ReviewParentApplicationRequest {
@@ -452,9 +411,7 @@ export interface NewCatApplicationData {
 }
 
 export interface SubmitParentApplicationRequest {
-  inviteCode?: string;
-  inviteToken?: string;
-  qrCredential?: string;
+  phoneVerificationToken?: string;
   displayName: string;
   realName?: string | null;
   contactPhone?: string | null;
@@ -485,6 +442,8 @@ export interface ParentApplicationData {
   displayName: string;
   realName: string | null;
   contactPhone: string | null;
+  contactPhoneSource: "wechat_verified" | "self_provided" | "unknown" | "none";
+  contactPhoneVerifiedAt: string | null;
   contactWechat: string | null;
   city: string | null;
   existingCatClaims: ExistingCatClaimData[];
@@ -499,16 +458,17 @@ export interface ParentApplicationData {
   reviewedBy: UserSummaryData | null;
 }
 
-export type ParentInviteListData = PaginatedResponse<ParentInviteData>;
 export type ParentApplicationListData = PaginatedResponse<ParentApplicationData>;
+
+export interface ParentPhoneVerificationData {
+  phone: string;
+  verificationToken: string;
+  expiresAt: string;
+}
 
 export interface ParentClaimCatCandidateData {
   id: string;
   name: string;
-  gender: string | null;
-  color: string | null;
-  birthday: string | null;
-  lifecycleStatus: string;
 }
 
 export type ParentClaimCatCandidateListData = PaginatedResponse<ParentClaimCatCandidateData>;
