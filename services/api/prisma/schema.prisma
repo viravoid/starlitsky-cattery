@@ -24,13 +24,14 @@ model User {
   roles                           UserRole[]
   sessions                        UserSession[]
   parent_profile                  ParentProfile?
-  created_parent_invites          ParentInvite[]         @relation("ParentInviteCreator")
-  reviewed_parent_invites         ParentInvite[]         @relation("ParentInviteRevoker")
-  parent_applications             ParentApplication[]    @relation("ParentApplicationUser")
-  reviewed_applications           ParentApplication[]    @relation("ParentApplicationReviewer")
-  selection_applications          SelectionApplication[] @relation("SelectionApplicationUser")
-  reviewed_selection_applications SelectionApplication[] @relation("SelectionApplicationReviewer")
-  created_parent_cat_links        ParentCatLink[]        @relation("ParentCatLinkCreator")
+  created_parent_invites          ParentInvite[]            @relation("ParentInviteCreator")
+  reviewed_parent_invites         ParentInvite[]            @relation("ParentInviteRevoker")
+  parent_applications             ParentApplication[]       @relation("ParentApplicationUser")
+  reviewed_applications           ParentApplication[]       @relation("ParentApplicationReviewer")
+  phone_verifications             ParentPhoneVerification[]
+  selection_applications          SelectionApplication[]    @relation("SelectionApplicationUser")
+  reviewed_selection_applications SelectionApplication[]    @relation("SelectionApplicationReviewer")
+  created_parent_cat_links        ParentCatLink[]           @relation("ParentCatLinkCreator")
   posts                           Post[]
   comments                        Comment[]
   post_likes                      PostLike[]
@@ -73,18 +74,20 @@ model UserSession {
 }
 
 model ParentProfile {
-  id             String    @id @default(uuid())
-  user_id        String    @unique
-  display_name   String
-  real_name      String?
-  contact_phone  String?
-  contact_wechat String?
-  city           String?
-  status         String    @default("active")
-  activated_at   DateTime?
-  note           String?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  id                        String    @id @default(uuid())
+  user_id                   String    @unique
+  display_name              String
+  real_name                 String?
+  contact_phone             String?
+  contact_phone_source      String    @default("unknown")
+  contact_phone_verified_at DateTime?
+  contact_wechat            String?
+  city                      String?
+  status                    String    @default("active")
+  activated_at              DateTime?
+  note                      String?
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @updatedAt
 
   user             User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
   parent_cat_links ParentCatLink[]
@@ -94,7 +97,7 @@ model ParentProfile {
   @@map("parent_profiles")
 }
 
-/// Invitations gate parent applications only. They never grant roles directly.
+/// Retained for historical application links and audit only.
 model ParentInvite {
   id            String    @id @default(uuid())
   token_hash    String    @unique
@@ -126,15 +129,18 @@ model ParentInvite {
 model ParentApplication {
   id                         String    @id @default(uuid())
   user_id                    String
-  invite_id                  String
+  invite_id                  String?
   pending_dedup_key          String?   @unique
   status                     String    @default("pending")
   display_name               String
   real_name                  String?
   contact_phone              String?
+  contact_phone_source       String    @default("unknown")
+  contact_phone_verified_at  DateTime?
   contact_wechat             String?
   city                       String?
   existing_cat_claims_json   Json?
+  unlisted_cat_claims_json   Json?
   new_cats_json              Json?
   admin_note                 String?
   reviewed_by                String?
@@ -144,7 +150,7 @@ model ParentApplication {
   updated_at                 DateTime  @updatedAt
 
   user                    User           @relation("ParentApplicationUser", fields: [user_id], references: [id], onDelete: Cascade)
-  invite                  ParentInvite   @relation(fields: [invite_id], references: [id], onDelete: Restrict)
+  invite                  ParentInvite?  @relation(fields: [invite_id], references: [id], onDelete: Restrict)
   reviewer                User?          @relation("ParentApplicationReviewer", fields: [reviewed_by], references: [id], onDelete: SetNull)
   approved_parent_profile ParentProfile? @relation(fields: [approved_parent_profile_id], references: [id], onDelete: SetNull)
 
@@ -153,6 +159,25 @@ model ParentApplication {
   @@index([status])
   @@index([created_at])
   @@map("parent_applications")
+}
+
+/// Short lived, single-use proof created only after WeChat returns a phone number.
+model ParentPhoneVerification {
+  id          String    @id @default(uuid())
+  user_id     String
+  code_hash   String    @unique
+  token_hash  String?   @unique
+  phone       String?
+  verified_at DateTime?
+  expires_at  DateTime
+  consumed_at DateTime?
+  created_at  DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at])
+  @@index([expires_at])
+  @@map("parent_phone_verifications")
 }
 
 /// One cat keeps the same id across birth, finding a home, retention,

@@ -5,9 +5,11 @@ import { handleError } from "./middleware/error-handler.mjs";
 import { attachRequestLogger } from "./middleware/request-logger.mjs";
 import { routeRequest } from "./routes/index.mjs";
 import { createPendingMediaUploadMaintenance } from "./services/media-upload-maintenance-service.mjs";
+import { startParentPhoneVerificationCleanup } from "./services/parent-phone-verification-service.mjs";
 import { logger } from "./utils/logger.mjs";
 
 const mediaUploadMaintenance = createPendingMediaUploadMaintenance();
+const stopPhoneVerificationCleanup = startParentPhoneVerificationCleanup();
 
 const server = createServer(async (request, response) => {
   attachRequestLogger(request, response);
@@ -27,6 +29,7 @@ server.listen(config.server.port, config.server.host, () => {
 
 server.on("close", () => {
   mediaUploadMaintenance.stop();
+  stopPhoneVerificationCleanup();
 });
 
 process.on("unhandledRejection", (reason) => {

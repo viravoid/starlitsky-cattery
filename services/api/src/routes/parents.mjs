@@ -5,63 +5,38 @@ import {
 } from "../services/profile-service.mjs";
 import {
   approveParentApplication,
-  createParentInvite,
   getMyParentApplication,
   listParentApplications,
-  listParentInvites,
   rejectParentApplication,
-  revokeParentInvite,
+  searchAdminParentCatCandidates,
   searchParentClaimCatCandidates,
   submitParentApplication,
-  verifyParentInvite,
 } from "../services/parent-application-service.mjs";
+import { verifyParentPhoneCode } from "../services/parent-phone-verification-service.mjs";
 import { requireAdminMutationRole, requireAuth } from "../middleware/auth.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
 export async function routeParentsRequest(request, response, url, context) {
-  if (url.pathname === "/parent-invites/verify") {
+  if (url.pathname === "/parent-applications/phone-verification-capability") {
     if (request.method !== "GET") throw methodNotAllowed();
     sendSuccess(response, {
-      data: await verifyParentInvite({
-        code: url.searchParams.get("code"),
-        token: url.searchParams.get("token"),
-      }),
-      message: "Parent invite verified",
+      data: {
+        enabled:
+          context.config.wechat.phoneVerificationEnabled === true &&
+          Boolean(context.config.wechat.appId && context.config.wechat.appSecret),
+      },
     });
     return;
   }
 
-  if (url.pathname === "/parent-invites") {
-    if (request.method === "GET") {
-      await requireAdminMutationRole(request, context.config);
-      sendSuccess(response, {
-        data: await listParentInvites(url.searchParams),
-      });
-      return;
-    }
-
-    if (request.method === "POST") {
-      const adminUser = await requireAdminMutationRole(request, context.config);
-      sendSuccess(response, {
-        statusCode: 201,
-        data: await createParentInvite(await readJsonBody(request), adminUser, context.config),
-        message: "Parent invite created",
-      });
-      return;
-    }
-
-    throw methodNotAllowed();
-  }
-
-  const parentInviteId = matchParentInviteAction(url.pathname, "revoke");
-  if (parentInviteId) {
+  if (url.pathname === "/parent-applications/phone-verifications") {
     if (request.method !== "POST") throw methodNotAllowed();
-    const adminUser = await requireAdminMutationRole(request, context.config);
+    const user = await requireAuth(request, context.config);
     sendSuccess(response, {
-      data: await revokeParentInvite(parentInviteId, await readJsonBody(request), adminUser),
-      message: "Parent invite revoked",
+      data: await verifyParentPhoneCode(await readJsonBody(request), user, context.config),
+      message: "WeChat phone obtained",
     });
     return;
   }
@@ -78,16 +53,18 @@ export async function routeParentsRequest(request, response, url, context) {
 
   if (url.pathname === "/parent-applications/cat-candidates") {
     if (request.method !== "GET") throw methodNotAllowed();
-    await requireAuth(request, context.config);
+    const user = await requireAuth(request, context.config);
     sendSuccess(response, {
-      data: await searchParentClaimCatCandidates(url.searchParams, {
-        code: url.searchParams.get("code"),
-        token: url.searchParams.get("token"),
-        qrCredential: url.searchParams.get("qrCredential"),
-        scene: url.searchParams.get("scene"),
-      }),
+      data: await searchParentClaimCatCandidates(url.searchParams, user),
       message: "Parent claim cat candidates",
     });
+    return;
+  }
+
+  if (url.pathname === "/parent-applications/admin-cat-candidates") {
+    if (request.method !== "GET") throw methodNotAllowed();
+    await requireAdminMutationRole(request, context.config);
+    sendSuccess(response, { data: await searchAdminParentCatCandidates(url.searchParams) });
     return;
   }
 
@@ -184,11 +161,6 @@ export async function routeParentsRequest(request, response, url, context) {
 
 function matchParentCatLinkId(pathname) {
   const match = pathname.match(/^\/parent-cat-links\/([^/]+)$/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function matchParentInviteAction(pathname, action) {
-  const match = pathname.match(new RegExp(`^/parent-invites/([^/]+)/${action}$`));
   return match ? decodeURIComponent(match[1]) : null;
 }
 

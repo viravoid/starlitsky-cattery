@@ -14,10 +14,8 @@ import type {
   CreateCatRequest,
   CreateCatWithBreedingProfileRequest,
   CreateCatWithKittenProfileRequest,
-  CreatedParentInviteData,
   CurrentUserResponseData,
   CreateKittenProfileRequest,
-  CreateParentInviteRequest,
   CreateImageUploadRequest,
   CreateLitterRequest,
   CreateMediaAssetRequest,
@@ -41,8 +39,6 @@ import type {
   ParentCatLinkData,
   ParentProfileData,
   ParentProfileListData,
-  ParentInviteData,
-  ParentInviteListData,
   ReviewParentApplicationRequest,
   SelectionApplicationData,
   SelectionApplicationListData,
@@ -262,22 +258,6 @@ export function updateParentCatLink(id: string, data: UpdateParentCatLinkRequest
   );
 }
 
-export function listParentInvites(params: ListParentInvitesParams = {}) {
-  return unwrap<ParentInviteListData>(adminGet(`/parent-invites${toSearch(params)}`));
-}
-
-export function createParentInvite(data: CreateParentInviteRequest) {
-  return unwrap<CreatedParentInviteData, CreateParentInviteRequest>(
-    adminPost("/parent-invites", data),
-  );
-}
-
-export function revokeParentInvite(id: string, data: ReviewParentApplicationRequest = {}) {
-  return unwrap<ParentInviteData, ReviewParentApplicationRequest>(
-    adminPost(`/parent-invites/${encodeURIComponent(id)}/revoke`, data),
-  );
-}
-
 export function listParentApplications(params: ListParentApplicationsParams = {}) {
   return unwrap<ParentApplicationListData>(adminGet(`/parent-applications${toSearch(params)}`));
 }
@@ -285,6 +265,20 @@ export function listParentApplications(params: ListParentApplicationsParams = {}
 export function approveParentApplication(id: string, data: ReviewParentApplicationRequest = {}) {
   return unwrap<ParentApplicationData, ReviewParentApplicationRequest>(
     adminPost(`/parent-applications/${encodeURIComponent(id)}/approve`, data),
+  );
+}
+
+export interface AdminParentCatCandidate {
+  id: string;
+  name: string;
+  gender: string | null;
+  color: string | null;
+  visibility: string;
+}
+
+export function searchAdminParentCatCandidates(query: string) {
+  return unwrap<AdminParentCatCandidate[]>(
+    adminGet(`/parent-applications/admin-cat-candidates?q=${encodeURIComponent(query.trim())}`),
   );
 }
 
@@ -453,10 +447,7 @@ async function uploadImageForOwner({
   });
 }
 
-async function putMediaFile(
-  upload: ImageUploadData["upload"],
-  file: File,
-) {
+async function putMediaFile(upload: ImageUploadData["upload"], file: File) {
   const timeoutMs = getMediaUploadTimeoutMs();
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -584,13 +575,6 @@ export function archiveMediaBinding(mediaId: string, bindingId: string) {
 }
 
 export interface ListParentProfilesParams {
-  page?: number;
-  pageSize?: number;
-  q?: string;
-  status?: string;
-}
-
-export interface ListParentInvitesParams {
   page?: number;
   pageSize?: number;
   q?: string;

@@ -112,6 +112,7 @@ export async function certifyExistingUserAsParent(input, adminUser) {
             `User ${userId.slice(0, 8)}`,
           real_name: nullableString(input.realName, "realName"),
           contact_phone: nullableString(input.contactPhone, "contactPhone"),
+          contact_phone_source: input.contactPhone ? "unknown" : "none",
           contact_wechat: nullableString(input.contactWechat, "contactWechat"),
           city: nullableString(input.city, "city"),
           status: "active",
@@ -141,6 +142,10 @@ function buildExistingParentProfileUpdate(input, profile, now) {
   if (Object.hasOwn(input, "realName")) data.real_name = nullableString(input.realName, "realName");
   if (Object.hasOwn(input, "contactPhone")) {
     data.contact_phone = nullableString(input.contactPhone, "contactPhone");
+    if (data.contact_phone !== profile.contact_phone) {
+      data.contact_phone_source = data.contact_phone ? "unknown" : "none";
+      data.contact_phone_verified_at = null;
+    }
   }
   if (Object.hasOwn(input, "contactWechat")) {
     data.contact_wechat = nullableString(input.contactWechat, "contactWechat");
@@ -193,7 +198,9 @@ async function createParentCatLink(parentProfileId, link, adminUserId, transacti
   const status = link.status ?? "active";
   const relationship = link.relationship ?? "owner";
   const activeDedupKey =
-    status === "active" ? buildParentCatLinkDedupKey(parentProfileId, link.catId, relationship) : null;
+    status === "active"
+      ? buildParentCatLinkDedupKey(parentProfileId, link.catId, relationship)
+      : null;
 
   try {
     await transaction.parentCatLink.create({
@@ -269,7 +276,10 @@ function toAdminUserDto(user) {
 
 function resolveActiveRoles(user) {
   const roles = new Set(
-    user.roles.filter((role) => !role.revoked_at).map((role) => role.role).filter(Boolean),
+    user.roles
+      .filter((role) => !role.revoked_at)
+      .map((role) => role.role)
+      .filter(Boolean),
   );
   roles.add("user");
   if (user.parent_profile?.status === "active") roles.add("parent");
@@ -283,6 +293,8 @@ function toParentProfileDto(profile) {
     displayName: profile.display_name,
     realName: profile.real_name,
     contactPhone: profile.contact_phone,
+    contactPhoneSource: profile.contact_phone_source,
+    contactPhoneVerifiedAt: toIsoString(profile.contact_phone_verified_at),
     contactWechat: profile.contact_wechat,
     city: profile.city,
     status: profile.status,

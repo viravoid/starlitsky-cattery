@@ -6,17 +6,11 @@ import type {
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 import {
   getMyParentApplication,
+  getParentPhoneVerificationCapability,
   searchCats,
   submitParentApplication,
-  verifyParentInvite,
+  verifyParentPhone,
 } from "../../utils/parent-auth/index";
-
-interface ParentAuthLoadOptions {
-  code?: string;
-  qrCredential?: string;
-  scene?: string;
-  token?: string;
-}
 
 interface InputEvent {
   detail: {
@@ -34,13 +28,10 @@ interface ParentAuthPage {
   data: ParentAuthData;
   loadMyApplication(): Promise<void>;
   setData(data: Partial<ParentAuthData>): void;
-  verifyInvite(credential?: InviteCredential): Promise<boolean>;
 }
 
-interface InviteCredential {
-  code?: string;
-  token?: string;
-  qrCredential?: string;
+interface PhoneEvent {
+  detail: { code?: string; errMsg?: string };
 }
 
 interface ParentAuthData {
@@ -48,27 +39,28 @@ interface ParentAuthData {
   applicationStatusClass: string;
   applicationStatusLabel: string;
   cats: ParentClaimCatCandidateData[];
-  catMode: "existing" | "new";
+  catMode: "existing" | "unlisted" | "new";
   catQuery: string;
   city: string;
   contactWechat: string;
+  contactPhone: string;
+  verifiedPhone: string;
+  phoneVerificationToken: string;
   displayName: string;
   existingCatId: string;
   existingCatName: string;
   existingCatNote: string;
-  inviteCode: string;
-  inviteMessage: string;
-  inviteQrCredential: string;
-  inviteToken: string;
-  inviteValid: boolean;
+  phoneMessage: string;
+  phoneVerificationEnabled: boolean;
   isSearchingCats: boolean;
   isSubmitting: boolean;
-  isVerifying: boolean;
+  isVerifyingPhone: boolean;
   newCatArrivedAt: string;
   newCatBirthday: string;
   newCatColor: string;
   newCatGender: string;
   newCatName: string;
+  unlistedCatIdentification: string;
   newCatPersonality: string;
   realName: string;
 }
@@ -82,23 +74,24 @@ const DEFAULT_DATA: ParentAuthData = {
   catQuery: "",
   city: "",
   contactWechat: "",
+  contactPhone: "",
+  verifiedPhone: "",
+  phoneVerificationToken: "",
   displayName: "",
   existingCatId: "",
   existingCatName: "",
   existingCatNote: "",
-  inviteCode: "",
-  inviteMessage: "",
-  inviteQrCredential: "",
-  inviteToken: "",
-  inviteValid: false,
+  phoneMessage: "",
+  phoneVerificationEnabled: false,
   isSearchingCats: false,
   isSubmitting: false,
-  isVerifying: false,
+  isVerifyingPhone: false,
   newCatArrivedAt: "",
   newCatBirthday: "",
   newCatColor: "",
   newCatGender: "",
   newCatName: "",
+  unlistedCatIdentification: "",
   newCatPersonality: "",
   realName: "",
 };
@@ -106,19 +99,13 @@ const DEFAULT_DATA: ParentAuthData = {
 Page({
   data: DEFAULT_DATA,
 
-  async onLoad(this: ParentAuthPage, options: ParentAuthLoadOptions) {
-    const credential = getCredentialFromOptions(options);
-    this.setData({
-      inviteCode: credential.code,
-      inviteQrCredential: credential.qrCredential,
-      inviteToken: credential.token,
-    });
-
+  async onLoad(this: ParentAuthPage) {
     await refreshCurrentUser();
     await this.loadMyApplication();
-
-    if (credential.code || credential.token || credential.qrCredential) {
-      await this.verifyInvite(credential);
+    try {
+      this.setData({ phoneVerificationEnabled: await getParentPhoneVerificationCapability() });
+    } catch {
+      this.setData({ phoneVerificationEnabled: false });
     }
   },
 
@@ -139,42 +126,38 @@ Page({
     }
   },
 
-  async verifyInvite(this: ParentAuthPage, credential?: InviteCredential) {
-    const code = credential?.code ?? this.data.inviteCode;
-    const token = credential?.token ?? this.data.inviteToken;
-    const qrCredential = credential?.qrCredential ?? this.data.inviteQrCredential;
-    if (!code && !token && !qrCredential) {
-      this.setData({ inviteMessage: "请先输入邀请码", inviteValid: false });
-      return false;
+  async onGetPhoneNumber(this: ParentAuthPage, event: PhoneEvent) {
+    if (!this.data.phoneVerificationEnabled) return;
+    if (!event.detail.code) {
+      this.setData({ phoneMessage: "未获取手机号，可手动填写手机号或微信号" });
+      return;
     }
-
-    this.setData({ isVerifying: true, inviteMessage: "" });
+    this.setData({ isVerifyingPhone: true, phoneMessage: "" });
     try {
-      const result = await verifyParentInvite({ code, token, qrCredential });
+      await loginWithWechat();
+      const result = await verifyParentPhone(event.detail.code);
       this.setData({
-        inviteValid: result.valid,
-        inviteMessage: result.valid
-          ? "邀请有效，可以提交申请"
-          : `邀请不可用：${result.reason || "invalid"}`,
+        verifiedPhone: result.phone,
+        phoneVerificationToken: result.verificationToken,
+        contactPhone: "",
+        phoneMessage: "手机号由微信获取，仅用于联系及核实申请",
       });
-      return result.valid;
     } catch (error) {
-      this.setData({ inviteMessage: getErrorMessage(error), inviteValid: false });
-      return false;
+      this.setData({ phoneMessage: `${getErrorMessage(error)}，可手动填写联系方式` });
     } finally {
-      this.setData({ isVerifying: false });
+      this.setData({ isVerifyingPhone: false });
     }
   },
 
-  async onVerifyCode(this: ParentAuthPage) {
-    await this.verifyInvite();
+  useManualContact(this: ParentAuthPage) {
+    this.setData({ verifiedPhone: "", phoneVerificationToken: "", phoneMessage: "" });
   },
 
   async onSearchCats(this: ParentAuthPage) {
     this.setData({ isSearchingCats: true });
     try {
       await loginWithWechat();
-      const cats = await searchCats(this.data.catQuery, getCredentialFromData(this.data));
+      const cats = await searchCats(this.data.catQuery);
       this.setData({ cats });
     } catch (error) {
       showToast(getErrorMessage(error));
@@ -198,10 +181,11 @@ Page({
     this.setData({ catMode: "new" });
   },
 
-  async onSubmit(this: ParentAuthPage) {
-    const inviteValid = this.data.inviteValid || (await this.verifyInvite());
-    if (!inviteValid) return;
+  useUnlistedCat(this: ParentAuthPage) {
+    this.setData({ catMode: "unlisted" });
+  },
 
+  async onSubmit(this: ParentAuthPage) {
     const payload = toSubmitPayload(this.data);
     if (!payload) return;
 
@@ -222,12 +206,11 @@ Page({
     }
   },
 
-  onInviteCodeInput(this: ParentAuthPage, event: InputEvent) {
+  onContactPhoneInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({
-      inviteCode: event.detail.value,
-      inviteQrCredential: "",
-      inviteToken: "",
-      inviteValid: false,
+      contactPhone: event.detail.value,
+      verifiedPhone: "",
+      phoneVerificationToken: "",
     });
   },
   onDisplayNameInput(this: ParentAuthPage, event: InputEvent) {
@@ -251,6 +234,9 @@ Page({
   onNewCatNameInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ newCatName: event.detail.value });
   },
+  onUnlistedCatIdentificationInput(this: ParentAuthPage, event: InputEvent) {
+    this.setData({ unlistedCatIdentification: event.detail.value });
+  },
   setNewCatGender(this: ParentAuthPage, event: TapEvent) {
     const gender = event.currentTarget.dataset.gender || "";
     this.setData({ newCatGender: gender });
@@ -269,38 +255,27 @@ Page({
   },
 });
 
-function getCredentialFromOptions(options: ParentAuthLoadOptions) {
-  if (options.token)
-    return { code: "", token: decodeURIComponent(options.token), qrCredential: "" };
-  if (options.code) return { code: decodeURIComponent(options.code), token: "", qrCredential: "" };
-  if (options.qrCredential) {
-    return { code: "", token: "", qrCredential: decodeURIComponent(options.qrCredential) };
-  }
-
-  const scene = options.scene ? decodeURIComponent(options.scene) : "";
-  if (scene.startsWith("token=")) {
-    return { code: "", token: scene.slice("token=".length), qrCredential: "" };
-  }
-  if (scene.startsWith("code=")) {
-    return { code: scene.slice("code=".length), token: "", qrCredential: "" };
-  }
-  if (scene.startsWith("i=")) return { code: "", token: "", qrCredential: scene.slice(2) };
-  return { code: "", token: "", qrCredential: scene };
-}
-
 function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest | null {
   if (!data.displayName.trim()) {
     showToast("请填写展示昵称");
+    return null;
+  }
+  if (!data.phoneVerificationToken && !data.contactPhone.trim() && !data.contactWechat.trim()) {
+    showToast("请填写手机号或微信号，或授权微信手机号");
+    return null;
+  }
+  if (data.contactPhone.trim() && !/^\+?[0-9 -]{7,20}$/.test(data.contactPhone.trim())) {
+    showToast("请检查手机号格式");
     return null;
   }
 
   const payload: SubmitParentApplicationRequest = {
     displayName: data.displayName.trim(),
     realName: emptyToNull(data.realName),
-    contactPhone: null,
+    contactPhone: data.phoneVerificationToken ? null : emptyToNull(data.contactPhone),
+    phoneVerificationToken: data.phoneVerificationToken || undefined,
     contactWechat: emptyToNull(data.contactWechat),
     city: emptyToNull(data.city),
-    ...getCredentialFromData(data),
   };
 
   if (data.catMode === "existing") {
@@ -322,6 +297,20 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
     showToast("请填写猫咪名字");
     return null;
   }
+  if (data.catMode === "unlisted") {
+    if (!data.unlistedCatIdentification.trim()) {
+      showToast("请填写识别说明供主理人核对");
+      return null;
+    }
+    payload.unlistedCatClaims = [
+      {
+        name: data.newCatName.trim(),
+        identification: data.unlistedCatIdentification.trim(),
+        relationship: "owner",
+      },
+    ];
+    return payload;
+  }
   payload.newCats = [
     {
       name: data.newCatName.trim(),
@@ -334,12 +323,6 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
     },
   ];
   return payload;
-}
-
-function getCredentialFromData(data: ParentAuthData): InviteCredential {
-  if (data.inviteQrCredential) return { qrCredential: data.inviteQrCredential };
-  if (data.inviteToken) return { token: data.inviteToken };
-  return { code: data.inviteCode };
 }
 
 function emptyToNull(value: string) {
@@ -367,5 +350,14 @@ function showToast(title: string) {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "操作失败";
+  if (error instanceof Error) return error.message;
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return "操作失败";
 }

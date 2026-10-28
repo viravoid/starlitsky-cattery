@@ -48,6 +48,7 @@ export const config = {
   wechat: {
     appId: process.env.WECHAT_APP_ID || "",
     appSecret: process.env.WECHAT_APP_SECRET || "",
+    phoneVerificationEnabled: process.env.WECHAT_PHONE_VERIFICATION_ENABLED === "true",
     mockLoginEnabled:
       !isProduction && parseBoolean(process.env.WECHAT_MOCK_LOGIN_ENABLED || "true"),
     mockQrEnabled: !isProduction && parseBoolean(process.env.WECHAT_MOCK_QR_ENABLED || "true"),

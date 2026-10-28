@@ -2,18 +2,25 @@ import type {
   ParentClaimCatCandidateListData,
   ParentApplicationData,
   SubmitParentApplicationRequest,
-  VerifyParentInviteData,
+  ParentPhoneVerificationData,
 } from "@starlitsky/shared";
 import { get, post } from "../request/index";
 
-export async function verifyParentInvite(params: {
-  code?: string;
-  token?: string;
-  qrCredential?: string;
-}) {
-  const response = await get<VerifyParentInviteData>(`/parent-invites/verify${toSearch(params)}`);
+export async function verifyParentPhone(code: string) {
+  const response = await post<ParentPhoneVerificationData, { code: string }>(
+    "/parent-applications/phone-verifications",
+    { code },
+  );
   if (!response.success) throw new Error(response.message);
   return response.data;
+}
+
+export async function getParentPhoneVerificationCapability() {
+  const response = await get<{ enabled: boolean }>(
+    "/parent-applications/phone-verification-capability",
+  );
+  if (!response.success) throw new Error(response.message);
+  return response.data.enabled;
 }
 
 export async function submitParentApplication(data: SubmitParentApplicationRequest) {
@@ -31,15 +38,11 @@ export async function getMyParentApplication() {
   return response.data;
 }
 
-export async function searchCats(
-  query: string,
-  credential: { code?: string; token?: string; qrCredential?: string },
-) {
+export async function searchCats(query: string) {
   const response = await get<ParentClaimCatCandidateListData>(
     `/parent-applications/cat-candidates${toSearch({
       pageSize: "20",
       q: query.trim(),
-      ...credential,
     })}`,
   );
   if (!response.success) throw new Error(response.message);

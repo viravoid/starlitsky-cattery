@@ -1,243 +1,30 @@
-import type {
-  CreatedParentInviteData,
-  ParentApplicationData,
-  ParentInviteData,
-} from "@starlitsky/shared";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import type { ParentApplicationData, ReviewParentApplicationRequest } from "@starlitsky/shared";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   approveParentApplication,
-  createParentInvite,
   listParentApplications,
-  listParentInvites,
   rejectParentApplication,
-  revokeParentInvite,
+  searchAdminParentCatCandidates,
+  type AdminParentCatCandidate,
 } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
-
-interface InviteFormState {
-  expiresAt: string;
-  maxUses: string;
-  note: string;
-}
-
-const DEFAULT_INVITE_FORM: InviteFormState = {
-  expiresAt: "",
-  maxUses: "1",
-  note: "",
-};
-
-export function ParentInvitesPanel() {
-  const [form, setForm] = useState<InviteFormState>(DEFAULT_INVITE_FORM);
-  const [invites, setInvites] = useState<ParentInviteData[]>([]);
-  const [createdInvite, setCreatedInvite] = useState<CreatedParentInviteData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
-
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError("");
-    try {
-      const data = await listParentInvites({ pageSize: 100 });
-      setInvites(data.items);
-    } catch (loadError) {
-      setError(getErrorMessage(loadError));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsSaving(true);
-    setNotice("");
-    setError("");
-    try {
-      const invite = await createParentInvite({
-        expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
-        maxUses: Number(form.maxUses || 1),
-        note: emptyToNull(form.note),
-      });
-      setCreatedInvite(invite);
-      setForm(DEFAULT_INVITE_FORM);
-      setNotice(
-        invite.qr.status === "ready"
-          ? "邀请已创建，小程序码已生成。"
-          : "邀请已创建；当前显示的是开发占位图或二维码暂不可用。",
-      );
-      await loadData();
-    } catch (saveError) {
-      setError(getErrorMessage(saveError));
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleRevoke(invite: ParentInviteData) {
-    setIsSaving(true);
-    setNotice("");
-    setError("");
-    try {
-      await revokeParentInvite(invite.id, { adminNote: invite.note });
-      setNotice("邀请已失效");
-      await loadData();
-    } catch (saveError) {
-      setError(getErrorMessage(saveError));
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return (
-    <div className="workspace">
-      <div className="toolbar">
-        <div>
-          <p className="eyebrow">Parent Invites</p>
-          <h2>家长邀请管理</h2>
-          <p className="muted compact">二维码 token 与短邀请码共用同一邀请记录。</p>
-        </div>
-        <button className="secondary-button" type="button" onClick={loadData}>
-          刷新
-        </button>
-      </div>
-
-      {notice ? <div className="notice">{notice}</div> : null}
-      {error ? <div className="error-banner">{error}</div> : null}
-
-      {createdInvite ? (
-        <div className="detail-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Created Invite</p>
-              <h3>本次创建的邀请凭证</h3>
-            </div>
-          </div>
-          <DescriptionList
-            items={[
-              ["短邀请码", createdInvite.shortCode],
-              ["小程序码页面", createdInvite.qr.page],
-              ["小程序码 scene", createdInvite.qr.scene],
-              ["小程序码状态", formatQrStatus(createdInvite.qr.status)],
-              ["一次性 token", createdInvite.token],
-            ]}
-          />
-          <div className="qr-preview">
-            {createdInvite.qr.imageDataUrl ? (
-              <>
-                <img src={createdInvite.qr.imageDataUrl} alt="家长邀请小程序码" />
-                <a
-                  className="secondary-button"
-                  download={`parent-invite-${createdInvite.shortCode}.png`}
-                  href={createdInvite.qr.imageDataUrl}
-                >
-                  保存图片
-                </a>
-              </>
-            ) : (
-              <div className="empty-state">二维码暂不可用</div>
-            )}
-            <p className="muted compact">{createdInvite.qr.message}</p>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="management-grid">
-        <section className="table-panel">
-          <div className="section-heading">
-            <h3>邀请记录</h3>
-            <span className="muted">{isLoading ? "加载中..." : `${invites.length} 条`}</span>
-          </div>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>短码</th>
-                  <th>状态</th>
-                  <th>使用</th>
-                  <th>过期</th>
-                  <th>创建时间</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invites.map((invite) => (
-                  <tr key={invite.id}>
-                    <td className="truncate-cell">{invite.shortCode}</td>
-                    <td>{formatInviteStatus(invite)}</td>
-                    <td>
-                      {invite.usedCount}/{invite.maxUses}
-                    </td>
-                    <td>{formatDateTime(invite.expiresAt)}</td>
-                    <td>{formatDateTime(invite.createdAt)}</td>
-                    <td>
-                      <button
-                        className="danger-button small-button"
-                        disabled={isSaving || invite.status === "revoked"}
-                        type="button"
-                        onClick={() => handleRevoke(invite)}
-                      >
-                        失效
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <aside className="detail-panel">
-          <form className="form-stack" onSubmit={handleSubmit}>
-            <div>
-              <p className="eyebrow">New Invite</p>
-              <h3>生成邀请</h3>
-            </div>
-            <label>
-              使用次数
-              <input
-                min={1}
-                max={100}
-                required
-                type="number"
-                value={form.maxUses}
-                onChange={(event) => setForm({ ...form, maxUses: event.target.value })}
-              />
-            </label>
-            <label>
-              过期时间
-              <input
-                type="datetime-local"
-                value={form.expiresAt}
-                onChange={(event) => setForm({ ...form, expiresAt: event.target.value })}
-              />
-            </label>
-            <label>
-              备注
-              <textarea
-                rows={4}
-                value={form.note}
-                onChange={(event) => setForm({ ...form, note: event.target.value })}
-              />
-            </label>
-            <button disabled={isSaving} type="submit">
-              {isSaving ? "生成中..." : "生成邀请"}
-            </button>
-          </form>
-        </aside>
-      </div>
-    </div>
-  );
-}
 
 export function ParentApplicationsPanel() {
   const [applications, setApplications] = useState<ParentApplicationData[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [adminNote, setAdminNote] = useState("");
+  const [unlistedSelections, setUnlistedSelections] = useState<
+    Record<number, AdminParentCatCandidate>
+  >({});
+  const [unlistedConfirmed, setUnlistedConfirmed] = useState<Record<number, boolean>>({});
+  const [newCatConfirmed, setNewCatConfirmed] = useState<Record<number, boolean>>({});
+  const [newCatActions, setNewCatActions] = useState<Record<number, "create" | "link_existing">>(
+    {},
+  );
+  const [newCatSelections, setNewCatSelections] = useState<Record<number, AdminParentCatCandidate>>(
+    {},
+  );
+  const [newCatLinkConfirmed, setNewCatLinkConfirmed] = useState<Record<number, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -273,6 +60,12 @@ export function ParentApplicationsPanel() {
 
   useEffect(() => {
     setAdminNote(selectedApplication?.adminNote ?? "");
+    setUnlistedSelections({});
+    setUnlistedConfirmed({});
+    setNewCatConfirmed({});
+    setNewCatActions({});
+    setNewCatSelections({});
+    setNewCatLinkConfirmed({});
   }, [selectedApplication?.id, selectedApplication?.adminNote]);
 
   async function review(action: "approve" | "reject") {
@@ -281,7 +74,42 @@ export function ParentApplicationsPanel() {
     setNotice("");
     setError("");
     try {
-      const payload = { adminNote: emptyToNull(adminNote) };
+      const payload: ReviewParentApplicationRequest = { adminNote: emptyToNull(adminNote) };
+      if (action === "approve") {
+        if (
+          selectedApplication.unlistedCatClaims.some(
+            (_, index) => !unlistedSelections[index] || !unlistedConfirmed[index],
+          ) ||
+          selectedApplication.newCats.some((_, index) =>
+            newCatActions[index] === "create"
+              ? !newCatConfirmed[index]
+              : newCatActions[index] === "link_existing"
+                ? !newCatSelections[index] || !newCatLinkConfirmed[index]
+                : true,
+          )
+        ) {
+          throw new Error("请逐条确认未公开猫咪的关联目标与真正新猫的创建");
+        }
+        payload.unlistedCatResolutions = selectedApplication.unlistedCatClaims.map(
+          (claim, index) => ({
+            index,
+            catId: unlistedSelections[index].id,
+            confirmedCatName: unlistedSelections[index].name,
+            confirmedClaimName: claim.name,
+          }),
+        );
+        payload.newCatConfirmations = selectedApplication.newCats.map((cat, index) =>
+          newCatActions[index] === "link_existing"
+            ? {
+                index,
+                action: "link_existing" as const,
+                confirmedName: cat.name,
+                catId: newCatSelections[index].id,
+                confirmedCatName: newCatSelections[index].name,
+              }
+            : { index, action: "create" as const, confirmedName: cat.name },
+        );
+      }
       await (action === "approve"
         ? approveParentApplication(selectedApplication.id, payload)
         : rejectParentApplication(selectedApplication.id, payload));
@@ -324,8 +152,8 @@ export function ParentApplicationsPanel() {
                 <tr>
                   <th>申请人</th>
                   <th>状态</th>
-                  <th>邀请码</th>
                   <th>猫咪</th>
+                  <th>电话来源</th>
                   <th>提交时间</th>
                 </tr>
               </thead>
@@ -338,10 +166,12 @@ export function ParentApplicationsPanel() {
                   >
                     <td>{application.displayName}</td>
                     <td>{formatApplicationStatus(application.status)}</td>
-                    <td>{application.invite?.shortCode ?? "-"}</td>
                     <td>
-                      现有 {application.existingCatClaims.length} / 新猫{" "}
-                      {application.newCats.length}
+                      公开 {application.existingCatClaims.length} / 未公开{" "}
+                      {application.unlistedCatClaims.length} / 新猫 {application.newCats.length}
+                    </td>
+                    <td>
+                      {formatPhoneSource(application.contactPhoneSource, application.contactPhone)}
                     </td>
                     <td>{formatDateTime(application.createdAt)}</td>
                   </tr>
@@ -365,12 +195,22 @@ export function ParentApplicationsPanel() {
                 items={[
                   ["用户", selectedApplication.user?.nickname ?? selectedApplication.userId],
                   ["真实姓名", selectedApplication.realName ?? "-"],
-                  ["手机号", selectedApplication.contactPhone ?? "-"],
+                  ["联系电话", selectedApplication.contactPhone ?? "-"],
+                  [
+                    "电话来源",
+                    formatPhoneSource(
+                      selectedApplication.contactPhoneSource,
+                      selectedApplication.contactPhone,
+                    ),
+                  ],
+                  ["微信获取时间", formatDateTime(selectedApplication.contactPhoneVerifiedAt)],
                   ["微信号", selectedApplication.contactWechat ?? "-"],
                   ["城市", selectedApplication.city ?? "-"],
-                  ["邀请短码", selectedApplication.invite?.shortCode ?? "-"],
+                  ["历史邀请短码", selectedApplication.invite?.shortCode ?? "-"],
                   ["提交时间", formatDateTime(selectedApplication.createdAt)],
                   ["审核时间", formatDateTime(selectedApplication.reviewedAt)],
+                  ["审核人", selectedApplication.reviewedBy?.nickname ?? "-"],
+                  ["审核备注", selectedApplication.adminNote ?? "-"],
                 ]}
               />
 
@@ -383,6 +223,28 @@ export function ParentApplicationsPanel() {
                     }`,
                 )}
               />
+              <div className="inline-form">
+                <h4>认领未公开猫咪 · 需确认档案</h4>
+                {selectedApplication.unlistedCatClaims.length === 0 ? (
+                  <p className="muted compact">无</p>
+                ) : null}
+                {selectedApplication.unlistedCatClaims.map((claim, index) => (
+                  <UnlistedCatResolution
+                    key={`${selectedApplication.id}-${index}`}
+                    name={claim.name}
+                    identification={claim.identification}
+                    selected={unlistedSelections[index]}
+                    confirmed={Boolean(unlistedConfirmed[index])}
+                    onSelect={(cat) => {
+                      setUnlistedSelections((current) => ({ ...current, [index]: cat }));
+                      setUnlistedConfirmed((current) => ({ ...current, [index]: false }));
+                    }}
+                    onConfirm={(checked) =>
+                      setUnlistedConfirmed((current) => ({ ...current, [index]: checked }))
+                    }
+                  />
+                ))}
+              </div>
               <MiniList
                 title="自行填写的新猫"
                 items={selectedApplication.newCats.map(
@@ -392,6 +254,65 @@ export function ParentApplicationsPanel() {
                     }`,
                 )}
               />
+              {selectedApplication.newCats.map((cat, index) => (
+                <div className="inline-form" key={`new-${index}`}>
+                  <p>
+                    <strong>{cat.name}</strong> · 请核查现有档案后决定
+                  </p>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`new-cat-${index}`}
+                      checked={newCatActions[index] === "link_existing"}
+                      onChange={() =>
+                        setNewCatActions((current) => ({ ...current, [index]: "link_existing" }))
+                      }
+                    />
+                    关联已有档案
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`new-cat-${index}`}
+                      checked={newCatActions[index] === "create"}
+                      onChange={() =>
+                        setNewCatActions((current) => ({ ...current, [index]: "create" }))
+                      }
+                    />
+                    确认尚无档案并新建
+                  </label>
+                  {newCatActions[index] === "link_existing" ? (
+                    <UnlistedCatResolution
+                      name={cat.name}
+                      identification={cat.note ?? cat.personality ?? "历史申请，请核对完整资料"}
+                      selected={newCatSelections[index]}
+                      confirmed={Boolean(newCatLinkConfirmed[index])}
+                      onSelect={(selected) => {
+                        setNewCatSelections((current) => ({ ...current, [index]: selected }));
+                        setNewCatLinkConfirmed((current) => ({ ...current, [index]: false }));
+                      }}
+                      onConfirm={(checked) =>
+                        setNewCatLinkConfirmed((current) => ({ ...current, [index]: checked }))
+                      }
+                    />
+                  ) : null}
+                  {newCatActions[index] === "create" ? (
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(newCatConfirmed[index])}
+                        onChange={(event) =>
+                          setNewCatConfirmed((current) => ({
+                            ...current,
+                            [index]: event.target.checked,
+                          }))
+                        }
+                      />
+                      已核查现有档案，确认“{cat.name}”确实尚无档案并新建
+                    </label>
+                  ) : null}
+                </div>
+              ))}
 
               <label>
                 管理员备注
@@ -458,9 +379,81 @@ function MiniList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function formatInviteStatus(invite: ParentInviteData) {
-  if (!invite.isUsable && invite.invalidReason) return `${invite.status} (${invite.invalidReason})`;
-  return invite.status;
+function UnlistedCatResolution({
+  name,
+  identification,
+  selected,
+  confirmed,
+  onSelect,
+  onConfirm,
+}: {
+  name: string;
+  identification: string;
+  selected?: AdminParentCatCandidate;
+  confirmed: boolean;
+  onSelect: (cat: AdminParentCatCandidate) => void;
+  onConfirm: (checked: boolean) => void;
+}) {
+  const [query, setQuery] = useState(name);
+  const [candidates, setCandidates] = useState<AdminParentCatCandidate[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function search() {
+    setLoading(true);
+    setError("");
+    try {
+      setCandidates(await searchAdminParentCatCandidates(query));
+    } catch (searchError) {
+      setError(getErrorMessage(searchError));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="inline-form">
+      <p>
+        <strong>{name}</strong> · 识别说明：{identification}
+      </p>
+      <label>
+        私有档案查询
+        <input value={query} onChange={(event) => setQuery(event.target.value)} />
+      </label>
+      <button
+        className="secondary-button"
+        type="button"
+        disabled={loading || query.trim().length < 2}
+        onClick={() => void search()}
+      >
+        {loading ? "查询中..." : "查询已有档案"}
+      </button>
+      {error ? <p className="error-banner">{error}</p> : null}
+      {candidates.map((cat) => (
+        <button
+          className="secondary-button"
+          key={cat.id}
+          type="button"
+          onClick={() => onSelect(cat)}
+        >
+          {cat.name} · {cat.gender ?? "性别未知"} · {cat.color ?? "颜色未知"} · {cat.visibility} ·{" "}
+          {cat.id}
+        </button>
+      ))}
+      {selected ? (
+        <label>
+          <input
+            type="checkbox"
+            checked={confirmed}
+            onChange={(event) => onConfirm(event.target.checked)}
+          />
+          确认将申请“{name}”关联到“{selected.name}”（{selected.id}）
+        </label>
+      ) : (
+        <p className="muted compact">未确认对应档案，不能通过申请。</p>
+      )}
+    </div>
+  );
 }
 
 function formatApplicationStatus(status: string) {
@@ -470,10 +463,15 @@ function formatApplicationStatus(status: string) {
   return status;
 }
 
-function formatQrStatus(status: string) {
-  if (status === "ready") return "微信小程序码已生成";
-  if (status === "mock") return "开发占位图，不是真实微信小程序码";
-  return "暂不可用";
+function formatPhoneSource(
+  source: ParentApplicationData["contactPhoneSource"],
+  phone: string | null,
+) {
+  if (!phone) return "未提供手机号";
+  if (source === "wechat_verified") return "微信获取的手机号";
+  if (source === "self_provided") return "自行填写的手机号";
+  if (source === "unknown") return "来源未知的历史手机号";
+  return "未提供手机号";
 }
 
 function formatDateTime(value: string | null) {

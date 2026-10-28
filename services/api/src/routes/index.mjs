@@ -92,8 +92,6 @@ export async function routeRequest(request, response, context) {
   if (
     url.pathname === "/parent-profiles" ||
     url.pathname.startsWith("/parent-cat-links/") ||
-    url.pathname === "/parent-invites" ||
-    url.pathname.startsWith("/parent-invites/") ||
     url.pathname === "/parent-applications" ||
     url.pathname.startsWith("/parent-applications/")
   ) {
