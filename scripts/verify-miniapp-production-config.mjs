@@ -113,6 +113,7 @@ assert.ok(
 const legalDomains = extractLegalDomainMatrix(envText);
 assert.deepEqual(legalDomains.request, [
   "api.starlitskycattery.top",
+  "trial-api.starlitskycattery.top",
   expectedCosHost,
   expectedMediaCosHost,
 ]);
