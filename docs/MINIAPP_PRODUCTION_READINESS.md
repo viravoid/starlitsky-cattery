@@ -5,11 +5,11 @@ This repository is configured for the real StarlitSky Mini Program.
 ## Production config
 
 - AppID: `wx6d3a94b9d6eadeaa`
-- trial API base: `https://api.starlitskycattery.top`
+- trial API base: unset until the isolated HTTPS test API is ready; trial upload is blocked
 - release API base: `https://api.starlitskycattery.top`
 - AppSecret: not stored in source. Keep it only in the backend production environment.
 
-`develop` keeps local API behavior at `http://127.0.0.1:4310`. Unknown or blank runtime environments still fail closed in `apps/miniapp/config/env.ts`.
+`develop` uses the isolated local API at `http://127.0.0.1:4312`. The trial build must use a separate HTTPS host and pass `npm run verify:miniapp-trial-ready` before upload. A blank trial address throws instead of falling back to production.
 
 ## WeChat legal-domain checklist
 
@@ -36,6 +36,7 @@ The Admin web domain `https://admin.starlitskycattery.top` is not a miniapp lega
    - `https://api.starlitskycattery.top`
    - `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`
    - `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com`
+   - the isolated trial API HTTPS host, once provisioned
 3. Add the downloadFile legal domain:
    - `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`
    - `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com`
@@ -46,7 +47,7 @@ The Admin web domain `https://admin.starlitskycattery.top` is not a miniapp lega
 
 1. Import `apps/miniapp` as the Mini Program project root.
 2. Confirm Developer Tools shows AppID `wx6d3a94b9d6eadeaa`, not `touristappid`.
-3. Build as trial/release so `wx.getAccountInfoSync().miniProgram.envVersion` resolves to `trial` or `release`.
+3. Confirm `wx.getAccountInfoSync().miniProgram.envVersion` resolves to the intended environment. Do not upload a trial build while `MINIAPP_TRIAL_API_BASE_URL` is blank.
 
 ## Post-console testing
 

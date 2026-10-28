@@ -22,11 +22,19 @@ const miniappTextByPath = new Map(miniappFiles.map((path) => [path, readFileSync
 const combinedMiniappText = [...miniappTextByPath.values()].join("\n");
 
 const apiBaseUrls = extractApiBaseUrls(envText);
-assert.equal(apiBaseUrls.develop, expectedApiBaseUrl);
-assert.equal(apiBaseUrls.trial, expectedApiBaseUrl);
+assert.equal(apiBaseUrls.develop, "http://127.0.0.1:4312");
+if (apiBaseUrls.trial) {
+  const trial = new URL(apiBaseUrls.trial);
+  assert.equal(trial.protocol, "https:", "Trial API must use HTTPS.");
+  assert.notEqual(trial.hostname, "api.starlitskycattery.top", "Trial API must be isolated.");
+  assert.ok(
+    envText.includes(`"${trial.hostname}"`),
+    "Trial host must be included in the legal-domain matrix.",
+  );
+}
 assert.equal(apiBaseUrls.release, expectedApiBaseUrl);
 
-for (const envVersion of ["develop", "trial", "release"]) {
+for (const envVersion of ["release"]) {
   const url = new URL(apiBaseUrls[envVersion]);
   assert.equal(url.protocol, "https:", `${envVersion} API base must use HTTPS.`);
   assert.notEqual(url.hostname, "localhost", `${envVersion} API base must not use localhost.`);
@@ -132,6 +140,11 @@ function resolveEnvValue(valueExpression, text) {
   if (trimmed === "MINIAPP_PRODUCTION_API_BASE_URL") {
     const match = text.match(/MINIAPP_PRODUCTION_API_BASE_URL\s*=\s*"([^"]+)"/);
     assert.ok(match, "MINIAPP_PRODUCTION_API_BASE_URL must be a literal.");
+    return match[1];
+  }
+  if (trimmed === "MINIAPP_DEVELOP_API_BASE_URL" || trimmed === "MINIAPP_TRIAL_API_BASE_URL") {
+    const match = text.match(new RegExp(`${trimmed}\\s*=\\s*"([^"]*)"`));
+    assert.ok(match, `${trimmed} must be a literal.`);
     return match[1];
   }
   throw new Error(`Unsupported API base expression: ${trimmed}`);

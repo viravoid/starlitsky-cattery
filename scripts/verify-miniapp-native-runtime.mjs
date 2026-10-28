@@ -91,15 +91,15 @@ function verifyProductionEnvGuards() {
   if (!productionBaseUrlMatch || productionBaseUrlMatch[1].trim() === "") {
     failures.push("MINIAPP_PRODUCTION_API_BASE_URL must be a non-blank literal.");
   }
-  for (const envVersion of ["trial", "release"]) {
+  for (const envVersion of ["release"]) {
     const match = envText.match(new RegExp(`${envVersion}:\\s*([^,\\n]+)`));
     if (!match || match[1].trim() === '""') {
       failures.push(`Miniapp ${envVersion} API base URL must not be blank.`);
     }
   }
   const developMatch = envText.match(/develop:\s*([^,\n]+)/);
-  if (!developMatch || /127\.0\.0\.1|localhost/.test(developMatch[1])) {
-    failures.push("Miniapp develop API base URL must default to the production HTTPS API.");
+  if (!developMatch || developMatch[1].trim() !== "MINIAPP_DEVELOP_API_BASE_URL") {
+    failures.push("Miniapp develop API base URL must use the isolated local API.");
   }
   if (/http:\/\/127\.0\.0\.1:4310|localhost/.test(miniappText)) {
     failures.push("apps/miniapp must not contain loopback API defaults.");
