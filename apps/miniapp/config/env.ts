@@ -2,8 +2,7 @@ type MiniProgramEnvVersion = "develop" | "trial" | "release";
 
 export const MINIAPP_PRODUCTION_API_BASE_URL = "https://api.starlitskycattery.top";
 export const MINIAPP_DEVELOP_API_BASE_URL = "http://127.0.0.1:4312";
-// Set only after the isolated HTTPS API and WeChat request domain are ready.
-export const MINIAPP_TRIAL_API_BASE_URL = "";
+export const MINIAPP_TRIAL_API_BASE_URL = "https://trial-api.starlitskycattery.top";
 export const MINIAPP_PRODUCTION_API_HOST = "api.starlitskycattery.top";
 export const MINIAPP_PRODUCTION_COS_HOST =
   "starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com";
@@ -11,7 +10,12 @@ export const MINIAPP_MEDIA_COS_HOST =
   "starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com";
 
 export const MINIAPP_WECHAT_LEGAL_DOMAINS = {
-  request: [MINIAPP_PRODUCTION_API_HOST, MINIAPP_PRODUCTION_COS_HOST, MINIAPP_MEDIA_COS_HOST],
+  request: [
+    MINIAPP_PRODUCTION_API_HOST,
+    "trial-api.starlitskycattery.top",
+    MINIAPP_PRODUCTION_COS_HOST,
+    MINIAPP_MEDIA_COS_HOST,
+  ],
   uploadFile: [],
   downloadFile: [MINIAPP_PRODUCTION_COS_HOST, MINIAPP_MEDIA_COS_HOST],
   socket: [],
