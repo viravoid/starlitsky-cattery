@@ -1,9 +1,11 @@
+import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
 import { validateParentCatLinkRelationship } from "./parent-cat-link-validation.mjs";
 import { consumeParentPhoneVerification } from "./parent-phone-verification-service.mjs";
 import { limitParentRequest } from "./parent-request-limit.mjs";
+import { createMiniProgramCode } from "./wechat-mini-program-code-service.mjs";
 
 const INVITE_STATUS_ACTIVE = "active";
 const INVITE_STATUS_REVOKED = "revoked";
@@ -11,6 +13,8 @@ const INVITE_STATUS_USED = "used";
 const APPLICATION_STATUS_PENDING = "pending";
 const APPLICATION_STATUS_APPROVED = "approved";
 const APPLICATION_STATUS_REJECTED = "rejected";
+const SHORT_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const INVITE_FIELDS = ["inviteCode", "inviteToken", "qrCredential"];
 
 const SUBMIT_APPLICATION_FIELDS = [
   "phoneVerificationToken",
@@ -22,8 +26,95 @@ const SUBMIT_APPLICATION_FIELDS = [
   "existingCatClaims",
   "unlistedCatClaims",
   "newCats",
+  ...INVITE_FIELDS,
 ];
 const REVIEW_APPLICATION_FIELDS = ["adminNote", "unlistedCatResolutions", "newCatConfirmations"];
+
+// Temporary compatibility for clients released before direct parent applications.
+export async function verifyParentInvite(input) {
+  assertPlainObject(input);
+  assertNoUnknownFields(input, ["code", "token", "qrCredential", "scene"]);
+  const invite = await findInviteByCredential(input);
+  if (!invite) return { valid: false, reason: "not_found", invite: null };
+  const reason = getInviteInvalidReason(invite, new Date());
+  return { valid: !reason, reason, invite: toParentInvitePublicDto(invite) };
+}
+
+export async function listParentInvites(searchParams) {
+  const { page, pageSize, skip, take } = parsePagination(searchParams);
+  const status = searchParams.get("status");
+  const query = searchParams.get("q");
+  const where = {};
+  if (status) where.status = status;
+  if (query)
+    where.OR = [
+      { short_code: { contains: normalizeShortCode(query) } },
+      { note: { contains: query } },
+    ];
+  const [items, total] = await prisma.$transaction([
+    prisma.parentInvite.findMany({
+      where,
+      include: inviteInclude,
+      orderBy: [{ created_at: "desc" }, { id: "asc" }],
+      skip,
+      take,
+    }),
+    prisma.parentInvite.count({ where }),
+  ]);
+  return {
+    items: items.map(toParentInviteDto),
+    pagination: buildPaginationMeta({ page, pageSize, total }),
+  };
+}
+
+export async function createParentInvite(input, adminUser, config = {}) {
+  assertPlainObject(input);
+  assertNoUnknownFields(input, ["expiresAt", "maxUses", "note"]);
+  const token = randomBytes(32).toString("base64url");
+  const qrCredential = randomBytes(16).toString("base64url");
+  const invite = await prisma.parentInvite.create({
+    data: {
+      token_hash: hashInviteToken(token),
+      qr_scene_hash: hashInviteQrCredential(qrCredential),
+      short_code: await generateUniqueShortCode(),
+      max_uses: optionalPositiveInteger(input.maxUses, "maxUses") ?? 1,
+      expires_at: parseNullableDate(input.expiresAt, "expiresAt"),
+      note: nullableString(input.note, "note"),
+      created_by: adminUser.id,
+    },
+    include: inviteInclude,
+  });
+  return {
+    ...toParentInviteDto(invite),
+    token,
+    qr: await createMiniProgramCode({
+      scene: `i=${qrCredential}`,
+      page: "pages/parent-auth/index",
+      config,
+    }),
+  };
+}
+
+export async function revokeParentInvite(inviteId, input, adminUser) {
+  assertPlainObject(input);
+  assertNoUnknownFields(input, ["adminNote"]);
+  const existing = await prisma.parentInvite.findUnique({
+    where: { id: inviteId },
+    select: { id: true },
+  });
+  if (!existing) throw notFound("Parent invite not found");
+  const invite = await prisma.parentInvite.update({
+    where: { id: inviteId },
+    data: {
+      status: INVITE_STATUS_REVOKED,
+      note: nullableString(input.adminNote, "adminNote"),
+      revoked_by: adminUser.id,
+      revoked_at: new Date(),
+    },
+    include: inviteInclude,
+  });
+  return toParentInviteDto(invite);
+}
 
 export async function submitParentApplication(input, user) {
   limitParentRequest("submit", user.id, { max: 10, windowMs: 60 * 60 * 1000 });
@@ -31,7 +122,13 @@ export async function submitParentApplication(input, user) {
   assertNoUnknownFields(input, SUBMIT_APPLICATION_FIELDS);
 
   const profile = normalizeProfileInput(input);
-  if (!profile.contactPhone && !profile.contactWechat && !input.phoneVerificationToken) {
+  const hasInviteCredential = INVITE_FIELDS.some((field) => input[field] !== undefined);
+  if (
+    !hasInviteCredential &&
+    !profile.contactPhone &&
+    !profile.contactWechat &&
+    !input.phoneVerificationToken
+  ) {
     throw badRequest("Please provide a phone number or WeChat contact");
   }
   if (profile.contactPhone && input.phoneVerificationToken) {
@@ -45,6 +142,12 @@ export async function submitParentApplication(input, user) {
   }
 
   const application = await prisma.$transaction(async (transaction) => {
+    const invite = hasInviteCredential ? await findInviteByCredential(input, transaction) : null;
+    if (hasInviteCredential && !invite) throw badRequest("Invite is invalid");
+    if (invite) {
+      const invalidReason = getInviteInvalidReason(invite, new Date());
+      if (invalidReason) throw badRequest(`Invite is ${invalidReason}`);
+    }
     const activeParent = await transaction.parentProfile.findUnique({
       where: { user_id: user.id },
       select: { status: true },
@@ -64,11 +167,13 @@ export async function submitParentApplication(input, user) {
     const verifiedPhone = input.phoneVerificationToken
       ? await consumeParentPhoneVerification(transaction, user.id, input.phoneVerificationToken)
       : null;
+    if (invite) await consumeInviteUse(invite, transaction);
 
     try {
       return await transaction.parentApplication.create({
         data: {
           user_id: user.id,
+          invite_id: invite?.id ?? null,
           pending_dedup_key: user.id,
           display_name: profile.displayName,
           real_name: profile.realName,
@@ -100,9 +205,21 @@ export async function submitParentApplication(input, user) {
 
 export async function searchParentClaimCatCandidates(searchParams, user) {
   limitParentRequest("search", user.id, { max: 30, windowMs: 60 * 1000 });
+  const credential = Object.fromEntries(
+    ["code", "token", "qrCredential", "scene"]
+      .map((key) => [key, searchParams.get(key)])
+      .filter(([, value]) => value !== null),
+  );
+  const legacySearch = Object.keys(credential).length > 0;
+  if (legacySearch) {
+    const invite = await findInviteByCredential(credential);
+    if (!invite) throw badRequest("Invite is invalid");
+    const reason = getInviteInvalidReason(invite, new Date());
+    if (reason) throw badRequest(`Invite is ${reason}`);
+  }
   const { page, pageSize, skip, take } = parsePagination(searchParams);
   const query = searchParams.get("q")?.trim();
-  if (!query || query.length < 2 || page > 5 || pageSize > 20) {
+  if ((!legacySearch && (!query || query.length < 2)) || page > 5 || pageSize > 20) {
     throw badRequest(
       "Search requires at least two characters and is limited to five pages of 20 cats",
     );
@@ -110,7 +227,7 @@ export async function searchParentClaimCatCandidates(searchParams, user) {
   const where = {
     deleted_at: null,
     visibility: "visible",
-    name: { contains: query },
+    ...(query ? { name: { contains: query } } : {}),
   };
 
   const [items, total] = await prisma.$transaction([
@@ -553,6 +670,90 @@ function getInviteInvalidReason(invite, now) {
   return null;
 }
 
+async function findInviteByCredential(input, client = prisma) {
+  if (typeof input.qrCredential === "string" || typeof input.scene === "string") {
+    const scene = typeof input.qrCredential === "string" ? input.qrCredential : input.scene;
+    const credential = scene.trim().replace(/^(i=|qrCredential=)/, "");
+    if (!credential) throw badRequest("QR credential is required");
+    return client.parentInvite.findUnique({
+      where: { qr_scene_hash: hashInviteQrCredential(credential) },
+      include: inviteInclude,
+    });
+  }
+  if (typeof input.inviteToken === "string" || typeof input.token === "string") {
+    const token = (input.inviteToken ?? input.token).trim();
+    if (!token) throw badRequest("Invite token is required");
+    return client.parentInvite.findUnique({
+      where: { token_hash: hashInviteToken(token) },
+      include: inviteInclude,
+    });
+  }
+  if (typeof input.inviteCode === "string" || typeof input.code === "string") {
+    const shortCode = normalizeShortCode(input.inviteCode ?? input.code);
+    if (!shortCode) throw badRequest("Invite code is required");
+    return client.parentInvite.findUnique({
+      where: { short_code: shortCode },
+      include: inviteInclude,
+    });
+  }
+  throw badRequest("Invite code or token is required");
+}
+
+async function consumeInviteUse(invite, transaction) {
+  const result = await transaction.parentInvite.updateMany({
+    where: {
+      id: invite.id,
+      status: INVITE_STATUS_ACTIVE,
+      used_count: { lt: invite.max_uses },
+      OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+    },
+    data: { used_count: { increment: 1 } },
+  });
+  if (result.count !== 1) throw badRequest("Invite is used or expired");
+  const consumed = await transaction.parentInvite.findUnique({
+    where: { id: invite.id },
+    select: { used_count: true, max_uses: true },
+  });
+  if (consumed && consumed.used_count >= consumed.max_uses) {
+    await transaction.parentInvite.update({
+      where: { id: invite.id },
+      data: { status: INVITE_STATUS_USED },
+    });
+  }
+}
+
+async function generateUniqueShortCode() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const code = Array.from(
+      { length: 8 },
+      () => SHORT_CODE_ALPHABET[randomBytes(1)[0] % SHORT_CODE_ALPHABET.length],
+    ).join("");
+    const existing = await prisma.parentInvite.findUnique({
+      where: { short_code: code },
+      select: { id: true },
+    });
+    if (!existing) return code;
+  }
+  throw badRequest("Could not generate a unique invite code");
+}
+
+function hashInviteToken(token) {
+  return createHash("sha256").update(`parent-invite:${token}`).digest("hex");
+}
+function hashInviteQrCredential(credential) {
+  return createHash("sha256").update(`parent-invite-qr:${credential}`).digest("hex");
+}
+function normalizeShortCode(value) {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, "").toUpperCase() : "";
+}
+function optionalPositiveInteger(value, fieldName) {
+  if (value == null || value === "") return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 100)
+    throw badRequest(`${fieldName} must be an integer from 1 to 100`);
+  return parsed;
+}
+
 async function ensureClaimedCatsExist(claims, transaction) {
   if (claims.length === 0) return;
 
@@ -722,6 +923,18 @@ function toParentInvitePublicDto(invite) {
   };
 }
 
+function toParentInviteDto(invite) {
+  return {
+    ...toParentInvitePublicDto(invite),
+    note: invite.note,
+    revokedAt: toIsoString(invite.revoked_at),
+    createdAt: toIsoString(invite.created_at),
+    updatedAt: toIsoString(invite.updated_at),
+    createdBy: invite.creator ? toUserSummaryDto(invite.creator) : null,
+    revokedBy: invite.revoker ? toUserSummaryDto(invite.revoker) : null,
+  };
+}
+
 async function toParentApplicationDto(application, { publicView = false } = {}) {
   const dto = {
     id: application.id,
@@ -857,3 +1070,5 @@ const applicationInclude = {
   invite: true,
   reviewer: true,
 };
+
+const inviteInclude = { creator: true, revoker: true };

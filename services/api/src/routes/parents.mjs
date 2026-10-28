@@ -5,12 +5,16 @@ import {
 } from "../services/profile-service.mjs";
 import {
   approveParentApplication,
+  createParentInvite,
   getMyParentApplication,
   listParentApplications,
+  listParentInvites,
   rejectParentApplication,
+  revokeParentInvite,
   searchAdminParentCatCandidates,
   searchParentClaimCatCandidates,
   submitParentApplication,
+  verifyParentInvite,
 } from "../services/parent-application-service.mjs";
 import { verifyParentPhoneCode } from "../services/parent-phone-verification-service.mjs";
 import { requireAdminMutationRole, requireAuth } from "../middleware/auth.mjs";
@@ -19,6 +23,48 @@ import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
 export async function routeParentsRequest(request, response, url, context) {
+  if (url.pathname === "/parent-invites/verify") {
+    if (request.method !== "GET") throw methodNotAllowed();
+    sendSuccess(response, {
+      data: await verifyParentInvite({
+        code: url.searchParams.get("code") ?? undefined,
+        token: url.searchParams.get("token") ?? undefined,
+        qrCredential: url.searchParams.get("qrCredential") ?? undefined,
+        scene: url.searchParams.get("scene") ?? undefined,
+      }),
+      message: "Parent invite verified",
+    });
+    return;
+  }
+
+  if (url.pathname === "/parent-invites") {
+    if (request.method === "GET") {
+      await requireAdminMutationRole(request, context.config);
+      sendSuccess(response, { data: await listParentInvites(url.searchParams) });
+      return;
+    }
+    if (request.method === "POST") {
+      const admin = await requireAdminMutationRole(request, context.config);
+      sendSuccess(response, {
+        statusCode: 201,
+        data: await createParentInvite(await readJsonBody(request), admin, context.config),
+        message: "Parent invite created",
+      });
+      return;
+    }
+    throw methodNotAllowed();
+  }
+
+  const revokeInviteId = matchParentInviteAction(url.pathname, "revoke");
+  if (revokeInviteId) {
+    if (request.method !== "POST") throw methodNotAllowed();
+    const admin = await requireAdminMutationRole(request, context.config);
+    sendSuccess(response, {
+      data: await revokeParentInvite(revokeInviteId, await readJsonBody(request), admin),
+      message: "Parent invite revoked",
+    });
+    return;
+  }
   if (url.pathname === "/parent-applications/phone-verification-capability") {
     if (request.method !== "GET") throw methodNotAllowed();
     sendSuccess(response, {
@@ -166,5 +212,10 @@ function matchParentCatLinkId(pathname) {
 
 function matchParentApplicationAction(pathname, action) {
   const match = pathname.match(new RegExp(`^/parent-applications/([^/]+)/${action}$`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function matchParentInviteAction(pathname, action) {
+  const match = pathname.match(new RegExp(`^/parent-invites/([^/]+)/${action}$`));
   return match ? decodeURIComponent(match[1]) : null;
 }

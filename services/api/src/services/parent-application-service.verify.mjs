@@ -892,6 +892,127 @@ assert.equal(
   0,
 );
 
+// Exercise the requests sent by the published client and admin bundle against the new API.
+await assertRouteRejects("ordinary user cannot list invites", "/parent-invites", user, 403);
+await assertRouteJsonRejects(
+  "ordinary user cannot create invites",
+  "/parent-invites",
+  user,
+  "POST",
+  {},
+  403,
+);
+const issued = await routeJson("/parent-invites", admin, "POST", { maxUses: 1 });
+assert.equal(issued.isUsable, true);
+assert.equal(
+  (await routeGet("/parent-invites?pageSize=20", admin)).items.some(
+    (item) => item.id === issued.id,
+  ),
+  true,
+);
+assert.equal((await routeGet(`/parent-invites/verify?code=${issued.shortCode}`, null)).valid, true);
+assert.equal((await routeGet(`/parent-invites/verify?token=${issued.token}`, null)).valid, true);
+assert.equal(
+  (await routeGet(`/parent-invites/verify?qrCredential=${issued.qr.scene.slice(2)}`, null)).valid,
+  true,
+);
+const oldClientUser = await createUserWithRole("old-client-user", "user");
+const oldSearch = await routeGet(
+  `/parent-applications/cat-candidates?q=V&code=${issued.shortCode}`,
+  oldClientUser,
+);
+assert.equal(
+  oldSearch.items.some((item) => item.id === cat.id),
+  true,
+);
+assert.equal(
+  oldSearch.items.some((item) => item.id === hiddenCat.id),
+  false,
+);
+assert.deepEqual(Object.keys(oldSearch.items[0]).sort(), ["id", "name"]);
+await assertRouteRejects(
+  "old search still needs login",
+  `/parent-applications/cat-candidates?q=V&code=${issued.shortCode}`,
+  null,
+  401,
+);
+await assertRouteRejects(
+  "invalid invite cannot search",
+  "/parent-applications/cat-candidates?q=V&code=INVALID1",
+  oldClientUser,
+  400,
+);
+await assertRouteJsonRejects(
+  "old client cannot claim hidden cat",
+  "/parent-applications",
+  oldClientUser,
+  "POST",
+  {
+    inviteCode: issued.shortCode,
+    displayName: "Old",
+    existingCatClaims: [{ catId: hiddenCat.id }],
+  },
+  400,
+);
+assert.equal((await prisma.parentInvite.findUnique({ where: { id: issued.id } })).used_count, 0);
+const oldSubmitted = await routeJson("/parent-applications", oldClientUser, "POST", {
+  inviteCode: issued.shortCode,
+  displayName: "Old",
+  existingCatClaims: [{ catId: cat.id }],
+});
+assert.equal(oldSubmitted.invite.id, issued.id);
+assert.equal(
+  await prisma.userRole.count({
+    where: { user_id: oldClientUser.id, role: "parent", revoked_at: null },
+  }),
+  0,
+);
+await routeJson(`/parent-applications/${oldSubmitted.id}/approve`, admin, "POST", {
+  adminNote: "legacy review",
+});
+assert.equal(
+  await prisma.userRole.count({
+    where: { user_id: oldClientUser.id, role: "parent", revoked_at: null },
+  }),
+  1,
+);
+assert.equal(
+  await prisma.parentCatLink.count({
+    where: { parent_profile: { user_id: oldClientUser.id }, cat_id: cat.id, deleted_at: null },
+  }),
+  1,
+);
+assert.equal((await prisma.parentInvite.findUnique({ where: { id: issued.id } })).used_count, 1);
+assert.equal(
+  (await routeGet(`/parent-invites/verify?code=${issued.shortCode}`, null)).reason,
+  "used",
+);
+const secondIssued = await routeJson("/parent-invites", admin, "POST", { maxUses: 1 });
+await routeJson(`/parent-invites/${secondIssued.id}/revoke`, admin, "POST", {
+  adminNote: "transition",
+});
+assert.equal(
+  (await routeGet(`/parent-invites/verify?code=${secondIssued.shortCode}`, null)).reason,
+  "revoked",
+);
+const oldNewCatUser = await createUserWithRole("old-new-cat-user", "user");
+const thirdIssued = await routeJson("/parent-invites", admin, "POST", { maxUses: 1 });
+const oldNewCat = await routeJson("/parent-applications", oldNewCatUser, "POST", {
+  inviteToken: thirdIssued.token,
+  displayName: "Old new cat",
+  newCats: [{ name: "Unconfirmed legacy cat", relationship: "owner" }],
+});
+await assertRouteJsonRejects(
+  "old admin cannot create cat without explicit confirmation",
+  `/parent-applications/${oldNewCat.id}/approve`,
+  admin,
+  "POST",
+  { adminNote: "legacy review" },
+  400,
+);
+assert.equal((await prisma.parentApplication.findUnique({ where: { id: oldNewCat.id } })).status, "pending");
+assert.equal(await prisma.cat.count({ where: { name: "Unconfirmed legacy cat" } }), 0);
+
 console.info("parent application flow verification passed");
 await prisma.$disconnect();
 

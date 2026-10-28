@@ -29,6 +29,7 @@
     "verify:fixed-page-media": "npm --workspace @starlitsky/api run verify:fixed-page-media",
     "verify:environment-media-batch": "npm --workspace @starlitsky/api run verify:environment-media-batch",
     "verify:miniapp-production-config": "node scripts/verify-miniapp-production-config.mjs",
+    "verify:miniapp-trial-ready": "node scripts/verify-miniapp-trial-ready.mjs",
     "verify:media-upload": "npm --workspace @starlitsky/api run verify:media-upload",
     "verify:cos-migration": "npm --workspace @starlitsky/api run verify:cos-migration",
     "e2e:cos-browser": "playwright test --config e2e/cos-browser/playwright.config.ts",
