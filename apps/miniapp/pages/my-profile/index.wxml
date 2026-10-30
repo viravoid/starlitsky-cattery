@@ -1,5 +1,5 @@
 <view class="page">
-  <form class="panel" bindsubmit="save">
+  <view class="panel">
     <text class="title">个人档案</text>
     <text class="hint">选择头像、昵称后可在家长申请中直接使用，资料以后也能修改。</text>
     <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
@@ -27,6 +27,6 @@
       <text>微信号（选填）</text>
       <input class="field-control" placeholder="微信不向小程序自动提供微信号" value="{{contactWechat}}" bindinput="onWechatInput" />
     </view>
-    <button class="save" form-type="submit" loading="{{isSaving}}" disabled="{{isSaving}}">保存个人档案</button>
-  </form>
+    <button class="save" bindtap="save" loading="{{isSaving}}" disabled="{{isSaving}}">保存个人档案</button>
+  </view>
 </view>

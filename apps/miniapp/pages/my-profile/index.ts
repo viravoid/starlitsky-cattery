@@ -68,8 +68,8 @@ Page({
     }
   },
 
-  async save(this: ProfilePage, event: { detail: { value: { nickname?: string } } }) {
-    const nickname = event.detail.value.nickname?.trim() || "";
+  async save(this: ProfilePage) {
+    const nickname = this.data.nickname.trim();
     if (!nickname) {
       wx.showToast({ icon: "none", title: "请填写展示昵称" });
       return;

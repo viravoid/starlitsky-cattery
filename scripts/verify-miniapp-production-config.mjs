@@ -118,7 +118,11 @@ assert.deepEqual(legalDomains.request, [
   expectedMediaCosHost,
 ]);
 assert.deepEqual(legalDomains.uploadFile, []);
-assert.deepEqual(legalDomains.downloadFile, [expectedCosHost, expectedMediaCosHost]);
+assert.deepEqual(legalDomains.downloadFile, [
+  "trial-api.starlitskycattery.top",
+  expectedCosHost,
+  expectedMediaCosHost,
+]);
 assert.deepEqual(legalDomains.socket, []);
 
 console.log("Miniapp production config verification passed.");
