@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { chmod, mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { config } from "../config/env.mjs";
 import { prisma } from "../db/prisma.mjs";
-import { badRequest, unauthorized } from "../utils/errors.mjs";
+import { badRequest, serviceUnavailable, unauthorized } from "../utils/errors.mjs";
 import { createPresignedPutUpload, putObject } from "./object-storage-service.mjs";
 import { toCurrentUserDto } from "./auth-service.mjs";
 
@@ -47,14 +50,34 @@ export async function uploadMyAvatar(userId, input) {
   const existing = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
   if (!existing) throw unauthorized();
 
-  const upload = createPresignedPutUpload({ objectKey: `avatars/${userId}/${randomUUID()}.${mimeType === "image/png" ? "png" : "jpg"}`, mimeType });
-  await putObject({ objectKey: upload.objectKey, body, contentType: mimeType, forbidOverwrite: true });
+  const avatarUrl = await storeAvatar(userId, body, mimeType);
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { avatar_url: upload.publicUrl },
+    data: { avatar_url: avatarUrl },
     include: { roles: true, parent_profile: true },
   });
   return toCurrentUserDto(user);
+}
+
+async function storeAvatar(userId, body, mimeType) {
+  const extension = mimeType === "image/png" ? "png" : "jpg";
+  const fileName = `${randomUUID()}.${extension}`;
+  if (config.avatar.localStorageDir || config.avatar.publicBaseUrl) {
+    if (!config.avatar.localStorageDir || !config.avatar.publicBaseUrl) {
+      throw serviceUnavailable("Local avatar storage is incomplete");
+    }
+    const baseUrl = new URL(config.avatar.publicBaseUrl.endsWith("/")
+      ? config.avatar.publicBaseUrl : `${config.avatar.publicBaseUrl}/`);
+    if (baseUrl.protocol !== "https:") throw serviceUnavailable("Avatar URL must use HTTPS");
+    await mkdir(config.avatar.localStorageDir, { recursive: true });
+    const filePath = join(config.avatar.localStorageDir, fileName);
+    await writeFile(filePath, body, { flag: "wx", mode: 0o644 });
+    await chmod(filePath, 0o644);
+    return new URL(fileName, baseUrl).toString();
+  }
+  const upload = createPresignedPutUpload({ objectKey: `avatars/${userId}/${fileName}`, mimeType });
+  await putObject({ objectKey: upload.objectKey, body, contentType: mimeType, forbidOverwrite: true });
+  return upload.publicUrl;
 }
 
 function detectImageType(body) {

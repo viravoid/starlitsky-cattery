@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
@@ -102,6 +103,18 @@ const uploadedAvatar = await uploadMyAvatar(profileUser.id, {
 assert.equal(storedAvatar?.contentType, "image/png");
 assert.equal(storedAvatar?.body.length > 0, true);
 assert.equal(uploadedAvatar.avatarUrl.startsWith("https://media.example.test/avatars/"), true);
+const localAvatarDir = mkdtempSync(join(tmpdir(), "starlitsky-avatar-verify-"));
+runtimeConfig.avatar.localStorageDir = localAvatarDir;
+runtimeConfig.avatar.publicBaseUrl = "https://trial.example.test/trial-media/avatars/";
+const localAvatar = await uploadMyAvatar(profileUser.id, {
+  mimeType: "image/png",
+  dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9l8WQAAAAASUVORK5CYII=",
+});
+assert.equal(localAvatar.avatarUrl.startsWith(runtimeConfig.avatar.publicBaseUrl), true);
+assert.equal(existsSync(join(localAvatarDir, localAvatar.avatarUrl.split("/").at(-1))), true);
+rmSync(localAvatarDir, { recursive: true, force: true });
+runtimeConfig.avatar.localStorageDir = "";
+runtimeConfig.avatar.publicBaseUrl = "";
 setObjectStorageTestClient(null);
 Object.assign(runtimeConfig.storage, previousStorage);
 const cat = await prisma.cat.create({
