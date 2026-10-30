@@ -21,29 +21,22 @@
       <input class="field-control" placeholder="社区中显示的名称" value="{{displayName}}" bindinput="onDisplayNameInput" />
     </view>
     <view class="field">
-      <text>真实姓名</text>
-      <input class="field-control" placeholder="便于后台核验，可选" value="{{realName}}" bindinput="onRealNameInput" />
-    </view>
-    <view class="field">
-      <text>城市</text>
-      <input class="field-control" placeholder="可选" value="{{city}}" bindinput="onCityInput" />
+      <text>性别（选填）</text>
+      <view class="gender-row">
+        <button class="{{applicantGender === 'male' ? 'gender-choice active' : 'gender-choice'}}" style="width: auto;" data-gender="male" bindtap="setApplicantGender">男</button>
+        <button class="{{applicantGender === 'female' ? 'gender-choice active' : 'gender-choice'}}" style="width: auto;" data-gender="female" bindtap="setApplicantGender">女</button>
+        <button class="{{applicantGender === '' ? 'gender-choice active' : 'gender-choice'}}" style="width: auto;" data-gender="" bindtap="setApplicantGender">不透露</button>
+      </view>
     </view>
   </view>
 
   <view class="panel">
-    <text class="section-title">联系方式（至少一种）</text>
-    <button wx:if="{{phoneVerificationEnabled}}" class="secondary" style="width: 100%;" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{isVerifyingPhone}}">授权微信手机号</button>
-    <text wx:else class="hint">请手动填写手机号或微信号</text>
-    <text wx:if="{{verifiedPhone}}" class="hint">{{verifiedPhone}} · 微信获取</text>
-    <button wx:if="{{verifiedPhone}}" class="secondary" style="width: 100%;" bindtap="useManualContact">取消授权结果，改为手动填写</button>
-    <text wx:if="{{phoneMessage}}" class="hint">{{phoneMessage}}</text>
-    <view class="field">
-      <text>手动填写手机号</text>
-      <input class="field-control" type="number" placeholder="可选，仅检查格式，不视为已验证" value="{{contactPhone}}" bindinput="onContactPhoneInput" />
-    </view>
+    <text class="section-title">联系方式</text>
+    <button wx:if="{{phoneCapabilityEnabled && !verifiedPhone}}" class="secondary" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" disabled="{{isVerifyingPhone}}">授权微信手机号（可选）</button>
+    <text wx:if="{{verifiedPhone}}" class="hint">已授权手机号：{{verifiedPhone}}</text>
     <view class="field">
       <text>微信号</text>
-      <input class="field-control" placeholder="可选" value="{{contactWechat}}" bindinput="onContactWechatInput" />
+      <input class="field-control" placeholder="微信不向小程序自动提供，可手动填写" value="{{contactWechat}}" bindinput="onContactWechatInput" />
     </view>
   </view>
 
@@ -73,10 +66,6 @@
         >
           {{item.name}}
         </button>
-      </view>
-      <view wx:if="{{existingCatId}}" class="field">
-        <text>关系备注</text>
-        <input class="field-control" placeholder="例如：主人" value="{{existingCatNote}}" bindinput="onExistingCatNoteInput" />
       </view>
       <text class="hint">找不到猫咪？已有档案请选择「认领未公开猫咪」；确实没有档案才选择「填写新猫」。</text>
     </view>

@@ -32,6 +32,9 @@ export interface CurrentUserData {
   id: string;
   nickname: string | null;
   avatarUrl: string | null;
+  gender?: "male" | "female" | null;
+  city?: string | null;
+  contactWechat?: string | null;
   status: string;
   roles: UserRole[];
   currentRole: UserRole;
@@ -56,6 +59,18 @@ export interface AuthSessionData {
 
 export interface CurrentUserResponseData {
   user: CurrentUserData;
+}
+
+export interface UpdateMyProfileRequest {
+  nickname: string;
+  gender: "male" | "female" | null;
+  city: string | null;
+  contactWechat: string | null;
+}
+
+export interface UploadMyAvatarRequest {
+  mimeType: "image/jpeg" | "image/png";
+  dataBase64: string;
 }
 
 export interface AdminPasswordLoginRequest {
@@ -256,6 +271,7 @@ export interface ParentProfileData {
   id: string;
   userId: string;
   displayName: string;
+  gender: "male" | "female" | null;
   realName: string | null;
   contactPhone: string | null;
   contactPhoneSource: "wechat_verified" | "self_provided" | "unknown" | "none";
@@ -436,6 +452,7 @@ export interface NewCatApplicationData {
 export interface SubmitParentApplicationRequest {
   phoneVerificationToken?: string;
   displayName: string;
+  gender?: "male" | "female" | null;
   realName?: string | null;
   contactPhone?: string | null;
   contactWechat?: string | null;
@@ -469,6 +486,7 @@ export interface ParentApplicationData {
   userId: string;
   status: ParentApplicationStatus | string;
   displayName: string;
+  gender: "male" | "female" | null;
   realName: string | null;
   contactPhone: string | null;
   contactPhoneSource: "wechat_verified" | "self_provided" | "unknown" | "none";

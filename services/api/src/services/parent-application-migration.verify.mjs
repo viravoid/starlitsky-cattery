@@ -70,6 +70,20 @@ database.exec(
     "utf8",
   ),
 );
+database.exec(
+  readFileSync(
+    new URL(
+      "../../prisma/migrations/20261030090000_parent_application_gender/migration.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+assert.equal(
+  database.prepare("SELECT gender FROM parent_applications WHERE id = 'legacy-application'").get()
+    .gender,
+  null,
+);
 assert.equal(
   database
     .prepare(
