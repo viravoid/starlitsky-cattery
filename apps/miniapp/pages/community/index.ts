@@ -104,8 +104,10 @@ Page({
     await this.loadPosts();
   },
 
-  onShow(this: CommunityPage) {
+  async onShow(this: CommunityPage) {
     this.getTabBar?.()?.setData({ selected: 2 });
+    await refreshCurrentUser();
+    this.setData(deriveSessionView());
   },
 
   async onPullDownRefresh(this: CommunityPage) {
@@ -152,6 +154,9 @@ Page({
       await loginWithWechat();
       this.setData(deriveSessionView());
       await this.loadPosts();
+      if (!getSessionState().user?.nickname) {
+        wx.navigateTo({ url: "/pages/my-profile/index" });
+      }
     } catch (error) {
       showToast(getErrorMessage(error));
     }
@@ -212,6 +217,10 @@ Page({
 
   openParentOnboard() {
     wx.navigateTo({ url: "/pages/parent-onboard/index" });
+  },
+
+  openProfile() {
+    wx.navigateTo({ url: "/pages/my-profile/index" });
   },
 
   async toggleLike(this: CommunityPage, event: TapEvent) {
@@ -308,7 +317,8 @@ function canPublish() {
 }
 
 function canOpenMyCats() {
-  return getSessionState().roles.includes("parent");
+  const session = getSessionState();
+  return session.roles.includes("parent") && session.user?.parentProfile?.status === "active";
 }
 
 function deriveSessionView() {
@@ -327,7 +337,7 @@ function deriveSessionView() {
     showLogin: !isLoggedIn,
     showMyCats: canOpenMyCats(),
     showMyPosts: isLoggedIn,
-    showParentOnboard: isLoggedIn && !roles.includes("parent"),
+    showParentOnboard: isLoggedIn && !canOpenMyCats(),
     showUserActions: isLoggedIn,
   };
 }

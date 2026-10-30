@@ -194,6 +194,14 @@ export function ParentApplicationsPanel() {
               <DescriptionList
                 items={[
                   ["用户", selectedApplication.user?.nickname ?? selectedApplication.userId],
+                  [
+                    "性别",
+                    selectedApplication.gender === "male"
+                      ? "男"
+                      : selectedApplication.gender === "female"
+                        ? "女"
+                        : "未提供",
+                  ],
                   ["真实姓名", selectedApplication.realName ?? "-"],
                   ["联系电话", selectedApplication.contactPhone ?? "-"],
                   [

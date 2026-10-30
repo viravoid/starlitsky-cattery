@@ -7,6 +7,7 @@ declare function Component(options: Record<string, unknown>): void;
 declare function getCurrentPages(): Array<{ route?: string }>;
 
 declare const wx: {
+  arrayBufferToBase64(data: ArrayBuffer): string;
   request(options: {
     url: string;
     method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";

@@ -1,0 +1,32 @@
+<view class="page">
+  <form class="panel" bindsubmit="save">
+    <text class="title">个人档案</text>
+    <text class="hint">选择头像、昵称后可在家长申请中直接使用，资料以后也能修改。</text>
+    <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+      <image wx:if="{{avatarUrl}}" class="avatar" src="{{avatarUrl}}" mode="aspectFill" />
+      <text wx:else class="avatar-placeholder">选择头像</text>
+    </button>
+    <view class="field">
+      <text>展示昵称</text>
+      <input name="nickname" type="nickname" class="field-control" placeholder="用于猫友圈和家长申请" value="{{nickname}}" bindinput="onNicknameInput" />
+    </view>
+    <view class="field">
+      <text>性别（选填）</text>
+      <view class="gender-row">
+        <button class="{{gender === 'male' ? 'gender-choice selected' : 'gender-choice'}}" data-gender="male" bindtap="setGender">男</button>
+        <button class="{{gender === 'female' ? 'gender-choice selected' : 'gender-choice'}}" data-gender="female" bindtap="setGender">女</button>
+        <button class="{{gender === '' ? 'gender-choice selected' : 'gender-choice'}}" data-gender="" bindtap="setGender">不透露</button>
+      </view>
+    </view>
+    <view class="field">
+      <text>所在城市（选填）</text>
+      <input class="field-control" placeholder="自行填写，例如上海" value="{{city}}" bindinput="onCityInput" />
+      <text class="hint">这是自填城市，不是自动获取的 IP 属地。</text>
+    </view>
+    <view class="field">
+      <text>微信号（选填）</text>
+      <input class="field-control" placeholder="微信不向小程序自动提供微信号" value="{{contactWechat}}" bindinput="onWechatInput" />
+    </view>
+    <button class="save" form-type="submit" loading="{{isSaving}}" disabled="{{isSaving}}">保存个人档案</button>
+  </form>
+</view>
