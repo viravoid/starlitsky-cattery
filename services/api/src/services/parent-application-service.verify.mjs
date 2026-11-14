@@ -15,7 +15,7 @@ const { prisma } = await import("../db/prisma.mjs");
 const { routeRequest } = await import("../routes/index.mjs");
 const { approveParentApplication, rejectParentApplication, submitParentApplication } =
   await import("./parent-application-service.mjs");
-const { certifyExistingUserAsParent } = await import("./admin-user-service.mjs");
+const { certifyExistingUserAsParent, setParentStatus } = await import("./admin-user-service.mjs");
 const { verifyParentPhoneCode } = await import("./parent-phone-verification-service.mjs");
 const { updateMyProfile, uploadMyAvatar } = await import("./my-profile-service.mjs");
 const { setObjectStorageTestClient } = await import("./object-storage-service.mjs");
@@ -72,7 +72,9 @@ const editedProfileUser = await updateMyProfile(profileUser.id, {
 assert.equal(editedProfileUser.nickname, "Community Name");
 assert.equal(editedProfileUser.gender, "female");
 assert.equal(editedProfileUser.contactWechat, "profile_contact");
-await prisma.parentProfile.create({ data: { user_id: profileUser.id, display_name: "Old Name", status: "active" } });
+await prisma.parentProfile.create({
+  data: { user_id: profileUser.id, display_name: "Old Name", status: "active" },
+});
 const editedParentUser = await updateMyProfile(profileUser.id, {
   nickname: "Parent Name",
   gender: "male",
@@ -81,24 +83,50 @@ const editedParentUser = await updateMyProfile(profileUser.id, {
 });
 assert.equal(editedParentUser.parentProfile?.displayName, "Parent Name");
 assert.equal(editedParentUser.city, "Hangzhou");
-assert.equal((await prisma.parentProfile.findUnique({ where: { user_id: profileUser.id } }))?.gender, "male");
-await assert.rejects(() => updateMyProfile(profileUser.id, {
-  nickname: "Invalid", gender: "unsupported", city: null, contactWechat: null,
-}), (error) => error?.statusCode === 400);
-await assert.rejects(() => uploadMyAvatar(profileUser.id, {
-  mimeType: "image/png", dataBase64: Buffer.from("not an image").toString("base64"),
-}), (error) => error?.statusCode === 400);
+assert.equal(
+  (await prisma.parentProfile.findUnique({ where: { user_id: profileUser.id } }))?.gender,
+  "male",
+);
+await assert.rejects(
+  () =>
+    updateMyProfile(profileUser.id, {
+      nickname: "Invalid",
+      gender: "unsupported",
+      city: null,
+      contactWechat: null,
+    }),
+  (error) => error?.statusCode === 400,
+);
+await assert.rejects(
+  () =>
+    uploadMyAvatar(profileUser.id, {
+      mimeType: "image/png",
+      dataBase64: Buffer.from("not an image").toString("base64"),
+    }),
+  (error) => error?.statusCode === 400,
+);
 const previousStorage = { ...runtimeConfig.storage };
 Object.assign(runtimeConfig.storage, {
-  provider: "s3", bucket: "verify-avatars", region: "test-region",
-  endpoint: "https://storage.example.test", publicBaseUrl: "https://media.example.test",
-  accessKeyId: "verify-key", accessKeySecret: "verify-secret", forcePathStyle: true,
+  provider: "s3",
+  bucket: "verify-avatars",
+  region: "test-region",
+  endpoint: "https://storage.example.test",
+  publicBaseUrl: "https://media.example.test",
+  accessKeyId: "verify-key",
+  accessKeySecret: "verify-secret",
+  forcePathStyle: true,
 });
 let storedAvatar = null;
-setObjectStorageTestClient({ async putObject(input) { storedAvatar = input; return { written: true }; } });
+setObjectStorageTestClient({
+  async putObject(input) {
+    storedAvatar = input;
+    return { written: true };
+  },
+});
 const uploadedAvatar = await uploadMyAvatar(profileUser.id, {
   mimeType: "image/png",
-  dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9l8WQAAAAASUVORK5CYII=",
+  dataBase64:
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9l8WQAAAAASUVORK5CYII=",
 });
 assert.equal(storedAvatar?.contentType, "image/png");
 assert.equal(storedAvatar?.body.length > 0, true);
@@ -108,7 +136,8 @@ runtimeConfig.avatar.localStorageDir = localAvatarDir;
 runtimeConfig.avatar.publicBaseUrl = "https://trial.example.test/trial-media/avatars/";
 const localAvatar = await uploadMyAvatar(profileUser.id, {
   mimeType: "image/png",
-  dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9l8WQAAAAASUVORK5CYII=",
+  dataBase64:
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9l8WQAAAAASUVORK5CYII=",
 });
 assert.equal(localAvatar.avatarUrl.startsWith(runtimeConfig.avatar.publicBaseUrl), true);
 assert.equal(existsSync(join(localAvatarDir, localAvatar.avatarUrl.split("/").at(-1))), true);
@@ -142,6 +171,18 @@ const secondHiddenCat = await prisma.cat.create({
     visibility: "hidden",
   },
 });
+
+await assertRejects("unbound account cannot be certified", () =>
+  certifyExistingUserAsParent({ userId: user.id, displayName: "Unbound" }, admin),
+);
+await assertRouteJsonRejects(
+  "legacy profile create cannot make an unbound parent",
+  "/parent-profiles",
+  admin,
+  "POST",
+  { displayName: "Fake parent" },
+  405,
+);
 
 const userCountBeforeManualParent = await prisma.user.count();
 const manuallyCertified = await certifyExistingUserAsParent(
@@ -192,6 +233,20 @@ const manualParentProfile = await prisma.parentProfile.findUnique({
   where: { user_id: existingWechatUser.id },
 });
 assert.equal(manualParentProfile?.status, "active", "manual certification should activate profile");
+assert.equal(manualParentProfile?.contact_phone_source, "admin_entered");
+assert.equal(manualParentProfile?.contact_phone_verified_at, null);
+await assert.rejects(
+  () =>
+    prisma.userRole.create({
+      data: {
+        user_id: existingWechatUser.id,
+        role: "parent",
+        granted_by: admin.id,
+      },
+    }),
+  (error) => error?.code === "P2002",
+  "database must reject duplicate active parent grants",
+);
 assert.equal(
   await prisma.parentCatLink.count({
     where: {
@@ -288,6 +343,56 @@ assert.equal(
   1,
   "manual certification role grant should be idempotent",
 );
+await setParentStatus(existingWechatUser.id, "disabled", admin);
+await assertRejects("editing a disabled parent cannot restore identity", () =>
+  certifyExistingUserAsParent(
+    { userId: existingWechatUser.id, note: "should not reactivate" },
+    admin,
+  ),
+);
+await assertRouteJsonRejects(
+  "ordinary user cannot restore a parent",
+  `/admin/users/${existingWechatUser.id}/parent-status`,
+  user,
+  "PATCH",
+  { status: "active" },
+  403,
+);
+assert.equal((await routeGet("/auth/me", existingWechatUser)).user.roles.includes("parent"), false);
+await assertRouteRejects(
+  "disabled parent cannot read own cats",
+  "/me/cats",
+  existingWechatUser,
+  403,
+);
+assert.equal(
+  await prisma.userRole.count({
+    where: { user_id: existingWechatUser.id, role: "parent", revoked_at: null },
+  }),
+  0,
+);
+await setParentStatus(existingWechatUser.id, "active", admin);
+assert.equal((await routeGet("/auth/me", existingWechatUser)).user.roles.includes("parent"), true);
+assert.equal(
+  await prisma.userRole.count({
+    where: { user_id: existingWechatUser.id, role: "parent", revoked_at: null },
+  }),
+  1,
+);
+assert.equal(
+  await prisma.parentAdminEvent.count({
+    where: { user_id: existingWechatUser.id, action: { in: ["disable", "reactivate"] } },
+  }),
+  2,
+);
+const overview = await routeGet("/admin/parent-overview", admin);
+assert.equal(overview.active >= 1, true);
+await assertRouteRejects(
+  "ordinary user cannot see parent overview",
+  "/admin/parent-overview",
+  user,
+  403,
+);
 const manualLink = await prisma.parentCatLink.findFirst({
   where: {
     parent_profile_id: manualParentProfile.id,
@@ -380,6 +485,40 @@ assert.equal(
   false,
   "ended manual link should no longer expose the cat in /me/cats",
 );
+
+const verifiedAt = new Date("2026-01-01T00:00:00.000Z");
+await prisma.parentProfile.update({
+  where: { user_id: existingWechatUser.id },
+  data: {
+    contact_phone_source: "wechat_verified",
+    contact_phone_verified_at: verifiedAt,
+  },
+});
+await certifyExistingUserAsParent(
+  { userId: existingWechatUser.id, contactPhone: "13900000000" },
+  admin,
+);
+let contactAfterEdit = await prisma.parentProfile.findUnique({
+  where: { user_id: existingWechatUser.id },
+});
+assert.equal(
+  contactAfterEdit.contact_phone_source,
+  "wechat_verified",
+  "unchanged verified number retains provenance",
+);
+await certifyExistingUserAsParent(
+  { userId: existingWechatUser.id, contactPhone: "13900000003" },
+  admin,
+);
+contactAfterEdit = await prisma.parentProfile.findUnique({
+  where: { user_id: existingWechatUser.id },
+});
+assert.equal(
+  contactAfterEdit.contact_phone_source,
+  "admin_entered",
+  "changed admin number must not inherit verification",
+);
+assert.equal(contactAfterEdit.contact_phone_verified_at, null);
 
 await assertRejects("contact is required", () =>
   submitParentApplication(
@@ -500,6 +639,24 @@ assert.equal(
   "direct submission must not create or consume an invite",
 );
 assert.equal(application.contactPhoneSource, "self_provided");
+const searchedApplications = await routeGet("/parent-applications?q=Verify", admin);
+assert.equal(
+  searchedApplications.items.some((item) => item.id === application.id),
+  true,
+  "application search should match an existing cat name",
+);
+const submittedDay = new Date(new Date(application.createdAt).getTime() + 8 * 60 * 60 * 1000)
+  .toISOString()
+  .slice(0, 10);
+const datedApplications = await routeGet(
+  `/parent-applications?submittedFrom=${submittedDay}&submittedTo=${submittedDay}`,
+  admin,
+);
+assert.equal(
+  datedApplications.items.some((item) => item.id === application.id),
+  true,
+  "application day filter should include the Shanghai submission day",
+);
 await assertRejects("invalid applicant gender", () =>
   submitParentApplication(
     {
@@ -1082,7 +1239,10 @@ await assertRouteJsonRejects(
   { adminNote: "legacy review" },
   400,
 );
-assert.equal((await prisma.parentApplication.findUnique({ where: { id: oldNewCat.id } })).status, "pending");
+assert.equal(
+  (await prisma.parentApplication.findUnique({ where: { id: oldNewCat.id } })).status,
+  "pending",
+);
 assert.equal(await prisma.cat.count({ where: { name: "Unconfirmed legacy cat" } }), 0);
 
 console.info("parent application flow verification passed");

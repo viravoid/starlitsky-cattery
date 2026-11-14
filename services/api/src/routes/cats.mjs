@@ -98,10 +98,10 @@ export async function routeCatsRequest(request, response, url, context) {
     }
 
     if (request.method === "POST") {
-      await requireAdminMutationRole(request, context.config);
+      const adminUser = await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
-        data: await createCatParentLink(parentLinksCatId, await readJsonBody(request)),
+        data: await createCatParentLink(parentLinksCatId, await readJsonBody(request), adminUser),
         message: "Parent cat link created",
       });
       return;

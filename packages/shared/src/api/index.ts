@@ -274,7 +274,7 @@ export interface ParentProfileData {
   gender: "male" | "female" | null;
   realName: string | null;
   contactPhone: string | null;
-  contactPhoneSource: "wechat_verified" | "self_provided" | "unknown" | "none";
+  contactPhoneSource: "wechat_verified" | "self_provided" | "admin_entered" | "unknown" | "none";
   contactPhoneVerifiedAt: string | null;
   contactWechat: string | null;
   city: string | null;
@@ -286,16 +286,6 @@ export interface ParentProfileData {
 }
 
 export type ParentProfileListData = PaginatedResponse<ParentProfileData>;
-
-export interface CreateParentProfileRequest {
-  displayName: string;
-  realName?: string | null;
-  contactPhone?: string | null;
-  contactWechat?: string | null;
-  city?: string | null;
-  status?: string;
-  note?: string | null;
-}
 
 export interface ParentCatLinkData {
   id: string;
@@ -355,6 +345,37 @@ export interface AdminUserData {
 }
 
 export type AdminUserListData = PaginatedResponse<AdminUserData>;
+
+export interface ParentAdminEventData {
+  id: string;
+  userId: string;
+  actorId: string | null;
+  actorName: string | null;
+  targetName: string | null;
+  action: string;
+  before: unknown;
+  after: unknown;
+  details: unknown;
+  createdAt: string;
+}
+
+export interface ParentManagementOverviewData {
+  pending: number;
+  approved: number;
+  rejected: number;
+  active: number;
+  disabled: number;
+  recentApplications: Array<{
+    id: string;
+    userId: string;
+    nickname: string | null;
+    status: string;
+    createdAt: string;
+    reviewedAt: string | null;
+    reviewer: string | null;
+  }>;
+  recentEvents: ParentAdminEventData[];
+}
 
 export interface CertifyExistingUserAsParentRequest {
   userId: string;

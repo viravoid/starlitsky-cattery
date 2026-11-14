@@ -1,10 +1,18 @@
-import type { AdminUserData, CatData, ParentCatLinkData } from "@starlitsky/shared";
+import type {
+  AdminUserData,
+  ParentAdminEventData,
+  ParentCatLinkData,
+  ParentManagementOverviewData,
+} from "@starlitsky/shared";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   certifyExistingUserAsParent,
   createCatParentLink,
+  getParentManagementOverview,
   listAdminUsers,
-  listCats,
+  listParentAdminEvents,
+  searchAdminParentCatCandidates,
+  setParentStatus as updateParentStatus,
   updateParentCatLink,
 } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
@@ -20,6 +28,17 @@ interface CertifyFormState {
   relationship: string;
   startedAt: string;
   note: string;
+}
+
+interface CatChoice {
+  id: string;
+  name: string;
+  color: string | null;
+  visibility: string;
+}
+interface PendingCatLink {
+  catId: string;
+  relationship: string;
 }
 
 const DEFAULT_CERTIFY_FORM: CertifyFormState = {
@@ -45,25 +64,33 @@ const ROLE_OPTIONS = [
 
 const PARENT_STATUS_OPTIONS = [
   { label: "全部家长状态", value: "" },
-  { label: "Active", value: "active" },
-  { label: "Disabled", value: "disabled" },
+  { label: "有效", value: "active" },
+  { label: "已停用", value: "disabled" },
 ];
 
 const RELATIONSHIP_OPTIONS = [
-  { label: "Owner", value: "owner" },
-  { label: "Co-owner", value: "co_owner" },
-  { label: "Caregiver", value: "caregiver" },
+  { label: "主人", value: "owner" },
+  { label: "共同主人", value: "co_owner" },
+  { label: "照护人", value: "caregiver" },
 ];
 
 const LINK_STATUS_OPTIONS = [
-  { label: "Active", value: "active" },
-  { label: "Inactive", value: "inactive" },
-  { label: "Ended", value: "ended" },
+  { label: "生效", value: "active" },
+  { label: "暂停", value: "inactive" },
+  { label: "结束", value: "ended" },
 ];
 
 export function ParentUsersPanel() {
   const [users, setUsers] = useState<AdminUserData[]>([]);
-  const [cats, setCats] = useState<CatData[]>([]);
+  const [cats, setCats] = useState<CatChoice[]>([]);
+  const [catQuery, setCatQuery] = useState("");
+  const [isSearchingCats, setIsSearchingCats] = useState(false);
+  const [certifyLinks, setCertifyLinks] = useState<PendingCatLink[]>([]);
+  const [overview, setOverview] = useState<ParentManagementOverviewData | null>(null);
+  const [events, setEvents] = useState<ParentAdminEventData[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("");
@@ -86,18 +113,21 @@ export function ParentUsersPanel() {
     setIsLoading(true);
     setError("");
     try {
-      const [userList, catList] = await Promise.all([
+      const [userList, summary] = await Promise.all([
         listAdminUsers({
-          pageSize: 100,
+          page,
+          pageSize: 20,
           parentStatus,
           q: query,
           role,
           wechatBound: wechatBound === "" ? undefined : wechatBound === "true",
         }),
-        listCats({ includeDeleted: false, pageSize: 100 }),
+        getParentManagementOverview(),
       ]);
       setUsers(userList.items);
-      setCats(catList.items);
+      setOverview(summary);
+      setTotalPages(userList.pagination.totalPages);
+      setTotalUsers(userList.pagination.total);
       setSelectedUserId((current) =>
         current && userList.items.some((user) => user.id === current)
           ? current
@@ -108,7 +138,34 @@ export function ParentUsersPanel() {
     } finally {
       setIsLoading(false);
     }
+  }, [page, parentStatus, query, role, wechatBound]);
+
+  useEffect(() => {
+    setPage(1);
   }, [parentStatus, query, role, wechatBound]);
+
+  useEffect(() => {
+    if (!selectedUser?.id) {
+      setEvents([]);
+      return;
+    }
+    void listParentAdminEvents(selectedUser.id)
+      .then(setEvents)
+      .catch(() => setEvents([]));
+  }, [selectedUser?.id, selectedUser?.updatedAt]);
+
+  async function searchCats() {
+    if (catQuery.trim().length < 2) return;
+    setIsSearchingCats(true);
+    setError("");
+    try {
+      setCats(await searchAdminParentCatCandidates(catQuery));
+    } catch (searchError) {
+      setError(getErrorMessage(searchError));
+    } finally {
+      setIsSearchingCats(false);
+    }
+  }
 
   useEffect(() => {
     void loadData();
@@ -131,11 +188,27 @@ export function ParentUsersPanel() {
       startedAt: "",
       note: selectedUser.parentProfile?.note ?? "",
     });
+    setCertifyLinks([]);
+    setNewLinkCatId("");
   }, [selectedUser]);
 
   async function handleCertify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.userId) return;
+    if (!form.userId || isSaving) return;
+    if (!selectedUser?.parentProfile && certifyLinks.length === 0) {
+      setError("请至少选择一只猫咪并加入待认证关系。");
+      return;
+    }
+    if (!selectedUser?.wechatBound) {
+      setError("该用户尚未用微信登录，请先让本人进入小程序绑定账号。");
+      return;
+    }
+    if (
+      !window.confirm(
+        `确认将 ${selectedUser.nickname || selectedUser.id} 认证为家长，并建立 ${certifyLinks.length} 条猫咪关系？`,
+      )
+    )
+      return;
 
     setIsSaving(true);
     setNotice("");
@@ -148,16 +221,7 @@ export function ParentUsersPanel() {
         displayName: emptyToNull(form.displayName),
         realName: emptyToNull(form.realName),
         note: emptyToNull(form.note),
-        catLinks: form.catId
-          ? [
-              {
-                catId: form.catId,
-                relationship: form.relationship,
-                startedAt: form.startedAt || null,
-                note: emptyToNull(form.note),
-              },
-            ]
-          : [],
+        catLinks: certifyLinks.map((link) => ({ ...link, status: "active" })),
       });
       setSelectedUserId(saved.id);
       setNotice("已认证为家长，并复用原 users.id");
@@ -169,9 +233,34 @@ export function ParentUsersPanel() {
     }
   }
 
+  async function handleParentStatus(status: "active" | "disabled") {
+    if (!selectedUser?.parentProfile || isSaving) return;
+    if (
+      !window.confirm(
+        status === "disabled"
+          ? "确认停用家长身份？该用户将立即失去家长权限。"
+          : "确认恢复家长身份及原有猫咪关系？",
+      )
+    )
+      return;
+    setIsSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      await updateParentStatus(selectedUser.id, status);
+      setNotice(status === "disabled" ? "家长身份已停用" : "家长身份已恢复");
+      await loadData();
+    } catch (saveError) {
+      setError(getErrorMessage(saveError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleAddLink() {
     const profileId = selectedUser?.parentProfile?.id;
-    if (!profileId || !newLinkCatId) return;
+    if (!profileId || !newLinkCatId || isSaving) return;
+    if (!window.confirm("确认新增这条猫咪归属关系？")) return;
 
     setIsSaving(true);
     setNotice("");
@@ -193,6 +282,8 @@ export function ParentUsersPanel() {
   }
 
   async function handleUpdateLink(link: ParentCatLinkData, data: Partial<ParentCatLinkData>) {
+    if (isSaving) return;
+    if (!window.confirm(`确认修改 ${link.cat?.name ?? link.catId} 的归属关系？`)) return;
     setIsSaving(true);
     setNotice("");
     setError("");
@@ -225,6 +316,36 @@ export function ParentUsersPanel() {
           刷新
         </button>
       </div>
+
+      {overview ? (
+        <div className="filter-bar" aria-label="家长管理统计">
+          <strong>待审核 {overview.pending}</strong>
+          <strong>已通过 {overview.approved}</strong>
+          <strong>已拒绝 {overview.rejected}</strong>
+          <strong>有效家长 {overview.active}</strong>
+          <strong>已停用 {overview.disabled}</strong>
+        </div>
+      ) : null}
+      {overview ? (
+        <div className="inline-form">
+          <strong>最近申请与授权记录</strong>
+          <p className="muted compact">
+            最近申请：
+            {overview.recentApplications
+              .map((item) => `${item.nickname || item.userId}（${item.status}）`)
+              .join("、") || "无"}
+          </p>
+          <p className="muted compact">
+            最近操作：
+            {overview.recentEvents
+              .map(
+                (item) =>
+                  `${item.actorName || item.actorId || "管理员"} ${formatEventAction(item.action)} ${item.targetName || item.userId}`,
+              )
+              .join("、") || "无"}
+          </p>
+        </div>
+      ) : null}
 
       <div className="filter-bar">
         <label>
@@ -272,7 +393,11 @@ export function ParentUsersPanel() {
         <section className="table-panel">
           <div className="section-heading">
             <h3>用户列表</h3>
-            <span className="muted">{isLoading ? "加载中..." : `${users.length} 条`}</span>
+            <span className="muted">
+              {isLoading
+                ? "加载中..."
+                : `共 ${totalUsers} 条 · 第 ${page}/${Math.max(1, totalPages)} 页`}
+            </span>
           </div>
           <div className="table-scroll">
             <table>
@@ -297,7 +422,18 @@ export function ParentUsersPanel() {
                   >
                     <td className="truncate-cell">{user.id}</td>
                     <td>{user.wechatBound ? "已绑定" : "未绑定"}</td>
-                    <td>{user.nickname ?? "-"}</td>
+                    <td>
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt=""
+                          width={28}
+                          height={28}
+                          style={{ borderRadius: "50%", verticalAlign: "middle", marginRight: 8 }}
+                        />
+                      ) : null}
+                      {user.nickname ?? "-"}
+                    </td>
                     <td>{user.roles.join(", ")}</td>
                     <td>{user.parentProfile ? user.parentProfile.status : "-"}</td>
                     <td>{user.pendingApplication ? user.pendingApplication.displayName : "-"}</td>
@@ -307,6 +443,24 @@ export function ParentUsersPanel() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="form-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage(page - 1)}
+            >
+              上一页
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={page >= totalPages || isLoading}
+              onClick={() => setPage(page + 1)}
+            >
+              下一页
+            </button>
           </div>
         </section>
 
@@ -323,12 +477,49 @@ export function ParentUsersPanel() {
                   ["微信", selectedUser.wechatBound ? "已绑定" : "未绑定"],
                   ["Roles", selectedUser.roles.join(", ")],
                   ["家长档案", selectedUser.parentProfile?.status ?? "-"],
+                  [
+                    "手机号来源",
+                    formatProfilePhoneSource(selectedUser.parentProfile?.contactPhoneSource),
+                  ],
                   ["待审申请", selectedUser.pendingApplication?.displayName ?? "-"],
                 ]}
               />
 
+              {selectedUser.parentProfile ? (
+                <div className="form-actions">
+                  <button
+                    className={
+                      selectedUser.parentProfile.status === "active"
+                        ? "danger-button"
+                        : "secondary-button"
+                    }
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() =>
+                      void handleParentStatus(
+                        selectedUser.parentProfile?.status === "active" ? "disabled" : "active",
+                      )
+                    }
+                  >
+                    {selectedUser.parentProfile.status === "active"
+                      ? "停用家长身份"
+                      : "重新启用家长"}
+                  </button>
+                </div>
+              ) : null}
+
               <form className="inline-form" onSubmit={handleCertify}>
-                <h4>手动认证为家长</h4>
+                <h4>{selectedUser.parentProfile ? "更新家长资料" : "直接认证为家长"}</h4>
+                {!selectedUser.wechatBound ? (
+                  <p className="error-banner">
+                    该用户尚未用微信登录，不能授予家长身份；请先让本人进入小程序。
+                  </p>
+                ) : null}
+                {selectedUser.parentProfile?.status === "disabled" ? (
+                  <p className="muted compact">
+                    家长身份已停用。请先使用上方按钮重新启用，再修改资料或猫咪关系。
+                  </p>
+                ) : null}
                 <div className="form-grid">
                   <label>
                     展示名
@@ -362,6 +553,9 @@ export function ParentUsersPanel() {
                     />
                   </label>
                 </div>
+                <p className="muted compact">
+                  管理员修改手机号后标为「管理员录入 / 未经微信验证」；号码未变时保留原验证来源。
+                </p>
                 <label>
                   城市
                   <input
@@ -371,15 +565,33 @@ export function ParentUsersPanel() {
                 </label>
                 <div className="form-grid">
                   <label>
-                    同时绑定猫咪
+                    搜索猫咪档案（包含隐藏档案）
+                    <input
+                      value={catQuery}
+                      onChange={(event) => setCatQuery(event.target.value)}
+                      placeholder="名称、颜色或 ID，至少 2 字"
+                    />
+                  </label>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    disabled={isSearchingCats || catQuery.trim().length < 2}
+                    onClick={() => void searchCats()}
+                  >
+                    {isSearchingCats ? "查询中..." : "查询猫咪"}
+                  </button>
+                </div>
+                <div className="form-grid">
+                  <label>
+                    选择猫咪
                     <select
                       value={form.catId}
                       onChange={(event) => setForm({ ...form, catId: event.target.value })}
                     >
-                      <option value="">暂不绑定</option>
+                      <option value="">请选择搜索结果</option>
                       {cats.map((cat) => (
                         <option key={cat.id} value={cat.id}>
-                          {cat.name}
+                          {cat.name} · {cat.color ?? "颜色未知"} · {cat.visibility} · {cat.id}
                         </option>
                       ))}
                     </select>
@@ -388,9 +600,7 @@ export function ParentUsersPanel() {
                     关系
                     <select
                       value={form.relationship}
-                      onChange={(event) =>
-                        setForm({ ...form, relationship: event.target.value })
-                      }
+                      onChange={(event) => setForm({ ...form, relationship: event.target.value })}
                     >
                       {RELATIONSHIP_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -400,6 +610,44 @@ export function ParentUsersPanel() {
                     </select>
                   </label>
                 </div>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  disabled={!form.catId}
+                  onClick={() => {
+                    if (
+                      certifyLinks.some(
+                        (link) =>
+                          link.catId === form.catId && link.relationship === form.relationship,
+                      )
+                    ) {
+                      setError("该关系已在待认证列表中");
+                      return;
+                    }
+                    setCertifyLinks((current) => [
+                      ...current,
+                      { catId: form.catId, relationship: form.relationship },
+                    ]);
+                    setForm((current) => ({ ...current, catId: "" }));
+                  }}
+                >
+                  加入待认证关系
+                </button>
+                {certifyLinks.map((link, index) => (
+                  <p className="mini-list-row" key={`${link.catId}-${link.relationship}`}>
+                    {cats.find((cat) => cat.id === link.catId)?.name ?? link.catId} ·{" "}
+                    {link.relationship} · {link.catId}
+                    <button
+                      className="secondary-button small-button"
+                      type="button"
+                      onClick={() =>
+                        setCertifyLinks((current) => current.filter((_, i) => i !== index))
+                      }
+                    >
+                      移除
+                    </button>
+                  </p>
+                ))}
                 <label>
                   备注
                   <textarea
@@ -408,14 +656,29 @@ export function ParentUsersPanel() {
                     onChange={(event) => setForm({ ...form, note: event.target.value })}
                   />
                 </label>
-                <button disabled={isSaving} type="submit">
-                  {isSaving ? "保存中..." : "认证/激活家长"}
+                <button
+                  disabled={
+                    isSaving ||
+                    !selectedUser.wechatBound ||
+                    selectedUser.parentProfile?.status === "disabled"
+                  }
+                  type="submit"
+                >
+                  {isSaving
+                    ? "保存中..."
+                    : selectedUser.parentProfile
+                      ? "保存家长资料与关系"
+                      : "确认认证为家长"}
                 </button>
               </form>
 
               <ParentCatLinks
                 cats={cats}
-                disabled={isSaving || !selectedUser.parentProfile}
+                disabled={
+                  isSaving ||
+                  !selectedUser.parentProfile ||
+                  selectedUser.parentProfile.status === "disabled"
+                }
                 links={selectedUser.parentProfile?.links ?? []}
                 newLinkCatId={newLinkCatId}
                 newLinkRelationship={newLinkRelationship}
@@ -424,6 +687,20 @@ export function ParentUsersPanel() {
                 onNewLinkRelationshipChange={setNewLinkRelationship}
                 onUpdateLink={handleUpdateLink}
               />
+              <div className="inline-form">
+                <h4>审核与授权记录</h4>
+                {events.length ? (
+                  events.map((event) => (
+                    <p className="mini-list-row" key={event.id}>
+                      {formatDateTime(event.createdAt)} ·{" "}
+                      {event.actorName || event.actorId || "管理员"} ·{" "}
+                      {formatEventAction(event.action)}
+                    </p>
+                  ))
+                ) : (
+                  <p className="muted compact">暂无管理操作记录</p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="empty-state">暂无用户</div>
@@ -445,7 +722,7 @@ function ParentCatLinks({
   onNewLinkRelationshipChange,
   onUpdateLink,
 }: {
-  cats: CatData[];
+  cats: CatChoice[];
   disabled: boolean;
   links: ParentCatLinkData[];
   newLinkCatId: string;
@@ -467,6 +744,7 @@ function ParentCatLinks({
           <div key={link.id} className="parent-link-row">
             <strong>{link.cat?.name ?? link.catId}</strong>
             <select
+              disabled={disabled}
               value={link.relationship}
               onChange={(event) => onUpdateLink(link, { relationship: event.target.value })}
             >
@@ -477,6 +755,7 @@ function ParentCatLinks({
               ))}
             </select>
             <select
+              disabled={disabled}
               value={link.status}
               onChange={(event) =>
                 onUpdateLink(link, {
@@ -494,18 +773,9 @@ function ParentCatLinks({
                 </option>
               ))}
             </select>
-            <input
-              aria-label="开始时间"
-              placeholder="started_at"
-              value={toDateInputValue(link.startedAt)}
-              onChange={(event) => onUpdateLink(link, { startedAt: event.target.value || null })}
-            />
-            <input
-              aria-label="结束时间"
-              placeholder="ended_at"
-              value={toDateInputValue(link.endedAt)}
-              onChange={(event) => onUpdateLink(link, { endedAt: event.target.value || null })}
-            />
+            <span className="muted compact">
+              {toDateInputValue(link.startedAt)} — {toDateInputValue(link.endedAt)}
+            </span>
           </div>
         ))
       )}
@@ -520,7 +790,7 @@ function ParentCatLinks({
             <option value="">请选择</option>
             {cats.map((cat) => (
               <option key={cat.id} value={cat.id}>
-                {cat.name}
+                {cat.name} · {cat.color ?? "颜色未知"} · {cat.visibility} · {cat.id}
               </option>
             ))}
           </select>
@@ -569,6 +839,28 @@ function formatCatNames(links: ParentCatLinkData[]) {
 function formatDateTime(value: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleString("zh-CN");
+}
+
+function formatProfilePhoneSource(source: string | undefined) {
+  if (source === "wechat_verified") return "微信验证";
+  if (source === "self_provided") return "用户自填";
+  if (source === "admin_entered") return "管理员录入 / 未经微信验证";
+  if (source === "unknown") return "历史来源未知";
+  return "未提供";
+}
+
+function formatEventAction(action: string) {
+  return (
+    (
+      {
+        certify: "认证或更新资料",
+        disable: "停用家长",
+        reactivate: "恢复家长",
+        add_cat_link: "添加猫咪关系",
+        update_cat_link: "修改猫咪关系",
+      } as Record<string, string>
+    )[action] ?? action
+  );
 }
 
 function toDateInputValue(value: string | null) {

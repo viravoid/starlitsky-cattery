@@ -6,6 +6,9 @@ import type {
   AdminCommunityPostData,
   AdminCommunityPostListData,
   AdminUserListData,
+  AdminUserData,
+  ParentAdminEventData,
+  ParentManagementOverviewData,
   AdminPasswordLoginData,
   AdminPasswordLoginRequest,
   BreedingCatProfileData,
@@ -25,7 +28,6 @@ import type {
   FixedPageListData,
   ImageUploadData,
   CreateParentCatLinkRequest,
-  CreateParentProfileRequest,
   KittenProfileData,
   LitterData,
   LitterListData,
@@ -122,6 +124,22 @@ export function getCurrentAdminUser() {
 
 export function listAdminUsers(params: ListAdminUsersParams = {}) {
   return unwrap<AdminUserListData>(adminGet(`/admin/users${toSearch(params)}`));
+}
+
+export function getParentManagementOverview() {
+  return unwrap<ParentManagementOverviewData>(adminGet("/admin/parent-overview"));
+}
+
+export function listParentAdminEvents(userId: string) {
+  return unwrap<ParentAdminEventData[]>(
+    adminGet(`/admin/users/${encodeURIComponent(userId)}/parent-events`),
+  );
+}
+
+export function setParentStatus(userId: string, status: "active" | "disabled") {
+  return unwrap<AdminUserData, { status: string }>(
+    adminPatch(`/admin/users/${encodeURIComponent(userId)}/parent-status`, { status }),
+  );
 }
 
 export function certifyExistingUserAsParent(
@@ -246,10 +264,6 @@ export function attachCatToLitter(litterId: string, data: AttachCatToLitterReque
 
 export function listParentProfiles(params: ListParentProfilesParams = {}) {
   return unwrap<ParentProfileListData>(adminGet(`/parent-profiles${toSearch(params)}`));
-}
-
-export function createParentProfile(data: CreateParentProfileRequest) {
-  return unwrap<ParentProfileData, CreateParentProfileRequest>(adminPost("/parent-profiles", data));
 }
 
 export function updateParentCatLink(id: string, data: UpdateParentCatLinkRequest) {
@@ -586,6 +600,8 @@ export interface ListParentApplicationsParams {
   pageSize?: number;
   q?: string;
   status?: string;
+  submittedFrom?: string;
+  submittedTo?: string;
 }
 
 export interface ListSelectionApplicationsParams {

@@ -181,7 +181,13 @@ async function upsertWechatUser(identity) {
   return user;
 }
 
-export async function createSession({ userId, config, userAgent, client = prisma, cleanup = true }) {
+export async function createSession({
+  userId,
+  config,
+  userAgent,
+  client = prisma,
+  cleanup = true,
+}) {
   if (cleanup) await cleanupExpiredSessionsQuietly(config);
 
   const token = randomBytes(32).toString("base64url");
@@ -205,7 +211,11 @@ export async function createSession({ userId, config, userAgent, client = prisma
 export async function cleanupExpiredSessions(config, now = new Date()) {
   const intervalMs = Number(config?.auth?.sessionCleanupIntervalMs ?? 60 * 60 * 1000);
   const nowMs = now.getTime();
-  if (Number.isInteger(intervalMs) && intervalMs > 0 && nowMs - lastSessionCleanupAtMs < intervalMs) {
+  if (
+    Number.isInteger(intervalMs) &&
+    intervalMs > 0 &&
+    nowMs - lastSessionCleanupAtMs < intervalMs
+  ) {
     return { skipped: true, count: 0 };
   }
 
@@ -264,13 +274,14 @@ export function toCurrentUserDto(user) {
 
 function resolveActiveRoles(user) {
   const roles = new Set(
-    user.roles.filter((role) => !role.revoked_at).map((role) => role.role).filter(Boolean),
+    user.roles
+      .filter((role) => !role.revoked_at)
+      .map((role) => role.role)
+      .filter(Boolean),
   );
   roles.add(BASE_ROLE);
-
-  if (user.parent_profile?.status === "active") {
-    roles.add("parent");
-  }
+  // A revoked or disabled parent must lose server-side permissions immediately.
+  if (user.parent_profile?.status !== "active") roles.delete("parent");
 
   return ROLE_ORDER.filter((role) => roles.has(role));
 }

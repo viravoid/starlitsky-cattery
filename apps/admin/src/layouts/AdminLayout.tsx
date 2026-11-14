@@ -27,8 +27,13 @@ const NAV_GROUPS = [
     items: [
       { label: "动态管理", href: "#community" },
       { label: "评论管理", href: "#community-comments" },
-      { label: "家长列表", href: "#parent-users" },
-      { label: "家长申请", href: "#parent-applications" },
+    ],
+  },
+  {
+    title: "家长管理",
+    items: [
+      { label: "用户 / 家长管理", href: "#parent-users" },
+      { label: "家长申请审核", href: "#parent-applications" },
     ],
   },
   {

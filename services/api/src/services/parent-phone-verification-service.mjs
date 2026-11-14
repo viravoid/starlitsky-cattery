@@ -98,9 +98,11 @@ export async function verifyParentPhoneCode(
         verified_at: verifiedAt,
       },
     });
+    logger.info("wechat_phone_verification success");
     return { phone, verificationToken, expiresAt: record.expires_at.toISOString() };
   } catch {
     // Never forward upstream errors: they may contain the access token or phone code.
+    logger.warn("wechat_phone_verification failed");
     throw serviceUnavailable("WeChat phone verification failed; enter contact manually");
   }
 }

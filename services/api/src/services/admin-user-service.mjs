@@ -38,14 +38,16 @@ export async function listAdminUsers(searchParams) {
       { id: { contains: query } },
       { nickname: { contains: query } },
       { phone: { contains: query } },
-      { wechat_openid: { contains: query } },
       { parent_profile: { is: { display_name: { contains: query } } } },
       { parent_profile: { is: { real_name: { contains: query } } } },
+      { parent_profile: { is: { contact_phone: { contains: query } } } },
+      { parent_profile: { is: { contact_wechat: { contains: query } } } },
     ];
   }
-  if (role) {
+  if (role && role !== "user") {
     where.roles = { some: { role, revoked_at: null } };
   }
+  if (role === "parent") where.parent_profile = { is: { status: "active" } };
   if (parentStatus) {
     where.parent_profile = { is: { status: parentStatus } };
   }
@@ -72,30 +74,116 @@ export async function listAdminUsers(searchParams) {
   };
 }
 
+export async function getParentManagementOverview() {
+  const [pending, approved, rejected, active, disabled, recentApplications, recentEvents] =
+    await prisma.$transaction([
+      prisma.parentApplication.count({ where: { status: "pending" } }),
+      prisma.parentApplication.count({ where: { status: "approved" } }),
+      prisma.parentApplication.count({ where: { status: "rejected" } }),
+      prisma.parentProfile.count({ where: { status: "active" } }),
+      prisma.parentProfile.count({ where: { status: "disabled" } }),
+      prisma.parentApplication.findMany({
+        include: {
+          user: { select: { id: true, nickname: true } },
+          reviewer: { select: { nickname: true } },
+        },
+        orderBy: { created_at: "desc" },
+        take: 5,
+      }),
+      prisma.parentAdminEvent.findMany({
+        include: { actor: { select: { nickname: true } }, user: { select: { nickname: true } } },
+        orderBy: { created_at: "desc" },
+        take: 5,
+      }),
+    ]);
+  return {
+    pending,
+    approved,
+    rejected,
+    active,
+    disabled,
+    recentApplications: recentApplications.map((item) => ({
+      id: item.id,
+      userId: item.user_id,
+      nickname: item.user?.nickname,
+      status: item.status,
+      createdAt: toIsoString(item.created_at),
+      reviewedAt: toIsoString(item.reviewed_at),
+      reviewer: item.reviewer?.nickname ?? null,
+    })),
+    recentEvents: recentEvents.map(toParentAdminEventDto),
+  };
+}
+
+export async function listParentAdminEvents(userId) {
+  const events = await prisma.parentAdminEvent.findMany({
+    where: { user_id: userId },
+    include: { actor: { select: { nickname: true } }, user: { select: { nickname: true } } },
+    orderBy: { created_at: "desc" },
+    take: 50,
+  });
+  return events.map(toParentAdminEventDto);
+}
+
+function toParentAdminEventDto(event) {
+  return {
+    id: event.id,
+    userId: event.user_id,
+    actorId: event.actor_id,
+    actorName: event.actor?.nickname ?? null,
+    targetName: event.user?.nickname ?? null,
+    action: event.action,
+    before: event.before_json,
+    after: event.after_json,
+    details: event.details_json,
+    createdAt: toIsoString(event.created_at),
+  };
+}
+
 export async function certifyExistingUserAsParent(input, adminUser) {
   assertPlainObject(input);
   assertNoUnknownFields(input, CERTIFY_PARENT_FIELDS);
 
   const userId = requiredString(input.userId, "userId");
   const links = normalizeParentCatLinks(input.catLinks);
+  if (
+    new Set(
+      links
+        .filter((link) => link.status === "active")
+        .map((link) => `${link.catId}:${link.relationship}`),
+    ).size !== links.filter((link) => link.status === "active").length
+  ) {
+    throw badRequest("Duplicate active cat relationships in request");
+  }
 
   const user = await prisma.$transaction(async (transaction) => {
     const existingUser = await transaction.user.findUnique({
       where: { id: userId },
-      select: { id: true, nickname: true, status: true },
+      select: { id: true, nickname: true, status: true, wechat_openid: true },
     });
     if (!existingUser) throw notFound("User not found");
     if (existingUser.status !== "active") throw badRequest("Only active users can be certified");
+    if (!existingUser.wechat_openid || existingUser.wechat_openid.startsWith("mock_")) {
+      throw badRequest("User must log in with a real WeChat account before certification");
+    }
+    if (
+      await transaction.parentApplication.count({ where: { user_id: userId, status: "pending" } })
+    ) {
+      throw badRequest("User has a pending application; review it before direct certification");
+    }
 
     await ensureCatsExist(links, transaction);
-    const now = new Date();
-    await ensureParentRole(userId, adminUser.id, transaction);
-
     let profile = await transaction.parentProfile.findUnique({
       where: { user_id: userId },
     });
+    if (profile?.status === "disabled") {
+      throw badRequest("Reactivate the parent before editing their profile");
+    }
+    const now = new Date();
+    await ensureParentRole(userId, adminUser.id, transaction);
+    const before = profile ? auditProfileState(profile) : null;
     if (profile) {
-      const data = buildExistingParentProfileUpdate(input, profile, now);
+      const data = buildExistingParentProfileUpdate(input, profile);
       if (Object.keys(data).length > 0) {
         profile = await transaction.parentProfile.update({
           where: { id: profile.id },
@@ -112,7 +200,7 @@ export async function certifyExistingUserAsParent(input, adminUser) {
             `User ${userId.slice(0, 8)}`,
           real_name: nullableString(input.realName, "realName"),
           contact_phone: nullableString(input.contactPhone, "contactPhone"),
-          contact_phone_source: input.contactPhone ? "unknown" : "none",
+          contact_phone_source: input.contactPhone ? "admin_entered" : "none",
           contact_wechat: nullableString(input.contactWechat, "contactWechat"),
           city: nullableString(input.city, "city"),
           status: "active",
@@ -126,6 +214,16 @@ export async function certifyExistingUserAsParent(input, adminUser) {
       await createParentCatLink(profile.id, link, adminUser.id, transaction);
     }
 
+    await recordParentAdminEvent(
+      transaction,
+      adminUser.id,
+      userId,
+      "certify",
+      before,
+      auditProfileState(profile),
+      { catIds: links.map((link) => link.catId) },
+    );
+
     return transaction.user.findUnique({
       where: { id: userId },
       include: USER_MANAGEMENT_INCLUDE,
@@ -135,7 +233,7 @@ export async function certifyExistingUserAsParent(input, adminUser) {
   return toAdminUserDto(user);
 }
 
-function buildExistingParentProfileUpdate(input, profile, now) {
+function buildExistingParentProfileUpdate(input, profile) {
   const data = {};
   const providedDisplayName = getProvidedNonEmptyString(input, "displayName");
   if (providedDisplayName !== undefined) data.display_name = providedDisplayName;
@@ -143,7 +241,7 @@ function buildExistingParentProfileUpdate(input, profile, now) {
   if (Object.hasOwn(input, "contactPhone")) {
     data.contact_phone = nullableString(input.contactPhone, "contactPhone");
     if (data.contact_phone !== profile.contact_phone) {
-      data.contact_phone_source = data.contact_phone ? "unknown" : "none";
+      data.contact_phone_source = data.contact_phone ? "admin_entered" : "none";
       data.contact_phone_verified_at = null;
     }
   }
@@ -152,11 +250,81 @@ function buildExistingParentProfileUpdate(input, profile, now) {
   }
   if (Object.hasOwn(input, "city")) data.city = nullableString(input.city, "city");
   if (Object.hasOwn(input, "note")) data.note = nullableString(input.note, "note");
-  if (profile.status !== "active") {
-    data.status = "active";
-    data.activated_at = now;
-  }
   return data;
+}
+
+export async function setParentStatus(userId, status, adminUser) {
+  if (status !== "active" && status !== "disabled") throw badRequest("Invalid parent status");
+  const user = await prisma.$transaction(async (transaction) => {
+    const profile = await transaction.parentProfile.findUnique({ where: { user_id: userId } });
+    if (!profile) throw notFound("Parent profile not found");
+    if (status === "active") {
+      const account = await transaction.user.findUnique({
+        where: { id: userId },
+        select: { status: true },
+      });
+      if (account?.status !== "active")
+        throw badRequest("Only active users can be reactivated as parents");
+    }
+    if (profile.status !== status) {
+      const now = new Date();
+      await transaction.parentProfile.update({
+        where: { id: profile.id },
+        data: {
+          status,
+          ...(status === "active" ? { activated_at: now } : {}),
+        },
+      });
+      if (status === "disabled") {
+        await transaction.userRole.updateMany({
+          where: { user_id: userId, role: "parent", revoked_at: null },
+          data: { revoked_at: now },
+        });
+      } else {
+        await ensureParentRole(userId, adminUser.id, transaction);
+      }
+      await recordParentAdminEvent(
+        transaction,
+        adminUser.id,
+        userId,
+        status === "active" ? "reactivate" : "disable",
+        auditProfileState(profile),
+        { ...auditProfileState(profile), status },
+      );
+    }
+    return transaction.user.findUnique({ where: { id: userId }, include: USER_MANAGEMENT_INCLUDE });
+  });
+  return toAdminUserDto(user);
+}
+
+function auditProfileState(profile) {
+  return {
+    status: profile.status,
+    phoneSource: profile.contact_phone_source,
+    hasPhone: Boolean(profile.contact_phone),
+    hasWechat: Boolean(profile.contact_wechat),
+  };
+}
+
+export async function recordParentAdminEvent(
+  transaction,
+  actorId,
+  userId,
+  action,
+  before,
+  after,
+  details = null,
+) {
+  await transaction.parentAdminEvent.create({
+    data: {
+      actor_id: actorId,
+      user_id: userId,
+      action,
+      before_json: before,
+      after_json: after,
+      details_json: details,
+    },
+  });
 }
 
 async function ensureParentRole(userId, adminUserId, transaction) {
@@ -282,7 +450,7 @@ function resolveActiveRoles(user) {
       .filter(Boolean),
   );
   roles.add("user");
-  if (user.parent_profile?.status === "active") roles.add("parent");
+  if (user.parent_profile?.status !== "active") roles.delete("parent");
   return ["admin", "keeper", "parent", "user"].filter((role) => roles.has(role));
 }
 

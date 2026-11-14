@@ -4,7 +4,6 @@ import type {
   CreateBreedingCatProfileRequest,
   CreateKittenProfileRequest,
   CreateParentCatLinkRequest,
-  CreateParentProfileRequest,
   KittenProfileData,
   LitterData,
   ParentCatLinkData,
@@ -18,7 +17,6 @@ import {
   createBreedingProfile,
   createCatParentLink,
   createKittenProfile,
-  createParentProfile,
   getBreedingProfile,
   getKittenProfile,
   listCatParentLinks,
@@ -45,15 +43,6 @@ interface KittenFormState {
   priceText: string;
   saleStatus: string;
   structureRatingJson: string;
-}
-
-interface ParentProfileFormState {
-  city: string;
-  contactPhone: string;
-  contactWechat: string;
-  displayName: string;
-  note: string;
-  realName: string;
 }
 
 interface ParentLinkFormState {
@@ -84,15 +73,6 @@ const DEFAULT_KITTEN_FORM: KittenFormState = {
   priceText: "",
   saleStatus: "evaluating",
   structureRatingJson: "",
-};
-
-const DEFAULT_PARENT_PROFILE_FORM: ParentProfileFormState = {
-  city: "",
-  contactPhone: "",
-  contactWechat: "",
-  displayName: "",
-  note: "",
-  realName: "",
 };
 
 const DEFAULT_PARENT_LINK_FORM: ParentLinkFormState = {
@@ -142,9 +122,6 @@ export function CatArchivePanel({ cat, litters }: { cat: CatData; litters: Litte
   const [parentProfiles, setParentProfiles] = useState<ParentProfileData[]>([]);
   const [breedingForm, setBreedingForm] = useState<BreedingFormState>(DEFAULT_BREEDING_FORM);
   const [kittenForm, setKittenForm] = useState<KittenFormState>(DEFAULT_KITTEN_FORM);
-  const [parentProfileForm, setParentProfileForm] = useState<ParentProfileFormState>(
-    DEFAULT_PARENT_PROFILE_FORM,
-  );
   const [parentLinkForm, setParentLinkForm] =
     useState<ParentLinkFormState>(DEFAULT_PARENT_LINK_FORM);
   const [isLoading, setIsLoading] = useState(false);
@@ -229,28 +206,6 @@ export function CatArchivePanel({ cat, litters }: { cat: CatData; litters: Litte
       setKittenProfile(saved);
       setKittenForm(toKittenForm(saved));
       setNotice(kittenProfile ? "小猫档案已更新" : "小猫档案已创建");
-    } catch (saveError) {
-      setError(getErrorMessage(saveError));
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleParentProfileSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsSaving(true);
-    setError("");
-    setNotice("");
-
-    try {
-      const profile = await createParentProfile(toParentProfilePayload(parentProfileForm));
-      setParentProfiles((current) => [profile, ...current]);
-      setParentLinkForm((current) => ({
-        ...current,
-        parentProfileId: profile.id,
-      }));
-      setParentProfileForm(DEFAULT_PARENT_PROFILE_FORM);
-      setNotice("家长档案已创建");
     } catch (saveError) {
       setError(getErrorMessage(saveError));
     } finally {
@@ -394,46 +349,7 @@ export function CatArchivePanel({ cat, litters }: { cat: CatData; litters: Litte
         </button>
       </form>
 
-      <form className="inline-form" onSubmit={handleParentProfileSubmit}>
-        <h4>新增家长档案</h4>
-        <FieldInput
-          label="展示名"
-          required
-          value={parentProfileForm.displayName}
-          onChange={(displayName) => setParentProfileForm({ ...parentProfileForm, displayName })}
-        />
-        <div className="form-grid">
-          <FieldInput
-            label="真实姓名"
-            value={parentProfileForm.realName}
-            onChange={(realName) => setParentProfileForm({ ...parentProfileForm, realName })}
-          />
-          <FieldInput
-            label="城市"
-            value={parentProfileForm.city}
-            onChange={(city) => setParentProfileForm({ ...parentProfileForm, city })}
-          />
-        </div>
-        <div className="form-grid">
-          <FieldInput
-            label="电话"
-            value={parentProfileForm.contactPhone}
-            onChange={(contactPhone) =>
-              setParentProfileForm({ ...parentProfileForm, contactPhone })
-            }
-          />
-          <FieldInput
-            label="微信"
-            value={parentProfileForm.contactWechat}
-            onChange={(contactWechat) =>
-              setParentProfileForm({ ...parentProfileForm, contactWechat })
-            }
-          />
-        </div>
-        <button disabled={isSaving} type="submit">
-          创建家长档案
-        </button>
-      </form>
+      <p className="muted compact">新增家长请先在「用户 / 家长管理」选择已登录的微信用户并认证。</p>
 
       <form className="inline-form" onSubmit={handleParentLinkSubmit}>
         <h4>家长关联</h4>
@@ -716,17 +632,6 @@ function toKittenPayload(
     priceText: emptyToNull(form.priceText),
     saleStatus: form.saleStatus,
     structureRatingJson: parseOptionalJson(form.structureRatingJson),
-  };
-}
-
-function toParentProfilePayload(form: ParentProfileFormState): CreateParentProfileRequest {
-  return {
-    city: emptyToNull(form.city),
-    contactPhone: emptyToNull(form.contactPhone),
-    contactWechat: emptyToNull(form.contactWechat),
-    displayName: form.displayName.trim(),
-    note: emptyToNull(form.note),
-    realName: emptyToNull(form.realName),
   };
 }
 
