@@ -8,6 +8,6 @@
 .field { display: flex; flex-direction: column; gap: 10rpx; color: var(--xy-color-secondary); font-size: 27rpx; }
 .field-control { box-sizing: border-box; width: 100%; min-height: 84rpx; padding: 0 25rpx; border: 1rpx solid var(--xy-color-border); border-radius: 28rpx; background: #fffdf8; color: var(--xy-color-text); font-size: 28rpx; }
 .gender-row { display: flex; gap: 12rpx; }
-.gender-choice { margin: 0; min-height: 76rpx; padding: 0 24rpx; border: 1rpx solid var(--xy-color-border); border-radius: 24rpx; background: #fffdf8; color: var(--xy-color-text); font-size: 26rpx; }
+.gender-choice { display: flex; flex: 1; align-items: center; justify-content: center; box-sizing: border-box; min-width: 0; height: 76rpx; margin: 0; padding: 0 12rpx; border: 1rpx solid var(--xy-color-border); border-radius: 24rpx; background: #fffdf8; color: var(--xy-color-text); font-size: 26rpx; line-height: 1.2; text-align: center; }
 .gender-choice.selected { border-color: var(--xy-color-secondary); color: var(--xy-color-heading); }
-.save { width: 100% !important; min-height: 88rpx; border-radius: 28rpx; background: var(--xy-color-secondary); color: #fff; font-size: 30rpx; }
+.save { display: flex; align-items: center; justify-content: center; width: 100% !important; height: 88rpx; border-radius: 28rpx; background: var(--xy-color-secondary); color: #fff; font-size: 30rpx; line-height: 1.2; text-align: center; }
