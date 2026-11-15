@@ -404,14 +404,27 @@
   box-shadow: var(--xy-shadow-card);
 }
 
-.feeding-image {
-  display: block;
+.feeding-image-frame {
+  position: relative;
+  overflow: hidden;
   width: 100%;
   border-radius: 24rpx;
 }
 
+.feeding-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 24rpx;
+}
+
+.feeding-image.positioned-image {
+  position: absolute;
+  max-width: none;
+}
+
 .feeding-placeholder {
-  height: 430rpx;
+  height: 100%;
   border-radius: 24rpx;
 }
 

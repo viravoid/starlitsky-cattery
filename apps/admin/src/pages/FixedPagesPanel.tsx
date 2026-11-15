@@ -17,6 +17,7 @@ import {
 } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
 import { EnvironmentContentEditor } from "./EnvironmentContentEditor";
+import { FeedingContentEditor } from "./FeedingContentEditor";
 import { HomeContentEditor } from "./HomeContentEditor";
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
@@ -417,6 +418,45 @@ export function FixedPagesPanel({
     }
   }
 
+  async function uploadFeedingModuleImage(file: File, moduleId: string, slotId: string) {
+    if (!selectedPage || selectedPage.slug !== "feeding") return;
+    setIsSaving(true);
+    setError("");
+    try {
+      const dimensions = await readImageDimensions(file);
+      const media = await uploadFixedPageImage(selectedPage.id, file, {
+        altText: "猫舍喂养照片",
+        ...dimensions,
+        title: file.name,
+        usage: `feeding:module:${moduleId}`,
+      });
+      await loadPageImages(selectedPage.id);
+      setForm((current) => {
+        const modules = Array.isArray(current.contentJson.modules) ? current.contentJson.modules : [];
+        const contentJson = {
+          ...current.contentJson,
+          modules: modules.map((rawModule) => {
+            if (!isRecord(rawModule) || rawModule.id !== moduleId || !Array.isArray(rawModule.images)) return rawModule;
+            return {
+              ...rawModule,
+              images: rawModule.images.map((rawImage) =>
+                isRecord(rawImage) && rawImage.id === slotId
+                  ? { ...rawImage, imageId: media.id }
+                  : rawImage,
+              ),
+            };
+          }),
+        };
+        return { ...current, contentJson, contentJsonText: JSON.stringify(contentJson, null, 2) };
+      });
+      setNotice("喂养图片已上传；请保存页面以更新小程序。");
+    } catch (uploadError) {
+      setError(`喂养图片上传失败：${getErrorMessage(uploadError)}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleEnvironmentSlotImageSelected(slot: EnvironmentSlotConfig, file: File | null) {
     if (!selectedPage || !file) return;
 
@@ -585,6 +625,7 @@ export function FixedPagesPanel({
                 slug={selectedPage.slug}
                 onContentChange={updateContent}
                 onEnvironmentImageUpload={uploadEnvironmentRoomImage}
+                onFeedingImageUpload={uploadFeedingModuleImage}
                 onPanelsChange={setOpenPanels}
                 onHomeImageUpload={uploadHomeSlideImage}
               />
@@ -666,6 +707,7 @@ function StructuredContentEditor({
   slug,
   onContentChange,
   onEnvironmentImageUpload,
+  onFeedingImageUpload,
   onPanelsChange,
   onHomeImageUpload,
 }: {
@@ -675,9 +717,20 @@ function StructuredContentEditor({
   slug: FixedPageSlug;
   onContentChange: (patch: JsonRecord) => void;
   onEnvironmentImageUpload: (file: File, roomId: string, slotId: string) => Promise<void>;
+  onFeedingImageUpload: (file: File, moduleId: string, slotId: string) => Promise<void>;
   onPanelsChange: (panels: Record<string, boolean>) => void;
   onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "feeding") {
+    return (
+      <FeedingContentEditor
+        content={content}
+        images={homeImages}
+        onChange={onContentChange}
+        onImageUpload={onFeedingImageUpload}
+      />
+    );
+  }
   if (slug === "environment") {
     return (
       <EnvironmentContentEditor

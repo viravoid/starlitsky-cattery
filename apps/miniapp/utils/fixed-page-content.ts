@@ -71,6 +71,7 @@ export interface FeedingModuleView {
   id: string;
   images: PageImageSlot[];
   no: string;
+  photoRatio: string;
   title: string;
 }
 
@@ -595,7 +596,7 @@ function normalizeFeeding(
     ...view,
     feedingIntro: textOr(input.intro, view.body),
     feedingModules: modules
-      .map((module, index) => normalizeFeedingModule(module, index, mediaAssets))
+      .map((module, index) => normalizeFeedingModule(module, index, mediaAssets, input.imageAspectRatio))
       .filter((module) => module.title || module.body),
   };
 }
@@ -755,7 +756,7 @@ function normalizeEnvironmentSection(
     rooms,
     summary: textOr(section.summary ?? section.body ?? section.description, ""),
     title,
-    photoRatio: environmentPhotoRatio(aspectRatio),
+    photoRatio: fixedPagePhotoRatio(aspectRatio),
   };
 }
 
@@ -793,7 +794,7 @@ function normalizeEnvironmentRoom(
   };
 }
 
-function environmentPhotoRatio(value: unknown) {
+function fixedPagePhotoRatio(value: unknown) {
   const ratio = isRecord(value) ? value : {};
   const width = Number(ratio.width);
   const height = Number(ratio.height);
@@ -806,6 +807,7 @@ function normalizeFeedingModule(
   raw: unknown,
   index: number,
   mediaAssets: FixedPageMediaAssetData[],
+  aspectRatio: unknown,
 ): FeedingModuleView {
   const module = isRecord(raw) ? raw : {};
   const moduleTitle = textOr(module.title, `喂养模块 ${index + 1}`);
@@ -817,13 +819,18 @@ function normalizeFeedingModule(
     id: moduleId,
     images: rawImages.map((image, imageIndex) => {
       const item = isRecord(image) ? image : {};
+      const media = resolveMediaAsset(stringOr(item.imageId, ""), mediaAssets);
+      const presentation = resolveFixedPageFocalFrame(media, aspectRatio, item.focalPoint);
       return {
         id: stringOr(item.id, `${moduleId}-image-${imageIndex + 1}`),
-        image: resolveImage(stringOr(item.imageId, ""), mediaAssets),
+        image: toPageImage(media),
+        imageMode: presentation.mode,
+        imageStyle: presentation.style,
         label: `${moduleTitle}图片 ${imageIndex + 1}`,
       };
     }),
     no: String(index + 1).padStart(2, "0"),
+    photoRatio: fixedPagePhotoRatio(aspectRatio),
     title: moduleTitle,
   };
 }
