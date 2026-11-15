@@ -19,6 +19,7 @@ import {
 import { getErrorMessage } from "../utils/errors";
 import { EnvironmentContentEditor } from "./EnvironmentContentEditor";
 import { AftercareContentEditor } from "./AftercareContentEditor";
+import { BreedingPlanContentEditor } from "./BreedingPlanContentEditor";
 import { FeedingContentEditor } from "./FeedingContentEditor";
 import { HomeContentEditor } from "./HomeContentEditor";
 import { ProcessContentEditor } from "./ProcessContentEditor";
@@ -751,6 +752,9 @@ function StructuredContentEditor({
   onPanelsChange: (panels: Record<string, boolean>) => void;
   onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "breeding-plan") {
+    return <BreedingPlanContentEditor content={content} onChange={onContentChange} />;
+  }
   if (slug === "questionnaire") {
     return <QuestionnaireContentEditor content={content} onChange={onContentChange} />;
   }
