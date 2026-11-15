@@ -127,10 +127,9 @@ export async function submitParentApplication(input, user) {
   if (
     !hasInviteCredential &&
     !profile.contactPhone &&
-    !profile.contactWechat &&
     !input.phoneVerificationToken
   ) {
-    throw badRequest("Please provide a phone number or WeChat contact");
+    throw badRequest("Please provide a phone number");
   }
   if (profile.contactPhone && input.phoneVerificationToken) {
     throw badRequest("Choose either a WeChat phone or a manually entered phone");
