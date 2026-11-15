@@ -315,6 +315,20 @@ td {
   text-decoration: none;
 }
 
+.contact-account-list {
+  display: grid;
+  gap: 12px;
+}
+
+.contact-account-row {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e9ddbf;
+  border-radius: 6px;
+  background: #fffdf8;
+  padding: 12px;
+}
+
 @media (max-width: 1400px) {
   .dashboard-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));

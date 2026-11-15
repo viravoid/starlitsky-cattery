@@ -132,6 +132,9 @@ export function FixedPagesPanel({
     body: true,
     facts: true,
     sections: true,
+    introduction: true,
+    accounts: true,
+    footerNotice: true,
     media: true,
     meta: false,
     advanced: false,
@@ -250,6 +253,7 @@ export function FixedPagesPanel({
 
     try {
       const payload = toPayload(form);
+      if (selectedPage.slug === "contact") validateContactAccounts(payload.contentJson);
       const updated = await updateFixedPage(selectedPage.slug, payload);
       setSelectedPage(updated);
       const nextForm = toForm(updated);
@@ -612,6 +616,16 @@ function StructuredContentEditor({
   onContentChange: (patch: JsonRecord) => void;
   onPanelsChange: (panels: Record<string, boolean>) => void;
 }) {
+  if (slug === "contact") {
+    return (
+      <ContactContentEditor
+        content={content}
+        openPanels={openPanels}
+        onContentChange={onContentChange}
+        onPanelsChange={onPanelsChange}
+      />
+    );
+  }
   const facts = isRecord(content.facts) ? content.facts : {};
   const sections = Array.isArray(content.sections) ? content.sections : [];
   const primitiveFields = Object.entries(content).filter(
@@ -688,6 +702,151 @@ function StructuredContentEditor({
         onToggle={() => onPanelsChange({ ...openPanels, sections: !openPanels.sections })}
       >
         <SectionListEditor sections={sections} onChange={(next) => onContentChange({ sections: next })} />
+      </EditorSection>
+    </>
+  );
+}
+
+function ContactContentEditor({
+  content,
+  openPanels,
+  onContentChange,
+  onPanelsChange,
+}: {
+  content: JsonRecord;
+  openPanels: Record<string, boolean>;
+  onContentChange: (patch: JsonRecord) => void;
+  onPanelsChange: (panels: Record<string, boolean>) => void;
+}) {
+  const accounts = Array.isArray(content.accounts)
+    ? content.accounts.map((item) => (isRecord(item) ? item : {}))
+    : [];
+  const updateAccounts = (next: JsonRecord[]) => onContentChange({ accounts: next });
+
+  return (
+    <>
+      <EditorSection
+        title="开头说明"
+        desc="编辑联系方式页面顶部的说明文字。"
+        open={openPanels.introduction}
+        onToggle={() => onPanelsChange({ ...openPanels, introduction: !openPanels.introduction })}
+      >
+        <label>
+          说明文字
+          <textarea
+            rows={4}
+            value={typeof content.introduction === "string" ? content.introduction : ""}
+            onChange={(event) => onContentChange({ introduction: event.target.value })}
+          />
+        </label>
+      </EditorSection>
+
+      <EditorSection
+        title="联系方式列表"
+        desc="可修改平台和账号、调整顺序；账号为空的条目不会显示在小程序。"
+        open={openPanels.accounts}
+        onToggle={() => onPanelsChange({ ...openPanels, accounts: !openPanels.accounts })}
+      >
+        <div className="contact-account-list">
+          {accounts.length === 0 ? <p className="muted compact">暂无联系方式。</p> : null}
+          {accounts.map((account, index) => (
+            <div className="contact-account-row" key={String(account.id ?? index)}>
+              <div className="form-grid">
+                <label>
+                  平台名称
+                  <input
+                    value={typeof account.label === "string" ? account.label : ""}
+                    onChange={(event) =>
+                      updateAccounts(
+                        accounts.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, label: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+                <label>
+                  账号
+                  <input
+                    value={typeof account.value === "string" ? account.value : ""}
+                    onChange={(event) =>
+                      updateAccounts(
+                        accounts.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, value: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+              </div>
+              <div className="form-actions">
+                <button
+                  className="secondary-button small-button"
+                  disabled={index === 0}
+                  type="button"
+                  onClick={() => {
+                    const next = [...accounts];
+                    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                    updateAccounts(next);
+                  }}
+                >
+                  上移
+                </button>
+                <button
+                  className="secondary-button small-button"
+                  disabled={index === accounts.length - 1}
+                  type="button"
+                  onClick={() => {
+                    const next = [...accounts];
+                    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                    updateAccounts(next);
+                  }}
+                >
+                  下移
+                </button>
+                <button
+                  className="danger-button small-button"
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("确定删除这个联系方式吗？")) {
+                      updateAccounts(accounts.filter((_, itemIndex) => itemIndex !== index));
+                    }
+                  }}
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() =>
+              updateAccounts([
+                ...accounts,
+                { id: `contact-account-${crypto.randomUUID()}`, label: "新平台", value: "" },
+              ])
+            }
+          >
+            新增联系方式
+          </button>
+        </div>
+      </EditorSection>
+
+      <EditorSection
+        title="底部咨询提示"
+        desc="文本为空时，小程序隐藏这条提示。"
+        open={openPanels.footerNotice}
+        onToggle={() => onPanelsChange({ ...openPanels, footerNotice: !openPanels.footerNotice })}
+      >
+        <label>
+          咨询提示
+          <textarea
+            rows={5}
+            value={typeof content.footerNotice === "string" ? content.footerNotice : ""}
+            onChange={(event) => onContentChange({ footerNotice: event.target.value })}
+          />
+        </label>
       </EditorSection>
     </>
   );
@@ -1032,6 +1191,20 @@ function toPayload(form: FixedPageFormState): UpdateFixedPageRequest {
     status: form.status as UpdateFixedPageRequest["status"],
     title: form.title.trim(),
   };
+}
+
+function validateContactAccounts(content: unknown) {
+  if (!isRecord(content) || !Array.isArray(content.accounts)) return;
+  const usedIds = new Set<string>();
+  for (const [index, item] of content.accounts.entries()) {
+    if (!isRecord(item)) throw new Error(`第 ${index + 1} 个联系方式格式不正确`);
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const label = typeof item.label === "string" ? item.label.trim() : "";
+    const value = typeof item.value === "string" ? item.value.trim() : "";
+    if (!id || usedIds.has(id)) throw new Error(`第 ${index + 1} 个联系方式的 ID 缺失或重复`);
+    if (value && !label) throw new Error(`第 ${index + 1} 个联系方式请填写平台名称`);
+    usedIds.add(id);
+  }
 }
 
 function parseContentJsonText(value: string) {
