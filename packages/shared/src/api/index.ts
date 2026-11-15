@@ -346,6 +346,19 @@ export interface AdminUserData {
 
 export type AdminUserListData = PaginatedResponse<AdminUserData>;
 
+export interface AdminDashboardOverviewData {
+  kittens: number;
+  availableKittens: number;
+  studs: number;
+  litters: number;
+  activeParents: number;
+  pendingParentApplications: number;
+  selectionApplications: number;
+  pendingSelectionApplications: number;
+  communityPosts: number;
+  comments: number;
+}
+
 export interface ParentAdminEventData {
   id: string;
   userId: string;

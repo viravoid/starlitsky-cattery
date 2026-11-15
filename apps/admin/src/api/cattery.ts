@@ -1,4 +1,5 @@
 import type {
+  AdminDashboardOverviewData,
   CatData,
   CatListData,
   AttachCatToLitterRequest,
@@ -120,6 +121,10 @@ export function listCats(params: ListCatsParams = {}) {
 
 export function getCurrentAdminUser() {
   return unwrap<CurrentUserResponseData>(adminGet("/auth/me"));
+}
+
+export function getAdminDashboardOverview() {
+  return unwrap<AdminDashboardOverviewData>(adminGet("/admin/dashboard"));
 }
 
 export function listAdminUsers(params: ListAdminUsersParams = {}) {

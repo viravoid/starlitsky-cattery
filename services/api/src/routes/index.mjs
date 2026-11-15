@@ -40,6 +40,7 @@ export async function routeRequest(request, response, context) {
   }
 
   if (
+    url.pathname === "/admin/dashboard" ||
     url.pathname === "/admin/parent-overview" ||
     url.pathname === "/admin/users" ||
     url.pathname.startsWith("/admin/users/")
