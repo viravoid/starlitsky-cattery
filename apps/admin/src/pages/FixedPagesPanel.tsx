@@ -19,6 +19,7 @@ import { getErrorMessage } from "../utils/errors";
 import { EnvironmentContentEditor } from "./EnvironmentContentEditor";
 import { FeedingContentEditor } from "./FeedingContentEditor";
 import { HomeContentEditor } from "./HomeContentEditor";
+import { ProcessContentEditor } from "./ProcessContentEditor";
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 type JsonRecord = Record<string, unknown>;
@@ -721,6 +722,9 @@ function StructuredContentEditor({
   onPanelsChange: (panels: Record<string, boolean>) => void;
   onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "process") {
+    return <ProcessContentEditor content={content} onChange={onContentChange} />;
+  }
   if (slug === "feeding") {
     return (
       <FeedingContentEditor
@@ -831,7 +835,7 @@ function StructuredContentEditor({
       </EditorSection>
 
       <EditorSection
-        desc={slug === "process" ? "价格、福利、购买流程等按 Demo 小节拆分。" : "页面中的可排序内容小节。"}
+        desc="页面中的可排序内容小节。"
         open={openPanels.sections}
         title="内容小节"
         onToggle={() => onPanelsChange({ ...openPanels, sections: !openPanels.sections })}
