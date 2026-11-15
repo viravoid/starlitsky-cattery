@@ -22,6 +22,7 @@ import { AftercareContentEditor } from "./AftercareContentEditor";
 import { FeedingContentEditor } from "./FeedingContentEditor";
 import { HomeContentEditor } from "./HomeContentEditor";
 import { ProcessContentEditor } from "./ProcessContentEditor";
+import { PhilosophyContentEditor } from "./PhilosophyContentEditor";
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 type JsonRecord = Record<string, unknown>;
@@ -749,6 +750,9 @@ function StructuredContentEditor({
   onPanelsChange: (panels: Record<string, boolean>) => void;
   onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "philosophy") {
+    return <PhilosophyContentEditor content={content} onChange={onContentChange} />;
+  }
   if (slug === "aftercare") {
     return <AftercareContentEditor content={content} media={homeImages} onChange={onContentChange} onContractUpload={onAftercareContractUpload} />;
   }
