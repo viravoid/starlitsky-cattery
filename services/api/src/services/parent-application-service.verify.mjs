@@ -62,6 +62,9 @@ const rejectedUser = await createUserWithRole("verify-user-3", "user");
 const existingWechatUser = await createUserWithRole("verify-wechat-user", "user", {
   wechat_openid: "verify-openid-manual-parent",
 });
+const mockWechatUser = await createUserWithRole("verify-mock-user", "user", {
+  wechat_openid: "mock_verify-admin-list",
+});
 const profileUser = await createUserWithRole("verify-profile-user", "user");
 const editedProfileUser = await updateMyProfile(profileUser.id, {
   nickname: "Community Name",
@@ -265,6 +268,18 @@ assert.equal(
   adminUsers.items.some((item) => item.id === existingWechatUser.id && item.wechatBound),
   true,
   "admin user list should expose existing WeChat parent state",
+);
+const boundUsers = await routeGet("/admin/users?wechatBound=true&pageSize=100", admin);
+assert.equal(boundUsers.items.some((item) => item.id === existingWechatUser.id), true);
+assert.equal(boundUsers.items.some((item) => item.id === mockWechatUser.id), false);
+const unboundUsers = await routeGet("/admin/users?wechatBound=false&pageSize=100", admin);
+assert.equal(
+  unboundUsers.items.some((item) => item.id === mockWechatUser.id && !item.wechatBound),
+  true,
+  "mock login must not appear as a certifiable WeChat account",
+);
+await assertRejects("mock WeChat identity cannot be certified", () =>
+  certifyExistingUserAsParent({ userId: mockWechatUser.id, displayName: "Mock" }, admin),
 );
 const manualMyCats = await routeGet("/me/cats", existingWechatUser);
 assert.equal(
