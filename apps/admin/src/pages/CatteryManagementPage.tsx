@@ -237,6 +237,7 @@ const DEFAULT_LITTER_DRAFT: LitterDraft = {
 
 export function CatteryManagementPage() {
   const [activeSection, setActiveSection] = useState<SectionKey>(getSectionFromHash());
+  const [activeHash, setActiveHash] = useState(() => window.location.hash);
   const [cats, setCats] = useState<CatData[]>([]);
   const [fixedPages, setFixedPages] = useState<FixedPageData[]>([]);
   const [litters, setLitters] = useState<LitterData[]>([]);
@@ -335,23 +336,30 @@ export function CatteryManagementPage() {
 
   useEffect(() => {
     function handleHashChange() {
-      setActiveSection(getSectionFromHash());
+      const nextSection = getSectionFromHash();
+      if (nextSection !== activeSection) {
+        if (
+          (catDirty || litterDirty) &&
+          !window.confirm("当前表单有未保存修改，确定切换模块吗？")
+        ) {
+          window.history.replaceState(null, "", SECTION_HASHES[activeSection]);
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
+          return;
+        }
+        setSelectedCat(null);
+        setSelectedLitter(null);
+        setCatEditorMode(null);
+        setLitterEditorMode(null);
+        setNotice("");
+        setError("");
+      }
+      setActiveHash(window.location.hash);
+      setActiveSection(nextSection);
     }
 
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
-
-  function switchSection(section: SectionKey) {
-    if ((catDirty || litterDirty) && !confirm("当前表单有未保存修改，确定切换模块吗？")) return;
-    setActiveSection(section);
-    setSelectedCat(null);
-    setSelectedLitter(null);
-    setCatEditorMode(null);
-    setLitterEditorMode(null);
-    setNotice("");
-    setError("");
-  }
+  }, [activeSection, catDirty, litterDirty]);
 
   function openCreateCat(section: SectionKey) {
     if (catDirty && !confirm("当前猫咪表单有未保存修改，确定新建吗？")) return;
@@ -759,55 +767,18 @@ export function CatteryManagementPage() {
 
   return (
     <PageContainer>
-      {activeSection !== "media" ? (
+      {(["kittens", "litters", "studs", "cats"] as SectionKey[]).includes(activeSection) ? (
         <div className="toolbar">
           <div>
-            <p className="eyebrow">Cattery Data</p>
-            <h2>猫咪管理</h2>
-            <p className="muted compact">Demo 管理体验接入真实 Admin API / SQLite / COS 媒体。</p>
+            <p className="eyebrow">CATTERY</p>
+            <h2>{SECTION_TITLES[activeSection]}</h2>
+            <p className="muted compact">管理猫咪档案、窝次和图片。</p>
           </div>
           <div className="toolbar-actions">
             <button className="secondary-button" type="button" onClick={loadData}>
               刷新
             </button>
-            <button type="button" onClick={() => openCreateCat("kittens")}>
-              新增小猫
-            </button>
-            <button type="button" onClick={openCreateLitter}>
-              新增窝次
-            </button>
-            <button type="button" onClick={() => openCreateCat("studs")}>
-              新增种猫
-            </button>
           </div>
-        </div>
-      ) : null}
-
-      {activeSection !== "media" ? (
-        <div className="tabs" role="tablist" aria-label="管理模块">
-          {[
-            ["kittens", "小猫"],
-            ["litters", "窝次"],
-            ["studs", "种猫"],
-            ["cats", "其它猫咪"],
-            ["media", "媒体"],
-            ["fixedPages", "固定页面"],
-            ["communityModeration", "动态"],
-            ["communityComments", "评论"],
-            ["parentUsers", "家长"],
-            ["parentApplications", "申请审核"],
-            ["selectionApplications", "选猫问卷"],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              aria-selected={activeSection === key}
-              className={activeSection === key ? "active-tab" : ""}
-              type="button"
-              onClick={() => switchSection(key as SectionKey)}
-            >
-              {label}
-            </button>
-          ))}
         </div>
       ) : null}
 
@@ -930,7 +901,12 @@ export function CatteryManagementPage() {
         <MediaManagementPanel cats={cats} fixedPages={fixedPages} litters={litters} />
       )}
       {activeSection === "fixedPages" && (
-        <FixedPagesPanel isLoading={isLoading} pages={fixedPages} onReload={loadData} />
+        <FixedPagesPanel
+          isLoading={isLoading}
+          pages={fixedPages}
+          requestedSlug={getFixedPageSlugFromHash(activeHash)}
+          onReload={loadData}
+        />
       )}
       {activeSection === "communityModeration" && <CommunityModerationPanel initialView="posts" />}
       {activeSection === "communityComments" && <CommunityModerationPanel initialView="comments" />}
@@ -2559,7 +2535,7 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#studs") return "studs";
   if (window.location.hash === "#cats") return "cats";
   if (window.location.hash === "#media") return "media";
-  if (window.location.hash === "#fixed-pages") return "fixedPages";
+  if (window.location.hash === "#fixed-pages" || getFixedPageSlugFromHash(window.location.hash)) return "fixedPages";
   if (window.location.hash === "#community") return "communityModeration";
   if (window.location.hash === "#community-comments") return "communityComments";
   if (window.location.hash === "#parent-users") return "parentUsers";
@@ -2567,3 +2543,51 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#selection-applications") return "selectionApplications";
   return "kittens";
 }
+
+const SECTION_HASHES: Record<SectionKey, string> = {
+  dashboard: "#dashboard",
+  kittens: "#kittens",
+  litters: "#litters",
+  studs: "#studs",
+  cats: "#cats",
+  media: "#media",
+  fixedPages: "#fixed-pages/home",
+  communityModeration: "#community",
+  communityComments: "#community-comments",
+  parentUsers: "#parent-users",
+  parentApplications: "#parent-applications",
+  selectionApplications: "#selection-applications",
+};
+
+const SECTION_TITLES: Record<SectionKey, string> = {
+  dashboard: "数据概览",
+  kittens: "小猫",
+  litters: "窝次",
+  studs: "种猫",
+  cats: "其它猫咪",
+  media: "媒体库",
+  fixedPages: "站点内容",
+  communityModeration: "动态管理",
+  communityComments: "评论管理",
+  parentUsers: "家长列表",
+  parentApplications: "家长申请审核",
+  selectionApplications: "问卷提交",
+};
+
+function getFixedPageSlugFromHash(hash: string): FixedPageData["slug"] | null {
+  const slug = hash.match(/^#fixed-pages\/([a-z-]+)$/)?.[1];
+  return slug && FIXED_PAGE_SLUGS.has(slug) ? (slug as FixedPageData["slug"]) : null;
+}
+
+const FIXED_PAGE_SLUGS = new Set([
+  "home",
+  "about",
+  "philosophy",
+  "environment",
+  "feeding",
+  "process",
+  "breeding-plan",
+  "aftercare",
+  "questionnaire",
+  "contact",
+]);

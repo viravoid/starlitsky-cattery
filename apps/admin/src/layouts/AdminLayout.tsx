@@ -1,5 +1,5 @@
 import type { CurrentUserData } from "@starlitsky/shared";
-import { Menu, X } from "lucide-react";
+import { Cat, Menu, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 const NAV_GROUPS = [
@@ -10,8 +10,10 @@ const NAV_GROUPS = [
   {
     title: "猫咪管理",
     items: [
-      { label: "小猫", href: "#cats" },
-      { label: "种猫", href: "#cats" },
+      { label: "小猫", href: "#kittens" },
+      { label: "窝次", href: "#litters" },
+      { label: "种猫", href: "#studs" },
+      { label: "其它猫咪", href: "#cats" },
     ],
   },
   {
@@ -39,16 +41,16 @@ const NAV_GROUPS = [
   {
     title: "站点内容",
     items: [
-      { label: "首页", href: "#fixed-pages" },
-      { label: "猫舍介绍", href: "#fixed-pages" },
-      { label: "繁育理念", href: "#fixed-pages" },
-      { label: "猫舍环境", href: "#fixed-pages" },
-      { label: "喂养体系", href: "#fixed-pages" },
-      { label: "价格与接猫流程", href: "#fixed-pages" },
-      { label: "繁育计划", href: "#fixed-pages" },
-      { label: "售后保障", href: "#fixed-pages" },
-      { label: "选猫问卷页面", href: "#fixed-pages" },
-      { label: "联系方式", href: "#fixed-pages" },
+      { label: "首页", href: "#fixed-pages/home" },
+      { label: "猫舍介绍", href: "#fixed-pages/about" },
+      { label: "繁育理念", href: "#fixed-pages/philosophy" },
+      { label: "猫舍环境", href: "#fixed-pages/environment" },
+      { label: "喂养体系", href: "#fixed-pages/feeding" },
+      { label: "价格与接猫流程", href: "#fixed-pages/process" },
+      { label: "繁育计划", href: "#fixed-pages/breeding-plan" },
+      { label: "售后保障", href: "#fixed-pages/aftercare" },
+      { label: "选猫问卷页面", href: "#fixed-pages/questionnaire" },
+      { label: "联系方式", href: "#fixed-pages/contact" },
     ],
   },
 ];
@@ -63,11 +65,11 @@ export function AdminLayout({
   user?: CurrentUserData | null;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [activeHash, setActiveHash] = useState(() => window.location.hash || "#cats");
+  const [activeHash, setActiveHash] = useState(() => window.location.hash || "#kittens");
 
   useEffect(() => {
     function handleHashChange() {
-      setActiveHash(window.location.hash || "#cats");
+      setActiveHash(window.location.hash || "#kittens");
       setMobileNavOpen(false);
     }
     window.addEventListener("hashchange", handleHashChange);
@@ -143,8 +145,11 @@ export function AdminLayout({
 function SidebarBrand() {
   return (
     <div className="sidebar-brand">
-      <p className="eyebrow">Starlitsky Admin</p>
-      <h1>星月缅因猫舍后台</h1>
+      <span className="sidebar-brand-mark"><Cat aria-hidden="true" size={20} /></span>
+      <div>
+        <h1>星月缅因猫舍</h1>
+        <p className="eyebrow">ADMIN</p>
+      </div>
     </div>
   );
 }
@@ -167,7 +172,15 @@ function AdminNavigation({
               aria-current={activeHash === item.href ? "page" : undefined}
               className={activeHash === item.href ? "active" : ""}
               href={item.href}
-              onClick={onNavigate}
+              onClick={(event) => {
+                const navigation = new CustomEvent("starlitsky-admin-before-navigate", {
+                  cancelable: true,
+                  detail: { href: item.href },
+                });
+                window.dispatchEvent(navigation);
+                if (navigation.defaultPrevented) event.preventDefault();
+                else onNavigate?.();
+              }}
             >
               {item.label}
             </a>

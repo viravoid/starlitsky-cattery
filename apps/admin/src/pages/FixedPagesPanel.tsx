@@ -110,13 +110,15 @@ const ENVIRONMENT_MEDIA_SLOTS: EnvironmentSlotConfig[] = [
 export function FixedPagesPanel({
   isLoading,
   pages,
+  requestedSlug,
   onReload,
 }: {
   isLoading: boolean;
   pages: FixedPageData[];
+  requestedSlug: FixedPageSlug | null;
   onReload: () => Promise<void>;
 }) {
-  const [selectedSlug, setSelectedSlug] = useState("");
+  const [selectedSlug, setSelectedSlug] = useState(requestedSlug ?? "");
   const [selectedPage, setSelectedPage] = useState<FixedPageData | null>(null);
   const [savedForm, setSavedForm] = useState<FixedPageFormState>(() => toForm(null));
   const [form, setForm] = useState<FixedPageFormState>(() => toForm(null));
@@ -161,6 +163,19 @@ export function FixedPagesPanel({
   }, [dirty]);
 
   useEffect(() => {
+    if (!dirty) return;
+    const guardNavigation = (event: Event) => {
+      const navigation = event as CustomEvent<{ href: string }>;
+      if (navigation.detail?.href.startsWith("#fixed-pages/")) return;
+      if (!window.confirm("当前页面存在未保存修改，确定要离开吗？")) {
+        navigation.preventDefault();
+      }
+    };
+    window.addEventListener("starlitsky-admin-before-navigate", guardNavigation);
+    return () => window.removeEventListener("starlitsky-admin-before-navigate", guardNavigation);
+  }, [dirty]);
+
+  useEffect(() => {
     return () => {
       if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl);
     };
@@ -189,8 +204,11 @@ export function FixedPagesPanel({
   }, []);
 
   const selectPage = useCallback(
-    async (slug: string) => {
-      if (dirty && !window.confirm("当前页面存在未保存修改，确定要切换页面吗？")) return;
+    async (slug: string, fromNavigation = false) => {
+      if (dirty && !window.confirm("当前页面存在未保存修改，确定要切换页面吗？")) {
+        if (fromNavigation) window.location.hash = `#fixed-pages/${selectedSlug}`;
+        return;
+      }
       setSelectedSlug(slug);
       setNotice("");
       setError("");
@@ -203,12 +221,19 @@ export function FixedPagesPanel({
         setForm(nextForm);
         clearPendingImage();
         await loadPageImages(page.id);
+        if (!fromNavigation) window.location.hash = `#fixed-pages/${slug}`;
       } catch (selectError) {
         setError(getErrorMessage(selectError));
       }
     },
-    [clearPendingImage, dirty, loadPageImages],
+    [clearPendingImage, dirty, loadPageImages, selectedSlug],
   );
+
+  useEffect(() => {
+    if (requestedSlug && requestedSlug !== selectedSlug) {
+      void selectPage(requestedSlug, true);
+    }
+  }, [requestedSlug, selectedSlug, selectPage]);
 
   useEffect(() => {
     if (!currentListPage || selectedPage?.slug === currentListPage.slug) return;
