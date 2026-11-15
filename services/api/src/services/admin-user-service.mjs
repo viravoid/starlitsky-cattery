@@ -261,10 +261,18 @@ export async function setParentStatus(userId, status, adminUser) {
     if (status === "active") {
       const account = await transaction.user.findUnique({
         where: { id: userId },
-        select: { status: true },
+        select: { status: true, wechat_openid: true },
       });
       if (account?.status !== "active")
         throw badRequest("Only active users can be reactivated as parents");
+      if (!account.wechat_openid || account.wechat_openid.startsWith("mock_")) {
+        throw badRequest("User must log in with a real WeChat account before reactivation");
+      }
+      if (
+        await transaction.parentApplication.count({ where: { user_id: userId, status: "pending" } })
+      ) {
+        throw badRequest("User has a pending application; review it before reactivation");
+      }
     }
     if (profile.status !== status) {
       const now = new Date();

@@ -878,6 +878,67 @@ assert.equal(
   }),
   1,
 );
+const reapplyUser = await createUserWithRole("verify-disabled-reapplication", "user", {
+  wechat_openid: "verify-openid-disabled-reapplication",
+});
+const firstApplication = await submitParentApplication(
+  {
+    displayName: "Disabled Reapplication",
+    contactWechat: "first-contact",
+    existingCatClaims: [{ catId: cat.id }],
+  },
+  reapplyUser,
+);
+await approveParentApplication(firstApplication.id, {}, admin);
+const firstProfile = await prisma.parentProfile.findUnique({ where: { user_id: reapplyUser.id } });
+await setParentStatus(reapplyUser.id, "disabled", admin);
+assert.equal((await routeGet("/auth/me", reapplyUser)).user.roles.includes("parent"), false);
+assert.equal(
+  (await routeGet("/parent-applications/mine", reapplyUser)).status,
+  "approved",
+  "previous approval must remain in history after disabling",
+);
+await prisma.parentApplication.update({
+  where: { id: firstApplication.id },
+  data: { created_at: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+});
+const reapplyPhone = await verifyParentPhoneCode(
+  { code: "disabled-reapply-code" },
+  reapplyUser,
+  fakeConfig,
+  { fetcher: mockWechat },
+);
+const newApplication = await submitParentApplication(
+  {
+    displayName: "Disabled Reapplication",
+    phoneVerificationToken: reapplyPhone.verificationToken,
+    existingCatClaims: [{ catId: cat.id }],
+  },
+  reapplyUser,
+);
+assert.equal(newApplication.status, "pending");
+assert.equal(newApplication.contactPhoneSource, "wechat_verified");
+await assertRejects("pending reapplication must be reviewed before admin restoration", () =>
+  setParentStatus(reapplyUser.id, "active", admin),
+);
+await approveParentApplication(newApplication.id, {}, admin);
+const restoredProfile = await prisma.parentProfile.findUnique({
+  where: { user_id: reapplyUser.id },
+});
+assert.equal(restoredProfile.id, firstProfile.id, "reapplication must retain the parent profile");
+assert.equal(restoredProfile.contact_phone_source, "wechat_verified");
+assert.equal((await routeGet("/auth/me", reapplyUser)).user.roles.includes("parent"), true);
+assert.equal(
+  await prisma.parentCatLink.count({
+    where: {
+      parent_profile_id: firstProfile.id,
+      cat_id: cat.id,
+      status: "active",
+    },
+  }),
+  1,
+  "reapplication must reuse the existing active cat relationship",
+);
 await assertRejects("new cat needs explicit creation confirmation", () =>
   approveParentApplication(newCatApplication.id, { adminNote: "incomplete" }, admin),
 );

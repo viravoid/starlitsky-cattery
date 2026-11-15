@@ -33,6 +33,8 @@ interface ParentAuthPage {
 
 interface ParentAuthData {
   application: ParentApplicationData | null;
+  isActiveParent: boolean;
+  parentInactive: boolean;
   applicationStatusClass: string;
   applicationStatusLabel: string;
   cats: ParentClaimCatCandidateData[];
@@ -60,6 +62,8 @@ interface ParentAuthData {
 
 const DEFAULT_DATA: ParentAuthData = {
   application: null,
+  isActiveParent: false,
+  parentInactive: false,
   applicationStatusClass: "",
   applicationStatusLabel: "",
   cats: [],
@@ -90,11 +94,14 @@ Page({
 
   async onLoad(this: ParentAuthPage) {
     const user = await refreshCurrentUser();
-    if (user) this.setData({
-      displayName: user.parentProfile?.displayName || user.nickname || "",
-      applicantGender: user.gender || "",
-      contactWechat: user.contactWechat || "",
-    });
+    if (user)
+      this.setData({
+        displayName: user.parentProfile?.displayName || user.nickname || "",
+        applicantGender: user.gender || "",
+        contactWechat: user.contactWechat || "",
+        isActiveParent: user.parentProfile?.status === "active",
+        parentInactive: user.parentProfile?.status === "disabled",
+      });
     try {
       this.setData({ phoneCapabilityEnabled: await getParentPhoneVerificationCapability() });
     } catch {
@@ -114,11 +121,13 @@ Page({
         application,
         applicationStatusClass: statusClass(application.status),
         applicationStatusLabel: statusLabel(application.status),
-        ...(application.status === "rejected" ? {
-          displayName: application.displayName,
-          applicantGender: application.gender || "",
-          contactWechat: application.contactWechat || "",
-        } : {}),
+        ...(application.status === "rejected"
+          ? {
+              displayName: application.displayName,
+              applicantGender: application.gender || "",
+              contactWechat: application.contactWechat || "",
+            }
+          : {}),
       });
     } catch {
       this.setData({ application: null, applicationStatusClass: "", applicationStatusLabel: "" });
@@ -178,7 +187,10 @@ Page({
     }
   },
 
-  async onGetPhoneNumber(this: ParentAuthPage, event: { detail: { code?: string; errMsg?: string; errno?: number } }) {
+  async onGetPhoneNumber(
+    this: ParentAuthPage,
+    event: { detail: { code?: string; errMsg?: string; errno?: number } },
+  ) {
     const code = event.detail.code;
     if (!code || this.data.isVerifyingPhone) {
       if (event.detail.errno === 1400001) showToast("手机号体验额度已用完");

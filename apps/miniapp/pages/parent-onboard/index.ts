@@ -33,8 +33,7 @@ Page({
     const parentStatus = session.user?.parentProfile?.status || "";
     this.setData({
       isActiveParent: session.roles.includes("parent") && parentStatus === "active",
-      parentInactive:
-        session.roles.includes("parent") && Boolean(parentStatus) && parentStatus !== "active",
+      parentInactive: parentStatus === "disabled",
     });
   },
 
