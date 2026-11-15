@@ -339,6 +339,29 @@ function verifyFixedPageNormalization() {
     failures.push("environment-zone-common room titles must survive normalization.");
   }
 
+  const environmentDetailWxml = readFileSync(
+    join(miniappRoot, "pages/environment-detail/index.wxml"),
+    "utf8",
+  );
+  if (!environmentDetailWxml.includes('mode="{{imageSlot.imageMode || \'aspectFill\'}}"') ||
+      !environmentDetailWxml.includes('style="{{imageSlot.imageStyle}}"')) {
+    failures.push("Environment room photos must bind their resolved focal frame.");
+  }
+  const photoPresentation = evaluateFixedPagePhotoPresentationModule(readFileSync(
+    join(miniappRoot, "utils/fixed-page-photo-presentation.ts"),
+    "utf8",
+  ));
+  const focalLeft = photoPresentation.resolveFixedPageFocalFrame(
+    { width: 1000, height: 500 }, { width: 4, height: 3 }, { x: 0, y: 50 },
+  );
+  const focalRight = photoPresentation.resolveFixedPageFocalFrame(
+    { width: 1000, height: 500 }, { width: 4, height: 3 }, { x: 100, y: 50 },
+  );
+  if (focalLeft.mode !== "aspectFit" || !focalLeft.style.includes("left:0%") ||
+      !focalRight.style.includes("left:-50%")) {
+    failures.push("Environment room focal points must move the actual native image frame.");
+  }
+
   const breedingPage = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPages.find(
     (page) => page.slug === "breeding-plan",
   );
@@ -1141,6 +1164,11 @@ function styleNumber(value) {
 }
 
 function evaluateFixedPageContentModule(sourceText) {
+  const photoPresentationSource = readFileSync(
+    join(miniappRoot, "utils/fixed-page-photo-presentation.ts"),
+    "utf8",
+  );
+  const photoPresentation = evaluateFixedPagePhotoPresentationModule(photoPresentationSource);
   const runtimeSource = sourceText
     .replace(/^import[^\n]*\n/gm, "")
     .replace(/^export\s+/gm, "");
@@ -1160,11 +1188,27 @@ module.exports = { normalizeFixedPageView };`,
     module: { exports: {} },
     exports: {},
     resolveCatFrame: () => null,
+    resolveFixedPageFocalFrame: photoPresentation.resolveFixedPageFocalFrame,
     getFixedPageMediaUrl: () => "",
     mapFixedPageMedia: () => ({ coverMedia: null, galleryMedia: [], previewMedia: [] }),
   };
   sandbox.exports = sandbox.module.exports;
   vm.runInNewContext(compiled, sandbox, { filename: "fixed-page-content.ts" });
+  return sandbox.module.exports;
+}
+
+function evaluateFixedPagePhotoPresentationModule(sourceText) {
+  const runtimeSource = sourceText.replace(/^import[^\n]*\n/gm, "");
+  const compiled = ts.transpileModule(runtimeSource, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+    fileName: "fixed-page-photo-presentation.ts",
+  }).outputText;
+  const sandbox = { module: { exports: {} }, exports: {} };
+  sandbox.exports = sandbox.module.exports;
+  vm.runInNewContext(compiled, sandbox, { filename: "fixed-page-photo-presentation.ts" });
   return sandbox.module.exports;
 }
 

@@ -32,12 +32,14 @@
             wx:for-item="imageSlot"
             wx:key="id"
             class="room-image-button"
+            style="aspect-ratio: {{section.photoRatio}};"
           >
             <image
               wx:if="{{imageSlot.image}}"
-              class="room-image"
+              class="room-image {{imageSlot.imageStyle ? 'positioned-image' : ''}}"
               src="{{imageSlot.image.url}}"
-              mode="aspectFill"
+              mode="{{imageSlot.imageMode || 'aspectFill'}}"
+              style="{{imageSlot.imageStyle}}"
               data-url="{{imageSlot.image.url}}"
               bindtap="previewImage"
             />

@@ -16,6 +16,7 @@ import {
   uploadFixedPageImage,
 } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
+import { EnvironmentContentEditor } from "./EnvironmentContentEditor";
 import { HomeContentEditor } from "./HomeContentEditor";
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
@@ -371,6 +372,51 @@ export function FixedPagesPanel({
     }
   }
 
+  async function uploadEnvironmentRoomImage(file: File, roomId: string, slotId: string) {
+    if (!selectedPage || selectedPage.slug !== "environment") return;
+    setIsSaving(true);
+    setError("");
+    try {
+      const dimensions = await readImageDimensions(file);
+      const media = await uploadFixedPageImage(selectedPage.id, file, {
+        altText: "猫舍环境房间照片",
+        ...dimensions,
+        title: file.name,
+        usage: `environment:room:${roomId}`,
+      });
+      await loadPageImages(selectedPage.id);
+      setForm((current) => {
+        const sections = Array.isArray(current.contentJson.sections) ? current.contentJson.sections : [];
+        const contentJson = {
+          ...current.contentJson,
+          sections: sections.map((rawSection) => {
+            if (!isRecord(rawSection) || !Array.isArray(rawSection.rooms)) return rawSection;
+            return {
+              ...rawSection,
+              rooms: rawSection.rooms.map((rawRoom) => {
+                if (!isRecord(rawRoom) || rawRoom.id !== roomId || !Array.isArray(rawRoom.images)) return rawRoom;
+                return {
+                  ...rawRoom,
+                  images: rawRoom.images.map((rawImage) =>
+                    isRecord(rawImage) && rawImage.id === slotId
+                      ? { ...rawImage, imageId: media.id }
+                      : rawImage,
+                  ),
+                };
+              }),
+            };
+          }),
+        };
+        return { ...current, contentJson, contentJsonText: JSON.stringify(contentJson, null, 2) };
+      });
+      setNotice("房间图片已上传；请保存页面以更新小程序。");
+    } catch (uploadError) {
+      setError(`房间图片上传失败：${getErrorMessage(uploadError)}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleEnvironmentSlotImageSelected(slot: EnvironmentSlotConfig, file: File | null) {
     if (!selectedPage || !file) return;
 
@@ -538,6 +584,7 @@ export function FixedPagesPanel({
                 openPanels={openPanels}
                 slug={selectedPage.slug}
                 onContentChange={updateContent}
+                onEnvironmentImageUpload={uploadEnvironmentRoomImage}
                 onPanelsChange={setOpenPanels}
                 onHomeImageUpload={uploadHomeSlideImage}
               />
@@ -618,6 +665,7 @@ function StructuredContentEditor({
   openPanels,
   slug,
   onContentChange,
+  onEnvironmentImageUpload,
   onPanelsChange,
   onHomeImageUpload,
 }: {
@@ -626,9 +674,20 @@ function StructuredContentEditor({
   openPanels: Record<string, boolean>;
   slug: FixedPageSlug;
   onContentChange: (patch: JsonRecord) => void;
+  onEnvironmentImageUpload: (file: File, roomId: string, slotId: string) => Promise<void>;
   onPanelsChange: (panels: Record<string, boolean>) => void;
   onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "environment") {
+    return (
+      <EnvironmentContentEditor
+        content={content}
+        images={homeImages}
+        onChange={onContentChange}
+        onImageUpload={onEnvironmentImageUpload}
+      />
+    );
+  }
   if (slug === "home") {
     return (
       <HomeContentEditor
@@ -1289,4 +1348,20 @@ function formatImageState(state: ImageUploadState) {
 
 function formatOption(value: string, options: Array<{ label: string; value: string }>) {
   return options.find((option) => option.value === value)?.label ?? value;
+}
+
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new window.Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("图片格式无效，无法读取尺寸"));
+    };
+    image.src = url;
+  });
 }

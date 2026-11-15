@@ -551,20 +551,24 @@ export function uploadFixedPageImage(
   file: File,
   options: {
     altText?: string | null;
+    height?: number;
     sortOrder?: number;
     title?: string | null;
     usage?: string;
+    width?: number;
   } = {},
 ) {
   return uploadImageForOwner({
     altText: options.altText,
     fallbackFileName: "fixed-page-image",
     file,
+    height: options.height,
     ownerId: pageId,
     ownerType: "fixed_page",
     sortOrder: options.sortOrder,
     title: options.title,
     usage: options.usage ?? "gallery",
+    width: options.width,
   });
 }
 
