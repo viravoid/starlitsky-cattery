@@ -14,9 +14,11 @@ import {
   updateFixedPage,
   updateMediaBinding,
   uploadFixedPageImage,
+  uploadFixedPageContractFile,
 } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
 import { EnvironmentContentEditor } from "./EnvironmentContentEditor";
+import { AftercareContentEditor } from "./AftercareContentEditor";
 import { FeedingContentEditor } from "./FeedingContentEditor";
 import { HomeContentEditor } from "./HomeContentEditor";
 import { ProcessContentEditor } from "./ProcessContentEditor";
@@ -190,7 +192,6 @@ export function FixedPagesPanel({
 
   const loadPageImages = useCallback(async (pageId: string) => {
     const mediaList = await listMedia({
-      kind: "image",
       ownerId: pageId,
       ownerType: "fixed_page",
       pageSize: 100,
@@ -458,6 +459,29 @@ export function FixedPagesPanel({
     }
   }
 
+  async function uploadAftercareContract(file: File) {
+    if (!selectedPage || selectedPage.slug !== "aftercare") return;
+    setIsSaving(true);
+    setError("");
+    try {
+      const media = await uploadFixedPageContractFile(selectedPage.id, file);
+      await loadPageImages(selectedPage.id);
+      setForm((current) => {
+        const contractFile = isRecord(current.contentJson.contractFile) ? current.contentJson.contractFile : {};
+        const contentJson = {
+          ...current.contentJson,
+          contractFile: { ...contractFile, assetId: media.id, fileName: file.name, mimeType: file.type },
+        };
+        return { ...current, contentJson, contentJsonText: JSON.stringify(contentJson, null, 2) };
+      });
+      setNotice("合同文件已上传；请保存页面以更新小程序。");
+    } catch (uploadError) {
+      setError(`合同文件上传失败：${getErrorMessage(uploadError)}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleEnvironmentSlotImageSelected(slot: EnvironmentSlotConfig, file: File | null) {
     if (!selectedPage || !file) return;
 
@@ -626,6 +650,7 @@ export function FixedPagesPanel({
                 slug={selectedPage.slug}
                 onContentChange={updateContent}
                 onEnvironmentImageUpload={uploadEnvironmentRoomImage}
+                onAftercareContractUpload={uploadAftercareContract}
                 onFeedingImageUpload={uploadFeedingModuleImage}
                 onPanelsChange={setOpenPanels}
                 onHomeImageUpload={uploadHomeSlideImage}
@@ -708,6 +733,7 @@ function StructuredContentEditor({
   slug,
   onContentChange,
   onEnvironmentImageUpload,
+  onAftercareContractUpload,
   onFeedingImageUpload,
   onPanelsChange,
   onHomeImageUpload,
@@ -718,10 +744,14 @@ function StructuredContentEditor({
   slug: FixedPageSlug;
   onContentChange: (patch: JsonRecord) => void;
   onEnvironmentImageUpload: (file: File, roomId: string, slotId: string) => Promise<void>;
+  onAftercareContractUpload: (file: File) => Promise<void>;
   onFeedingImageUpload: (file: File, moduleId: string, slotId: string) => Promise<void>;
   onPanelsChange: (panels: Record<string, boolean>) => void;
   onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "aftercare") {
+    return <AftercareContentEditor content={content} media={homeImages} onChange={onContentChange} onContractUpload={onAftercareContractUpload} />;
+  }
   if (slug === "process") {
     return <ProcessContentEditor content={content} onChange={onContentChange} />;
   }
@@ -1260,13 +1290,13 @@ function EnvironmentFixedPageMediaSlots({
 
 function getPrimaryPageImage(images: MediaAssetData[]) {
   return (
-    images.find((media) =>
+    images.filter((media) => media.kind === "image").find((media) =>
       media.bindings.some(
         (binding) => binding.usage === "cover" && binding.visibility === "visible",
       ),
     ) ??
-    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
-    images[0]
+    images.find((media) => media.kind === "image" && media.bindings.some((binding) => binding.visibility === "visible")) ??
+    images.find((media) => media.kind === "image")
   );
 }
 

@@ -572,6 +572,18 @@ export function uploadFixedPageImage(
   });
 }
 
+export function uploadFixedPageContractFile(pageId: string, file: File) {
+  return uploadImageForOwner({
+    altText: "购猫合同",
+    fallbackFileName: "contract.pdf",
+    file,
+    ownerId: pageId,
+    ownerType: "fixed_page",
+    title: file.name,
+    usage: "contract",
+  });
+}
+
 export function createMediaBinding(mediaId: string, data: CreateMediaBindingRequest) {
   return unwrap<MediaBindingData, CreateMediaBindingRequest>(
     adminPost(`/media/${encodeURIComponent(mediaId)}/bindings`, data),
