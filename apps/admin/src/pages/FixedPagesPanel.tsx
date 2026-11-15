@@ -16,6 +16,7 @@ import {
   uploadFixedPageImage,
 } from "../api/cattery";
 import { getErrorMessage } from "../utils/errors";
+import { HomeContentEditor } from "./HomeContentEditor";
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 type JsonRecord = Record<string, unknown>;
@@ -335,6 +336,41 @@ export function FixedPagesPanel({
     return media;
   }
 
+  async function uploadHomeSlideImage(file: File, slideId: string) {
+    if (!selectedPage || selectedPage.slug !== "home") return;
+    setIsSaving(true);
+    setError("");
+    try {
+      const media = await uploadFixedPageImage(selectedPage.id, file, {
+        altText: "首页轮播图片",
+        title: file.name,
+        usage: "hero",
+      });
+      await loadPageImages(selectedPage.id);
+      setForm((current) => {
+        const hero = isRecord(current.contentJson.hero) ? current.contentJson.hero : {};
+        const slides = Array.isArray(hero.slides) ? hero.slides : [];
+        const contentJson = {
+          ...current.contentJson,
+          hero: {
+            ...hero,
+            slides: slides.map((item) =>
+              isRecord(item) && item.id === slideId
+                ? { ...item, imageId: media.id, label: item.label || file.name }
+                : item,
+            ),
+          },
+        };
+        return { ...current, contentJson, contentJsonText: JSON.stringify(contentJson, null, 2) };
+      });
+      setNotice("图片已上传；请保存页面，使轮播图片在小程序生效。");
+    } catch (uploadError) {
+      setError(`首页轮播图片上传失败：${getErrorMessage(uploadError)}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleEnvironmentSlotImageSelected(slot: EnvironmentSlotConfig, file: File | null) {
     if (!selectedPage || !file) return;
 
@@ -408,7 +444,7 @@ export function FixedPagesPanel({
           <p className="eyebrow">Fixed Pages</p>
           <h2>站点内容管理</h2>
           <p className="muted compact">
-            Demo 字段分组 + 真实 FixedPage API；图片上传继续使用真实媒体 API 和 COS。
+            编辑首页和介绍等页面内容，保存后同步到小程序。
           </p>
         </div>
         <div className="toolbar-actions">
@@ -421,46 +457,17 @@ export function FixedPagesPanel({
       {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="error-banner">{error}</div> : null}
 
-      <div className="management-grid wide-detail">
-        <section className="table-panel" aria-label="固定页面列表">
-          <div className="section-heading">
-            <div>
-              <h3>固定页面</h3>
-              <p className="muted compact">当前 {pages.length} 个预定义页面</p>
-            </div>
-          </div>
+      <div className="fixed-page-detail-layout">
+        <aside className="detail-panel" aria-label="固定页面编辑">
           {isLoading ? (
             <div className="empty-state">正在加载固定页面...</div>
           ) : pages.length === 0 ? (
             <div className="empty-state">暂无固定页面配置，请先运行数据库迁移。</div>
-          ) : (
-            <div className="fixed-page-list">
-              {pages.map((page) => (
-                <button
-                  className={`fixed-page-list-item ${selectedPage?.slug === page.slug ? "active" : ""}`}
-                  key={page.slug}
-                  type="button"
-                  onClick={() => void selectPage(page.slug)}
-                >
-                  <span>
-                    <strong>{PAGE_LABELS[page.slug].title}</strong>
-                    <small>{PAGE_LABELS[page.slug].eyebrow}</small>
-                  </span>
-                  <span className={`status-badge status-${page.status}`}>
-                    {formatOption(page.status, STATUS_OPTIONS)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <aside className="detail-panel" aria-label="固定页面编辑">
-          {selectedPage && pageCopy ? (
+          ) : selectedPage && pageCopy ? (
             <form className="form-stack" onSubmit={handleSubmit}>
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">{pageCopy.eyebrow}</p>
+                  <p className="eyebrow">站点内容</p>
                   <h3>{pageCopy.title}</h3>
                   <p className="muted compact">{pageCopy.desc}</p>
                 </div>
@@ -527,10 +534,12 @@ export function FixedPagesPanel({
 
               <StructuredContentEditor
                 content={form.contentJson}
+                homeImages={selectedPageImages}
                 openPanels={openPanels}
                 slug={selectedPage.slug}
                 onContentChange={updateContent}
                 onPanelsChange={setOpenPanels}
+                onHomeImageUpload={uploadHomeSlideImage}
               />
 
               <EditorSection
@@ -605,17 +614,31 @@ export function FixedPagesPanel({
 
 function StructuredContentEditor({
   content,
+  homeImages,
   openPanels,
   slug,
   onContentChange,
   onPanelsChange,
+  onHomeImageUpload,
 }: {
   content: JsonRecord;
+  homeImages: MediaAssetData[];
   openPanels: Record<string, boolean>;
   slug: FixedPageSlug;
   onContentChange: (patch: JsonRecord) => void;
   onPanelsChange: (panels: Record<string, boolean>) => void;
+  onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "home") {
+    return (
+      <HomeContentEditor
+        content={content}
+        images={homeImages}
+        onChange={onContentChange}
+        onImageUpload={onHomeImageUpload}
+      />
+    );
+  }
   if (slug === "contact") {
     return (
       <ContactContentEditor
