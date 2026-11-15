@@ -22,6 +22,7 @@ import { AftercareContentEditor } from "./AftercareContentEditor";
 import { FeedingContentEditor } from "./FeedingContentEditor";
 import { HomeContentEditor } from "./HomeContentEditor";
 import { ProcessContentEditor } from "./ProcessContentEditor";
+import { QuestionnaireContentEditor } from "./QuestionnaireContentEditor";
 import { PhilosophyContentEditor } from "./PhilosophyContentEditor";
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
@@ -750,6 +751,9 @@ function StructuredContentEditor({
   onPanelsChange: (panels: Record<string, boolean>) => void;
   onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "questionnaire") {
+    return <QuestionnaireContentEditor content={content} onChange={onContentChange} />;
+  }
   if (slug === "philosophy") {
     return <PhilosophyContentEditor content={content} onChange={onContentChange} />;
   }
