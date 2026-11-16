@@ -39,6 +39,7 @@ import {
   uploadCatImage,
   uploadLitterImage,
 } from "../api/cattery";
+import { listAllPages } from "../api/pagination";
 import { PageContainer } from "../components/PageContainer";
 import { mergeCatStoryTextFields, readCatStoryText } from "../utils/cat-story-json";
 import { getErrorMessage } from "../utils/errors";
@@ -297,19 +298,23 @@ export function CatteryManagementPage() {
 
     try {
       const [catList, litterList, fixedPageList] = await Promise.all([
-        listCats({ includeDeleted: includeArchivedCats, pageSize: 200 }),
-        listLitters({ includeDeleted: includeArchivedLitters, pageSize: 100 }),
+        listAllPages((page) =>
+          listCats({ includeDeleted: includeArchivedCats, page, pageSize: 100 }),
+        ),
+        listAllPages((page) =>
+          listLitters({ includeDeleted: includeArchivedLitters, page, pageSize: 100 }),
+        ),
         listFixedPages(),
       ]);
 
-      setCats(catList.items);
+      setCats(catList);
       setFixedPages(fixedPageList);
-      setLitters(litterList.items);
+      setLitters(litterList);
       setSelectedCat((current) =>
-        current ? (catList.items.find((cat) => cat.id === current.id) ?? null) : null,
+        current ? (catList.find((cat) => cat.id === current.id) ?? null) : null,
       );
       setSelectedLitter((current) =>
-        current ? (litterList.items.find((litter) => litter.id === current.id) ?? null) : null,
+        current ? (litterList.find((litter) => litter.id === current.id) ?? null) : null,
       );
     } catch (loadError) {
       setError(getErrorMessage(loadError));
@@ -426,14 +431,17 @@ export function CatteryManagementPage() {
   }
 
   async function loadCatImages(catId: string) {
-    const mediaList = await listMedia({
-      kind: "image",
-      ownerId: catId,
-      ownerType: "cat",
-      pageSize: 50,
-      status: "active",
-    });
-    const sorted = sortMediaByBinding(mediaList.items, "cat", catId);
+    const mediaList = await listAllPages((page) =>
+      listMedia({
+        kind: "image",
+        ownerId: catId,
+        ownerType: "cat",
+        page,
+        pageSize: 100,
+        status: "active",
+      }),
+    );
+    const sorted = sortMediaByBinding(mediaList, "cat", catId);
     setCatImagesByCatId((current) => ({ ...current, [catId]: sorted }));
     return sorted;
   }
@@ -475,14 +483,17 @@ export function CatteryManagementPage() {
   }
 
   async function loadLitterImages(litterId: string) {
-    const mediaList = await listMedia({
-      kind: "image",
-      ownerId: litterId,
-      ownerType: "litter",
-      pageSize: 50,
-      status: "active",
-    });
-    const sorted = sortMediaByBinding(mediaList.items, "litter", litterId);
+    const mediaList = await listAllPages((page) =>
+      listMedia({
+        kind: "image",
+        ownerId: litterId,
+        ownerType: "litter",
+        page,
+        pageSize: 100,
+        status: "active",
+      }),
+    );
+    const sorted = sortMediaByBinding(mediaList, "litter", litterId);
     setLitterImagesByLitterId((current) => ({ ...current, [litterId]: sorted }));
     return sorted;
   }
