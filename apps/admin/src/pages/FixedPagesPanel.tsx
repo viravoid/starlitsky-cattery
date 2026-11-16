@@ -26,6 +26,7 @@ import { HomeContentEditor } from "./HomeContentEditor";
 import { ProcessContentEditor } from "./ProcessContentEditor";
 import { QuestionnaireContentEditor } from "./QuestionnaireContentEditor";
 import { PhilosophyContentEditor } from "./PhilosophyContentEditor";
+import { FixedPageDraftPreview } from "./FixedPageDraftPreview";
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 type JsonRecord = Record<string, unknown>;
@@ -147,6 +148,7 @@ export function FixedPagesPanel({
     advanced: false,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [previewForm, setPreviewForm] = useState<FixedPageFormState | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -201,6 +203,7 @@ export function FixedPagesPanel({
         return;
       }
       setSelectedSlug(slug);
+      setPreviewForm(null);
       setNotice("");
       setError("");
 
@@ -242,6 +245,7 @@ export function FixedPagesPanel({
       const payload = toPayload(form);
       if (selectedPage.slug === "contact") validateContactAccounts(payload.contentJson);
       const updated = await updateFixedPage(selectedPage.slug, payload);
+      setPreviewForm(null);
       setSelectedPage(updated);
       const nextForm = toForm(updated);
       setSavedForm(nextForm);
@@ -284,7 +288,19 @@ export function FixedPagesPanel({
     if (!dirty) return;
     if (!window.confirm("确定要放弃当前未保存修改吗？")) return;
     setForm(savedForm);
+    setPreviewForm(null);
     setNotice("已恢复到上一次保存的内容。");
+  }
+
+  function openPreview() {
+    try {
+      const payload = toPayload(form);
+      if (selectedPage?.slug === "contact") validateContactAccounts(payload.contentJson);
+      setPreviewForm({ ...form, contentJson: toContentRecord(payload.contentJson) });
+      setError("");
+    } catch (previewError) {
+      setError(`无法预览：${getErrorMessage(previewError)}`);
+    }
   }
 
   function updateContent(patch: JsonRecord) {
@@ -537,7 +553,7 @@ export function FixedPagesPanel({
       {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="error-banner">{error}</div> : null}
 
-      <div className="fixed-page-detail-layout">
+      <div className={`fixed-page-detail-layout ${previewForm ? "has-preview" : ""}`}>
         <aside className="detail-panel" aria-label="固定页面编辑">
           {isLoading ? (
             <div className="empty-state">正在加载固定页面...</div>
@@ -665,6 +681,9 @@ export function FixedPagesPanel({
               ) : null}
 
               <div className="form-actions">
+                <button className="secondary-button" disabled={isSaving} type="button" onClick={openPreview}>
+                  预览未保存内容
+                </button>
                 <button disabled={isSaving} type="submit">
                   {isSaving ? "保存中..." : "保存更改"}
                 </button>
@@ -682,6 +701,15 @@ export function FixedPagesPanel({
             <div className="empty-state">选择一个固定页面查看和编辑内容。</div>
           )}
         </aside>
+        {selectedPage && previewForm ? (
+          <FixedPageDraftPreview
+            content={previewForm.contentJson}
+            images={imagesByPageId[selectedPage.id] ?? null}
+            page={selectedPage}
+            title={previewForm.title}
+            onClose={() => setPreviewForm(null)}
+          />
+        ) : null}
       </div>
     </>
   );

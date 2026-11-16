@@ -1040,6 +1040,79 @@ td {
   max-width: 1100px;
 }
 
+.fixed-page-detail-layout.has-preview {
+  max-width: 1400px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.fixed-draft-preview {
+  min-width: 0;
+  border: 1px solid #d9e2ec;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.fixed-draft-preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+
+.fixed-draft-preview-head p,
+.fixed-draft-preview-note {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fixed-draft-preview-phone {
+  max-width: 430px;
+  max-height: 720px;
+  overflow: auto;
+  margin: 16px auto 0;
+  border: 1px solid #d9e2ec;
+  border-radius: 20px;
+  background: #fffdf9;
+  box-shadow: 0 12px 30px #1c3d5b12;
+}
+
+.fixed-draft-preview-content {
+  padding: 20px;
+  color: #34445a;
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fixed-draft-preview-content p:empty { display: none; }
+.fixed-draft-preview-heading { margin: 20px 0 12px; }
+.fixed-draft-preview-heading:first-child { margin-top: 0; }
+.fixed-draft-preview-heading h3 { margin: 0; color: #18395a; font-size: 18px; }
+.fixed-draft-preview-heading small { color: #a67b52; }
+.fixed-draft-preview-card { margin: 10px 0; padding: 14px; border: 1px solid #e8e4dc; border-radius: 12px; background: #fff; }
+.fixed-draft-preview-card h4,
+.fixed-draft-preview-subsection h5 { margin: 0 0 6px; color: #18395a; }
+.fixed-draft-preview-card p { margin: 4px 0; }
+.fixed-draft-preview-placeholder { color: #94a3b8; }
+.fixed-draft-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.fixed-draft-preview-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.fixed-draft-preview-pills span { padding: 2px 9px; border-radius: 99px; background: #edf3f5; }
+.fixed-draft-preview-images { display: flex; gap: 8px; overflow-x: auto; margin: 10px 0; }
+.fixed-draft-preview-images img { width: 140px; height: 100px; flex: none; object-fit: cover; border-radius: 8px; }
+.fixed-draft-preview-image { width: 100%; max-height: 240px; object-fit: cover; border-radius: 8px; }
+.fixed-draft-preview-subsection { border-top: 1px solid #e8e4dc; margin-top: 12px; padding-top: 12px; }
+
+@media (max-width: 1050px) {
+  .fixed-page-detail-layout.has-preview { grid-template-columns: 1fr; }
+  .fixed-draft-preview-head { flex-wrap: wrap; }
+}
+
 .wide-detail .table-scroll table {
   min-width: 900px;
 }
