@@ -14,8 +14,18 @@ import {
   updateFixedPage,
   updateMediaBinding,
   uploadFixedPageImage,
+  uploadFixedPageContractFile,
 } from "../api/cattery";
+import { listAllPages } from "../api/pagination";
 import { getErrorMessage } from "../utils/errors";
+import { EnvironmentContentEditor } from "./EnvironmentContentEditor";
+import { AftercareContentEditor } from "./AftercareContentEditor";
+import { BreedingPlanContentEditor } from "./BreedingPlanContentEditor";
+import { FeedingContentEditor } from "./FeedingContentEditor";
+import { HomeContentEditor } from "./HomeContentEditor";
+import { ProcessContentEditor } from "./ProcessContentEditor";
+import { QuestionnaireContentEditor } from "./QuestionnaireContentEditor";
+import { PhilosophyContentEditor } from "./PhilosophyContentEditor";
 
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
 type JsonRecord = Record<string, unknown>;
@@ -52,12 +62,12 @@ const PAGE_LABELS: Record<FixedPageSlug, { eyebrow: string; title: string; desc:
   home: {
     eyebrow: "HomepageContentPanel",
     title: "首页",
-    desc: "管理首页入口、介绍和结构化内容；图片继续走固定页媒体绑定。",
+    desc: "管理首页入口、介绍、轮播图片和结构化内容。",
   },
   about: {
     eyebrow: "AboutContentPanel",
     title: "猫舍介绍",
-    desc: "按 Demo 的主图、名片和正文分组维护真实 contentJson。",
+    desc: "按当前小程序布局维护名片和正文分组。",
   },
   philosophy: {
     eyebrow: "PhilosophyContentPanel",
@@ -123,15 +133,15 @@ export function FixedPagesPanel({
   const [savedForm, setSavedForm] = useState<FixedPageFormState>(() => toForm(null));
   const [form, setForm] = useState<FixedPageFormState>(() => toForm(null));
   const [imagesByPageId, setImagesByPageId] = useState<Record<string, MediaAssetData[]>>({});
-  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
-  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
-  const [imageUploadState, setImageUploadState] = useState<ImageUploadState>("idle");
   const [slotUploadStates, setSlotUploadStates] = useState<Record<string, ImageUploadState>>({});
   const [slotSortDrafts, setSlotSortDrafts] = useState<Record<string, string>>({});
   const [openPanels, setOpenPanels] = useState<Record<string, boolean>>({
     body: true,
     facts: true,
     sections: true,
+    introduction: true,
+    accounts: true,
+    footerNotice: true,
     media: true,
     meta: false,
     advanced: false,
@@ -175,32 +185,13 @@ export function FixedPagesPanel({
     return () => window.removeEventListener("starlitsky-admin-before-navigate", guardNavigation);
   }, [dirty]);
 
-  useEffect(() => {
-    return () => {
-      if (imagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(imagePreviewUrl);
-    };
-  }, [imagePreviewUrl]);
-
   const loadPageImages = useCallback(async (pageId: string) => {
-    const mediaList = await listMedia({
-      kind: "image",
-      ownerId: pageId,
-      ownerType: "fixed_page",
-      pageSize: 100,
-      status: "active",
-    });
-    setImagesByPageId((current) => ({ ...current, [pageId]: mediaList.items }));
-    setSlotSortDrafts((current) => mergeSortDrafts(current, mediaList.items, pageId));
-    return mediaList.items;
-  }, []);
-
-  const clearPendingImage = useCallback(() => {
-    setPendingImageFile(null);
-    setImagePreviewUrl((current) => {
-      if (current.startsWith("blob:")) URL.revokeObjectURL(current);
-      return "";
-    });
-    setImageUploadState("idle");
+    const mediaList = await listAllPages((page) =>
+      listMedia({ ownerId: pageId, ownerType: "fixed_page", page, pageSize: 100, status: "active" }),
+    );
+    setImagesByPageId((current) => ({ ...current, [pageId]: mediaList }));
+    setSlotSortDrafts((current) => mergeSortDrafts(current, mediaList, pageId));
+    return mediaList;
   }, []);
 
   const selectPage = useCallback(
@@ -219,14 +210,13 @@ export function FixedPagesPanel({
         setSelectedPage(page);
         setSavedForm(nextForm);
         setForm(nextForm);
-        clearPendingImage();
         await loadPageImages(page.id);
         if (!fromNavigation) window.location.hash = `#fixed-pages/${slug}`;
       } catch (selectError) {
         setError(getErrorMessage(selectError));
       }
     },
-    [clearPendingImage, dirty, loadPageImages, selectedSlug],
+    [dirty, loadPageImages, selectedSlug],
   );
 
   useEffect(() => {
@@ -250,27 +240,14 @@ export function FixedPagesPanel({
 
     try {
       const payload = toPayload(form);
+      if (selectedPage.slug === "contact") validateContactAccounts(payload.contentJson);
       const updated = await updateFixedPage(selectedPage.slug, payload);
       setSelectedPage(updated);
       const nextForm = toForm(updated);
       setSavedForm(nextForm);
       setForm(nextForm);
-      const hadPendingImage = Boolean(pendingImageFile);
-
-      if (pendingImageFile) {
-        try {
-          await uploadPendingImage(updated.id);
-        } catch (uploadError) {
-          setError(`固定页面内容已保存，但图片上传失败：${getErrorMessage(uploadError)}`);
-          setImageUploadState("pending");
-          await onReload();
-          return;
-        }
-      } else {
-        await loadPageImages(updated.id);
-      }
-
-      setNotice(hadPendingImage ? "固定页面内容和图片已保存" : "固定页面内容已保存");
+      await loadPageImages(updated.id);
+      setNotice("固定页面内容已保存");
       await onReload();
     } catch (saveError) {
       setError(getErrorMessage(saveError));
@@ -283,7 +260,6 @@ export function FixedPagesPanel({
     if (!dirty) return;
     if (!window.confirm("确定要放弃当前未保存修改吗？")) return;
     setForm(savedForm);
-    clearPendingImage();
     setNotice("已恢复到上一次保存的内容。");
   }
 
@@ -309,26 +285,146 @@ export function FixedPagesPanel({
     });
   }
 
-  function handleImageSelected(file: File | null) {
-    clearPendingImage();
-    if (!file) return;
-    setPendingImageFile(file);
-    setImagePreviewUrl(URL.createObjectURL(file));
-    setImageUploadState("pending");
+  async function uploadHomeSlideImage(file: File, slideId: string) {
+    if (!selectedPage || selectedPage.slug !== "home") return;
+    setIsSaving(true);
+    setError("");
+    try {
+      const media = await uploadFixedPageImage(selectedPage.id, file, {
+        altText: "首页轮播图片",
+        title: file.name,
+        usage: "hero",
+      });
+      await loadPageImages(selectedPage.id);
+      setForm((current) => {
+        const hero = isRecord(current.contentJson.hero) ? current.contentJson.hero : {};
+        const slides = Array.isArray(hero.slides) ? hero.slides : [];
+        const contentJson = {
+          ...current.contentJson,
+          hero: {
+            ...hero,
+            slides: slides.map((item) =>
+              isRecord(item) && item.id === slideId
+                ? { ...item, imageId: media.id, label: item.label || file.name }
+                : item,
+            ),
+          },
+        };
+        return { ...current, contentJson, contentJsonText: JSON.stringify(contentJson, null, 2) };
+      });
+      setNotice("图片已上传；请保存页面，使轮播图片在小程序生效。");
+    } catch (uploadError) {
+      setError(`首页轮播图片上传失败：${getErrorMessage(uploadError)}`);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  async function uploadPendingImage(pageId: string) {
-    if (!pendingImageFile) return null;
-    setImageUploadState("uploading");
-    const media = await uploadFixedPageImage(pageId, pendingImageFile, { usage: "gallery" });
-    setImagesByPageId((current) => ({
-      ...current,
-      [pageId]: [media, ...(current[pageId] ?? []).filter((item) => item.id !== media.id)],
-    }));
-    setPendingImageFile(null);
-    setImagePreviewUrl(media.thumbnailUrl || media.sourceUrl);
-    setImageUploadState("uploaded");
-    return media;
+  async function uploadEnvironmentRoomImage(file: File, roomId: string, slotId: string) {
+    if (!selectedPage || selectedPage.slug !== "environment") return;
+    setIsSaving(true);
+    setError("");
+    try {
+      const dimensions = await readImageDimensions(file);
+      const media = await uploadFixedPageImage(selectedPage.id, file, {
+        altText: "猫舍环境房间照片",
+        ...dimensions,
+        title: file.name,
+        usage: `environment:room:${roomId}`,
+      });
+      await loadPageImages(selectedPage.id);
+      setForm((current) => {
+        const sections = Array.isArray(current.contentJson.sections) ? current.contentJson.sections : [];
+        const contentJson = {
+          ...current.contentJson,
+          sections: sections.map((rawSection) => {
+            if (!isRecord(rawSection) || !Array.isArray(rawSection.rooms)) return rawSection;
+            return {
+              ...rawSection,
+              rooms: rawSection.rooms.map((rawRoom) => {
+                if (!isRecord(rawRoom) || rawRoom.id !== roomId || !Array.isArray(rawRoom.images)) return rawRoom;
+                return {
+                  ...rawRoom,
+                  images: rawRoom.images.map((rawImage) =>
+                    isRecord(rawImage) && rawImage.id === slotId
+                      ? { ...rawImage, imageId: media.id }
+                      : rawImage,
+                  ),
+                };
+              }),
+            };
+          }),
+        };
+        return { ...current, contentJson, contentJsonText: JSON.stringify(contentJson, null, 2) };
+      });
+      setNotice("房间图片已上传；请保存页面以更新小程序。");
+    } catch (uploadError) {
+      setError(`房间图片上传失败：${getErrorMessage(uploadError)}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function uploadFeedingModuleImage(file: File, moduleId: string, slotId: string) {
+    if (!selectedPage || selectedPage.slug !== "feeding") return;
+    setIsSaving(true);
+    setError("");
+    try {
+      const dimensions = await readImageDimensions(file);
+      const media = await uploadFixedPageImage(selectedPage.id, file, {
+        altText: "猫舍喂养照片",
+        ...dimensions,
+        title: file.name,
+        usage: `feeding:module:${moduleId}`,
+      });
+      await loadPageImages(selectedPage.id);
+      setForm((current) => {
+        const modules = Array.isArray(current.contentJson.modules) ? current.contentJson.modules : [];
+        const contentJson = {
+          ...current.contentJson,
+          modules: modules.map((rawModule) => {
+            if (!isRecord(rawModule) || rawModule.id !== moduleId || !Array.isArray(rawModule.images)) return rawModule;
+            return {
+              ...rawModule,
+              images: rawModule.images.map((rawImage) =>
+                isRecord(rawImage) && rawImage.id === slotId
+                  ? { ...rawImage, imageId: media.id }
+                  : rawImage,
+              ),
+            };
+          }),
+        };
+        return { ...current, contentJson, contentJsonText: JSON.stringify(contentJson, null, 2) };
+      });
+      setNotice("喂养图片已上传；请保存页面以更新小程序。");
+    } catch (uploadError) {
+      setError(`喂养图片上传失败：${getErrorMessage(uploadError)}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function uploadAftercareContract(file: File) {
+    if (!selectedPage || selectedPage.slug !== "aftercare") return;
+    setIsSaving(true);
+    setError("");
+    try {
+      const media = await uploadFixedPageContractFile(selectedPage.id, file);
+      await loadPageImages(selectedPage.id);
+      setForm((current) => {
+        const contractFile = isRecord(current.contentJson.contractFile) ? current.contentJson.contractFile : {};
+        const contentJson = {
+          ...current.contentJson,
+          contractFile: { ...contractFile, assetId: media.id, fileName: file.name, mimeType: file.type },
+        };
+        return { ...current, contentJson, contentJsonText: JSON.stringify(contentJson, null, 2) };
+      });
+      setNotice("合同文件已上传；请保存页面以更新小程序。");
+    } catch (uploadError) {
+      setError(`合同文件上传失败：${getErrorMessage(uploadError)}`);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function handleEnvironmentSlotImageSelected(slot: EnvironmentSlotConfig, file: File | null) {
@@ -404,7 +500,7 @@ export function FixedPagesPanel({
           <p className="eyebrow">Fixed Pages</p>
           <h2>站点内容管理</h2>
           <p className="muted compact">
-            Demo 字段分组 + 真实 FixedPage API；图片上传继续使用真实媒体 API 和 COS。
+            编辑首页和介绍等页面内容，保存后同步到小程序。
           </p>
         </div>
         <div className="toolbar-actions">
@@ -417,46 +513,17 @@ export function FixedPagesPanel({
       {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="error-banner">{error}</div> : null}
 
-      <div className="management-grid wide-detail">
-        <section className="table-panel" aria-label="固定页面列表">
-          <div className="section-heading">
-            <div>
-              <h3>固定页面</h3>
-              <p className="muted compact">当前 {pages.length} 个预定义页面</p>
-            </div>
-          </div>
+      <div className="fixed-page-detail-layout">
+        <aside className="detail-panel" aria-label="固定页面编辑">
           {isLoading ? (
             <div className="empty-state">正在加载固定页面...</div>
           ) : pages.length === 0 ? (
             <div className="empty-state">暂无固定页面配置，请先运行数据库迁移。</div>
-          ) : (
-            <div className="fixed-page-list">
-              {pages.map((page) => (
-                <button
-                  className={`fixed-page-list-item ${selectedPage?.slug === page.slug ? "active" : ""}`}
-                  key={page.slug}
-                  type="button"
-                  onClick={() => void selectPage(page.slug)}
-                >
-                  <span>
-                    <strong>{PAGE_LABELS[page.slug].title}</strong>
-                    <small>{PAGE_LABELS[page.slug].eyebrow}</small>
-                  </span>
-                  <span className={`status-badge status-${page.status}`}>
-                    {formatOption(page.status, STATUS_OPTIONS)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <aside className="detail-panel" aria-label="固定页面编辑">
-          {selectedPage && pageCopy ? (
+          ) : selectedPage && pageCopy ? (
             <form className="form-stack" onSubmit={handleSubmit}>
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">{pageCopy.eyebrow}</p>
+                  <p className="eyebrow">站点内容</p>
                   <h3>{pageCopy.title}</h3>
                   <p className="muted compact">{pageCopy.desc}</p>
                 </div>
@@ -523,10 +590,15 @@ export function FixedPagesPanel({
 
               <StructuredContentEditor
                 content={form.contentJson}
+                homeImages={selectedPageImages}
                 openPanels={openPanels}
                 slug={selectedPage.slug}
                 onContentChange={updateContent}
+                onEnvironmentImageUpload={uploadEnvironmentRoomImage}
+                onAftercareContractUpload={uploadAftercareContract}
+                onFeedingImageUpload={uploadFeedingModuleImage}
                 onPanelsChange={setOpenPanels}
+                onHomeImageUpload={uploadHomeSlideImage}
               />
 
               <EditorSection
@@ -545,13 +617,13 @@ export function FixedPagesPanel({
                 />
               </EditorSection>
 
-              <EditorSection
-                desc="图片上传继续使用真实媒体接口；环境页保留 Demo 的母婴房、公共区、医疗间位置。"
-                open={openPanels.media}
-                title="页面图片"
-                onToggle={() => setOpenPanels((current) => ({ ...current, media: !current.media }))}
-              >
-                {selectedPage.slug === "environment" ? (
+              {selectedPage.slug === "environment" ? (
+                <EditorSection
+                  desc="管理母婴房、公共区和医疗间的图片位置。"
+                  open={openPanels.media}
+                  title="环境图片"
+                  onToggle={() => setOpenPanels((current) => ({ ...current, media: !current.media }))}
+                >
                   <EnvironmentFixedPageMediaSlots
                     disabled={isSaving}
                     images={selectedPageImages}
@@ -565,16 +637,8 @@ export function FixedPagesPanel({
                     onSortSave={handleEnvironmentSortSave}
                     onUpload={handleEnvironmentSlotImageSelected}
                   />
-                ) : (
-                  <FixedPageImageUploadField
-                    disabled={isSaving}
-                    images={selectedPageImages}
-                    previewUrl={imagePreviewUrl}
-                    state={imageUploadState}
-                    onChange={handleImageSelected}
-                  />
-                )}
-              </EditorSection>
+                </EditorSection>
+              ) : null}
 
               <div className="form-actions">
                 <button disabled={isSaving} type="submit">
@@ -601,17 +665,82 @@ export function FixedPagesPanel({
 
 function StructuredContentEditor({
   content,
+  homeImages,
   openPanels,
   slug,
   onContentChange,
+  onEnvironmentImageUpload,
+  onAftercareContractUpload,
+  onFeedingImageUpload,
   onPanelsChange,
+  onHomeImageUpload,
 }: {
   content: JsonRecord;
+  homeImages: MediaAssetData[];
   openPanels: Record<string, boolean>;
   slug: FixedPageSlug;
   onContentChange: (patch: JsonRecord) => void;
+  onEnvironmentImageUpload: (file: File, roomId: string, slotId: string) => Promise<void>;
+  onAftercareContractUpload: (file: File) => Promise<void>;
+  onFeedingImageUpload: (file: File, moduleId: string, slotId: string) => Promise<void>;
   onPanelsChange: (panels: Record<string, boolean>) => void;
+  onHomeImageUpload: (file: File, slideId: string) => Promise<void>;
 }) {
+  if (slug === "breeding-plan") {
+    return <BreedingPlanContentEditor content={content} onChange={onContentChange} />;
+  }
+  if (slug === "questionnaire") {
+    return <QuestionnaireContentEditor content={content} onChange={onContentChange} />;
+  }
+  if (slug === "philosophy") {
+    return <PhilosophyContentEditor content={content} onChange={onContentChange} />;
+  }
+  if (slug === "aftercare") {
+    return <AftercareContentEditor content={content} media={homeImages} onChange={onContentChange} onContractUpload={onAftercareContractUpload} />;
+  }
+  if (slug === "process") {
+    return <ProcessContentEditor content={content} onChange={onContentChange} />;
+  }
+  if (slug === "feeding") {
+    return (
+      <FeedingContentEditor
+        content={content}
+        images={homeImages}
+        onChange={onContentChange}
+        onImageUpload={onFeedingImageUpload}
+      />
+    );
+  }
+  if (slug === "environment") {
+    return (
+      <EnvironmentContentEditor
+        content={content}
+        images={homeImages}
+        onChange={onContentChange}
+        onImageUpload={onEnvironmentImageUpload}
+      />
+    );
+  }
+  if (slug === "home") {
+    return (
+      <HomeContentEditor
+        content={content}
+        images={homeImages}
+        onChange={onContentChange}
+        onImageUpload={onHomeImageUpload}
+      />
+    );
+  }
+  if (slug === "contact") {
+    return (
+      <ContactContentEditor
+        content={content}
+        openPanels={openPanels}
+        onContentChange={onContentChange}
+        onPanelsChange={onPanelsChange}
+      />
+    );
+  }
   const facts = isRecord(content.facts) ? content.facts : {};
   const sections = Array.isArray(content.sections) ? content.sections : [];
   const primitiveFields = Object.entries(content).filter(
@@ -682,12 +811,157 @@ function StructuredContentEditor({
       </EditorSection>
 
       <EditorSection
-        desc={slug === "process" ? "价格、福利、购买流程等按 Demo 小节拆分。" : "页面中的可排序内容小节。"}
+        desc="页面中的可排序内容小节。"
         open={openPanels.sections}
         title="内容小节"
         onToggle={() => onPanelsChange({ ...openPanels, sections: !openPanels.sections })}
       >
         <SectionListEditor sections={sections} onChange={(next) => onContentChange({ sections: next })} />
+      </EditorSection>
+    </>
+  );
+}
+
+function ContactContentEditor({
+  content,
+  openPanels,
+  onContentChange,
+  onPanelsChange,
+}: {
+  content: JsonRecord;
+  openPanels: Record<string, boolean>;
+  onContentChange: (patch: JsonRecord) => void;
+  onPanelsChange: (panels: Record<string, boolean>) => void;
+}) {
+  const accounts = Array.isArray(content.accounts)
+    ? content.accounts.map((item) => (isRecord(item) ? item : {}))
+    : [];
+  const updateAccounts = (next: JsonRecord[]) => onContentChange({ accounts: next });
+
+  return (
+    <>
+      <EditorSection
+        title="开头说明"
+        desc="编辑联系方式页面顶部的说明文字。"
+        open={openPanels.introduction}
+        onToggle={() => onPanelsChange({ ...openPanels, introduction: !openPanels.introduction })}
+      >
+        <label>
+          说明文字
+          <textarea
+            rows={4}
+            value={typeof content.introduction === "string" ? content.introduction : ""}
+            onChange={(event) => onContentChange({ introduction: event.target.value })}
+          />
+        </label>
+      </EditorSection>
+
+      <EditorSection
+        title="联系方式列表"
+        desc="可修改平台和账号、调整顺序；账号为空的条目不会显示在小程序。"
+        open={openPanels.accounts}
+        onToggle={() => onPanelsChange({ ...openPanels, accounts: !openPanels.accounts })}
+      >
+        <div className="contact-account-list">
+          {accounts.length === 0 ? <p className="muted compact">暂无联系方式。</p> : null}
+          {accounts.map((account, index) => (
+            <div className="contact-account-row" key={String(account.id ?? index)}>
+              <div className="form-grid">
+                <label>
+                  平台名称
+                  <input
+                    value={typeof account.label === "string" ? account.label : ""}
+                    onChange={(event) =>
+                      updateAccounts(
+                        accounts.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, label: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+                <label>
+                  账号
+                  <input
+                    value={typeof account.value === "string" ? account.value : ""}
+                    onChange={(event) =>
+                      updateAccounts(
+                        accounts.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, value: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+              </div>
+              <div className="form-actions">
+                <button
+                  className="secondary-button small-button"
+                  disabled={index === 0}
+                  type="button"
+                  onClick={() => {
+                    const next = [...accounts];
+                    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                    updateAccounts(next);
+                  }}
+                >
+                  上移
+                </button>
+                <button
+                  className="secondary-button small-button"
+                  disabled={index === accounts.length - 1}
+                  type="button"
+                  onClick={() => {
+                    const next = [...accounts];
+                    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                    updateAccounts(next);
+                  }}
+                >
+                  下移
+                </button>
+                <button
+                  className="danger-button small-button"
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("确定删除这个联系方式吗？")) {
+                      updateAccounts(accounts.filter((_, itemIndex) => itemIndex !== index));
+                    }
+                  }}
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() =>
+              updateAccounts([
+                ...accounts,
+                { id: `contact-account-${crypto.randomUUID()}`, label: "新平台", value: "" },
+              ])
+            }
+          >
+            新增联系方式
+          </button>
+        </div>
+      </EditorSection>
+
+      <EditorSection
+        title="底部咨询提示"
+        desc="文本为空时，小程序隐藏这条提示。"
+        open={openPanels.footerNotice}
+        onToggle={() => onPanelsChange({ ...openPanels, footerNotice: !openPanels.footerNotice })}
+      >
+        <label>
+          咨询提示
+          <textarea
+            rows={5}
+            value={typeof content.footerNotice === "string" ? content.footerNotice : ""}
+            onChange={(event) => onContentChange({ footerNotice: event.target.value })}
+          />
+        </label>
       </EditorSection>
     </>
   );
@@ -813,56 +1087,6 @@ function EditorSection({
   );
 }
 
-function FixedPageImageUploadField({
-  disabled,
-  images,
-  previewUrl,
-  state,
-  onChange,
-}: {
-  disabled: boolean;
-  images: MediaAssetData[];
-  previewUrl: string;
-  state: ImageUploadState;
-  onChange: (file: File | null) => void;
-}) {
-  const currentImage = getPrimaryPageImage(images);
-  const displayUrl = previewUrl || currentImage?.thumbnailUrl || currentImage?.sourceUrl || "";
-
-  return (
-    <div className="image-uploader">
-      <div className="subsection-heading">
-        <h4>页面图片</h4>
-        <span className={`upload-state upload-state-${state}`}>{formatImageState(state)}</span>
-      </div>
-      {displayUrl ? (
-        <img
-          alt={currentImage?.altText || currentImage?.title || "固定页面图片预览"}
-          className="image-preview"
-          src={displayUrl}
-        />
-      ) : (
-        <div className="image-placeholder">暂无图片</div>
-      )}
-      <label>
-        选择图片
-        <input
-          accept="image/*"
-          disabled={disabled}
-          type="file"
-          onChange={(event) => {
-            onChange(event.target.files?.[0] ?? null);
-            event.currentTarget.value = "";
-          }}
-        />
-      </label>
-      <p className="muted compact">
-        {state === "pending" ? "图片将在保存固定页面时上传并绑定。" : "保存后会通过媒体绑定持久化到当前固定页面。"}
-      </p>
-    </div>
-  );
-}
-
 function EnvironmentFixedPageMediaSlots({
   disabled,
   images,
@@ -960,18 +1184,6 @@ function EnvironmentFixedPageMediaSlots({
   );
 }
 
-function getPrimaryPageImage(images: MediaAssetData[]) {
-  return (
-    images.find((media) =>
-      media.bindings.some(
-        (binding) => binding.usage === "cover" && binding.visibility === "visible",
-      ),
-    ) ??
-    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
-    images[0]
-  );
-}
-
 function getEnvironmentSlotItems(images: MediaAssetData[], pageId: string, usage: string) {
   return images
     .flatMap((media) =>
@@ -1034,6 +1246,20 @@ function toPayload(form: FixedPageFormState): UpdateFixedPageRequest {
   };
 }
 
+function validateContactAccounts(content: unknown) {
+  if (!isRecord(content) || !Array.isArray(content.accounts)) return;
+  const usedIds = new Set<string>();
+  for (const [index, item] of content.accounts.entries()) {
+    if (!isRecord(item)) throw new Error(`第 ${index + 1} 个联系方式格式不正确`);
+    const id = typeof item.id === "string" ? item.id.trim() : "";
+    const label = typeof item.label === "string" ? item.label.trim() : "";
+    const value = typeof item.value === "string" ? item.value.trim() : "";
+    if (!id || usedIds.has(id)) throw new Error(`第 ${index + 1} 个联系方式的 ID 缺失或重复`);
+    if (value && !label) throw new Error(`第 ${index + 1} 个联系方式请填写平台名称`);
+    usedIds.add(id);
+  }
+}
+
 function parseContentJsonText(value: string) {
   let parsed: unknown;
   try {
@@ -1093,4 +1319,20 @@ function formatImageState(state: ImageUploadState) {
 
 function formatOption(value: string, options: Array<{ label: string; value: string }>) {
   return options.find((option) => option.value === value)?.label ?? value;
+}
+
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new window.Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("图片格式无效，无法读取尺寸"));
+    };
+    image.src = url;
+  });
 }

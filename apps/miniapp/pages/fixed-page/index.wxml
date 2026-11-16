@@ -100,16 +100,19 @@
           </view>
           <view wx:if="{{item.images.length}}" class="feeding-image-stack">
             <view wx:for="{{item.images}}" wx:for-item="imageSlot" wx:key="id" class="feeding-image-button">
-              <image
-                wx:if="{{imageSlot.image}}"
-                class="feeding-image"
-                src="{{imageSlot.image.url}}"
-                mode="widthFix"
-                data-url="{{imageSlot.image.url}}"
-                bindtap="previewPageImage"
-              />
-              <view wx:else class="feeding-placeholder xy-soft-placeholder">
-                <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
+              <view class="feeding-image-frame" style="aspect-ratio: {{item.photoRatio}};">
+                <image
+                  wx:if="{{imageSlot.image}}"
+                  class="feeding-image {{imageSlot.imageStyle ? 'positioned-image' : ''}}"
+                  src="{{imageSlot.image.url}}"
+                  mode="{{imageSlot.imageMode || 'aspectFill'}}"
+                  style="{{imageSlot.imageStyle}}"
+                  data-url="{{imageSlot.image.url}}"
+                  bindtap="previewPageImage"
+                />
+                <view wx:else class="feeding-placeholder xy-soft-placeholder">
+                  <image class="xy-placeholder-cat" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
+                </view>
               </view>
             </view>
           </view>

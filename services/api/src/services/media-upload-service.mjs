@@ -43,7 +43,7 @@ export async function requestImageUpload(input) {
 
   const fileName = requiredString(input.fileName, "fileName");
   assertSafeFileName(fileName);
-  const mimeType = normalizeImageMimeType(input.mimeType);
+  const mimeType = normalizeUploadMimeType(input.mimeType);
   const sizeBytes = requiredPositiveInteger(input.sizeBytes, "sizeBytes");
   if (sizeBytes > config.storage.maxImageBytes) {
     throw badRequest("Image is larger than the configured upload limit", {
@@ -55,13 +55,18 @@ export async function requestImageUpload(input) {
   const checksum = optionalString(input.checksum, "checksum");
   const ownerType = requiredString(input.ownerType, "ownerType");
   const ownerId = requiredString(input.ownerId, "ownerId");
+  const usage = optionalString(input.usage, "usage") ?? "gallery";
+  if (mimeType === "application/pdf" &&
+      (ownerType !== "fixed_page" || usage !== "contract" || !fileName.toLowerCase().endsWith(".pdf"))) {
+    throw badRequest("PDF uploads are only allowed for fixed-page contracts with a .pdf file name");
+  }
   await ensureMediaOwnerExists(ownerType, ownerId);
 
   const objectKey = buildObjectKey({ fileName, mimeType });
   const storageUpload = createPresignedPutUpload({ objectKey, mimeType });
 
   const mediaInput = {
-    kind: "image",
+    kind: mimeType === "application/pdf" ? "document" : "image",
     sourceUrl: storageUpload.publicUrl,
     title: optionalString(input.title, "title") ?? null,
     altText: optionalString(input.altText, "altText") ?? null,
@@ -84,7 +89,7 @@ export async function requestImageUpload(input) {
     },
     ownerType,
     ownerId,
-    usage: optionalString(input.usage, "usage") ?? "gallery",
+    usage,
     sortOrder: optionalNonNegativeInteger(input.sortOrder, "sortOrder") ?? 0,
     bindingVisibility: optionalString(input.bindingVisibility, "bindingVisibility") ?? "visible",
   };
@@ -174,8 +179,8 @@ async function verifyUploadedObject(media, input) {
   if (!actualMimeType) {
     throw badRequest("Uploaded object content type could not be verified");
   }
-  if (!ALLOWED_IMAGE_MIME_TYPES.has(actualMimeType)) {
-    throw badRequest("Uploaded object content type is not an allowed image MIME type");
+  if (media.kind === "document" ? actualMimeType !== "application/pdf" : !ALLOWED_IMAGE_MIME_TYPES.has(actualMimeType)) {
+    throw badRequest("Uploaded object content type is not allowed for this media kind");
   }
   if (requestedMimeType !== actualMimeType) {
     throw badRequest("Uploaded object content type does not match the requested MIME type");
@@ -222,10 +227,10 @@ function getUploadMetadata(media) {
   return metadata.upload;
 }
 
-function normalizeImageMimeType(value) {
+function normalizeUploadMimeType(value) {
   const mimeType = requiredString(value, "mimeType").toLowerCase();
-  if (!ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
-    throw badRequest("mimeType must be a supported raster image type");
+  if (!ALLOWED_IMAGE_MIME_TYPES.has(mimeType) && mimeType !== "application/pdf") {
+    throw badRequest("mimeType must be a supported raster image or PDF type");
   }
   return mimeType;
 }
