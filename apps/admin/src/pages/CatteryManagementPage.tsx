@@ -817,6 +817,42 @@ export function CatteryManagementPage() {
     }
   }
 
+  async function replaceLitterMediaBinding(media: MediaAssetData, file: File) {
+    if (!selectedLitter || isSaving) return;
+    const litterId = selectedLitter.id;
+    const binding = media.bindings.find(
+      (item) => item.ownerType === "litter" && item.ownerId === litterId && !item.deletedAt,
+    );
+    if (!binding) return;
+    setIsSaving(true);
+    setError("");
+    setNotice("");
+    let uploaded = false;
+    let errorMessage = "";
+    try {
+      await uploadLitterImage(litterId, file, {
+        usage: binding.usage,
+        sortOrder: binding.sortOrder,
+        bindingVisibility: binding.visibility,
+      });
+      uploaded = true;
+      await archiveMediaBinding(media.id, binding.id);
+    } catch (mediaError) {
+      errorMessage = uploaded
+        ? `新图片已上传，但旧图片未能移除：${getErrorMessage(mediaError)}。请手动移除旧图片绑定。`
+        : getErrorMessage(mediaError);
+    } finally {
+      try {
+        await loadLitterImages(litterId);
+      } catch (refreshError) {
+        errorMessage += ` 图片列表刷新失败：${getErrorMessage(refreshError)}`;
+      }
+      if (errorMessage) setError(errorMessage.trim());
+      else setNotice("窝次图片已替换");
+      setIsSaving(false);
+    }
+  }
+
   return (
     <PageContainer>
       {(["kittens", "litters", "studs", "cats"] as SectionKey[]).includes(activeSection) ? (
@@ -887,6 +923,7 @@ export function CatteryManagementPage() {
           onImageChange={handleLitterImageSelected}
           onMediaBindingChange={updateLitterMediaBinding}
           onMediaBindingRemove={removeLitterMediaBinding}
+          onMediaBindingReplace={replaceLitterMediaBinding}
           onNew={openCreateLitter}
           onSelect={selectLitter}
           onSubmit={handleLitterSubmit}
@@ -1491,6 +1528,8 @@ function MediaBindingEditor({
   images,
   onChange,
   onRemove,
+  onReplace,
+  disabled = false,
 }: {
   images: MediaAssetData[];
   onChange: (
@@ -1498,6 +1537,8 @@ function MediaBindingEditor({
     patch: { usage?: string; sortOrder?: number; visibility?: string },
   ) => void;
   onRemove: (media: MediaAssetData) => void;
+  onReplace?: (media: MediaAssetData, file: File) => void;
+  disabled?: boolean;
 }) {
   if (images.length === 0) return <div className="cat-image-placeholder">暂无已绑定图片</div>;
   return (
@@ -1545,6 +1586,21 @@ function MediaBindingEditor({
               <button className="secondary-button" type="button" onClick={() => onRemove(media)}>
                 移除绑定
               </button>
+              {onReplace ? (
+                <label>
+                  替换图片
+                  <input
+                    accept="image/*"
+                    disabled={disabled}
+                    type="file"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) onReplace(media, file);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              ) : null}
             </div>
           </div>
         );
@@ -1810,6 +1866,7 @@ function LitterWorkspace({
   onImageChange,
   onMediaBindingChange,
   onMediaBindingRemove,
+  onMediaBindingReplace,
   onNew,
   onSelect,
   onSubmit,
@@ -1835,6 +1892,7 @@ function LitterWorkspace({
     patch: { usage?: string; sortOrder?: number; visibility?: string },
   ) => void;
   onMediaBindingRemove: (media: MediaAssetData) => void;
+  onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
   onNew: () => void;
   onSelect: (litter: LitterData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -1923,6 +1981,7 @@ function LitterWorkspace({
             onImageChange={onImageChange}
             onMediaBindingChange={onMediaBindingChange}
             onMediaBindingRemove={onMediaBindingRemove}
+            onMediaBindingReplace={onMediaBindingReplace}
             onSubmit={onSubmit}
           />
         ) : selectedLitter ? (
@@ -1957,6 +2016,7 @@ function LitterForm({
   onImageChange,
   onMediaBindingChange,
   onMediaBindingRemove,
+  onMediaBindingReplace,
   onSubmit,
 }: {
   activeCats: CatData[];
@@ -1973,6 +2033,7 @@ function LitterForm({
     patch: { usage?: string; sortOrder?: number; visibility?: string },
   ) => void;
   onMediaBindingRemove: (media: MediaAssetData) => void;
+  onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const catOptions = [
@@ -2087,6 +2148,8 @@ function LitterForm({
           images={selectedImages}
           onChange={onMediaBindingChange}
           onRemove={onMediaBindingRemove}
+          onReplace={onMediaBindingReplace}
+          disabled={isSaving}
         />
       </div>
       <FormActions isSaving={isSaving} onCancel={onCancel} />

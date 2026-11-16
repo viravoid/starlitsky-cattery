@@ -560,13 +560,19 @@ export function uploadCatImage(catId: string, file: File) {
   });
 }
 
-export function uploadLitterImage(litterId: string, file: File) {
+export function uploadLitterImage(
+  litterId: string,
+  file: File,
+  options: { usage?: string; sortOrder?: number; bindingVisibility?: string } = {},
+) {
   return uploadImageForOwner({
     fallbackFileName: "litter-image",
     file,
     ownerId: litterId,
     ownerType: "litter",
-    usage: "gallery",
+    usage: options.usage ?? "gallery",
+    sortOrder: options.sortOrder,
+    bindingVisibility: options.bindingVisibility,
   });
 }
 
