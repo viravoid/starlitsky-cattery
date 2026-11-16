@@ -258,10 +258,17 @@ export async function searchAdminParentCatCandidates(searchParams) {
     throw badRequest("Search requires 2 to 80 characters");
   }
   const cats = await prisma.cat.findMany({
-    where: { deleted_at: null, name: { contains: query } },
+    where: {
+      deleted_at: null,
+      OR: [
+        { id: { contains: query } },
+        { name: { contains: query } },
+        { color: { contains: query } },
+      ],
+    },
     select: { id: true, name: true, gender: true, color: true, visibility: true },
     orderBy: [{ updated_at: "desc" }, { id: "asc" }],
-    take: 20,
+    take: 50,
   });
   return cats.map((cat) => ({
     id: cat.id,
@@ -287,12 +294,30 @@ export async function getMyParentApplication(user) {
 export async function listParentApplications(searchParams) {
   const { page, pageSize, skip, take } = parsePagination(searchParams);
   const status = searchParams.get("status");
-  const query = searchParams.get("q");
+  const query = searchParams.get("q")?.trim();
+  const submittedFrom = searchParams.get("submittedFrom");
+  const submittedTo = searchParams.get("submittedTo");
   const where = {};
 
-  if (status) where.status = status;
+  if (status) {
+    if (!["pending", "approved", "rejected"].includes(status))
+      throw badRequest("Invalid application status");
+    where.status = status;
+  }
+  if (submittedFrom || submittedTo) {
+    where.created_at = {};
+    if (submittedFrom)
+      where.created_at.gte = parseSubmittedDay(submittedFrom, "submittedFrom", false);
+    if (submittedTo) where.created_at.lte = parseSubmittedDay(submittedTo, "submittedTo", true);
+  }
   if (query) {
+    const catMatches = await prisma.$queryRaw`
+      SELECT a.id FROM parent_applications a
+      WHERE EXISTS (SELECT 1 FROM json_each(a.unlisted_cat_claims_json) c WHERE json_extract(c.value, '$.name') LIKE '%' || ${query} || '%')
+         OR EXISTS (SELECT 1 FROM json_each(a.new_cats_json) c WHERE json_extract(c.value, '$.name') LIKE '%' || ${query} || '%')
+         OR EXISTS (SELECT 1 FROM json_each(a.existing_cat_claims_json) c JOIN cats cat ON cat.id = json_extract(c.value, '$.catId') WHERE cat.name LIKE '%' || ${query} || '%')`;
     where.OR = [
+      { id: { in: catMatches.map((item) => item.id) } },
       { display_name: { contains: query } },
       { real_name: { contains: query } },
       { contact_phone: { contains: query } },
@@ -317,6 +342,16 @@ export async function listParentApplications(searchParams) {
     items: await Promise.all(items.map(toParentApplicationDto)),
     pagination: buildPaginationMeta({ page, pageSize, total }),
   };
+}
+
+function parseSubmittedDay(value, fieldName, endOfDay) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw badRequest(`${fieldName} must be YYYY-MM-DD`);
+  const [year, month, day] = value.split("-").map(Number);
+  if (new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10) !== value) {
+    throw badRequest(`${fieldName} is invalid`);
+  }
+  const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}+08:00`);
+  return date;
 }
 
 export async function approveParentApplication(applicationId, input, adminUser) {

@@ -1,8 +1,4 @@
-import {
-  createParentProfile,
-  listParentProfiles,
-  updateParentCatLink,
-} from "../services/profile-service.mjs";
+import { listParentProfiles, updateParentCatLink } from "../services/profile-service.mjs";
 import {
   approveParentApplication,
   createParentInvite,
@@ -177,12 +173,7 @@ export async function routeParentsRequest(request, response, url, context) {
 
     if (request.method === "POST") {
       await requireAdminMutationRole(request, context.config);
-      sendSuccess(response, {
-        statusCode: 201,
-        data: await createParentProfile(await readJsonBody(request)),
-        message: "Parent profile created",
-      });
-      return;
+      throw methodNotAllowed("Select an existing WeChat user in parent management");
     }
 
     throw methodNotAllowed();
@@ -191,9 +182,9 @@ export async function routeParentsRequest(request, response, url, context) {
   const parentCatLinkId = matchParentCatLinkId(url.pathname);
   if (parentCatLinkId) {
     if (request.method === "PATCH") {
-      await requireAdminMutationRole(request, context.config);
+      const adminUser = await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
-        data: await updateParentCatLink(parentCatLinkId, await readJsonBody(request)),
+        data: await updateParentCatLink(parentCatLinkId, await readJsonBody(request), adminUser),
         message: "Parent cat link updated",
       });
       return;

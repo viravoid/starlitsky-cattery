@@ -1,7 +1,12 @@
-import type { ParentApplicationData, ReviewParentApplicationRequest } from "@starlitsky/shared";
+import type {
+  ParentApplicationData,
+  ParentManagementOverviewData,
+  ReviewParentApplicationRequest,
+} from "@starlitsky/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   approveParentApplication,
+  getParentManagementOverview,
   listParentApplications,
   rejectParentApplication,
   searchAdminParentCatCandidates,
@@ -12,6 +17,14 @@ import { getErrorMessage } from "../utils/errors";
 export function ParentApplicationsPanel() {
   const [applications, setApplications] = useState<ParentApplicationData[]>([]);
   const [selectedId, setSelectedId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [query, setQuery] = useState("");
+  const [submittedFrom, setSubmittedFrom] = useState("");
+  const [submittedTo, setSubmittedTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [overview, setOverview] = useState<ParentManagementOverviewData | null>(null);
   const [adminNote, setAdminNote] = useState("");
   const [unlistedSelections, setUnlistedSelections] = useState<
     Record<number, AdminParentCatCandidate>
@@ -40,8 +53,21 @@ export function ParentApplicationsPanel() {
     setIsLoading(true);
     setError("");
     try {
-      const data = await listParentApplications({ pageSize: 100 });
+      const [data, summary] = await Promise.all([
+        listParentApplications({
+          page,
+          pageSize: 20,
+          q: query,
+          status: statusFilter,
+          submittedFrom,
+          submittedTo,
+        }),
+        getParentManagementOverview(),
+      ]);
       setApplications(data.items);
+      setOverview(summary);
+      setTotal(data.pagination.total);
+      setTotalPages(data.pagination.totalPages);
       setSelectedId((current) =>
         current && data.items.some((application) => application.id === current)
           ? current
@@ -52,7 +78,11 @@ export function ParentApplicationsPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page, query, statusFilter, submittedFrom, submittedTo]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, statusFilter, submittedFrom, submittedTo]);
 
   useEffect(() => {
     void loadData();
@@ -69,7 +99,13 @@ export function ParentApplicationsPanel() {
   }, [selectedApplication?.id, selectedApplication?.adminNote]);
 
   async function review(action: "approve" | "reject") {
-    if (!selectedApplication) return;
+    if (!selectedApplication || isSaving) return;
+    if (
+      !window.confirm(
+        action === "approve" ? "确认通过申请并建立家长档案及猫咪关系？" : "确认拒绝此申请？",
+      )
+    )
+      return;
     setIsSaving(true);
     setNotice("");
     setError("");
@@ -137,6 +173,45 @@ export function ParentApplicationsPanel() {
         </button>
       </div>
 
+      {overview ? (
+        <div className="filter-bar" aria-label="申请统计">
+          <strong>待审核 {overview.pending}</strong>
+          <strong>已通过 {overview.approved}</strong>
+          <strong>已拒绝 {overview.rejected}</strong>
+        </div>
+      ) : null}
+      <div className="filter-bar">
+        <label>
+          状态
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="">全部</option>
+            <option value="pending">待审核</option>
+            <option value="approved">已通过</option>
+            <option value="rejected">已拒绝</option>
+          </select>
+        </label>
+        <label>
+          搜索昵称、电话、微信号或猫咪
+          <input value={query} onChange={(event) => setQuery(event.target.value)} />
+        </label>
+        <label>
+          提交开始
+          <input
+            type="date"
+            value={submittedFrom}
+            onChange={(event) => setSubmittedFrom(event.target.value)}
+          />
+        </label>
+        <label>
+          提交结束
+          <input
+            type="date"
+            value={submittedTo}
+            onChange={(event) => setSubmittedTo(event.target.value)}
+          />
+        </label>
+      </div>
+
       {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="error-banner">{error}</div> : null}
 
@@ -144,7 +219,11 @@ export function ParentApplicationsPanel() {
         <section className="table-panel">
           <div className="section-heading">
             <h3>申请列表</h3>
-            <span className="muted">{isLoading ? "加载中..." : `${applications.length} 条`}</span>
+            <span className="muted">
+              {isLoading
+                ? "加载中..."
+                : `共 ${total} 条 · 第 ${page}/${Math.max(1, totalPages)} 页`}
+            </span>
           </div>
           <div className="table-scroll">
             <table>
@@ -153,7 +232,9 @@ export function ParentApplicationsPanel() {
                   <th>申请人</th>
                   <th>状态</th>
                   <th>猫咪</th>
+                  <th>联系电话或微信号</th>
                   <th>电话来源</th>
+                  <th>审核人</th>
                   <th>提交时间</th>
                 </tr>
               </thead>
@@ -164,20 +245,56 @@ export function ParentApplicationsPanel() {
                     className={selectedApplication?.id === application.id ? "archived-row" : ""}
                     onClick={() => setSelectedId(application.id)}
                   >
-                    <td>{application.displayName}</td>
+                    <td>
+                      {application.user?.avatarUrl ? (
+                        <img
+                          src={application.user.avatarUrl}
+                          alt=""
+                          width={28}
+                          height={28}
+                          style={{ borderRadius: "50%", verticalAlign: "middle", marginRight: 8 }}
+                        />
+                      ) : null}
+                      {application.user?.nickname || application.displayName}
+                    </td>
                     <td>{formatApplicationStatus(application.status)}</td>
                     <td>
-                      公开 {application.existingCatClaims.length} / 未公开{" "}
-                      {application.unlistedCatClaims.length} / 新猫 {application.newCats.length}
+                      {[
+                        ...application.existingCatClaims.map(
+                          (item) => item.cat?.name || item.catId,
+                        ),
+                        ...application.unlistedCatClaims.map((item) => item.name),
+                        ...application.newCats.map((item) => item.name),
+                      ].join("、") || "-"}
                     </td>
+                    <td>{application.contactPhone || application.contactWechat || "-"}</td>
                     <td>
                       {formatPhoneSource(application.contactPhoneSource, application.contactPhone)}
                     </td>
+                    <td>{application.reviewedBy?.nickname || "-"}</td>
                     <td>{formatDateTime(application.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="form-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage(page - 1)}
+            >
+              上一页
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={page >= totalPages || isLoading}
+              onClick={() => setPage(page + 1)}
+            >
+              下一页
+            </button>
           </div>
         </section>
 

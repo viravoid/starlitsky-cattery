@@ -31,6 +31,8 @@ model User {
   reviewed_parent_invites         ParentInvite[]            @relation("ParentInviteRevoker")
   parent_applications             ParentApplication[]       @relation("ParentApplicationUser")
   reviewed_applications           ParentApplication[]       @relation("ParentApplicationReviewer")
+  parent_admin_events              ParentAdminEvent[]        @relation("ParentAdminEventTarget")
+  performed_parent_admin_events    ParentAdminEvent[]        @relation("ParentAdminEventActor")
   phone_verifications             ParentPhoneVerification[]
   selection_applications          SelectionApplication[]    @relation("SelectionApplicationUser")
   reviewed_selection_applications SelectionApplication[]    @relation("SelectionApplicationReviewer")
@@ -183,6 +185,24 @@ model ParentPhoneVerification {
   @@index([user_id, created_at])
   @@index([expires_at])
   @@map("parent_phone_verifications")
+}
+
+/// Audit metadata intentionally excludes full phone numbers and WeChat credentials.
+model ParentAdminEvent {
+  id           String   @id @default(uuid())
+  actor_id     String?
+  user_id      String
+  action       String
+  before_json  Json?
+  after_json   Json?
+  details_json Json?
+  created_at   DateTime @default(now())
+
+  actor User? @relation("ParentAdminEventActor", fields: [actor_id], references: [id], onDelete: SetNull)
+  user  User  @relation("ParentAdminEventTarget", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at])
+  @@map("parent_admin_events")
 }
 
 /// One cat keeps the same id across birth, finding a home, retention,

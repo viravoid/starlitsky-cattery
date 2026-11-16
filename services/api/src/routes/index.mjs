@@ -39,7 +39,11 @@ export async function routeRequest(request, response, context) {
     return;
   }
 
-  if (url.pathname === "/admin/users" || url.pathname.startsWith("/admin/users/")) {
+  if (
+    url.pathname === "/admin/parent-overview" ||
+    url.pathname === "/admin/users" ||
+    url.pathname.startsWith("/admin/users/")
+  ) {
     await routeAdminUsersRequest(request, response, url, context);
     return;
   }

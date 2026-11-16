@@ -802,15 +802,23 @@ td {
   grid-template-columns: minmax(0, 1.4fr) minmax(420px, 0.95fr);
 }
 
+.wide-detail .table-scroll table {
+  min-width: 900px;
+}
+
 .parent-link-row {
   display: grid;
-  grid-template-columns:
-    minmax(120px, 1fr) minmax(110px, 0.7fr) minmax(110px, 0.7fr) minmax(120px, 0.8fr)
-    minmax(120px, 0.8fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   align-items: center;
   border-bottom: 1px solid #e2e8f0;
   padding: 8px 0;
+}
+
+.parent-link-row strong,
+.parent-link-row span {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
 }
 
 .parent-link-row input,
