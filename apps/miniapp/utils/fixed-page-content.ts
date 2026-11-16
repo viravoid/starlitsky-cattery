@@ -1,6 +1,7 @@
 import type { CatData, FixedPageMediaAssetData } from "@starlitsky/shared";
 import { resolveCatFrame, type ImageFrameMode } from "./cat-presentation";
 import { getFixedPageMediaUrl, mapFixedPageMedia } from "./fixed-page-media";
+import { resolveFixedPageFocalFrame } from "./fixed-page-photo-presentation";
 
 export type FixedPageViewKind =
   | "about"
@@ -54,11 +55,14 @@ export interface EnvironmentSectionView {
   rooms: EnvironmentRoomView[];
   summary: string;
   title: string;
+  photoRatio: string;
 }
 
 export interface PageImageSlot {
   id: string;
   image: PageImage | null;
+  imageMode?: "aspectFill" | "aspectFit";
+  imageStyle?: string;
   label: string;
 }
 
@@ -67,6 +71,7 @@ export interface FeedingModuleView {
   id: string;
   images: PageImageSlot[];
   no: string;
+  photoRatio: string;
   title: string;
 }
 
@@ -560,7 +565,7 @@ function normalizeEnvironment(
       ? view.genericSections
       : DEFAULT_ENVIRONMENT_SECTIONS;
   const environmentSections = sections
-    .map((section, index) => normalizeEnvironmentSection(section, index, mediaAssets))
+    .map((section, index) => normalizeEnvironmentSection(section, index, mediaAssets, input.imageAspectRatio))
     .filter(Boolean) as EnvironmentSectionView[];
 
   return {
@@ -591,7 +596,7 @@ function normalizeFeeding(
     ...view,
     feedingIntro: textOr(input.intro, view.body),
     feedingModules: modules
-      .map((module, index) => normalizeFeedingModule(module, index, mediaAssets))
+      .map((module, index) => normalizeFeedingModule(module, index, mediaAssets, input.imageAspectRatio))
       .filter((module) => module.title || module.body),
   };
 }
@@ -727,6 +732,7 @@ function normalizeEnvironmentSection(
   raw: unknown,
   index: number,
   mediaAssets: FixedPageMediaAssetData[],
+  aspectRatio: unknown,
 ) {
   const section = isRecord(raw) ? raw : {};
   const title = textOr(section.title ?? section.name, `环境分区 ${index + 1}`);
@@ -738,7 +744,7 @@ function normalizeEnvironmentSection(
     title: title.replace(/[:：].*$/, "") || "环境展示",
   };
   const rooms = (Array.isArray(section.rooms) && section.rooms.length ? section.rooms : [legacyRoom])
-    .map((room, roomIndex) => normalizeEnvironmentRoom(room, id, roomIndex, mediaAssets))
+    .map((room, roomIndex) => normalizeEnvironmentRoom(room, id, roomIndex, mediaAssets, aspectRatio))
     .filter(Boolean) as EnvironmentRoomView[];
   const photoCount = rooms.reduce((total, room) => total + room.imageSlots.length, 0);
 
@@ -750,6 +756,7 @@ function normalizeEnvironmentSection(
     rooms,
     summary: textOr(section.summary ?? section.body ?? section.description, ""),
     title,
+    photoRatio: fixedPagePhotoRatio(aspectRatio),
   };
 }
 
@@ -758,6 +765,7 @@ function normalizeEnvironmentRoom(
   sectionId: string,
   index: number,
   mediaAssets: FixedPageMediaAssetData[],
+  aspectRatio: unknown,
 ) {
   const room = isRecord(raw) ? raw : {};
   const roomTitle = textOr(room.title, `房间 ${index + 1}`);
@@ -766,9 +774,13 @@ function normalizeEnvironmentRoom(
   const imageSlots = rawImages.map((image, imageIndex) => {
     const item = isRecord(image) ? image : {};
     const label = `${roomTitle} · 第 ${imageIndex + 1} 张`;
+    const media = resolveMediaAsset(stringOr(item.imageId, ""), mediaAssets);
+    const presentation = resolveFixedPageFocalFrame(media, aspectRatio, item.focalPoint);
     return {
       id: stringOr(item.id, `${roomId}-image-${imageIndex + 1}`),
-      image: resolveImage(stringOr(item.imageId, ""), mediaAssets),
+      image: toPageImage(media),
+      imageMode: presentation.mode,
+      imageStyle: presentation.style,
       label,
     };
   });
@@ -782,10 +794,20 @@ function normalizeEnvironmentRoom(
   };
 }
 
+function fixedPagePhotoRatio(value: unknown) {
+  const ratio = isRecord(value) ? value : {};
+  const width = Number(ratio.width);
+  const height = Number(ratio.height);
+  return width > 0 && height > 0 && width / height >= 0.35 && width / height <= 3.5
+    ? `${width} / ${height}`
+    : "4 / 3";
+}
+
 function normalizeFeedingModule(
   raw: unknown,
   index: number,
   mediaAssets: FixedPageMediaAssetData[],
+  aspectRatio: unknown,
 ): FeedingModuleView {
   const module = isRecord(raw) ? raw : {};
   const moduleTitle = textOr(module.title, `喂养模块 ${index + 1}`);
@@ -797,13 +819,18 @@ function normalizeFeedingModule(
     id: moduleId,
     images: rawImages.map((image, imageIndex) => {
       const item = isRecord(image) ? image : {};
+      const media = resolveMediaAsset(stringOr(item.imageId, ""), mediaAssets);
+      const presentation = resolveFixedPageFocalFrame(media, aspectRatio, item.focalPoint);
       return {
         id: stringOr(item.id, `${moduleId}-image-${imageIndex + 1}`),
-        image: resolveImage(stringOr(item.imageId, ""), mediaAssets),
+        image: toPageImage(media),
+        imageMode: presentation.mode,
+        imageStyle: presentation.style,
         label: `${moduleTitle}图片 ${imageIndex + 1}`,
       };
     }),
     no: String(index + 1).padStart(2, "0"),
+    photoRatio: fixedPagePhotoRatio(aspectRatio),
     title: moduleTitle,
   };
 }
