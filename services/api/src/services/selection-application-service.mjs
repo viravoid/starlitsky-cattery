@@ -2,7 +2,14 @@ import { prisma } from "../db/prisma.mjs";
 import { badRequest, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
 
-const STATUS_VALUES = new Set(["submitted", "reviewed"]);
+const STATUS_VALUES = new Set([
+  "submitted",
+  "reviewed",
+  "contacted",
+  "suitable",
+  "unsuitable",
+  "completed",
+]);
 const SUBMIT_FIELDS = [
   "clientDedupKey",
   "name",
@@ -145,8 +152,8 @@ export async function updateSelectionApplicationReview(id, input, reviewer) {
   if (Object.hasOwn(input, "status")) {
     const status = enumString(input.status, "status", STATUS_VALUES);
     data.status = status;
-    data.reviewed_by = status === "reviewed" ? reviewer.id : null;
-    data.reviewed_at = status === "reviewed" ? new Date() : null;
+    data.reviewed_by = status === "submitted" ? null : reviewer.id;
+    data.reviewed_at = status === "submitted" ? null : new Date();
   }
 
   if (Object.keys(data).length === 0) {
