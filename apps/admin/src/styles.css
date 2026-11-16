@@ -709,7 +709,6 @@ td {
 
 .cropped-preview-frame {
   position: relative;
-  min-height: 180px;
   overflow: hidden;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -720,7 +719,6 @@ td {
 .cropped-preview-frame img {
   position: absolute;
   max-width: none;
-  object-fit: cover;
 }
 
 .status-cluster {

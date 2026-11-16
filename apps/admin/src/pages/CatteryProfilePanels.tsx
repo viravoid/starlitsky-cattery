@@ -26,6 +26,7 @@ import {
   updateKittenProfile,
   updateParentCatLink,
 } from "../api/cattery";
+import { listAllPages } from "../api/pagination";
 import { getErrorMessage } from "../utils/errors";
 
 interface BreedingFormState {
@@ -138,13 +139,13 @@ export function CatArchivePanel({ cat, litters }: { cat: CatData; litters: Litte
         optional(() => getBreedingProfile(cat.id)),
         optional(() => getKittenProfile(cat.id)),
         listCatParentLinks(cat.id),
-        listParentProfiles({ pageSize: 100 }),
+        listAllPages((page) => listParentProfiles({ page, pageSize: 100 })),
       ]);
 
       setBreedingProfile(breeding);
       setKittenProfile(kitten);
       setParentLinks(links);
-      setParentProfiles(profiles.items);
+      setParentProfiles(profiles);
       setBreedingForm(breeding ? toBreedingForm(breeding) : DEFAULT_BREEDING_FORM);
       setKittenForm(
         kitten
@@ -156,7 +157,7 @@ export function CatArchivePanel({ cat, litters }: { cat: CatData; litters: Litte
       );
       setParentLinkForm((current) => ({
         ...current,
-        parentProfileId: profiles.items[0]?.id ?? "",
+        parentProfileId: profiles[0]?.id ?? "",
       }));
     } catch (loadError) {
       setError(getErrorMessage(loadError));
