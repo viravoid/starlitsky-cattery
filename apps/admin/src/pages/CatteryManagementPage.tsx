@@ -776,6 +776,47 @@ export function CatteryManagementPage() {
     }
   }
 
+  async function updateLitterMediaBinding(
+    media: MediaAssetData,
+    patch: { usage?: string; sortOrder?: number; visibility?: string },
+  ) {
+    if (!selectedLitter) return;
+    const binding = media.bindings.find(
+      (item) => item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
+    );
+    if (!binding) return;
+    setIsSaving(true);
+    setError("");
+    try {
+      await updateMediaBinding(media.id, binding.id, patch);
+      await loadLitterImages(selectedLitter.id);
+      setNotice("窝次图片设置已更新");
+    } catch (mediaError) {
+      setError(getErrorMessage(mediaError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function removeLitterMediaBinding(media: MediaAssetData) {
+    if (!selectedLitter) return;
+    const binding = media.bindings.find(
+      (item) => item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
+    );
+    if (!binding) return;
+    setIsSaving(true);
+    setError("");
+    try {
+      await archiveMediaBinding(media.id, binding.id);
+      await loadLitterImages(selectedLitter.id);
+      setNotice("图片已从当前窝次移除");
+    } catch (mediaError) {
+      setError(getErrorMessage(mediaError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <PageContainer>
       {(["kittens", "litters", "studs", "cats"] as SectionKey[]).includes(activeSection) ? (
@@ -844,6 +885,8 @@ export function CatteryManagementPage() {
           onChange={setLitterDraft}
           onEdit={openEditLitter}
           onImageChange={handleLitterImageSelected}
+          onMediaBindingChange={updateLitterMediaBinding}
+          onMediaBindingRemove={removeLitterMediaBinding}
           onNew={openCreateLitter}
           onSelect={selectLitter}
           onSubmit={handleLitterSubmit}
@@ -1765,6 +1808,8 @@ function LitterWorkspace({
   onChange,
   onEdit,
   onImageChange,
+  onMediaBindingChange,
+  onMediaBindingRemove,
   onNew,
   onSelect,
   onSubmit,
@@ -1785,6 +1830,11 @@ function LitterWorkspace({
   onChange: (draft: LitterDraft) => void;
   onEdit: (litter: LitterData) => void;
   onImageChange: (file: File | null) => void;
+  onMediaBindingChange: (
+    media: MediaAssetData,
+    patch: { usage?: string; sortOrder?: number; visibility?: string },
+  ) => void;
+  onMediaBindingRemove: (media: MediaAssetData) => void;
   onNew: () => void;
   onSelect: (litter: LitterData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -1871,6 +1921,8 @@ function LitterWorkspace({
             onCancel={onCancel}
             onChange={onChange}
             onImageChange={onImageChange}
+            onMediaBindingChange={onMediaBindingChange}
+            onMediaBindingRemove={onMediaBindingRemove}
             onSubmit={onSubmit}
           />
         ) : selectedLitter ? (
@@ -1903,6 +1955,8 @@ function LitterForm({
   onCancel,
   onChange,
   onImageChange,
+  onMediaBindingChange,
+  onMediaBindingRemove,
   onSubmit,
 }: {
   activeCats: CatData[];
@@ -1914,6 +1968,11 @@ function LitterForm({
   onCancel: () => void;
   onChange: (draft: LitterDraft) => void;
   onImageChange: (file: File | null) => void;
+  onMediaBindingChange: (
+    media: MediaAssetData,
+    patch: { usage?: string; sortOrder?: number; visibility?: string },
+  ) => void;
+  onMediaBindingRemove: (media: MediaAssetData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const catOptions = [
@@ -2024,16 +2083,11 @@ function LitterForm({
             }}
           />
         </label>
-        <div className="community-media-strip">
-          {selectedImages.map((image) => (
-            <img
-              key={image.id}
-              alt={image.altText || image.title || image.id}
-              className="community-media-preview"
-              src={image.thumbnailUrl || image.sourceUrl}
-            />
-          ))}
-        </div>
+        <MediaBindingEditor
+          images={selectedImages}
+          onChange={onMediaBindingChange}
+          onRemove={onMediaBindingRemove}
+        />
       </div>
       <FormActions isSaving={isSaving} onCancel={onCancel} />
     </form>
