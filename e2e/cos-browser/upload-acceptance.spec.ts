@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -89,6 +89,7 @@ test("isolated browser upload acceptance covers success, replay, failures, timeo
 
   await page.getByRole("button", { name: "上传图片" }).click();
   const uploadForm = page.locator("form.media-form-card");
+  await uploadForm.getByLabel("关联内容").selectOption(E2E_CAT_ID);
   await uploadForm.locator('input[type="file"]').setInputFiles({
     name: "isolated-success.png",
     mimeType: "image/png",
@@ -274,14 +275,13 @@ async function armNextPut(
   await request.post(`${COS_ORIGIN}/_test/next-put`, { data: { mode } });
 }
 
-async function readCosEvents(request: {
-  get: (url: string) => Promise<{ json: () => Promise<any> }>;
-}) {
-  return (await (await request.get(`${COS_ORIGIN}/_test/events`)).json()).events as Array<{
+async function readCosEvents(request: APIRequestContext) {
+  const payload = (await (await request.get(`${COS_ORIGIN}/_test/events`)).json()) as { events: Array<{
     method: string;
     bucket: string;
     objectKey: string;
     origin?: string | null;
     status: number;
-  }>;
+  }> };
+  return payload.events;
 }
