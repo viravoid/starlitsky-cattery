@@ -390,7 +390,7 @@ export function buildObjectKey({ fileName, mimeType }) {
   const extension = inferExtension(fileName, mimeType);
   const randomName = crypto.randomBytes(16).toString("hex");
 
-  return [prefix, "images", yyyy, mm, dd, `${randomName}.${extension}`].filter(Boolean).join("/");
+  return [prefix, mimeType === "application/pdf" ? "documents" : "images", yyyy, mm, dd, `${randomName}.${extension}`].filter(Boolean).join("/");
 }
 
 function createPresignedObjectUrl({
@@ -720,6 +720,7 @@ function formatAmzDate(date) {
 
 function inferExtension(fileName, mimeType) {
   const known = {
+    "application/pdf": "pdf",
     "image/gif": "gif",
     "image/heic": "heic",
     "image/heif": "heif",

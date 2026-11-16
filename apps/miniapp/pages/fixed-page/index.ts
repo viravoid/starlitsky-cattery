@@ -100,6 +100,10 @@ Page({
 
   async openAftercareContract(this: FixedPageInstance) {
     if (!this.data.aftercareContractUrl) return;
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(this.data.aftercareContractExtension)) {
+      wx.previewImage({ urls: [this.data.aftercareContractUrl], current: this.data.aftercareContractUrl });
+      return;
+    }
     try {
       const tempFilePath = await downloadTempFile(
         this.data.aftercareContractUrl,

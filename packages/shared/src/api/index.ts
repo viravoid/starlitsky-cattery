@@ -555,7 +555,13 @@ export interface ParentClaimCatCandidateData {
 
 export type ParentClaimCatCandidateListData = PaginatedResponse<ParentClaimCatCandidateData>;
 
-export type SelectionApplicationStatus = "submitted" | "reviewed";
+export type SelectionApplicationStatus =
+  | "submitted"
+  | "reviewed"
+  | "contacted"
+  | "suitable"
+  | "unsuitable"
+  | "completed";
 
 export interface SelectionApplicationAnswers {
   name: string;
