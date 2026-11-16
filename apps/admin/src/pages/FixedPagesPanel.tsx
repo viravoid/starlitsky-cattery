@@ -246,8 +246,32 @@ export function FixedPagesPanel({
       const nextForm = toForm(updated);
       setSavedForm(nextForm);
       setForm(nextForm);
+      let cleanupError = "";
+      if (selectedPage.slug === "home") {
+        const unusedHeroBindings = selectedPageImages.flatMap((media) =>
+          containsMediaId(updated.contentJson, media.id)
+            ? []
+            : media.bindings
+                .filter(
+                  (binding) =>
+                    binding.ownerType === "fixed_page" &&
+                    binding.ownerId === updated.id &&
+                    binding.usage === "hero" &&
+                    !binding.deletedAt,
+                )
+                .map((binding) => ({ mediaId: media.id, bindingId: binding.id })),
+        );
+        for (const { mediaId, bindingId } of unusedHeroBindings) {
+          try {
+            await archiveMediaBinding(mediaId, bindingId);
+          } catch (error) {
+            cleanupError = getErrorMessage(error);
+          }
+        }
+      }
       await loadPageImages(updated.id);
       setNotice("固定页面内容已保存");
+      if (cleanupError) setError(`旧轮播图片绑定清理失败，可再次保存重试：${cleanupError}`);
       await onReload();
     } catch (saveError) {
       setError(getErrorMessage(saveError));
@@ -1277,6 +1301,12 @@ function toContentRecord(value: unknown): JsonRecord {
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function containsMediaId(value: unknown, mediaId: string): boolean {
+  if (value === mediaId) return true;
+  if (Array.isArray(value)) return value.some((item) => containsMediaId(item, mediaId));
+  return isRecord(value) && Object.values(value).some((item) => containsMediaId(item, mediaId));
 }
 
 function stringifyScalar(value: unknown) {
