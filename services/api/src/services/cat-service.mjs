@@ -46,7 +46,7 @@ export async function getCat(id, options = {}) {
   const cat = await prisma.cat.findFirst({
     where: {
       id,
-      deleted_at: null,
+      ...(options.includeDeleted ? {} : { deleted_at: null }),
       ...(options.includeHidden ? {} : { visibility: "visible" }),
     },
     include: buildCatInclude(options),

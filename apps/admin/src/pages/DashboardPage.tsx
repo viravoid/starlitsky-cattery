@@ -17,6 +17,7 @@ const STAT_CARDS: Array<{
   { label: "待审核家长", key: "pendingParentApplications", href: "#parent-applications" },
   { label: "选猫问卷", key: "selectionApplications", href: "#selection-applications" },
   { label: "猫友圈动态", key: "communityPosts", href: "#community" },
+  { label: "评论总数", key: "comments", href: "#community-comments" },
 ];
 
 export function DashboardPage() {
@@ -87,7 +88,6 @@ export function DashboardPage() {
               label="待审核家长申请"
               value={data?.pendingParentApplications}
             />
-            <DashboardTodo href="#community-comments" label="评论总数" value={data?.comments} />
           </div>
         </section>
         <aside className="detail-panel">

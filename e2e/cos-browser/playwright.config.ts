@@ -5,7 +5,12 @@ import { ADMIN_ORIGIN } from "./constants";
 
 export default defineConfig({
   testDir: ".",
-  testMatch: ["upload-acceptance.spec.ts", "admin-photo-workflows.spec.ts", "fixed-page-draft-preview.spec.ts"],
+  testMatch: [
+    "upload-acceptance.spec.ts",
+    "admin-photo-workflows.spec.ts",
+    "fixed-page-draft-preview.spec.ts",
+    "admin-business-workflows.spec.ts",
+  ],
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,

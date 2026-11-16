@@ -27,7 +27,10 @@ test("admin can add gallery photos and replace one without leaving stale present
       storyJson: {
         imagePresentation: {
           entryCoverSelections: {
-            listCard: { imageId: E2E_LEGACY_MEDIA_ID, cropRect: { x: 0.2, y: 0.1, width: 0.5, height: 0.5 } },
+            listCard: {
+              imageId: E2E_LEGACY_MEDIA_ID,
+              cropRect: { x: 0.2, y: 0.1, width: 0.5, height: 0.5 },
+            },
           },
           detailImagePresentations: {
             [E2E_LEGACY_MEDIA_ID]: { mode: "original" },
@@ -60,11 +63,18 @@ test("admin can add gallery photos and replace one without leaving stale present
   const litterId = (await litterResponse.json()).data.id as string;
   const litterBinding = await request.post(`${API_ORIGIN}/media/${E2E_LEGACY_MEDIA_ID}/bindings`, {
     headers,
-    data: { ownerType: "litter", ownerId: litterId, usage: "gallery", sortOrder: 7, visibility: "visible" },
+    data: {
+      ownerType: "litter",
+      ownerId: litterId,
+      usage: "gallery",
+      sortOrder: 7,
+      visibility: "visible",
+    },
   });
   expect(litterBinding.status()).toBe(201);
 
   await page.getByRole("link", { name: "其它猫咪" }).click();
+  await page.getByLabel("搜索猫咪").fill("COS E2E 隔离测试猫");
   await expect(page.getByText("COS E2E 隔离测试猫")).toBeVisible();
   await page
     .getByRole("row")
@@ -160,7 +170,9 @@ test("admin can add gallery photos and replace one without leaving stale present
   await expect(page.getByText("窝次图片已替换")).toBeVisible();
   const litterMedia = await listOwnerMedia(request, headers, "litter", litterId);
   expect(litterMedia.some((item) => item.id === E2E_LEGACY_MEDIA_ID)).toBe(false);
-  expect(litterMedia.find((item) => item.title === "litter-replacement.png")?.bindings[0]).toMatchObject({
+  expect(
+    litterMedia.find((item) => item.title === "litter-replacement.png")?.bindings[0],
+  ).toMatchObject({
     ownerId: litterId,
     usage: "gallery",
     sortOrder: 7,

@@ -200,6 +200,7 @@ async function resolveCatReadOptions(request, config) {
   );
   return {
     includeHidden: canReadAdminCatData,
+    includeDeleted: canReadAdminCatData,
     includeParentLinks: canReadAdminCatData,
   };
 }

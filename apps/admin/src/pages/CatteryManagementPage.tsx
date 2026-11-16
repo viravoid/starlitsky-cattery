@@ -883,7 +883,10 @@ export function CatteryManagementPage() {
     let errorMessage = "";
     try {
       for (const file of files) {
-        await uploadCatImage(catId, file, { usage: "gallery", sortOrder: nextSortOrder + uploaded });
+        await uploadCatImage(catId, file, {
+          usage: "gallery",
+          sortOrder: nextSortOrder + uploaded,
+        });
         uploaded += 1;
       }
     } catch (uploadError) {
@@ -908,7 +911,8 @@ export function CatteryManagementPage() {
   ) {
     if (!selectedLitter) return;
     const binding = media.bindings.find(
-      (item) => item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
+      (item) =>
+        item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
     );
     if (!binding) return;
     setIsSaving(true);
@@ -927,7 +931,8 @@ export function CatteryManagementPage() {
   async function removeLitterMediaBinding(media: MediaAssetData) {
     if (!selectedLitter) return;
     const binding = media.bindings.find(
-      (item) => item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
+      (item) =>
+        item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
     );
     if (!binding) return;
     setIsSaving(true);
@@ -1201,6 +1206,35 @@ function CatManagementWorkspace({
   onToggleArchived: (value: boolean) => void;
 }) {
   const title = mode === "kittens" ? "小猫管理" : mode === "studs" ? "种猫管理" : "其它猫咪";
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [visibility, setVisibility] = useState("");
+  const [page, setPage] = useState(1);
+  const statusOptions =
+    mode === "kittens"
+      ? KITTEN_STATUS_OPTIONS
+      : mode === "studs"
+        ? REPRODUCTIVE_STATE_OPTIONS
+        : CAT_STATUS_OPTIONS;
+  const filteredCats = cats.filter((cat) => {
+    const searchable =
+      `${cat.name} ${cat.color ?? ""} ${cat.personality ?? ""}`.toLocaleLowerCase();
+    const actualStatus =
+      mode === "kittens"
+        ? cat.kittenProfile?.saleStatus
+        : mode === "studs"
+          ? cat.breedingProfile?.reproductiveState
+          : cat.lifecycleStatus;
+    return (
+      searchable.includes(query.trim().toLocaleLowerCase()) &&
+      (!status || actualStatus === status) &&
+      (!visibility || cat.visibility === visibility)
+    );
+  });
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(filteredCats.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleCats = filteredCats.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   return (
     <section className="management-grid wide-detail">
       <div className="table-panel">
@@ -1225,6 +1259,40 @@ function CatManagementWorkspace({
             </button>
           </div>
         </div>
+        <div className="filter-bar">
+          <label>
+            搜索猫咪
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="名字、颜色或性格"
+            />
+          </label>
+          <SelectField
+            label="状态筛选"
+            options={[{ label: "全部状态", value: "" }, ...statusOptions]}
+            value={status}
+            onChange={(value) => {
+              setStatus(value);
+              setPage(1);
+            }}
+          />
+          <SelectField
+            label="可见性筛选"
+            options={[{ label: "全部可见性", value: "" }, ...VISIBILITY_OPTIONS]}
+            value={visibility}
+            onChange={(value) => {
+              setVisibility(value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <p className="muted compact">
+          共 {filteredCats.length} 只 · 第 {currentPage} / {totalPages} 页
+        </p>
         <div className="table-scroll">
           <table>
             <thead>
@@ -1241,7 +1309,7 @@ function CatManagementWorkspace({
               </tr>
             </thead>
             <tbody>
-              {cats.map((cat) => (
+              {visibleCats.map((cat) => (
                 <tr key={cat.id} className={cat.deletedAt ? "archived-row" : ""}>
                   <td>
                     <CatThumb cat={cat} />
@@ -1281,15 +1349,35 @@ function CatManagementWorkspace({
                       >
                         查看
                       </button>
-                      <button className="small-button" type="button" onClick={() => onEdit(cat)}>
-                        编辑
-                      </button>
+                      {!cat.deletedAt ? (
+                        <button className="small-button" type="button" onClick={() => onEdit(cat)}>
+                          编辑
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="form-actions">
+          <button
+            className="secondary-button"
+            disabled={currentPage <= 1}
+            type="button"
+            onClick={() => setPage(currentPage - 1)}
+          >
+            上一页
+          </button>
+          <button
+            className="secondary-button"
+            disabled={currentPage >= totalPages}
+            type="button"
+            onClick={() => setPage(currentPage + 1)}
+          >
+            下一页
+          </button>
         </div>
       </div>
       <aside className="detail-panel" aria-label={`${title}详情`}>
@@ -1997,7 +2085,15 @@ function CroppedPreview({
       <img
         alt={image.altText || image.title || image.id}
         src={image.thumbnailUrl || image.sourceUrl}
-        style={style ?? { width: "100%", height: "100%", left: 0, top: 0, objectFit: mode === "original" ? "contain" : "cover" }}
+        style={
+          style ?? {
+            width: "100%",
+            height: "100%",
+            left: 0,
+            top: 0,
+            objectFit: mode === "original" ? "contain" : "cover",
+          }
+        }
       />
     </div>
   );
@@ -2017,7 +2113,10 @@ function cropPreviewStyle(image: MediaAssetData, aspectRatio: number, cropRect: 
   const height = Math.max(0.01, Math.min(1, cropRect.height));
   const x = Math.max(0, Math.min(1 - width, cropRect.x));
   const y = Math.max(0, Math.min(1 - height, cropRect.y));
-  const scale = Math.max(100 / (width * naturalWidth), 100 / aspectRatio / (height * naturalHeight));
+  const scale = Math.max(
+    100 / (width * naturalWidth),
+    100 / aspectRatio / (height * naturalHeight),
+  );
   const widthPercent = naturalWidth * scale;
   const heightPercent = naturalHeight * scale * aspectRatio;
   const left = Math.max(100 - widthPercent, Math.min(0, -x * naturalWidth * scale));
@@ -2364,13 +2463,15 @@ function CatDetail({
           <h3>{cat.name}</h3>
         </div>
         <div className="table-actions">
-          <button
-            className="secondary-button small-button"
-            type="button"
-            onClick={() => onEdit(cat)}
-          >
-            编辑
-          </button>
+          {!cat.deletedAt ? (
+            <button
+              className="secondary-button small-button"
+              type="button"
+              onClick={() => onEdit(cat)}
+            >
+              编辑
+            </button>
+          ) : null}
           {!cat.deletedAt ? (
             <button
               className="danger-button small-button"
@@ -2756,10 +2857,7 @@ function sortMediaByBinding(items: MediaAssetData[], ownerType: string, ownerId:
       ),
     }))
     .filter((media) => media.bindings.length > 0)
-    .sort(
-      (a, b) =>
-        a.bindings[0].sortOrder - b.bindings[0].sortOrder || a.id.localeCompare(b.id),
-    );
+    .sort((a, b) => a.bindings[0].sortOrder - b.bindings[0].sortOrder || a.id.localeCompare(b.id));
 }
 
 function getPrimaryCatImageDto(cat: CatData) {
@@ -2780,8 +2878,7 @@ function getPrimaryMedia(images: MediaAssetData[]) {
       media.bindings.some(
         (binding) => binding.usage === "cover" && binding.visibility === "visible",
       ),
-    ) ??
-    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible"))
+    ) ?? images.find((media) => media.bindings.some((binding) => binding.visibility === "visible"))
   );
 }
 
@@ -2922,7 +3019,8 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#studs") return "studs";
   if (window.location.hash === "#cats") return "cats";
   if (window.location.hash === "#media") return "media";
-  if (window.location.hash === "#fixed-pages" || getFixedPageSlugFromHash(window.location.hash)) return "fixedPages";
+  if (window.location.hash === "#fixed-pages" || getFixedPageSlugFromHash(window.location.hash))
+    return "fixedPages";
   if (window.location.hash === "#community") return "communityModeration";
   if (window.location.hash === "#community-comments") return "communityComments";
   if (window.location.hash === "#parent-users") return "parentUsers";
