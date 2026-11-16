@@ -136,6 +136,7 @@
 }
 
 .room-image-button {
+  position: relative;
   display: block;
   overflow: hidden;
   width: 100%;
@@ -152,6 +153,11 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.room-image.positioned-image {
+  position: absolute;
+  max-width: none;
 }
 
 .room-placeholder {

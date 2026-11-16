@@ -402,6 +402,14 @@ assert.equal(
 );
 const overview = await routeGet("/admin/parent-overview", admin);
 assert.equal(overview.active >= 1, true);
+const dashboard = await routeGet("/admin/dashboard", admin);
+assert.equal(dashboard.activeParents, await prisma.parentProfile.count({ where: { status: "active" } }));
+assert.equal(
+  dashboard.pendingParentApplications,
+  await prisma.parentApplication.count({ where: { status: "pending" } }),
+);
+assert.equal(dashboard.litters, await prisma.litter.count({ where: { deleted_at: null } }));
+await assertRouteRejects("ordinary user cannot see dashboard", "/admin/dashboard", user, 403);
 await assertRouteRejects(
   "ordinary user cannot see parent overview",
   "/admin/parent-overview",

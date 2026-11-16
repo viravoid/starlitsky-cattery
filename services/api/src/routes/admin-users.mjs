@@ -6,11 +6,18 @@ import {
   setParentStatus,
 } from "../services/admin-user-service.mjs";
 import { requireAdminMutationRole } from "../middleware/auth.mjs";
+import { getAdminDashboardOverview } from "../services/admin-dashboard-service.mjs";
 import { methodNotAllowed, notFound } from "../utils/errors.mjs";
 import { readJsonBody } from "../utils/request.mjs";
 import { sendSuccess } from "../utils/response.mjs";
 
 export async function routeAdminUsersRequest(request, response, url, context) {
+  if (url.pathname === "/admin/dashboard") {
+    if (request.method !== "GET") throw methodNotAllowed();
+    await requireAdminMutationRole(request, context.config);
+    sendSuccess(response, { data: await getAdminDashboardOverview() });
+    return;
+  }
   if (url.pathname === "/admin/parent-overview") {
     if (request.method !== "GET") throw methodNotAllowed();
     await requireAdminMutationRole(request, context.config);

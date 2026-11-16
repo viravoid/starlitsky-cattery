@@ -39,6 +39,7 @@ import {
   uploadCatImage,
   uploadLitterImage,
 } from "../api/cattery";
+import { listAllPages } from "../api/pagination";
 import { PageContainer } from "../components/PageContainer";
 import { mergeCatStoryTextFields, readCatStoryText } from "../utils/cat-story-json";
 import { getErrorMessage } from "../utils/errors";
@@ -237,6 +238,7 @@ const DEFAULT_LITTER_DRAFT: LitterDraft = {
 
 export function CatteryManagementPage() {
   const [activeSection, setActiveSection] = useState<SectionKey>(getSectionFromHash());
+  const [activeHash, setActiveHash] = useState(() => window.location.hash);
   const [cats, setCats] = useState<CatData[]>([]);
   const [fixedPages, setFixedPages] = useState<FixedPageData[]>([]);
   const [litters, setLitters] = useState<LitterData[]>([]);
@@ -296,19 +298,23 @@ export function CatteryManagementPage() {
 
     try {
       const [catList, litterList, fixedPageList] = await Promise.all([
-        listCats({ includeDeleted: includeArchivedCats, pageSize: 200 }),
-        listLitters({ includeDeleted: includeArchivedLitters, pageSize: 100 }),
+        listAllPages((page) =>
+          listCats({ includeDeleted: includeArchivedCats, page, pageSize: 100 }),
+        ),
+        listAllPages((page) =>
+          listLitters({ includeDeleted: includeArchivedLitters, page, pageSize: 100 }),
+        ),
         listFixedPages(),
       ]);
 
-      setCats(catList.items);
+      setCats(catList);
       setFixedPages(fixedPageList);
-      setLitters(litterList.items);
+      setLitters(litterList);
       setSelectedCat((current) =>
-        current ? (catList.items.find((cat) => cat.id === current.id) ?? null) : null,
+        current ? (catList.find((cat) => cat.id === current.id) ?? null) : null,
       );
       setSelectedLitter((current) =>
-        current ? (litterList.items.find((litter) => litter.id === current.id) ?? null) : null,
+        current ? (litterList.find((litter) => litter.id === current.id) ?? null) : null,
       );
     } catch (loadError) {
       setError(getErrorMessage(loadError));
@@ -335,23 +341,30 @@ export function CatteryManagementPage() {
 
   useEffect(() => {
     function handleHashChange() {
-      setActiveSection(getSectionFromHash());
+      const nextSection = getSectionFromHash();
+      if (nextSection !== activeSection) {
+        if (
+          (catDirty || litterDirty) &&
+          !window.confirm("当前表单有未保存修改，确定切换模块吗？")
+        ) {
+          window.history.replaceState(null, "", SECTION_HASHES[activeSection]);
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
+          return;
+        }
+        setSelectedCat(null);
+        setSelectedLitter(null);
+        setCatEditorMode(null);
+        setLitterEditorMode(null);
+        setNotice("");
+        setError("");
+      }
+      setActiveHash(window.location.hash);
+      setActiveSection(nextSection);
     }
 
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
-
-  function switchSection(section: SectionKey) {
-    if ((catDirty || litterDirty) && !confirm("当前表单有未保存修改，确定切换模块吗？")) return;
-    setActiveSection(section);
-    setSelectedCat(null);
-    setSelectedLitter(null);
-    setCatEditorMode(null);
-    setLitterEditorMode(null);
-    setNotice("");
-    setError("");
-  }
+  }, [activeSection, catDirty, litterDirty]);
 
   function openCreateCat(section: SectionKey) {
     if (catDirty && !confirm("当前猫咪表单有未保存修改，确定新建吗？")) return;
@@ -418,14 +431,17 @@ export function CatteryManagementPage() {
   }
 
   async function loadCatImages(catId: string) {
-    const mediaList = await listMedia({
-      kind: "image",
-      ownerId: catId,
-      ownerType: "cat",
-      pageSize: 50,
-      status: "active",
-    });
-    const sorted = sortMediaByBinding(mediaList.items, "cat", catId);
+    const mediaList = await listAllPages((page) =>
+      listMedia({
+        kind: "image",
+        ownerId: catId,
+        ownerType: "cat",
+        page,
+        pageSize: 100,
+        status: "active",
+      }),
+    );
+    const sorted = sortMediaByBinding(mediaList, "cat", catId);
     setCatImagesByCatId((current) => ({ ...current, [catId]: sorted }));
     return sorted;
   }
@@ -467,14 +483,17 @@ export function CatteryManagementPage() {
   }
 
   async function loadLitterImages(litterId: string) {
-    const mediaList = await listMedia({
-      kind: "image",
-      ownerId: litterId,
-      ownerType: "litter",
-      pageSize: 50,
-      status: "active",
-    });
-    const sorted = sortMediaByBinding(mediaList.items, "litter", litterId);
+    const mediaList = await listAllPages((page) =>
+      listMedia({
+        kind: "image",
+        ownerId: litterId,
+        ownerType: "litter",
+        page,
+        pageSize: 100,
+        status: "active",
+      }),
+    );
+    const sorted = sortMediaByBinding(mediaList, "litter", litterId);
     setLitterImagesByLitterId((current) => ({ ...current, [litterId]: sorted }));
     return sorted;
   }
@@ -757,57 +776,61 @@ export function CatteryManagementPage() {
     }
   }
 
+  async function updateLitterMediaBinding(
+    media: MediaAssetData,
+    patch: { usage?: string; sortOrder?: number; visibility?: string },
+  ) {
+    if (!selectedLitter) return;
+    const binding = media.bindings.find(
+      (item) => item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
+    );
+    if (!binding) return;
+    setIsSaving(true);
+    setError("");
+    try {
+      await updateMediaBinding(media.id, binding.id, patch);
+      await loadLitterImages(selectedLitter.id);
+      setNotice("窝次图片设置已更新");
+    } catch (mediaError) {
+      setError(getErrorMessage(mediaError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function removeLitterMediaBinding(media: MediaAssetData) {
+    if (!selectedLitter) return;
+    const binding = media.bindings.find(
+      (item) => item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
+    );
+    if (!binding) return;
+    setIsSaving(true);
+    setError("");
+    try {
+      await archiveMediaBinding(media.id, binding.id);
+      await loadLitterImages(selectedLitter.id);
+      setNotice("图片已从当前窝次移除");
+    } catch (mediaError) {
+      setError(getErrorMessage(mediaError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <PageContainer>
-      {activeSection !== "media" ? (
+      {(["kittens", "litters", "studs", "cats"] as SectionKey[]).includes(activeSection) ? (
         <div className="toolbar">
           <div>
-            <p className="eyebrow">Cattery Data</p>
-            <h2>猫咪管理</h2>
-            <p className="muted compact">Demo 管理体验接入真实 Admin API / SQLite / COS 媒体。</p>
+            <p className="eyebrow">CATTERY</p>
+            <h2>{SECTION_TITLES[activeSection]}</h2>
+            <p className="muted compact">管理猫咪档案、窝次和图片。</p>
           </div>
           <div className="toolbar-actions">
             <button className="secondary-button" type="button" onClick={loadData}>
               刷新
             </button>
-            <button type="button" onClick={() => openCreateCat("kittens")}>
-              新增小猫
-            </button>
-            <button type="button" onClick={openCreateLitter}>
-              新增窝次
-            </button>
-            <button type="button" onClick={() => openCreateCat("studs")}>
-              新增种猫
-            </button>
           </div>
-        </div>
-      ) : null}
-
-      {activeSection !== "media" ? (
-        <div className="tabs" role="tablist" aria-label="管理模块">
-          {[
-            ["kittens", "小猫"],
-            ["litters", "窝次"],
-            ["studs", "种猫"],
-            ["cats", "其它猫咪"],
-            ["media", "媒体"],
-            ["fixedPages", "固定页面"],
-            ["communityModeration", "动态"],
-            ["communityComments", "评论"],
-            ["parentUsers", "家长"],
-            ["parentApplications", "申请审核"],
-            ["selectionApplications", "选猫问卷"],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              aria-selected={activeSection === key}
-              className={activeSection === key ? "active-tab" : ""}
-              type="button"
-              onClick={() => switchSection(key as SectionKey)}
-            >
-              {label}
-            </button>
-          ))}
         </div>
       ) : null}
 
@@ -862,6 +885,8 @@ export function CatteryManagementPage() {
           onChange={setLitterDraft}
           onEdit={openEditLitter}
           onImageChange={handleLitterImageSelected}
+          onMediaBindingChange={updateLitterMediaBinding}
+          onMediaBindingRemove={removeLitterMediaBinding}
           onNew={openCreateLitter}
           onSelect={selectLitter}
           onSubmit={handleLitterSubmit}
@@ -930,7 +955,12 @@ export function CatteryManagementPage() {
         <MediaManagementPanel cats={cats} fixedPages={fixedPages} litters={litters} />
       )}
       {activeSection === "fixedPages" && (
-        <FixedPagesPanel isLoading={isLoading} pages={fixedPages} onReload={loadData} />
+        <FixedPagesPanel
+          isLoading={isLoading}
+          pages={fixedPages}
+          requestedSlug={getFixedPageSlugFromHash(activeHash)}
+          onReload={loadData}
+        />
       )}
       {activeSection === "communityModeration" && <CommunityModerationPanel initialView="posts" />}
       {activeSection === "communityComments" && <CommunityModerationPanel initialView="comments" />}
@@ -1587,8 +1617,10 @@ function EntryCoverEditor({
         />
         <div className="presentation-preview">
           <CroppedPreview
+            aspectRatio={entryAspectRatio(activeEntry)}
             cropRect={currentCrop}
             image={images.find((item) => item.id === selectedImageId)}
+            mode={selection ? "crop" : "cover"}
           />
         </div>
       </div>
@@ -1650,7 +1682,12 @@ function DetailPresentationEditor({
         onChange={setActiveImageId}
       />
       <div className="presentation-preview presentation-preview-tall">
-        <CroppedPreview cropRect={cropRect} image={image} />
+        <CroppedPreview
+          aspectRatio={4 / 5}
+          cropRect={cropRect}
+          image={image}
+          mode={presentation?.mode ?? "cover"}
+        />
       </div>
       <div className="table-actions">
         <button type="button" onClick={() => patchPresentation({ mode: "original" })}>
@@ -1703,23 +1740,56 @@ function CropInputs({ value, onChange }: { value: CropRect; onChange: (value: Cr
   );
 }
 
-function CroppedPreview({ cropRect, image }: { cropRect: CropRect; image?: MediaAssetData }) {
+function CroppedPreview({
+  aspectRatio,
+  cropRect,
+  image,
+  mode,
+}: {
+  aspectRatio: number;
+  cropRect: CropRect;
+  image?: MediaAssetData;
+  mode: "cover" | "crop" | "original";
+}) {
   if (!image) return <div className="cat-image-placeholder">暂无图片</div>;
-  const scale = 1 / Math.max(cropRect.width, 0.01);
+  const style = mode === "crop" ? cropPreviewStyle(image, aspectRatio, cropRect) : null;
   return (
-    <div className="cropped-preview-frame">
+    <div className="cropped-preview-frame" style={{ aspectRatio }}>
       <img
         alt={image.altText || image.title || image.id}
         src={image.thumbnailUrl || image.sourceUrl}
-        style={{
-          height: `${scale * 100}%`,
-          left: `${-cropRect.x * scale * 100}%`,
-          top: `${-cropRect.y * scale * 100}%`,
-          width: `${scale * 100}%`,
-        }}
+        style={style ?? { width: "100%", height: "100%", left: 0, top: 0, objectFit: mode === "original" ? "contain" : "cover" }}
       />
     </div>
   );
+}
+
+function entryAspectRatio(entry: CoverEntry): number {
+  if (entry === "communityProfile") return 4 / 3;
+  if (entry === "breedingPlanCard") return 1;
+  return 16 / 10;
+}
+
+function cropPreviewStyle(image: MediaAssetData, aspectRatio: number, cropRect: CropRect) {
+  const naturalWidth = Number(image.width);
+  const naturalHeight = Number(image.height);
+  if (!(naturalWidth > 0 && naturalHeight > 0)) return null;
+  const width = Math.max(0.01, Math.min(1, cropRect.width));
+  const height = Math.max(0.01, Math.min(1, cropRect.height));
+  const x = Math.max(0, Math.min(1 - width, cropRect.x));
+  const y = Math.max(0, Math.min(1 - height, cropRect.y));
+  const scale = Math.max(100 / (width * naturalWidth), 100 / aspectRatio / (height * naturalHeight));
+  const widthPercent = naturalWidth * scale;
+  const heightPercent = naturalHeight * scale * aspectRatio;
+  const left = Math.max(100 - widthPercent, Math.min(0, -x * naturalWidth * scale));
+  const top = Math.max(100 - heightPercent, Math.min(0, -y * naturalHeight * scale * aspectRatio));
+  return {
+    width: `${widthPercent}%`,
+    height: `${heightPercent}%`,
+    left: `${left}%`,
+    top: `${top}%`,
+    objectFit: "contain" as const,
+  };
 }
 
 function LitterWorkspace({
@@ -1738,6 +1808,8 @@ function LitterWorkspace({
   onChange,
   onEdit,
   onImageChange,
+  onMediaBindingChange,
+  onMediaBindingRemove,
   onNew,
   onSelect,
   onSubmit,
@@ -1758,6 +1830,11 @@ function LitterWorkspace({
   onChange: (draft: LitterDraft) => void;
   onEdit: (litter: LitterData) => void;
   onImageChange: (file: File | null) => void;
+  onMediaBindingChange: (
+    media: MediaAssetData,
+    patch: { usage?: string; sortOrder?: number; visibility?: string },
+  ) => void;
+  onMediaBindingRemove: (media: MediaAssetData) => void;
   onNew: () => void;
   onSelect: (litter: LitterData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -1844,6 +1921,8 @@ function LitterWorkspace({
             onCancel={onCancel}
             onChange={onChange}
             onImageChange={onImageChange}
+            onMediaBindingChange={onMediaBindingChange}
+            onMediaBindingRemove={onMediaBindingRemove}
             onSubmit={onSubmit}
           />
         ) : selectedLitter ? (
@@ -1876,6 +1955,8 @@ function LitterForm({
   onCancel,
   onChange,
   onImageChange,
+  onMediaBindingChange,
+  onMediaBindingRemove,
   onSubmit,
 }: {
   activeCats: CatData[];
@@ -1887,6 +1968,11 @@ function LitterForm({
   onCancel: () => void;
   onChange: (draft: LitterDraft) => void;
   onImageChange: (file: File | null) => void;
+  onMediaBindingChange: (
+    media: MediaAssetData,
+    patch: { usage?: string; sortOrder?: number; visibility?: string },
+  ) => void;
+  onMediaBindingRemove: (media: MediaAssetData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const catOptions = [
@@ -1997,16 +2083,11 @@ function LitterForm({
             }}
           />
         </label>
-        <div className="community-media-strip">
-          {selectedImages.map((image) => (
-            <img
-              key={image.id}
-              alt={image.altText || image.title || image.id}
-              className="community-media-preview"
-              src={image.thumbnailUrl || image.sourceUrl}
-            />
-          ))}
-        </div>
+        <MediaBindingEditor
+          images={selectedImages}
+          onChange={onMediaBindingChange}
+          onRemove={onMediaBindingRemove}
+        />
       </div>
       <FormActions isSaving={isSaving} onCancel={onCancel} />
     </form>
@@ -2387,15 +2468,19 @@ function readImagePresentation(cat: CatData): ImagePresentation {
 }
 
 function sortMediaByBinding(items: MediaAssetData[], ownerType: string, ownerId: string) {
-  return [...items].sort((a, b) => {
-    const aBinding = a.bindings.find(
-      (binding) => binding.ownerType === ownerType && binding.ownerId === ownerId,
+  return items
+    .map((media) => ({
+      ...media,
+      bindings: media.bindings.filter(
+        (binding) =>
+          binding.ownerType === ownerType && binding.ownerId === ownerId && !binding.deletedAt,
+      ),
+    }))
+    .filter((media) => media.bindings.length > 0)
+    .sort(
+      (a, b) =>
+        a.bindings[0].sortOrder - b.bindings[0].sortOrder || a.id.localeCompare(b.id),
     );
-    const bBinding = b.bindings.find(
-      (binding) => binding.ownerType === ownerType && binding.ownerId === ownerId,
-    );
-    return (aBinding?.sortOrder ?? 0) - (bBinding?.sortOrder ?? 0) || a.id.localeCompare(b.id);
-  });
 }
 
 function getPrimaryCatImageDto(cat: CatData) {
@@ -2417,8 +2502,7 @@ function getPrimaryMedia(images: MediaAssetData[]) {
         (binding) => binding.usage === "cover" && binding.visibility === "visible",
       ),
     ) ??
-    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
-    images[0]
+    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible"))
   );
 }
 
@@ -2559,7 +2643,7 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#studs") return "studs";
   if (window.location.hash === "#cats") return "cats";
   if (window.location.hash === "#media") return "media";
-  if (window.location.hash === "#fixed-pages") return "fixedPages";
+  if (window.location.hash === "#fixed-pages" || getFixedPageSlugFromHash(window.location.hash)) return "fixedPages";
   if (window.location.hash === "#community") return "communityModeration";
   if (window.location.hash === "#community-comments") return "communityComments";
   if (window.location.hash === "#parent-users") return "parentUsers";
@@ -2567,3 +2651,51 @@ function getSectionFromHash(): SectionKey {
   if (window.location.hash === "#selection-applications") return "selectionApplications";
   return "kittens";
 }
+
+const SECTION_HASHES: Record<SectionKey, string> = {
+  dashboard: "#dashboard",
+  kittens: "#kittens",
+  litters: "#litters",
+  studs: "#studs",
+  cats: "#cats",
+  media: "#media",
+  fixedPages: "#fixed-pages/home",
+  communityModeration: "#community",
+  communityComments: "#community-comments",
+  parentUsers: "#parent-users",
+  parentApplications: "#parent-applications",
+  selectionApplications: "#selection-applications",
+};
+
+const SECTION_TITLES: Record<SectionKey, string> = {
+  dashboard: "数据概览",
+  kittens: "小猫",
+  litters: "窝次",
+  studs: "种猫",
+  cats: "其它猫咪",
+  media: "媒体库",
+  fixedPages: "站点内容",
+  communityModeration: "动态管理",
+  communityComments: "评论管理",
+  parentUsers: "家长列表",
+  parentApplications: "家长申请审核",
+  selectionApplications: "问卷提交",
+};
+
+function getFixedPageSlugFromHash(hash: string): FixedPageData["slug"] | null {
+  const slug = hash.match(/^#fixed-pages\/([a-z-]+)$/)?.[1];
+  return slug && FIXED_PAGE_SLUGS.has(slug) ? (slug as FixedPageData["slug"]) : null;
+}
+
+const FIXED_PAGE_SLUGS = new Set([
+  "home",
+  "about",
+  "philosophy",
+  "environment",
+  "feeding",
+  "process",
+  "breeding-plan",
+  "aftercare",
+  "questionnaire",
+  "contact",
+]);

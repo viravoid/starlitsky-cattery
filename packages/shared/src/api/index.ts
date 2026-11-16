@@ -346,6 +346,19 @@ export interface AdminUserData {
 
 export type AdminUserListData = PaginatedResponse<AdminUserData>;
 
+export interface AdminDashboardOverviewData {
+  kittens: number;
+  availableKittens: number;
+  studs: number;
+  litters: number;
+  activeParents: number;
+  pendingParentApplications: number;
+  selectionApplications: number;
+  pendingSelectionApplications: number;
+  communityPosts: number;
+  comments: number;
+}
+
 export interface ParentAdminEventData {
   id: string;
   userId: string;
@@ -542,7 +555,13 @@ export interface ParentClaimCatCandidateData {
 
 export type ParentClaimCatCandidateListData = PaginatedResponse<ParentClaimCatCandidateData>;
 
-export type SelectionApplicationStatus = "submitted" | "reviewed";
+export type SelectionApplicationStatus =
+  | "submitted"
+  | "reviewed"
+  | "contacted"
+  | "suitable"
+  | "unsuitable"
+  | "completed";
 
 export interface SelectionApplicationAnswers {
   name: string;

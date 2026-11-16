@@ -3,7 +3,7 @@ import type {
   AdminCommunityPostData,
   CommunityCommentData,
 } from "@starlitsky/shared";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getCommunityModerationPost,
   listCommunityModerationComments,
@@ -28,11 +28,22 @@ const VISIBILITY_OPTIONS = [
   { label: "隐藏", value: "hidden" },
   { label: "归档", value: "archived" },
 ];
+const PAGE_SIZE = 20;
 
-export function CommunityModerationPanel({ initialView = "posts" }: { initialView?: CommunityView }) {
+export function CommunityModerationPanel({
+  initialView = "posts",
+}: {
+  initialView?: CommunityView;
+}) {
   const [view, setView] = useState<CommunityView>(initialView);
   const [posts, setPosts] = useState<AdminCommunityPostData[]>([]);
   const [comments, setComments] = useState<AdminCommunityCommentData[]>([]);
+  const [postPage, setPostPage] = useState(1);
+  const [postTotal, setPostTotal] = useState(0);
+  const [postTotalPages, setPostTotalPages] = useState(0);
+  const [commentPage, setCommentPage] = useState(1);
+  const [commentTotal, setCommentTotal] = useState(0);
+  const [commentTotalPages, setCommentTotalPages] = useState(0);
   const [selectedPost, setSelectedPost] = useState<AdminCommunityPostData | null>(null);
   const [selectedComment, setSelectedComment] = useState<AdminCommunityCommentData | null>(null);
   const [category, setCategory] = useState("");
@@ -48,30 +59,38 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
     const data = await listCommunityModerationPosts({
       category,
       includeDeleted,
-      pageSize: 100,
+      page: postPage,
+      pageSize: PAGE_SIZE,
       q: query,
       visibility,
     });
     setPosts(data.items);
+    setPostTotal(data.pagination.total);
+    setPostTotalPages(data.pagination.totalPages);
     setSelectedPost((current) =>
-      current ? (data.items.find((post) => post.id === current.id) ?? null) : data.items[0] ?? null,
+      current
+        ? (data.items.find((post) => post.id === current.id) ?? null)
+        : (data.items[0] ?? null),
     );
-  }, [category, includeDeleted, query, visibility]);
+  }, [category, includeDeleted, postPage, query, visibility]);
 
   const loadComments = useCallback(async () => {
     const data = await listCommunityModerationComments({
       includeDeleted,
-      pageSize: 100,
+      page: commentPage,
+      pageSize: PAGE_SIZE,
       q: query,
       visibility,
     });
     setComments(data.items);
+    setCommentTotal(data.pagination.total);
+    setCommentTotalPages(data.pagination.totalPages);
     setSelectedComment((current) =>
       current
         ? (data.items.find((comment) => comment.id === current.id) ?? null)
-        : data.items[0] ?? null,
+        : (data.items[0] ?? null),
     );
-  }, [includeDeleted, query, visibility]);
+  }, [commentPage, includeDeleted, query, visibility]);
 
   const loadCurrentView = useCallback(async () => {
     setIsLoading(true);
@@ -142,9 +161,7 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
           : current,
       );
       setSelectedComment((current) =>
-        current && current.id === updatedComment.id
-          ? { ...current, ...updatedComment }
-          : current,
+        current && current.id === updatedComment.id ? { ...current, ...updatedComment } : current,
       );
       setNotice("评论状态已更新");
       await Promise.all([loadPosts(), loadComments()]);
@@ -154,16 +171,6 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
       setIsSaving(false);
     }
   }
-
-  const stats = useMemo(
-    () => ({
-      comments: comments.length,
-      hidden: posts.filter((post) => post.visibility === "hidden" && !post.deletedAt).length,
-      pinned: posts.filter((post) => post.pinned && !post.deletedAt).length,
-      visible: posts.filter((post) => post.visibility === "visible" && !post.deletedAt).length,
-    }),
-    [comments.length, posts],
-  );
 
   useEffect(() => {
     setView(initialView);
@@ -175,10 +182,7 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
         <div>
           <p className="eyebrow">Community Moderation</p>
           <h2>猫友圈管理</h2>
-          <p className="muted compact">
-            动态可见 {stats.visible} / 隐藏 {stats.hidden} / 置顶 {stats.pinned} / 评论{" "}
-            {stats.comments}
-          </p>
+          <p className="muted compact">按分类、状态和内容查找动态及评论。</p>
         </div>
         <div className="toolbar-actions">
           <button className="secondary-button" type="button" onClick={() => void loadCurrentView()}>
@@ -214,7 +218,13 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
           {view === "posts" ? (
             <label>
               分类
-              <select value={category} onChange={(event) => setCategory(event.target.value)}>
+              <select
+                value={category}
+                onChange={(event) => {
+                  setCategory(event.target.value);
+                  setPostPage(1);
+                }}
+              >
                 {CATEGORY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -225,7 +235,14 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
           ) : null}
           <label>
             可见性
-            <select value={visibility} onChange={(event) => setVisibility(event.target.value)}>
+            <select
+              value={visibility}
+              onChange={(event) => {
+                setVisibility(event.target.value);
+                setPostPage(1);
+                setCommentPage(1);
+              }}
+            >
               {VISIBILITY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -240,14 +257,22 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
             <input
               placeholder={view === "posts" ? "动态内容 / 作者" : "评论 / 作者 / 所属动态"}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPostPage(1);
+                setCommentPage(1);
+              }}
             />
           </label>
           <label className="toggle-row">
             <input
               checked={includeDeleted}
               type="checkbox"
-              onChange={(event) => setIncludeDeleted(event.target.checked)}
+              onChange={(event) => {
+                setIncludeDeleted(event.target.checked);
+                setPostPage(1);
+                setCommentPage(1);
+              }}
             />
             显示已删除
           </label>
@@ -259,6 +284,10 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
           isLoading={isLoading}
           isSaving={isSaving}
           posts={posts}
+          page={postPage}
+          total={postTotal}
+          totalPages={postTotalPages}
+          onPageChange={setPostPage}
           selectedPost={selectedPost}
           onModerateComment={moderateComment}
           onModeratePost={moderatePost}
@@ -267,6 +296,10 @@ export function CommunityModerationPanel({ initialView = "posts" }: { initialVie
       ) : (
         <CommentModerationView
           comments={comments}
+          page={commentPage}
+          total={commentTotal}
+          totalPages={commentTotalPages}
+          onPageChange={setCommentPage}
           isLoading={isLoading}
           isSaving={isSaving}
           selectedComment={selectedComment}
@@ -282,6 +315,10 @@ function PostModerationView({
   isLoading,
   isSaving,
   posts,
+  page,
+  total,
+  totalPages,
+  onPageChange,
   selectedPost,
   onModerateComment,
   onModeratePost,
@@ -290,6 +327,10 @@ function PostModerationView({
   isLoading: boolean;
   isSaving: boolean;
   posts: AdminCommunityPostData[];
+  page: number;
+  total: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   selectedPost: AdminCommunityPostData | null;
   onModerateComment: (
     comment: Pick<CommunityCommentData, "id" | "postId">,
@@ -306,7 +347,11 @@ function PostModerationView({
       <section className="table-panel">
         <div className="section-heading">
           <h3>动态列表</h3>
-          <span className="muted">{isLoading ? "加载中..." : `${posts.length} 条`}</span>
+          <span className="muted">
+            {isLoading
+              ? "加载中..."
+              : `共 ${total} 条 · 第 ${page} / ${Math.max(totalPages, 1)} 页`}
+          </span>
         </div>
         {posts.length === 0 ? (
           <div className="empty-state">暂无匹配动态</div>
@@ -371,6 +416,12 @@ function PostModerationView({
             </table>
           </div>
         )}
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          isLoading={isLoading}
+          onPageChange={onPageChange}
+        />
       </section>
 
       <aside className="detail-panel">
@@ -431,6 +482,10 @@ function PostModerationView({
 
 function CommentModerationView({
   comments,
+  page,
+  total,
+  totalPages,
+  onPageChange,
   isLoading,
   isSaving,
   selectedComment,
@@ -438,6 +493,10 @@ function CommentModerationView({
   onSelectComment,
 }: {
   comments: AdminCommunityCommentData[];
+  page: number;
+  total: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   isLoading: boolean;
   isSaving: boolean;
   selectedComment: AdminCommunityCommentData | null;
@@ -452,7 +511,11 @@ function CommentModerationView({
       <section className="table-panel">
         <div className="section-heading">
           <h3>评论列表</h3>
-          <span className="muted">{isLoading ? "加载中..." : `${comments.length} 条`}</span>
+          <span className="muted">
+            {isLoading
+              ? "加载中..."
+              : `共 ${total} 条 · 第 ${page} / ${Math.max(totalPages, 1)} 页`}
+          </span>
         </div>
         {comments.length === 0 ? (
           <div className="empty-state">暂无匹配评论</div>
@@ -503,6 +566,12 @@ function CommentModerationView({
             </table>
           </div>
         )}
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          isLoading={isLoading}
+          onPageChange={onPageChange}
+        />
       </section>
 
       <aside className="detail-panel">
@@ -522,7 +591,10 @@ function CommentModerationView({
                 ["所属动态", selectedComment.post.content],
                 ["动态作者", selectedComment.post.authorName],
                 ["动态分类", formatCategory(selectedComment.post.category)],
-                ["动态状态", formatVisibility(selectedComment.post.visibility, selectedComment.post.deletedAt)],
+                [
+                  "动态状态",
+                  formatVisibility(selectedComment.post.visibility, selectedComment.post.deletedAt),
+                ],
                 ["评论时间", formatDateTime(selectedComment.createdAt)],
                 ["更新时间", formatDateTime(selectedComment.updatedAt)],
               ].map(([label, value]) => (
@@ -544,6 +616,39 @@ function CommentModerationView({
           <div className="empty-state">选择一条评论查看详情。</div>
         )}
       </aside>
+    </div>
+  );
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  isLoading,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  isLoading: boolean;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="form-actions">
+      <button
+        className="secondary-button"
+        disabled={isLoading || page <= 1}
+        type="button"
+        onClick={() => onPageChange(page - 1)}
+      >
+        上一页
+      </button>
+      <button
+        className="secondary-button"
+        disabled={isLoading || page >= totalPages}
+        type="button"
+        onClick={() => onPageChange(page + 1)}
+      >
+        下一页
+      </button>
     </div>
   );
 }
@@ -683,11 +788,7 @@ function CommunityCommentModerationList({
               <p className="muted compact">{comment.content}</p>
               <span>{formatVisibility(comment.visibility, comment.deletedAt)}</span>
             </div>
-            <CommentActionButtons
-              comment={comment}
-              isSaving={isSaving}
-              onModerate={onModerate}
-            />
+            <CommentActionButtons comment={comment} isSaving={isSaving} onModerate={onModerate} />
           </div>
         ))
       )}
