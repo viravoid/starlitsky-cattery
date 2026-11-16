@@ -73,6 +73,7 @@ test("admin can add gallery photos and replace one without leaving stale present
   });
   expect(litterBinding.status()).toBe(201);
 
+  await page.reload();
   await page.getByRole("link", { name: "其它猫咪" }).click();
   await page.getByLabel("搜索猫咪").fill("COS E2E 隔离测试猫");
   await expect(page.getByText("COS E2E 隔离测试猫")).toBeVisible();
