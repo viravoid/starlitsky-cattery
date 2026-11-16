@@ -550,13 +550,19 @@ export function uploadMediaImage({
   });
 }
 
-export function uploadCatImage(catId: string, file: File) {
+export function uploadCatImage(
+  catId: string,
+  file: File,
+  options: { usage?: string; sortOrder?: number; bindingVisibility?: string } = {},
+) {
   return uploadImageForOwner({
     fallbackFileName: "cat-image",
     file,
     ownerId: catId,
     ownerType: "cat",
-    usage: "cover",
+    usage: options.usage ?? "cover",
+    sortOrder: options.sortOrder,
+    bindingVisibility: options.bindingVisibility,
   });
 }
 

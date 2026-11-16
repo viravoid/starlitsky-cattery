@@ -12,7 +12,7 @@ import type {
   UpdateCatRequest,
   UpdateLitterRequest,
 } from "@starlitsky/shared";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   archiveCat,
   archiveMediaBinding,
@@ -243,6 +243,7 @@ export function CatteryManagementPage() {
   const [fixedPages, setFixedPages] = useState<FixedPageData[]>([]);
   const [litters, setLitters] = useState<LitterData[]>([]);
   const [selectedCat, setSelectedCat] = useState<CatData | null>(null);
+  const selectedCatIdRef = useRef<string | null>(null);
   const [selectedLitter, setSelectedLitter] = useState<LitterData | null>(null);
   const [catEditorMode, setCatEditorMode] = useState<EditorMode>(null);
   const [litterEditorMode, setLitterEditorMode] = useState<EditorMode>(null);
@@ -291,6 +292,10 @@ export function CatteryManagementPage() {
   const litterDirty = litterEditorMode
     ? serializeDraft(litterDraft) !== litterBaseline || Boolean(pendingLitterImageFile)
     : false;
+
+  useEffect(() => {
+    selectedCatIdRef.current = selectedCat?.id ?? null;
+  }, [selectedCat]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -776,6 +781,86 @@ export function CatteryManagementPage() {
     }
   }
 
+  async function replaceCatMediaBinding(media: MediaAssetData, file: File) {
+    if (!selectedCat || isSaving) return;
+    if (catDirty) {
+      setError("请先保存猫咪资料，再替换图片");
+      return;
+    }
+    const catId = selectedCat.id;
+    const binding = media.bindings.find(
+      (item) => item.ownerType === "cat" && item.ownerId === catId && !item.deletedAt,
+    );
+    if (!binding) return;
+    setIsSaving(true);
+    setError("");
+    setNotice("");
+    let uploaded = false;
+    let referencesUpdated = false;
+    let errorMessage = "";
+    try {
+      const replacement = await uploadCatImage(catId, file, {
+        usage: binding.usage,
+        sortOrder: binding.sortOrder,
+        bindingVisibility: binding.visibility,
+      });
+      uploaded = true;
+      const freshCat = await getCat(catId);
+      const storyJson = isRecord(freshCat.storyJson) ? freshCat.storyJson : {};
+      const imagePresentation = replaceImagePresentationReferences(
+        readImagePresentation(freshCat),
+        media.id,
+        replacement.id,
+      );
+      const updatedCat = await updateCat(catId, {
+        storyJson: removeUndefinedObject({
+          ...storyJson,
+          imagePresentation: compactImagePresentation(imagePresentation),
+        }),
+      });
+      referencesUpdated = true;
+      if (selectedCatIdRef.current === catId) {
+        const completeCat = {
+          ...freshCat,
+          ...updatedCat,
+          breedingProfile: freshCat.breedingProfile,
+          kittenProfile: freshCat.kittenProfile,
+        };
+        setSelectedCat(completeCat);
+        setCatDraft((current) => ({
+          ...current,
+          imagePresentation: replaceImagePresentationReferences(
+            current.imagePresentation,
+            media.id,
+            replacement.id,
+          ),
+        }));
+        setCatBaseline(serializeDraft(toCatDraft(completeCat)));
+      }
+      await archiveMediaBinding(media.id, binding.id);
+    } catch (mediaError) {
+      errorMessage = !uploaded
+        ? getErrorMessage(mediaError)
+        : !referencesUpdated
+          ? `新图片已上传，但档案引用未更新：${getErrorMessage(mediaError)}。旧图片仍保留，请手动移除新图片绑定。`
+          : `新图片已启用，但旧图片未能移除：${getErrorMessage(mediaError)}。请手动移除旧图片绑定。`;
+    } finally {
+      try {
+        const [freshCat] = await Promise.all([getCat(catId), loadCatImages(catId)]);
+        setCats((current) => current.map((cat) => (cat.id === catId ? freshCat : cat)));
+        if (selectedCatIdRef.current === catId) {
+          setSelectedCat(freshCat);
+          setCatBaseline(serializeDraft(toCatDraft(freshCat)));
+        }
+      } catch (refreshError) {
+        errorMessage += ` 图片列表刷新失败：${getErrorMessage(refreshError)}`;
+      }
+      if (errorMessage) setError(errorMessage.trim());
+      else setNotice("猫咪图片已替换");
+      setIsSaving(false);
+    }
+  }
+
   async function updateLitterMediaBinding(
     media: MediaAssetData,
     patch: { usage?: string; sortOrder?: number; visibility?: string },
@@ -898,6 +983,7 @@ export function CatteryManagementPage() {
           onImageChange={handleCatImageSelected}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
+          onMediaBindingReplace={replaceCatMediaBinding}
           onNew={() => openCreateCat("kittens")}
           onSelect={(cat) => selectCat(cat, "kittens")}
           onSubmit={handleCatSubmit}
@@ -953,6 +1039,7 @@ export function CatteryManagementPage() {
           onImageChange={handleCatImageSelected}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
+          onMediaBindingReplace={replaceCatMediaBinding}
           onNew={() => openCreateCat("studs")}
           onSelect={(cat) => selectCat(cat, "studs")}
           onSubmit={handleCatSubmit}
@@ -982,6 +1069,7 @@ export function CatteryManagementPage() {
           onImageChange={handleCatImageSelected}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
+          onMediaBindingReplace={replaceCatMediaBinding}
           onNew={() => openCreateCat("cats")}
           onSelect={(cat) => selectCat(cat, "cats")}
           onSubmit={handleCatSubmit}
@@ -1030,6 +1118,7 @@ function CatManagementWorkspace({
   onImageChange,
   onMediaBindingChange,
   onMediaBindingRemove,
+  onMediaBindingReplace,
   onNew,
   onSelect,
   onSubmit,
@@ -1059,6 +1148,7 @@ function CatManagementWorkspace({
     patch: { usage?: string; sortOrder?: number; visibility?: string },
   ) => void;
   onMediaBindingRemove: (media: MediaAssetData) => void;
+  onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
   onNew: () => void;
   onSelect: (cat: CatData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -1173,6 +1263,7 @@ function CatManagementWorkspace({
             onImageChange={onImageChange}
             onMediaBindingChange={onMediaBindingChange}
             onMediaBindingRemove={onMediaBindingRemove}
+            onMediaBindingReplace={onMediaBindingReplace}
             onSubmit={onSubmit}
           />
         ) : selectedCat ? (
@@ -1212,6 +1303,7 @@ function CatEditor({
   onImageChange,
   onMediaBindingChange,
   onMediaBindingRemove,
+  onMediaBindingReplace,
   onSubmit,
 }: {
   draft: CatDraft;
@@ -1231,6 +1323,7 @@ function CatEditor({
     patch: { usage?: string; sortOrder?: number; visibility?: string },
   ) => void;
   onMediaBindingRemove: (media: MediaAssetData) => void;
+  onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
@@ -1425,12 +1518,14 @@ function CatEditor({
         imagePreviewUrl={imagePreviewUrl}
         imageUploadState={imageUploadState}
         images={selectedCatImages}
+        isDirty={isDirty}
         isSaving={isSaving}
         mode={mode}
         onChange={onChange}
         onImageChange={onImageChange}
         onMediaBindingChange={onMediaBindingChange}
         onMediaBindingRemove={onMediaBindingRemove}
+        onMediaBindingReplace={onMediaBindingReplace}
       />
 
       <FormActions isSaving={isSaving} onCancel={onCancel} />
@@ -1443,17 +1538,20 @@ function CatImageManager({
   imagePreviewUrl,
   imageUploadState,
   images,
+  isDirty,
   isSaving,
   mode,
   onChange,
   onImageChange,
   onMediaBindingChange,
   onMediaBindingRemove,
+  onMediaBindingReplace,
 }: {
   draft: CatDraft;
   imagePreviewUrl: string;
   imageUploadState: ImageUploadState;
   images: MediaAssetData[];
+  isDirty: boolean;
   isSaving: boolean;
   mode: "kittens" | "studs" | "cats";
   onChange: (draft: CatDraft) => void;
@@ -1463,6 +1561,7 @@ function CatImageManager({
     patch: { usage?: string; sortOrder?: number; visibility?: string },
   ) => void;
   onMediaBindingRemove: (media: MediaAssetData) => void;
+  onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
 }) {
   const visibleImages = images.filter((media) =>
     media.bindings.some((binding) => binding.visibility === "visible"),
@@ -1494,7 +1593,11 @@ function CatImageManager({
         images={images}
         onChange={onMediaBindingChange}
         onRemove={onMediaBindingRemove}
+        onReplace={onMediaBindingReplace}
+        disabled={isSaving}
+        replaceDisabled={isDirty}
       />
+      {isDirty ? <p className="muted compact">保存当前档案后可替换图片。</p> : null}
       <EntryCoverEditor
         entries={
           mode === "studs"
@@ -1530,6 +1633,7 @@ function MediaBindingEditor({
   onRemove,
   onReplace,
   disabled = false,
+  replaceDisabled = false,
 }: {
   images: MediaAssetData[];
   onChange: (
@@ -1539,6 +1643,7 @@ function MediaBindingEditor({
   onRemove: (media: MediaAssetData) => void;
   onReplace?: (media: MediaAssetData, file: File) => void;
   disabled?: boolean;
+  replaceDisabled?: boolean;
 }) {
   if (images.length === 0) return <div className="cat-image-placeholder">暂无已绑定图片</div>;
   return (
@@ -1555,6 +1660,7 @@ function MediaBindingEditor({
               <label>
                 用途
                 <select
+                  disabled={disabled}
                   value={binding?.usage ?? "gallery"}
                   onChange={(event) => onChange(media, { usage: event.target.value })}
                 >
@@ -1565,6 +1671,7 @@ function MediaBindingEditor({
               <label>
                 排序
                 <input
+                  disabled={disabled}
                   inputMode="numeric"
                   value={binding?.sortOrder ?? 0}
                   onChange={(event) =>
@@ -1575,6 +1682,7 @@ function MediaBindingEditor({
               <label>
                 可见性
                 <select
+                  disabled={disabled}
                   value={binding?.visibility ?? "visible"}
                   onChange={(event) => onChange(media, { visibility: event.target.value })}
                 >
@@ -1583,7 +1691,12 @@ function MediaBindingEditor({
                   <option value="archived">归档</option>
                 </select>
               </label>
-              <button className="secondary-button" type="button" onClick={() => onRemove(media)}>
+              <button
+                className="secondary-button"
+                disabled={disabled}
+                type="button"
+                onClick={() => onRemove(media)}
+              >
                 移除绑定
               </button>
               {onReplace ? (
@@ -1591,7 +1704,7 @@ function MediaBindingEditor({
                   替换图片
                   <input
                     accept="image/*"
-                    disabled={disabled}
+                    disabled={disabled || replaceDisabled}
                     type="file"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
@@ -2440,6 +2553,39 @@ function compactImagePresentation(value: ImagePresentation): ImagePresentation |
     detailImagePresentations: value.detailImagePresentations,
     entryCoverSelections: value.entryCoverSelections,
   }) as ImagePresentation;
+  return Object.keys(next).length ? next : undefined;
+}
+
+function replaceImagePresentationReferences(
+  value: ImagePresentation,
+  previousId: string,
+  replacementId: string,
+): ImagePresentation {
+  const entryCoverSelections = value.entryCoverSelections
+    ? (Object.fromEntries(
+        Object.entries(value.entryCoverSelections).map(([entry, selection]) => [
+          entry,
+          selection?.imageId === previousId
+            ? { imageId: replacementId, cropRect: defaultCropRect() }
+            : selection,
+        ]),
+      ) as EntryCoverSelections)
+    : undefined;
+  return {
+    ...value,
+    entryCoverSelections,
+    detailImagePresentations: omitImageKey(value.detailImagePresentations, previousId),
+    detailCarouselPresentations: omitImageKey(value.detailCarouselPresentations, previousId),
+  };
+}
+
+function omitImageKey<T>(
+  value: Record<string, T> | undefined,
+  previousId: string,
+): Record<string, T> | undefined {
+  if (!value || !Object.hasOwn(value, previousId)) return value;
+  const next = { ...value };
+  delete next[previousId];
   return Object.keys(next).length ? next : undefined;
 }
 
