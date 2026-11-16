@@ -122,6 +122,27 @@ try {
   assert.equal(reviewed.adminNote, "reviewed in verifier", "keeper should persist questionnaire admin note");
   assert.equal(reviewed.reviewedBy?.id, admin.id, "keeper review should attach reviewer");
 
+  for (const status of ["contacted", "suitable", "unsuitable", "completed"]) {
+    const updated = await routeJson(`/selection-applications/${anonymousApplication.id}`, admin, "PATCH", {
+      status,
+    });
+    assert.equal(updated.status, status, `keeper should set ${status} follow-up status`);
+    assert.equal(updated.reviewedBy?.id, admin.id, "follow-up status should attach reviewer");
+  }
+  const filtered = await routeJson("/selection-applications?status=completed", admin, "GET");
+  assert.equal(filtered.items.some((item) => item.id === anonymousApplication.id), true);
+
+  const firstPage = await routeJson("/selection-applications?pageSize=1&page=1", admin, "GET");
+  const secondPage = await routeJson("/selection-applications?pageSize=1&page=2", admin, "GET");
+  assert.equal(firstPage.pagination.total, 2, "pagination should count both submissions");
+  assert.notEqual(firstPage.items[0].id, secondPage.items[0].id, "pagination should expose later submissions");
+
+  const reset = await routeJson(`/selection-applications/${anonymousApplication.id}`, admin, "PATCH", {
+    status: "submitted",
+  });
+  assert.equal(reset.reviewedBy, null, "resetting to unread should clear reviewer");
+  assert.equal(reset.reviewedAt, null, "resetting to unread should clear review time");
+
   await assertRouteRejects(
     "invalid review status should fail",
     `/selection-applications/${anonymousApplication.id}`,
