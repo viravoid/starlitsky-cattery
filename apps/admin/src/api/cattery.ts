@@ -45,6 +45,7 @@ import type {
   ReviewParentApplicationRequest,
   SelectionApplicationData,
   SelectionApplicationListData,
+  SelectionApplicationStatus,
   UpdateBreedingCatProfileRequest,
   UpdateCatRequest,
   UpdateKittenProfileRequest,
@@ -438,9 +439,10 @@ async function uploadImageForOwner({
     throw new Error("Image file MIME type is required");
   }
 
-  const dimensions = file.type.startsWith("image/") && (!width || !height)
-    ? await readUploadImageDimensions(file).catch(() => null)
-    : null;
+  const dimensions =
+    file.type.startsWith("image/") && (!width || !height)
+      ? await readUploadImageDimensions(file).catch(() => null)
+      : null;
   const resolvedWidth = width ?? dimensions?.width;
   const resolvedHeight = height ?? dimensions?.height;
 
@@ -655,7 +657,7 @@ export interface ListSelectionApplicationsParams {
 }
 
 export interface UpdateSelectionApplicationReviewRequest {
-  status?: "submitted" | "reviewed";
+  status?: SelectionApplicationStatus;
   adminNote?: string | null;
 }
 
