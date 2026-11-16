@@ -11,9 +11,15 @@
     <text class="muted">提交时间：{{application.createdAt}}</text>
     <text wx:if="{{application.adminNote}}" class="muted">审核备注：{{application.adminNote}}</text>
     <text wx:if="{{application.status === 'rejected'}}" class="muted">可修改资料重新申请；提交间隔至少一小时。</text>
+    <text wx:if="{{parentInactive && application.status === 'approved'}}" class="muted">这是历史审核结果。当前家长身份已停用，提交间隔至少一小时；可重新申请或联系主理人恢复。</text>
   </view>
 
-  <block wx:if="{{!application || application.status === 'rejected'}}">
+  <view wx:if="{{isActiveParent}}" class="status-panel">
+    <text class="section-title">家长身份已开通</text>
+    <text class="muted">如需调整家长身份或联系方式，请联系主理人。</text>
+  </view>
+
+  <block wx:if="{{!isActiveParent && (!application || application.status === 'rejected' || (parentInactive && application.status === 'approved'))}}">
   <view class="panel">
     <text class="section-title">家长资料</text>
     <view class="field">
