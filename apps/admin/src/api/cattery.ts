@@ -45,6 +45,7 @@ import type {
   ReviewParentApplicationRequest,
   SelectionApplicationData,
   SelectionApplicationListData,
+  SelectionApplicationStatus,
   UpdateBreedingCatProfileRequest,
   UpdateCatRequest,
   UpdateKittenProfileRequest,
@@ -438,11 +439,18 @@ async function uploadImageForOwner({
     throw new Error("Image file MIME type is required");
   }
 
+  const dimensions =
+    file.type.startsWith("image/") && (!width || !height)
+      ? await readUploadImageDimensions(file).catch(() => null)
+      : null;
+  const resolvedWidth = width ?? dimensions?.width;
+  const resolvedHeight = height ?? dimensions?.height;
+
   const imageUpload = await requestImageUpload({
     altText: altText ?? file.name,
     bindingVisibility,
     fileName: file.name || fallbackFileName,
-    height,
+    height: resolvedHeight,
     mimeType: file.type,
     ownerId,
     ownerType,
@@ -450,7 +458,7 @@ async function uploadImageForOwner({
     sortOrder,
     title: title ?? file.name,
     usage,
-    width,
+    width: resolvedWidth,
   });
 
   const uploadResponse = await putMediaFile(imageUpload.upload, file);
@@ -460,9 +468,25 @@ async function uploadImageForOwner({
   }
 
   return completeMediaUpload(imageUpload.media.id, {
-    height,
+    height: resolvedHeight,
     sizeBytes: file.size,
-    width,
+    width: resolvedWidth,
+  });
+}
+
+function readUploadImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new window.Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Image dimensions could not be read"));
+    };
+    image.src = url;
   });
 }
 
@@ -633,7 +657,7 @@ export interface ListSelectionApplicationsParams {
 }
 
 export interface UpdateSelectionApplicationReviewRequest {
-  status?: "submitted" | "reviewed";
+  status?: SelectionApplicationStatus;
   adminNote?: string | null;
 }
 

@@ -1,5 +1,5 @@
-import type { SelectionApplicationData } from "@starlitsky/shared";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { SelectionApplicationData, SelectionApplicationStatus } from "@starlitsky/shared";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   getSelectionApplication,
   listSelectionApplications,
@@ -11,13 +11,23 @@ const STATUS_OPTIONS = [
   { label: "全部", value: "" },
   { label: "未查看", value: "submitted" },
   { label: "已审核", value: "reviewed" },
+  { label: "已联系", value: "contacted" },
+  { label: "适合继续沟通", value: "suitable" },
+  { label: "暂不合适", value: "unsuitable" },
+  { label: "已完成", value: "completed" },
 ];
+const PAGE_SIZE = 20;
 
 export function SelectionApplicationsPanel() {
   const [applications, setApplications] = useState<SelectionApplicationData[]>([]);
   const [selected, setSelected] = useState<SelectionApplicationData | null>(null);
   const [status, setStatus] = useState("");
   const [query, setQuery] = useState("");
+  const [appliedStatus, setAppliedStatus] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [draftNote, setDraftNote] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -26,29 +36,35 @@ export function SelectionApplicationsPanel() {
 
   const selectedRows = useMemo(() => buildAnswerRows(selected), [selected]);
 
-  async function loadApplications(nextStatus = status, nextQuery = query) {
-    setIsLoading(true);
-    setError("");
-    try {
-      const data = await listSelectionApplications({
-        pageSize: 100,
-        q: nextQuery,
-        status: nextStatus,
-      });
-      setApplications(data.items);
-      setSelected((current) =>
-        current ? (data.items.find((item) => item.id === current.id) ?? current) : null,
-      );
-    } catch (loadError) {
-      setError(getErrorMessage(loadError));
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const loadApplications = useCallback(
+    async (nextStatus: string, nextQuery: string, nextPage: number) => {
+      setIsLoading(true);
+      setError("");
+      try {
+        const data = await listSelectionApplications({
+          page: nextPage,
+          pageSize: PAGE_SIZE,
+          q: nextQuery,
+          status: nextStatus,
+        });
+        setApplications(data.items);
+        setTotal(data.pagination.total);
+        setTotalPages(data.pagination.totalPages);
+        setSelected((current) =>
+          current ? (data.items.find((item) => item.id === current.id) ?? null) : null,
+        );
+      } catch (loadError) {
+        setError(getErrorMessage(loadError));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    void loadApplications();
-  }, []);
+    void loadApplications(appliedStatus, appliedQuery, page);
+  }, [appliedStatus, appliedQuery, page, loadApplications]);
 
   async function selectApplication(application: SelectionApplicationData) {
     setNotice("");
@@ -64,15 +80,23 @@ export function SelectionApplicationsPanel() {
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await loadApplications(status, query);
+    const unchanged = appliedStatus === status && appliedQuery === query && page === 1;
+    setAppliedStatus(status);
+    setAppliedQuery(query);
+    setPage(1);
+    if (unchanged) await loadApplications(status, query, 1);
   }
 
   async function handleStatusChange(nextStatus: string) {
     setStatus(nextStatus);
-    await loadApplications(nextStatus, query);
+    const unchanged = appliedStatus === nextStatus && appliedQuery === query && page === 1;
+    setAppliedStatus(nextStatus);
+    setAppliedQuery(query);
+    setPage(1);
+    if (unchanged) await loadApplications(nextStatus, query, 1);
   }
 
-  async function saveReview(nextStatus: "submitted" | "reviewed" = selected?.status === "reviewed" ? "reviewed" : "submitted") {
+  async function saveReview(nextStatus?: SelectionApplicationStatus) {
     if (!selected) return;
     setIsSaving(true);
     setError("");
@@ -80,12 +104,12 @@ export function SelectionApplicationsPanel() {
     try {
       const updated = await updateSelectionApplicationReview(selected.id, {
         adminNote: draftNote,
-        status: nextStatus,
+        ...(nextStatus ? { status: nextStatus } : {}),
       });
       setSelected(updated);
       setDraftNote(updated.adminNote ?? "");
-      setNotice(nextStatus === "reviewed" ? "问卷已标记为已审核" : "问卷已标记为未查看");
-      await loadApplications(status, query);
+      setNotice(nextStatus ? `问卷已标记为${statusLabel(nextStatus)}` : "备注已保存");
+      await loadApplications(appliedStatus, appliedQuery, page);
     } catch (saveError) {
       setError(getErrorMessage(saveError));
     } finally {
@@ -102,7 +126,11 @@ export function SelectionApplicationsPanel() {
           <p className="muted compact">查看小程序提交的正式选猫问卷，并记录处理备注。</p>
         </div>
         <div className="toolbar-actions">
-          <button className="secondary-button" type="button" onClick={() => loadApplications()}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => loadApplications(appliedStatus, appliedQuery, page)}
+          >
             刷新
           </button>
         </div>
@@ -142,7 +170,11 @@ export function SelectionApplicationsPanel() {
                 onClick={() => {
                   setQuery("");
                   setStatus("");
-                  void loadApplications("", "");
+                  const unchanged = appliedStatus === "" && appliedQuery === "" && page === 1;
+                  setAppliedStatus("");
+                  setAppliedQuery("");
+                  setPage(1);
+                  if (unchanged) void loadApplications("", "", 1);
                 }}
               >
                 清空
@@ -152,7 +184,9 @@ export function SelectionApplicationsPanel() {
 
           <div className="section-heading">
             <h3>问卷列表</h3>
-            <span className="muted compact">{applications.length} 条</span>
+            <span className="muted compact">
+              共 {total} 条 · 第 {page} / {Math.max(totalPages, 1)} 页
+            </span>
           </div>
 
           {isLoading ? (
@@ -197,6 +231,24 @@ export function SelectionApplicationsPanel() {
               </table>
             </div>
           )}
+          <div className="form-actions">
+            <button
+              className="secondary-button"
+              disabled={page <= 1 || isLoading}
+              type="button"
+              onClick={() => setPage(page - 1)}
+            >
+              上一页
+            </button>
+            <button
+              className="secondary-button"
+              disabled={page >= totalPages || isLoading}
+              type="button"
+              onClick={() => setPage(page + 1)}
+            >
+              下一页
+            </button>
+          </div>
         </section>
 
         <aside className="detail-panel" aria-label="问卷详情">
@@ -221,8 +273,8 @@ export function SelectionApplicationsPanel() {
                   ["职业", selected.contactJob],
                   ["城市", selected.contactCity],
                   ["关联用户", selected.user?.nickname || selected.userId || "游客"],
-                  ["审核时间", formatDateTime(selected.reviewedAt)],
-                  ["审核人", selected.reviewedBy?.nickname || "-"],
+                  ["最近处理时间", formatDateTime(selected.reviewedAt)],
+                  ["最近处理人", selected.reviewedBy?.nickname || "-"],
                 ]}
               />
 
@@ -245,17 +297,17 @@ export function SelectionApplicationsPanel() {
               </label>
 
               <div className="form-actions">
-                <button disabled={isSaving} type="button" onClick={() => saveReview("reviewed")}>
-                  标记已审核
-                </button>
-                <button
-                  className="secondary-button"
-                  disabled={isSaving}
-                  type="button"
-                  onClick={() => saveReview("submitted")}
-                >
-                  标记未查看
-                </button>
+                {STATUS_OPTIONS.slice(1).map((option) => (
+                  <button
+                    className={selected.status === option.value ? "" : "secondary-button"}
+                    disabled={isSaving || selected.status === option.value}
+                    key={option.value}
+                    type="button"
+                    onClick={() => saveReview(option.value as SelectionApplicationStatus)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
                 <button
                   className="secondary-button"
                   disabled={isSaving}
@@ -293,11 +345,17 @@ function buildAnswerRows(application: SelectionApplicationData | null) {
   return [
     ["是否有养猫经验", optionLabel("yesNo", application.catExperience.experience)],
     ["家里是否有原住民", optionLabel("yesNo", application.existingPets.residents)],
-    ["原住民是否绝育", optionLabel("residentsNeutered", application.existingPets.residentsNeutered)],
+    [
+      "原住民是否绝育",
+      optionLabel("residentsNeutered", application.existingPets.residentsNeutered),
+    ],
     ["是否有小孩", optionLabel("yesNo", application.livingEnvironment.hasKids)],
     ["租房与房东同意情况", optionLabel("housing", application.livingEnvironment.housing)],
     ["住房是否有封窗", optionLabel("windowSealed", application.livingEnvironment.windowSealed)],
-    ["家庭成员或室友是否同意", optionLabel("familyAgree", application.livingEnvironment.familyAgree)],
+    [
+      "家庭成员或室友是否同意",
+      optionLabel("familyAgree", application.livingEnvironment.familyAgree),
+    ],
     ["对缅因猫的了解", application.maineCoonKnowledge ?? ""],
     ["想要公猫 or 母猫", optionLabel("wantGender", application.preferences.wantGender)],
     ["想要幼猫颜色", application.preferences.wantColor],
@@ -369,7 +427,7 @@ function optionLabel(group: string, value: string | null | undefined) {
 }
 
 function statusLabel(status: string) {
-  return status === "reviewed" ? "已审核" : "未查看";
+  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
 
 function formatDateTime(value: string | null) {
