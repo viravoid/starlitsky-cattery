@@ -132,6 +132,37 @@ try {
   );
   assert.equal(await countRunMedia(), 0, "client bucket rejection must not create pending media");
 
+  await assert.rejects(
+    () => requestImageUpload({
+      fileName: "contract.pdf",
+      mimeType: "application/pdf",
+      ownerId: cat.id,
+      ownerType: "cat",
+      sizeBytes: 128,
+      usage: "contract",
+    }),
+    (error) => error?.statusCode === 400,
+    "PDF uploads must be limited to fixed-page contract bindings",
+  );
+
+  const contractUpload = await requestImageUpload({
+    fileName: "contract.pdf",
+    mimeType: "application/pdf",
+    ownerId: fixedPage.id,
+    ownerType: "fixed_page",
+    sizeBytes: 128,
+    usage: "contract",
+  });
+  assert.equal(contractUpload.media.kind, "document");
+  assert.match(contractUpload.objectKey, /\/documents\/.*\.pdf$/);
+  objectMetadata.set(contractUpload.objectKey, {
+    exists: true,
+    contentLength: 128,
+    contentType: "application/pdf",
+  });
+  const completedContract = await completeMediaUpload(contractUpload.media.id, { sizeBytes: 128 });
+  assert.equal(completedContract.status, "active", "contract PDF should complete as active media");
+
   const missingUpload = await requestImageUpload({
     fileName: "missing.jpg",
     mimeType: "image/jpeg",
