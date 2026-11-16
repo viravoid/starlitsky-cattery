@@ -4,9 +4,10 @@ import type {
   SubmitParentApplicationRequest,
 } from "@starlitsky/shared";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
+import { getSessionState } from "../../store/session/index";
 import {
-  getMyParentApplication,
   getParentPhoneVerificationCapability,
+  getMyParentApplication,
   searchCats,
   submitParentApplication,
   verifyParentPhone,
@@ -30,10 +31,6 @@ interface ParentAuthPage {
   setData(data: Partial<ParentAuthData>): void;
 }
 
-interface PhoneEvent {
-  detail: { code?: string; errMsg?: string };
-}
-
 interface ParentAuthData {
   application: ParentApplicationData | null;
   applicationStatusClass: string;
@@ -41,20 +38,17 @@ interface ParentAuthData {
   cats: ParentClaimCatCandidateData[];
   catMode: "existing" | "unlisted" | "new";
   catQuery: string;
-  city: string;
+  applicantGender: "" | "male" | "female";
   contactWechat: string;
-  contactPhone: string;
-  verifiedPhone: string;
+  phoneCapabilityEnabled: boolean;
   phoneVerificationToken: string;
+  verifiedPhone: string;
+  isVerifyingPhone: boolean;
   displayName: string;
   existingCatId: string;
   existingCatName: string;
-  existingCatNote: string;
-  phoneMessage: string;
-  phoneVerificationEnabled: boolean;
   isSearchingCats: boolean;
   isSubmitting: boolean;
-  isVerifyingPhone: boolean;
   newCatArrivedAt: string;
   newCatBirthday: string;
   newCatColor: string;
@@ -62,7 +56,6 @@ interface ParentAuthData {
   newCatName: string;
   unlistedCatIdentification: string;
   newCatPersonality: string;
-  realName: string;
 }
 
 const DEFAULT_DATA: ParentAuthData = {
@@ -72,20 +65,17 @@ const DEFAULT_DATA: ParentAuthData = {
   cats: [],
   catMode: "existing",
   catQuery: "",
-  city: "",
+  applicantGender: "",
   contactWechat: "",
-  contactPhone: "",
-  verifiedPhone: "",
+  phoneCapabilityEnabled: false,
   phoneVerificationToken: "",
+  verifiedPhone: "",
+  isVerifyingPhone: false,
   displayName: "",
   existingCatId: "",
   existingCatName: "",
-  existingCatNote: "",
-  phoneMessage: "",
-  phoneVerificationEnabled: false,
   isSearchingCats: false,
   isSubmitting: false,
-  isVerifyingPhone: false,
   newCatArrivedAt: "",
   newCatBirthday: "",
   newCatColor: "",
@@ -93,20 +83,24 @@ const DEFAULT_DATA: ParentAuthData = {
   newCatName: "",
   unlistedCatIdentification: "",
   newCatPersonality: "",
-  realName: "",
 };
 
 Page({
   data: DEFAULT_DATA,
 
   async onLoad(this: ParentAuthPage) {
-    await refreshCurrentUser();
-    await this.loadMyApplication();
+    const user = await refreshCurrentUser();
+    if (user) this.setData({
+      displayName: user.parentProfile?.displayName || user.nickname || "",
+      applicantGender: user.gender || "",
+      contactWechat: user.contactWechat || "",
+    });
     try {
-      this.setData({ phoneVerificationEnabled: await getParentPhoneVerificationCapability() });
+      this.setData({ phoneCapabilityEnabled: await getParentPhoneVerificationCapability() });
     } catch {
-      this.setData({ phoneVerificationEnabled: false });
+      this.setData({ phoneCapabilityEnabled: false });
     }
+    await this.loadMyApplication();
   },
 
   async loadMyApplication(this: ParentAuthPage) {
@@ -120,37 +114,15 @@ Page({
         application,
         applicationStatusClass: statusClass(application.status),
         applicationStatusLabel: statusLabel(application.status),
+        ...(application.status === "rejected" ? {
+          displayName: application.displayName,
+          applicantGender: application.gender || "",
+          contactWechat: application.contactWechat || "",
+        } : {}),
       });
     } catch {
       this.setData({ application: null, applicationStatusClass: "", applicationStatusLabel: "" });
     }
-  },
-
-  async onGetPhoneNumber(this: ParentAuthPage, event: PhoneEvent) {
-    if (!this.data.phoneVerificationEnabled) return;
-    if (!event.detail.code) {
-      this.setData({ phoneMessage: "未获取手机号，可手动填写手机号或微信号" });
-      return;
-    }
-    this.setData({ isVerifyingPhone: true, phoneMessage: "" });
-    try {
-      await loginWithWechat();
-      const result = await verifyParentPhone(event.detail.code);
-      this.setData({
-        verifiedPhone: result.phone,
-        phoneVerificationToken: result.verificationToken,
-        contactPhone: "",
-        phoneMessage: "手机号由微信获取，仅用于联系及核实申请",
-      });
-    } catch (error) {
-      this.setData({ phoneMessage: `${getErrorMessage(error)}，可手动填写联系方式` });
-    } finally {
-      this.setData({ isVerifyingPhone: false });
-    }
-  },
-
-  useManualContact(this: ParentAuthPage) {
-    this.setData({ verifiedPhone: "", phoneVerificationToken: "", phoneMessage: "" });
   },
 
   async onSearchCats(this: ParentAuthPage) {
@@ -206,30 +178,36 @@ Page({
     }
   },
 
-  onContactPhoneInput(this: ParentAuthPage, event: InputEvent) {
-    this.setData({
-      contactPhone: event.detail.value,
-      verifiedPhone: "",
-      phoneVerificationToken: "",
-    });
+  async onGetPhoneNumber(this: ParentAuthPage, event: { detail: { code?: string; errMsg?: string; errno?: number } }) {
+    const code = event.detail.code;
+    if (!code || this.data.isVerifyingPhone) {
+      if (event.detail.errno === 1400001) showToast("手机号体验额度已用完");
+      return;
+    }
+    this.setData({ isVerifyingPhone: true });
+    try {
+      if (!getSessionState().user) await loginWithWechat();
+      const proof = await verifyParentPhone(code);
+      this.setData({ phoneVerificationToken: proof.verificationToken, verifiedPhone: proof.phone });
+    } catch (error) {
+      showToast(getErrorMessage(error));
+    } finally {
+      this.setData({ isVerifyingPhone: false });
+    }
   },
+
   onDisplayNameInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ displayName: event.detail.value });
   },
-  onRealNameInput(this: ParentAuthPage, event: InputEvent) {
-    this.setData({ realName: event.detail.value });
+  setApplicantGender(this: ParentAuthPage, event: TapEvent) {
+    const value = event.currentTarget.dataset.gender;
+    this.setData({ applicantGender: value === "male" || value === "female" ? value : "" });
   },
   onContactWechatInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ contactWechat: event.detail.value });
   },
-  onCityInput(this: ParentAuthPage, event: InputEvent) {
-    this.setData({ city: event.detail.value });
-  },
   onCatQueryInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ catQuery: event.detail.value });
-  },
-  onExistingCatNoteInput(this: ParentAuthPage, event: InputEvent) {
-    this.setData({ existingCatNote: event.detail.value });
   },
   onNewCatNameInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ newCatName: event.detail.value });
@@ -260,22 +238,16 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
     showToast("请填写展示昵称");
     return null;
   }
-  if (!data.phoneVerificationToken && !data.contactPhone.trim() && !data.contactWechat.trim()) {
-    showToast("请填写手机号或微信号，或授权微信手机号");
-    return null;
-  }
-  if (data.contactPhone.trim() && !/^\+?[0-9 -]{7,20}$/.test(data.contactPhone.trim())) {
-    showToast("请检查手机号格式");
+  if (!data.contactWechat.trim() && !data.phoneVerificationToken) {
+    showToast("请填写微信号或授权手机号");
     return null;
   }
 
   const payload: SubmitParentApplicationRequest = {
     displayName: data.displayName.trim(),
-    realName: emptyToNull(data.realName),
-    contactPhone: data.phoneVerificationToken ? null : emptyToNull(data.contactPhone),
-    phoneVerificationToken: data.phoneVerificationToken || undefined,
+    gender: data.applicantGender || null,
     contactWechat: emptyToNull(data.contactWechat),
-    city: emptyToNull(data.city),
+    ...(data.phoneVerificationToken ? { phoneVerificationToken: data.phoneVerificationToken } : {}),
   };
 
   if (data.catMode === "existing") {
@@ -287,7 +259,6 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
       {
         catId: data.existingCatId,
         relationship: "owner",
-        note: emptyToNull(data.existingCatNote),
       },
     ];
     return payload;

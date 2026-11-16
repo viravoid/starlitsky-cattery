@@ -291,6 +291,7 @@ function toParentProfileDto(profile) {
     id: profile.id,
     userId: profile.user_id,
     displayName: profile.display_name,
+    gender: profile.gender,
     realName: profile.real_name,
     contactPhone: profile.contact_phone,
     contactPhoneSource: profile.contact_phone_source,

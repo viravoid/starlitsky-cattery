@@ -80,6 +80,10 @@ export const config = {
     legacySessionToken: process.env.STORAGE_LEGACY_SESSION_TOKEN || "",
     readBuckets: parseStorageReadBuckets(process.env.STORAGE_READ_BUCKETS_JSON),
   },
+  avatar: {
+    localStorageDir: process.env.AVATAR_LOCAL_STORAGE_DIR || "",
+    publicBaseUrl: process.env.AVATAR_PUBLIC_BASE_URL || "",
+  },
 };
 
 function parsePort(value, fallback) {

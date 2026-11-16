@@ -17,7 +17,11 @@ export const MINIAPP_WECHAT_LEGAL_DOMAINS = {
     MINIAPP_MEDIA_COS_HOST,
   ],
   uploadFile: [],
-  downloadFile: [MINIAPP_PRODUCTION_COS_HOST, MINIAPP_MEDIA_COS_HOST],
+  downloadFile: [
+    "trial-api.starlitskycattery.top",
+    MINIAPP_PRODUCTION_COS_HOST,
+    MINIAPP_MEDIA_COS_HOST,
+  ],
   socket: [],
 } as const;
 

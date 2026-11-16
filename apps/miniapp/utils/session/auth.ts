@@ -2,8 +2,10 @@ import type {
   AuthSessionData,
   CurrentUserResponseData,
   WechatLoginRequest,
+  UpdateMyProfileRequest,
+  UploadMyAvatarRequest,
 } from "@starlitsky/shared";
-import { get, post } from "../request/index";
+import { get, patch, post } from "../request/index";
 import { resetSessionState, setSessionState } from "../../store/session/index";
 import { clearToken, getToken, setToken } from "./token-storage";
 import { getSessionAuthAdapter } from "./adapter";
@@ -61,6 +63,20 @@ export async function refreshCurrentUser() {
     clearLocalSession();
     return null;
   }
+}
+
+export async function updateMyProfile(input: UpdateMyProfileRequest) {
+  const response = await patch<CurrentUserResponseData, UpdateMyProfileRequest>("/auth/me", input);
+  if (!response.success) throw new Error(response.message);
+  setSessionState({ user: response.data.user, roles: response.data.user.roles, currentRole: response.data.user.currentRole });
+  return response.data.user;
+}
+
+export async function uploadMyAvatar(input: UploadMyAvatarRequest) {
+  const response = await post<CurrentUserResponseData, UploadMyAvatarRequest>("/auth/me/avatar", input);
+  if (!response.success) throw new Error(response.message);
+  setSessionState({ user: response.data.user });
+  return response.data.user;
 }
 
 export async function logout() {

@@ -9,6 +9,7 @@
     "pages/community-detail/index",
     "pages/community-publish/index",
     "pages/my-posts/index",
+    "pages/my-profile/index",
     "pages/my-cats/index",
     "pages/my-cat-detail/index",
     "pages/my-cat-edit/index",

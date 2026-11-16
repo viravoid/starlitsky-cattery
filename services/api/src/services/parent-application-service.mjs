@@ -19,6 +19,7 @@ const INVITE_FIELDS = ["inviteCode", "inviteToken", "qrCredential"];
 const SUBMIT_APPLICATION_FIELDS = [
   "phoneVerificationToken",
   "displayName",
+  "gender",
   "realName",
   "contactPhone",
   "contactWechat",
@@ -176,6 +177,7 @@ export async function submitParentApplication(input, user) {
           invite_id: invite?.id ?? null,
           pending_dedup_key: user.id,
           display_name: profile.displayName,
+          gender: profile.gender,
           real_name: profile.realName,
           contact_phone: verifiedPhone?.phone ?? profile.contactPhone,
           contact_phone_source: verifiedPhone
@@ -419,6 +421,7 @@ async function upsertActiveParentProfile(application, transaction, now) {
     where: { user_id: application.user_id },
     update: {
       display_name: application.display_name,
+      gender: application.gender,
       real_name: application.real_name,
       contact_phone: application.contact_phone,
       contact_phone_source: application.contact_phone_source,
@@ -432,6 +435,7 @@ async function upsertActiveParentProfile(application, transaction, now) {
     create: {
       user_id: application.user_id,
       display_name: application.display_name,
+      gender: application.gender,
       real_name: application.real_name,
       contact_phone: application.contact_phone,
       contact_phone_source: application.contact_phone_source,
@@ -806,6 +810,7 @@ async function attachClaimedCatDetails(applicationDto) {
 function normalizeProfileInput(input) {
   const profile = {
     displayName: requiredString(input.displayName, "displayName"),
+    gender: nullableString(input.gender, "gender"),
     realName: nullableString(input.realName, "realName"),
     contactPhone: nullableString(input.contactPhone, "contactPhone"),
     contactWechat: nullableString(input.contactWechat, "contactWechat"),
@@ -821,6 +826,9 @@ function normalizeProfileInput(input) {
   }
   if (profile.contactPhone && !/^\+?[0-9 -]{7,20}$/.test(profile.contactPhone)) {
     throw badRequest("Contact phone format is invalid");
+  }
+  if (profile.gender && !["male", "female"].includes(profile.gender)) {
+    throw badRequest("Gender must be male, female, or omitted");
   }
   return profile;
 }
@@ -941,6 +949,7 @@ async function toParentApplicationDto(application, { publicView = false } = {}) 
     userId: application.user_id,
     status: application.status,
     displayName: application.display_name,
+    gender: application.gender,
     realName: application.real_name,
     contactPhone: application.contact_phone,
     contactPhoneSource: application.contact_phone_source,

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +17,9 @@ const { approveParentApplication, rejectParentApplication, submitParentApplicati
   await import("./parent-application-service.mjs");
 const { certifyExistingUserAsParent } = await import("./admin-user-service.mjs");
 const { verifyParentPhoneCode } = await import("./parent-phone-verification-service.mjs");
+const { updateMyProfile, uploadMyAvatar } = await import("./my-profile-service.mjs");
+const { setObjectStorageTestClient } = await import("./object-storage-service.mjs");
+const { config: runtimeConfig } = await import("../config/env.mjs");
 
 const savedNodeEnv = process.env.NODE_ENV;
 const savedPhoneFlag = process.env.WECHAT_PHONE_VERIFICATION_ENABLED;
@@ -58,6 +62,61 @@ const rejectedUser = await createUserWithRole("verify-user-3", "user");
 const existingWechatUser = await createUserWithRole("verify-wechat-user", "user", {
   wechat_openid: "verify-openid-manual-parent",
 });
+const profileUser = await createUserWithRole("verify-profile-user", "user");
+const editedProfileUser = await updateMyProfile(profileUser.id, {
+  nickname: "Community Name",
+  gender: "female",
+  city: "Shanghai",
+  contactWechat: "profile_contact",
+});
+assert.equal(editedProfileUser.nickname, "Community Name");
+assert.equal(editedProfileUser.gender, "female");
+assert.equal(editedProfileUser.contactWechat, "profile_contact");
+await prisma.parentProfile.create({ data: { user_id: profileUser.id, display_name: "Old Name", status: "active" } });
+const editedParentUser = await updateMyProfile(profileUser.id, {
+  nickname: "Parent Name",
+  gender: "male",
+  city: "Hangzhou",
+  contactWechat: "updated_contact",
+});
+assert.equal(editedParentUser.parentProfile?.displayName, "Parent Name");
+assert.equal(editedParentUser.city, "Hangzhou");
+assert.equal((await prisma.parentProfile.findUnique({ where: { user_id: profileUser.id } }))?.gender, "male");
+await assert.rejects(() => updateMyProfile(profileUser.id, {
+  nickname: "Invalid", gender: "unsupported", city: null, contactWechat: null,
+}), (error) => error?.statusCode === 400);
+await assert.rejects(() => uploadMyAvatar(profileUser.id, {
+  mimeType: "image/png", dataBase64: Buffer.from("not an image").toString("base64"),
+}), (error) => error?.statusCode === 400);
+const previousStorage = { ...runtimeConfig.storage };
+Object.assign(runtimeConfig.storage, {
+  provider: "s3", bucket: "verify-avatars", region: "test-region",
+  endpoint: "https://storage.example.test", publicBaseUrl: "https://media.example.test",
+  accessKeyId: "verify-key", accessKeySecret: "verify-secret", forcePathStyle: true,
+});
+let storedAvatar = null;
+setObjectStorageTestClient({ async putObject(input) { storedAvatar = input; return { written: true }; } });
+const uploadedAvatar = await uploadMyAvatar(profileUser.id, {
+  mimeType: "image/png",
+  dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9l8WQAAAAASUVORK5CYII=",
+});
+assert.equal(storedAvatar?.contentType, "image/png");
+assert.equal(storedAvatar?.body.length > 0, true);
+assert.equal(uploadedAvatar.avatarUrl.startsWith("https://media.example.test/avatars/"), true);
+const localAvatarDir = mkdtempSync(join(tmpdir(), "starlitsky-avatar-verify-"));
+runtimeConfig.avatar.localStorageDir = localAvatarDir;
+runtimeConfig.avatar.publicBaseUrl = "https://trial.example.test/trial-media/avatars/";
+const localAvatar = await uploadMyAvatar(profileUser.id, {
+  mimeType: "image/png",
+  dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9l8WQAAAAASUVORK5CYII=",
+});
+assert.equal(localAvatar.avatarUrl.startsWith(runtimeConfig.avatar.publicBaseUrl), true);
+assert.equal(existsSync(join(localAvatarDir, localAvatar.avatarUrl.split("/").at(-1))), true);
+rmSync(localAvatarDir, { recursive: true, force: true });
+runtimeConfig.avatar.localStorageDir = "";
+runtimeConfig.avatar.publicBaseUrl = "";
+setObjectStorageTestClient(null);
+Object.assign(runtimeConfig.storage, previousStorage);
 const cat = await prisma.cat.create({
   data: {
     name: "Verify Existing Cat",
@@ -426,6 +485,7 @@ assert.equal(
 const application = await submitParentApplication(
   {
     displayName: "Existing Cat Parent",
+    gender: "female",
     contactPhone: "13800000000",
     contactWechat: "existing-parent",
     existingCatClaims: [{ catId: cat.id, note: "this is my cat" }],
@@ -433,12 +493,24 @@ const application = await submitParentApplication(
   user,
 );
 assert.equal(application.invite, null);
+assert.equal(application.gender, "female");
 assert.equal(
   await prisma.parentInvite.count(),
   0,
   "direct submission must not create or consume an invite",
 );
 assert.equal(application.contactPhoneSource, "self_provided");
+await assertRejects("invalid applicant gender", () =>
+  submitParentApplication(
+    {
+      displayName: "Invalid gender",
+      gender: "unsupported",
+      contactWechat: "contact",
+      existingCatClaims: [{ catId: cat.id }],
+    },
+    user,
+  ),
+);
 assert.equal(await prisma.parentCatLink.count({ where: { cat_id: cat.id } }), 0);
 await assertRejects("duplicate pending", () =>
   submitParentApplication(
