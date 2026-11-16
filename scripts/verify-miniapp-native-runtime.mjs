@@ -362,6 +362,12 @@ function verifyFixedPageNormalization() {
     failures.push("Environment room focal points must move the actual native image frame.");
   }
 
+  const feedingWxml = readFileSync(join(miniappRoot, "pages/fixed-page/index.wxml"), "utf8");
+  if (!feedingWxml.includes('class="feeding-image {{imageSlot.imageStyle ? \'positioned-image\' : \'\'}}"') ||
+      !feedingWxml.includes('mode="{{imageSlot.imageMode || \'aspectFill\'}}"')) {
+    failures.push("Feeding photos must bind the resolved ratio and focal frame.");
+  }
+
   const breedingPage = WEB_DEMO_PUBLIC_CONTENT_MANIFEST.fixedPages.find(
     (page) => page.slug === "breeding-plan",
   );
