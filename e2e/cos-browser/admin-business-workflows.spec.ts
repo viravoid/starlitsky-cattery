@@ -862,7 +862,7 @@ test("self submitted parent applications are approved or rejected through Admin"
   await expect(detail.getByRole("heading", { name: "业务 E2E 通过申请" })).toBeVisible();
   await detail.getByLabel("管理员备注").fill("测试通过");
   await detail.getByRole("button", { name: "通过", exact: true }).click();
-  await expect(page.getByText("申请已通过")).toBeVisible();
+  await expect(page.getByText("申请已通过", { exact: true })).toBeVisible();
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: approvedHeaders })).status()).toBe(
     200,
   );
@@ -950,7 +950,7 @@ test("self submitted parent applications are approved or rejected through Admin"
   await page.getByRole("row").filter({ hasText: "业务 E2E approved用户" }).first().click();
   await expect(detail.getByRole("heading", { name: "业务 E2E 再申请" })).toBeVisible();
   await detail.getByRole("button", { name: "通过", exact: true }).click();
-  await expect(page.getByText("申请已通过")).toBeVisible();
+  await expect(page.getByText("申请已通过", { exact: true })).toBeVisible();
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: approvedHeaders })).status()).toBe(
     200,
   );
