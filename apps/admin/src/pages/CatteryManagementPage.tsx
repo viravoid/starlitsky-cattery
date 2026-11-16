@@ -861,6 +861,47 @@ export function CatteryManagementPage() {
     }
   }
 
+  async function addCatGalleryImages(files: File[]) {
+    if (!selectedCat || isSaving || files.length === 0) return;
+    if (catDirty) {
+      setError("请先保存猫咪资料，再添加相册图片");
+      return;
+    }
+    const catId = selectedCat.id;
+    let nextSortOrder = 0;
+    for (const media of selectedCatImages) {
+      for (const binding of media.bindings) {
+        if (binding.ownerType === "cat" && binding.ownerId === catId) {
+          nextSortOrder = Math.max(nextSortOrder, binding.sortOrder + 1);
+        }
+      }
+    }
+    setIsSaving(true);
+    setError("");
+    setNotice("");
+    let uploaded = 0;
+    let errorMessage = "";
+    try {
+      for (const file of files) {
+        await uploadCatImage(catId, file, { usage: "gallery", sortOrder: nextSortOrder + uploaded });
+        uploaded += 1;
+      }
+    } catch (uploadError) {
+      errorMessage = `已加入 ${uploaded} 张；第 ${uploaded + 1} 张上传失败：${getErrorMessage(uploadError)}。其余图片未上传。`;
+    } finally {
+      try {
+        const [freshCat] = await Promise.all([getCat(catId), loadCatImages(catId)]);
+        setCats((current) => current.map((cat) => (cat.id === catId ? freshCat : cat)));
+        setSelectedCat((current) => (current?.id === catId ? freshCat : current));
+      } catch (refreshError) {
+        errorMessage += ` 图片列表刷新失败：${getErrorMessage(refreshError)}`;
+      }
+      if (errorMessage) setError(errorMessage.trim());
+      else setNotice(`已加入 ${uploaded} 张相册图片`);
+      setIsSaving(false);
+    }
+  }
+
   async function updateLitterMediaBinding(
     media: MediaAssetData,
     patch: { usage?: string; sortOrder?: number; visibility?: string },
@@ -981,6 +1022,7 @@ export function CatteryManagementPage() {
           onChange={setCatDraft}
           onEdit={(cat) => openEditCat(cat, "kittens")}
           onImageChange={handleCatImageSelected}
+          onGalleryAdd={addCatGalleryImages}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
           onMediaBindingReplace={replaceCatMediaBinding}
@@ -1037,6 +1079,7 @@ export function CatteryManagementPage() {
           onChange={setCatDraft}
           onEdit={(cat) => openEditCat(cat, "studs")}
           onImageChange={handleCatImageSelected}
+          onGalleryAdd={addCatGalleryImages}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
           onMediaBindingReplace={replaceCatMediaBinding}
@@ -1067,6 +1110,7 @@ export function CatteryManagementPage() {
           onChange={setCatDraft}
           onEdit={(cat) => openEditCat(cat, "cats")}
           onImageChange={handleCatImageSelected}
+          onGalleryAdd={addCatGalleryImages}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
           onMediaBindingReplace={replaceCatMediaBinding}
@@ -1116,6 +1160,7 @@ function CatManagementWorkspace({
   onChange,
   onEdit,
   onImageChange,
+  onGalleryAdd,
   onMediaBindingChange,
   onMediaBindingRemove,
   onMediaBindingReplace,
@@ -1143,6 +1188,7 @@ function CatManagementWorkspace({
   onChange: (draft: CatDraft) => void;
   onEdit: (cat: CatData) => void;
   onImageChange: (file: File | null) => void;
+  onGalleryAdd: (files: File[]) => void;
   onMediaBindingChange: (
     media: MediaAssetData,
     patch: { usage?: string; sortOrder?: number; visibility?: string },
@@ -1261,6 +1307,7 @@ function CatManagementWorkspace({
             onCancel={onCancel}
             onChange={onChange}
             onImageChange={onImageChange}
+            onGalleryAdd={onGalleryAdd}
             onMediaBindingChange={onMediaBindingChange}
             onMediaBindingRemove={onMediaBindingRemove}
             onMediaBindingReplace={onMediaBindingReplace}
@@ -1301,6 +1348,7 @@ function CatEditor({
   onCancel,
   onChange,
   onImageChange,
+  onGalleryAdd,
   onMediaBindingChange,
   onMediaBindingRemove,
   onMediaBindingReplace,
@@ -1318,6 +1366,7 @@ function CatEditor({
   onCancel: () => void;
   onChange: (draft: CatDraft) => void;
   onImageChange: (file: File | null) => void;
+  onGalleryAdd: (files: File[]) => void;
   onMediaBindingChange: (
     media: MediaAssetData,
     patch: { usage?: string; sortOrder?: number; visibility?: string },
@@ -1514,6 +1563,7 @@ function CatEditor({
       </div>
 
       <CatImageManager
+        canAddGallery={Boolean(selectedCat)}
         draft={draft}
         imagePreviewUrl={imagePreviewUrl}
         imageUploadState={imageUploadState}
@@ -1523,6 +1573,7 @@ function CatEditor({
         mode={mode}
         onChange={onChange}
         onImageChange={onImageChange}
+        onGalleryAdd={onGalleryAdd}
         onMediaBindingChange={onMediaBindingChange}
         onMediaBindingRemove={onMediaBindingRemove}
         onMediaBindingReplace={onMediaBindingReplace}
@@ -1534,6 +1585,7 @@ function CatEditor({
 }
 
 function CatImageManager({
+  canAddGallery,
   draft,
   imagePreviewUrl,
   imageUploadState,
@@ -1543,10 +1595,12 @@ function CatImageManager({
   mode,
   onChange,
   onImageChange,
+  onGalleryAdd,
   onMediaBindingChange,
   onMediaBindingRemove,
   onMediaBindingReplace,
 }: {
+  canAddGallery: boolean;
   draft: CatDraft;
   imagePreviewUrl: string;
   imageUploadState: ImageUploadState;
@@ -1556,6 +1610,7 @@ function CatImageManager({
   mode: "kittens" | "studs" | "cats";
   onChange: (draft: CatDraft) => void;
   onImageChange: (file: File | null) => void;
+  onGalleryAdd: (files: File[]) => void;
   onMediaBindingChange: (
     media: MediaAssetData,
     patch: { usage?: string; sortOrder?: number; visibility?: string },
@@ -1586,6 +1641,21 @@ function CatImageManager({
           }}
         />
       </label>
+      <label>
+        批量加入相册
+        <input
+          accept="image/*"
+          disabled={isSaving || isDirty || !canAddGallery}
+          multiple
+          type="file"
+          onChange={(event) => {
+            const files = Array.from(event.target.files ?? []);
+            if (files.length) onGalleryAdd(files);
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
+      {!canAddGallery ? <p className="muted compact">先保存猫咪档案，再批量加入相册。</p> : null}
       {imagePreviewUrl ? (
         <img alt="待上传图片预览" className="cat-image-preview" src={imagePreviewUrl} />
       ) : null}
@@ -1597,7 +1667,7 @@ function CatImageManager({
         disabled={isSaving}
         replaceDisabled={isDirty}
       />
-      {isDirty ? <p className="muted compact">保存当前档案后可替换图片。</p> : null}
+      {isDirty ? <p className="muted compact">保存当前档案后可替换或批量加入相册图片。</p> : null}
       <EntryCoverEditor
         entries={
           mode === "studs"
