@@ -62,6 +62,9 @@ const rejectedUser = await createUserWithRole("verify-user-3", "user");
 const existingWechatUser = await createUserWithRole("verify-wechat-user", "user", {
   wechat_openid: "verify-openid-manual-parent",
 });
+const mockWechatUser = await createUserWithRole("verify-mock-user", "user", {
+  wechat_openid: "mock_verify-admin-list",
+});
 const profileUser = await createUserWithRole("verify-profile-user", "user");
 const editedProfileUser = await updateMyProfile(profileUser.id, {
   nickname: "Community Name",
@@ -265,6 +268,18 @@ assert.equal(
   adminUsers.items.some((item) => item.id === existingWechatUser.id && item.wechatBound),
   true,
   "admin user list should expose existing WeChat parent state",
+);
+const boundUsers = await routeGet("/admin/users?wechatBound=true&pageSize=100", admin);
+assert.equal(boundUsers.items.some((item) => item.id === existingWechatUser.id), true);
+assert.equal(boundUsers.items.some((item) => item.id === mockWechatUser.id), false);
+const unboundUsers = await routeGet("/admin/users?wechatBound=false&pageSize=100", admin);
+assert.equal(
+  unboundUsers.items.some((item) => item.id === mockWechatUser.id && !item.wechatBound),
+  true,
+  "mock login must not appear as a certifiable WeChat account",
+);
+await assertRejects("mock WeChat identity cannot be certified", () =>
+  certifyExistingUserAsParent({ userId: mockWechatUser.id, displayName: "Mock" }, admin),
 );
 const manualMyCats = await routeGet("/me/cats", existingWechatUser);
 assert.equal(
@@ -520,10 +535,11 @@ assert.equal(
 );
 assert.equal(contactAfterEdit.contact_phone_verified_at, null);
 
-await assertRejects("contact is required", () =>
+await assertRejects("phone is required for direct application even with WeChat contact", () =>
   submitParentApplication(
     {
       displayName: "No Contact",
+      contactWechat: "wechat-only",
       existingCatClaims: [{ catId: cat.id }],
     },
     user,
@@ -568,6 +584,7 @@ await assertRejects("hidden cat cannot be claimed by id", () =>
   submitParentApplication(
     {
       displayName: "Hidden",
+      contactPhone: "13800000001",
       contactWechat: "hidden-contact",
       existingCatClaims: [{ catId: hiddenCat.id }],
     },
@@ -662,6 +679,7 @@ await assertRejects("invalid applicant gender", () =>
     {
       displayName: "Invalid gender",
       gender: "unsupported",
+      contactPhone: "13800000001",
       contactWechat: "contact",
       existingCatClaims: [{ catId: cat.id }],
     },
@@ -673,6 +691,7 @@ await assertRejects("duplicate pending", () =>
   submitParentApplication(
     {
       displayName: "Again",
+      contactPhone: "13800000001",
       contactWechat: "contact",
       existingCatClaims: [{ catId: cat.id }],
     },
@@ -685,6 +704,7 @@ const raced = await Promise.allSettled(
     submitParentApplication(
       {
         displayName: "Race",
+        contactPhone: "13800000002",
         contactWechat: "race-contact",
         existingCatClaims: [{ catId: cat.id }],
       },
@@ -884,6 +904,7 @@ const reapplyUser = await createUserWithRole("verify-disabled-reapplication", "u
 const firstApplication = await submitParentApplication(
   {
     displayName: "Disabled Reapplication",
+    contactPhone: "13800000003",
     contactWechat: "first-contact",
     existingCatClaims: [{ catId: cat.id }],
   },
@@ -963,12 +984,13 @@ assert.equal(
 const rejectApplication = await submitParentApplication(
   {
     displayName: "Rejected Parent",
+    contactPhone: "13800000004",
     contactWechat: "only-wechat",
     existingCatClaims: [{ catId: cat.id }],
   },
   rejectedUser,
 );
-assert.equal(rejectApplication.contactPhoneSource, "none");
+assert.equal(rejectApplication.contactPhoneSource, "self_provided");
 await rejectParentApplication(rejectApplication.id, { adminNote: "not enough evidence" }, admin);
 assert.equal(
   await prisma.userRole.count({
@@ -981,6 +1003,7 @@ await assertRejects("reapply too soon", () =>
   submitParentApplication(
     {
       displayName: "Retry",
+      contactPhone: "13800000004",
       contactWechat: "retry-contact",
       newCats: [{ name: "Retry Cat" }],
     },
@@ -994,6 +1017,7 @@ await prisma.parentApplication.update({
 const reapplication = await submitParentApplication(
   {
     displayName: "Retry",
+    contactPhone: "13800000004",
     contactWechat: "retry-contact",
     newCats: [{ name: "Retry Cat" }],
   },
@@ -1034,6 +1058,7 @@ const hiddenClaimUser = await createUserWithRole("hidden-claim-user", "user");
 const hiddenClaimApplication = await submitParentApplication(
   {
     displayName: "Hidden Cat Parent",
+    contactPhone: "13800000005",
     contactWechat: "hidden-parent-contact",
     unlistedCatClaims: [
       { name: hiddenCat.name, identification: "female smoke, adopted in spring" },
@@ -1115,6 +1140,7 @@ const mistakenNewUser = await createUserWithRole("mistaken-new-user", "user");
 const mistakenNewApplication = await submitParentApplication(
   {
     displayName: "Mistaken New Cat",
+    contactPhone: "13800000006",
     contactWechat: "mistaken-new-contact",
     newCats: [{ name: hiddenCat.name }],
   },

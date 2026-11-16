@@ -42,6 +42,7 @@ interface ParentAuthData {
   catQuery: string;
   applicantGender: "" | "male" | "female";
   contactWechat: string;
+  contactPhone: string;
   phoneCapabilityEnabled: boolean;
   phoneVerificationToken: string;
   verifiedPhone: string;
@@ -71,6 +72,7 @@ const DEFAULT_DATA: ParentAuthData = {
   catQuery: "",
   applicantGender: "",
   contactWechat: "",
+  contactPhone: "",
   phoneCapabilityEnabled: false,
   phoneVerificationToken: "",
   verifiedPhone: "",
@@ -126,6 +128,9 @@ Page({
               displayName: application.displayName,
               applicantGender: application.gender || "",
               contactWechat: application.contactWechat || "",
+              contactPhone: application.contactPhone || "",
+              phoneVerificationToken: "",
+              verifiedPhone: "",
             }
           : {}),
       });
@@ -200,7 +205,11 @@ Page({
     try {
       if (!getSessionState().user) await loginWithWechat();
       const proof = await verifyParentPhone(code);
-      this.setData({ phoneVerificationToken: proof.verificationToken, verifiedPhone: proof.phone });
+      this.setData({
+        phoneVerificationToken: proof.verificationToken,
+        verifiedPhone: proof.phone,
+        contactPhone: proof.phone,
+      });
     } catch (error) {
       showToast(getErrorMessage(error));
     } finally {
@@ -217,6 +226,13 @@ Page({
   },
   onContactWechatInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ contactWechat: event.detail.value });
+  },
+  onContactPhoneInput(this: ParentAuthPage, event: InputEvent) {
+    this.setData({
+      contactPhone: event.detail.value,
+      phoneVerificationToken: "",
+      verifiedPhone: "",
+    });
   },
   onCatQueryInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ catQuery: event.detail.value });
@@ -250,8 +266,13 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
     showToast("请填写展示昵称");
     return null;
   }
-  if (!data.contactWechat.trim() && !data.phoneVerificationToken) {
-    showToast("请填写微信号或授权手机号");
+  const contactPhone = data.contactPhone.trim();
+  if (!contactPhone && !data.phoneVerificationToken) {
+    showToast("请授权或填写手机号");
+    return null;
+  }
+  if (!/^\+?[0-9 -]{7,20}$/.test(contactPhone)) {
+    showToast("请填写有效的手机号");
     return null;
   }
 
@@ -260,6 +281,7 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
     gender: data.applicantGender || null,
     contactWechat: emptyToNull(data.contactWechat),
     ...(data.phoneVerificationToken ? { phoneVerificationToken: data.phoneVerificationToken } : {}),
+    ...(!data.phoneVerificationToken ? { contactPhone } : {}),
   };
 
   if (data.catMode === "existing") {

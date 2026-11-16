@@ -53,8 +53,11 @@ export async function listAdminUsers(searchParams) {
   }
   if (wechatBound === "true") {
     where.wechat_openid = { not: null };
+    where.NOT = { wechat_openid: { startsWith: "mock_" } };
   } else if (wechatBound === "false") {
-    where.wechat_openid = null;
+    where.AND = [
+      { OR: [{ wechat_openid: null }, { wechat_openid: { startsWith: "mock_" } }] },
+    ];
   }
 
   const [items, total] = await prisma.$transaction([
@@ -163,7 +166,7 @@ export async function certifyExistingUserAsParent(input, adminUser) {
     });
     if (!existingUser) throw notFound("User not found");
     if (existingUser.status !== "active") throw badRequest("Only active users can be certified");
-    if (!existingUser.wechat_openid || existingUser.wechat_openid.startsWith("mock_")) {
+    if (!hasRealWechatIdentity(existingUser.wechat_openid)) {
       throw badRequest("User must log in with a real WeChat account before certification");
     }
     if (
@@ -265,7 +268,7 @@ export async function setParentStatus(userId, status, adminUser) {
       });
       if (account?.status !== "active")
         throw badRequest("Only active users can be reactivated as parents");
-      if (!account.wechat_openid || account.wechat_openid.startsWith("mock_")) {
+      if (!hasRealWechatIdentity(account.wechat_openid)) {
         throw badRequest("User must log in with a real WeChat account before reactivation");
       }
       if (
@@ -425,7 +428,7 @@ function normalizeParentCatLinks(value) {
 function toAdminUserDto(user) {
   return {
     id: user.id,
-    wechatBound: Boolean(user.wechat_openid),
+    wechatBound: hasRealWechatIdentity(user.wechat_openid),
     nickname: user.nickname,
     avatarUrl: user.avatar_url,
     phone: user.phone,
@@ -460,6 +463,10 @@ function resolveActiveRoles(user) {
   roles.add("user");
   if (user.parent_profile?.status !== "active") roles.delete("parent");
   return ["admin", "keeper", "parent", "user"].filter((role) => roles.has(role));
+}
+
+function hasRealWechatIdentity(openid) {
+  return typeof openid === "string" && openid.length > 0 && !openid.startsWith("mock_");
 }
 
 function toParentProfileDto(profile) {
