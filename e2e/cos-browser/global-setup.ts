@@ -28,6 +28,7 @@ export default async function globalSetup(_config: FullConfig) {
   const isolatedRoot = mkdtempSync(join(tmpdir(), "starlitsky-cos-browser-e2e-"));
   const runId = isolatedRunId(isolatedRoot);
   const databasePath = resolve(root, "services/api/prisma", `cos-browser-e2e-${runId}.db`);
+  process.env.COS_E2E_DATABASE_PATH = databasePath;
   const databaseUrl = `file:${databasePath.split(/[\\/]/).at(-1)}`;
   const children: Array<{ child: ChildProcess; label: string; output: string[] }> = [];
   const sharedEnv = {
@@ -36,7 +37,11 @@ export default async function globalSetup(_config: FullConfig) {
   };
 
   try {
-    await Promise.all([assertPortAvailable(5174), assertPortAvailable(4310), assertPortAvailable(9320)]);
+    await Promise.all([
+      assertPortAvailable(5174),
+      assertPortAvailable(4310),
+      assertPortAvailable(9320),
+    ]);
     execFileSync(
       process.execPath,
       [
@@ -130,7 +135,9 @@ export default async function globalSetup(_config: FullConfig) {
 async function assertPortAvailable(port: number) {
   await new Promise<void>((resolveAvailable, rejectAvailable) => {
     const probe = createNetServer();
-    probe.once("error", (error) => rejectAvailable(new Error(`Port ${port} is not available`, { cause: error })));
+    probe.once("error", (error) =>
+      rejectAvailable(new Error(`Port ${port} is not available`, { cause: error })),
+    );
     probe.listen(port, "127.0.0.1", () => probe.close(() => resolveAvailable()));
   });
 }
