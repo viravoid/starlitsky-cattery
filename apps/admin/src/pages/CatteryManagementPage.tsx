@@ -2403,15 +2403,19 @@ function readImagePresentation(cat: CatData): ImagePresentation {
 }
 
 function sortMediaByBinding(items: MediaAssetData[], ownerType: string, ownerId: string) {
-  return [...items].sort((a, b) => {
-    const aBinding = a.bindings.find(
-      (binding) => binding.ownerType === ownerType && binding.ownerId === ownerId,
+  return items
+    .map((media) => ({
+      ...media,
+      bindings: media.bindings.filter(
+        (binding) =>
+          binding.ownerType === ownerType && binding.ownerId === ownerId && !binding.deletedAt,
+      ),
+    }))
+    .filter((media) => media.bindings.length > 0)
+    .sort(
+      (a, b) =>
+        a.bindings[0].sortOrder - b.bindings[0].sortOrder || a.id.localeCompare(b.id),
     );
-    const bBinding = b.bindings.find(
-      (binding) => binding.ownerType === ownerType && binding.ownerId === ownerId,
-    );
-    return (aBinding?.sortOrder ?? 0) - (bBinding?.sortOrder ?? 0) || a.id.localeCompare(b.id);
-  });
 }
 
 function getPrimaryCatImageDto(cat: CatData) {
@@ -2433,8 +2437,7 @@ function getPrimaryMedia(images: MediaAssetData[]) {
         (binding) => binding.usage === "cover" && binding.visibility === "visible",
       ),
     ) ??
-    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
-    images[0]
+    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible"))
   );
 }
 
