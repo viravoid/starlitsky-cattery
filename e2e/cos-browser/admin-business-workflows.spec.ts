@@ -239,6 +239,12 @@ test("cat list search, status, visibility and pagination reflect SQLite", async 
   expect(apiList.status()).toBe(200);
   expect((await apiList.json()).data.pagination.total).toBe(21);
   await page.getByRole("link", { name: "其它猫咪" }).click();
+  const refreshedCats = page.waitForResponse(
+    (response) =>
+      response.url().startsWith(`${API_ORIGIN}/cats?`) && response.request().method() === "GET",
+  );
+  await page.getByRole("button", { name: "刷新" }).click();
+  expect((await (await refreshedCats).json()).data.pagination.total).toBeGreaterThanOrEqual(21);
   await page.getByLabel("搜索猫咪").fill("分页测试猫");
   await expect(page.getByText("共 21 只 · 第 1 / 2 页")).toBeVisible();
   await expect(page.locator("table tbody tr")).toHaveCount(20);
