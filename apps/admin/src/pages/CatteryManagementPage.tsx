@@ -39,6 +39,7 @@ import {
   uploadCatImage,
   uploadLitterImage,
 } from "../api/cattery";
+import { listAllPages } from "../api/pagination";
 import { PageContainer } from "../components/PageContainer";
 import { mergeCatStoryTextFields, readCatStoryText } from "../utils/cat-story-json";
 import { getErrorMessage } from "../utils/errors";
@@ -297,19 +298,23 @@ export function CatteryManagementPage() {
 
     try {
       const [catList, litterList, fixedPageList] = await Promise.all([
-        listCats({ includeDeleted: includeArchivedCats, pageSize: 200 }),
-        listLitters({ includeDeleted: includeArchivedLitters, pageSize: 100 }),
+        listAllPages((page) =>
+          listCats({ includeDeleted: includeArchivedCats, page, pageSize: 100 }),
+        ),
+        listAllPages((page) =>
+          listLitters({ includeDeleted: includeArchivedLitters, page, pageSize: 100 }),
+        ),
         listFixedPages(),
       ]);
 
-      setCats(catList.items);
+      setCats(catList);
       setFixedPages(fixedPageList);
-      setLitters(litterList.items);
+      setLitters(litterList);
       setSelectedCat((current) =>
-        current ? (catList.items.find((cat) => cat.id === current.id) ?? null) : null,
+        current ? (catList.find((cat) => cat.id === current.id) ?? null) : null,
       );
       setSelectedLitter((current) =>
-        current ? (litterList.items.find((litter) => litter.id === current.id) ?? null) : null,
+        current ? (litterList.find((litter) => litter.id === current.id) ?? null) : null,
       );
     } catch (loadError) {
       setError(getErrorMessage(loadError));
@@ -426,14 +431,17 @@ export function CatteryManagementPage() {
   }
 
   async function loadCatImages(catId: string) {
-    const mediaList = await listMedia({
-      kind: "image",
-      ownerId: catId,
-      ownerType: "cat",
-      pageSize: 50,
-      status: "active",
-    });
-    const sorted = sortMediaByBinding(mediaList.items, "cat", catId);
+    const mediaList = await listAllPages((page) =>
+      listMedia({
+        kind: "image",
+        ownerId: catId,
+        ownerType: "cat",
+        page,
+        pageSize: 100,
+        status: "active",
+      }),
+    );
+    const sorted = sortMediaByBinding(mediaList, "cat", catId);
     setCatImagesByCatId((current) => ({ ...current, [catId]: sorted }));
     return sorted;
   }
@@ -475,14 +483,17 @@ export function CatteryManagementPage() {
   }
 
   async function loadLitterImages(litterId: string) {
-    const mediaList = await listMedia({
-      kind: "image",
-      ownerId: litterId,
-      ownerType: "litter",
-      pageSize: 50,
-      status: "active",
-    });
-    const sorted = sortMediaByBinding(mediaList.items, "litter", litterId);
+    const mediaList = await listAllPages((page) =>
+      listMedia({
+        kind: "image",
+        ownerId: litterId,
+        ownerType: "litter",
+        page,
+        pageSize: 100,
+        status: "active",
+      }),
+    );
+    const sorted = sortMediaByBinding(mediaList, "litter", litterId);
     setLitterImagesByLitterId((current) => ({ ...current, [litterId]: sorted }));
     return sorted;
   }
@@ -1563,8 +1574,10 @@ function EntryCoverEditor({
         />
         <div className="presentation-preview">
           <CroppedPreview
+            aspectRatio={entryAspectRatio(activeEntry)}
             cropRect={currentCrop}
             image={images.find((item) => item.id === selectedImageId)}
+            mode={selection ? "crop" : "cover"}
           />
         </div>
       </div>
@@ -1626,7 +1639,12 @@ function DetailPresentationEditor({
         onChange={setActiveImageId}
       />
       <div className="presentation-preview presentation-preview-tall">
-        <CroppedPreview cropRect={cropRect} image={image} />
+        <CroppedPreview
+          aspectRatio={4 / 5}
+          cropRect={cropRect}
+          image={image}
+          mode={presentation?.mode ?? "cover"}
+        />
       </div>
       <div className="table-actions">
         <button type="button" onClick={() => patchPresentation({ mode: "original" })}>
@@ -1679,23 +1697,56 @@ function CropInputs({ value, onChange }: { value: CropRect; onChange: (value: Cr
   );
 }
 
-function CroppedPreview({ cropRect, image }: { cropRect: CropRect; image?: MediaAssetData }) {
+function CroppedPreview({
+  aspectRatio,
+  cropRect,
+  image,
+  mode,
+}: {
+  aspectRatio: number;
+  cropRect: CropRect;
+  image?: MediaAssetData;
+  mode: "cover" | "crop" | "original";
+}) {
   if (!image) return <div className="cat-image-placeholder">暂无图片</div>;
-  const scale = 1 / Math.max(cropRect.width, 0.01);
+  const style = mode === "crop" ? cropPreviewStyle(image, aspectRatio, cropRect) : null;
   return (
-    <div className="cropped-preview-frame">
+    <div className="cropped-preview-frame" style={{ aspectRatio }}>
       <img
         alt={image.altText || image.title || image.id}
         src={image.thumbnailUrl || image.sourceUrl}
-        style={{
-          height: `${scale * 100}%`,
-          left: `${-cropRect.x * scale * 100}%`,
-          top: `${-cropRect.y * scale * 100}%`,
-          width: `${scale * 100}%`,
-        }}
+        style={style ?? { width: "100%", height: "100%", left: 0, top: 0, objectFit: mode === "original" ? "contain" : "cover" }}
       />
     </div>
   );
+}
+
+function entryAspectRatio(entry: CoverEntry): number {
+  if (entry === "communityProfile") return 4 / 3;
+  if (entry === "breedingPlanCard") return 1;
+  return 16 / 10;
+}
+
+function cropPreviewStyle(image: MediaAssetData, aspectRatio: number, cropRect: CropRect) {
+  const naturalWidth = Number(image.width);
+  const naturalHeight = Number(image.height);
+  if (!(naturalWidth > 0 && naturalHeight > 0)) return null;
+  const width = Math.max(0.01, Math.min(1, cropRect.width));
+  const height = Math.max(0.01, Math.min(1, cropRect.height));
+  const x = Math.max(0, Math.min(1 - width, cropRect.x));
+  const y = Math.max(0, Math.min(1 - height, cropRect.y));
+  const scale = Math.max(100 / (width * naturalWidth), 100 / aspectRatio / (height * naturalHeight));
+  const widthPercent = naturalWidth * scale;
+  const heightPercent = naturalHeight * scale * aspectRatio;
+  const left = Math.max(100 - widthPercent, Math.min(0, -x * naturalWidth * scale));
+  const top = Math.max(100 - heightPercent, Math.min(0, -y * naturalHeight * scale * aspectRatio));
+  return {
+    width: `${widthPercent}%`,
+    height: `${heightPercent}%`,
+    left: `${left}%`,
+    top: `${top}%`,
+    objectFit: "contain" as const,
+  };
 }
 
 function LitterWorkspace({
@@ -2363,15 +2414,19 @@ function readImagePresentation(cat: CatData): ImagePresentation {
 }
 
 function sortMediaByBinding(items: MediaAssetData[], ownerType: string, ownerId: string) {
-  return [...items].sort((a, b) => {
-    const aBinding = a.bindings.find(
-      (binding) => binding.ownerType === ownerType && binding.ownerId === ownerId,
+  return items
+    .map((media) => ({
+      ...media,
+      bindings: media.bindings.filter(
+        (binding) =>
+          binding.ownerType === ownerType && binding.ownerId === ownerId && !binding.deletedAt,
+      ),
+    }))
+    .filter((media) => media.bindings.length > 0)
+    .sort(
+      (a, b) =>
+        a.bindings[0].sortOrder - b.bindings[0].sortOrder || a.id.localeCompare(b.id),
     );
-    const bBinding = b.bindings.find(
-      (binding) => binding.ownerType === ownerType && binding.ownerId === ownerId,
-    );
-    return (aBinding?.sortOrder ?? 0) - (bBinding?.sortOrder ?? 0) || a.id.localeCompare(b.id);
-  });
 }
 
 function getPrimaryCatImageDto(cat: CatData) {
@@ -2393,8 +2448,7 @@ function getPrimaryMedia(images: MediaAssetData[]) {
         (binding) => binding.usage === "cover" && binding.visibility === "visible",
       ),
     ) ??
-    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible")) ??
-    images[0]
+    images.find((media) => media.bindings.some((binding) => binding.visibility === "visible"))
   );
 }
 
