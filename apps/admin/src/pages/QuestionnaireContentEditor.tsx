@@ -5,7 +5,7 @@ interface Props {
   onChange: (patch: JsonRecord) => void;
 }
 
-const QUESTION_GROUPS = [
+export const QUESTION_GROUPS = [
   { key: "basicInfo", title: "一、基本信息", questions: [["name", "真实姓名"], ["gender", "性别"], ["phone", "电话"], ["age", "年龄"], ["job", "职业"], ["city", "现居城市"]] },
   { key: "catExperience", title: "二、养猫经验", questions: [["experience", "是否有养猫经验"], ["residents", "家里是否有原住民"], ["residentsNeutered", "原住民是否绝育"]] },
   { key: "livingEnvironment", title: "三、居住与家庭环境", questions: [["hasKids", "是否有小孩"], ["housing", "租房与房东同意情况"], ["windowSealed", "住房是否封窗"], ["familyAgree", "家庭成员或室友是否同意"]] },
