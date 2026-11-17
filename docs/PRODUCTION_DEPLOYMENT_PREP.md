@@ -134,6 +134,9 @@ production cutover procedure.
 The current production Nginx global access log uses full request URLs, which can
 contain parent-invite credentials. The template now uses a path-only log format, but
 the live Nginx config and historical logs require a separately approved change.
+The current Admin root is under the same active `app` symlink as the API. The
+approved cutover must first decouple Admin into an independent root to switch the
+two in sequence; otherwise a symlink flip changes both at once.
 
 ## Env Templates
 

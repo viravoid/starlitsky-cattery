@@ -18,8 +18,9 @@ The production API and Admin are a matching older pair. The API health endpoint 
 no commit identifier; `scripts/verify-release-readonly.py` provides a reproducible
 artifact and process check. From a clean checkout of the candidate SHA, build Admin
 with `VITE_API_BASE_URL=https://api.starlitskycattery.top`, then run
-`python scripts/verify-release-readonly.py --commit <full-SHA>`. It only reads the
-server and fails on source or Admin hash mismatch. A future release manifest injected
+`python scripts/verify-release-readonly.py --commit <full-SHA>`. After Admin is
+served from an independent root, pass `--remote-admin-root` as well. It only reads
+the server and fails on source or Admin hash mismatch. A future release manifest injected
 at packaging time would make routine version checks easier; it must identify both
 API source and Admin bundle without exposing configuration.
 
@@ -136,6 +137,11 @@ entry has no explicit `no-store` or short cache header. Preserve old hashed asse
 during the switch, serve the new HTML only after the new API is healthy, and verify
 cache behavior and deep-link refresh. The existing in-place deployment helper is
 not an atomic release switch and should not be used for this cutover.
+The live Nginx Admin root is inside the same `/opt/starlitsky/app` symlink used by
+the API. Switching that symlink **also switches Admin immediately**. An independent
+Admin root/symlink must first be installed under an approved Nginx change so the API
+and Admin can be switched in the intended order. Until then, a joint switch requires
+explicit downtime and cannot be described as API-first then Admin.
 
 ## WeChat and phone status
 
@@ -166,15 +172,18 @@ make the full lint appear green. Release gates currently do not run full lint.
 **BLOCKED for production deployment approval** until the proposed idempotency and
 request-log fix PR passes Release gates, is reviewed and merged, its migration is
 included in the approved release, and the actual Nginx log format is ready for a
-controlled path-only change. Production and trial code are older than main. WeChat
+controlled path-only change with an independent Admin root. Production and trial code are older than main. WeChat
 formal release status is independently blocked by missing current platform evidence.
 
 Controlled cutover, only after explicit production authorization:
 
 1. Freeze a reviewed SHA and build API dependencies and Admin in a **new immutable
-   release directory**; verify Admin's API URL and source/artifact hashes. Retain the
-   existing release and its hashed static assets.
-2. Obtain maintenance window and write freeze. Recheck systemd/Nginx paths, env
+   release directory**; verify Admin's API URL and source/artifact hashes. Stage the
+   Admin bundle separately, retaining the old bundle and hashed assets.
+2. Obtain maintenance window and write freeze. Under the separately approved Nginx
+   change, point an independent Admin root at the **old** bundle and enable path-only
+   access logging for production and trial virtual hosts; validate and reload Nginx.
+   Recheck systemd/Nginx paths, env
    presence, production migration ledger, SQLite integrity/foreign keys, storage
    policy, path-only access logging, and available disk space. Stop API writes. Make a verified SQLite online
    backup and preserve a separate copy; test that it can be read.
@@ -182,7 +191,8 @@ Controlled cutover, only after explicit production authorization:
    writes are stopped. Verify status, integrity, foreign keys and key counts. On any
    failure, keep service stopped and follow the recovery rules above.
 4. Switch the active API release symlink, restart API, and verify exact process cwd,
-   health and authenticated read smoke. Then switch Admin HTML/assets with old
+   health and authenticated read smoke. Then switch the independent Admin root to
+   the new HTML/assets with old
    hashed assets retained. Verify TLS, CORS, login, roles, parent visibility, media
    signed reads, Admin navigation and the selected WeChat trial compatibility.
 5. Resume writes only after checks pass. Watch errors and business records. Roll

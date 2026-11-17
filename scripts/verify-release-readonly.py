@@ -27,6 +27,9 @@ def main():
     parser.add_argument("--commit", required=True, help="Full 40 character Git commit SHA")
     parser.add_argument("--host", default="starlitsky-prod", help="Authorized SSH alias")
     parser.add_argument("--admin-dist", default="dist/admin")
+    parser.add_argument(
+        "--remote-admin-root", default="/opt/starlitsky/app/dist/admin"
+    )
     args = parser.parse_args()
     if len(args.commit) != 40 or any(c not in "0123456789abcdef" for c in args.commit):
         parser.error("--commit must be a lowercase full Git SHA")
@@ -56,6 +59,7 @@ manifest=json.loads(MANIFEST)
 pid=subprocess.check_output(['systemctl','show','starlitsky-api','-p','MainPID','--value'],text=True).strip()
 cwd=os.path.realpath('/proc/'+pid+'/cwd')
 app=os.path.realpath('/opt/starlitsky/app')
+admin_root=os.path.realpath(manifest['remote_admin_root'])
 if cwd!=app: raise SystemExit('running process cwd differs from active release')
 def digest(data): return hashlib.sha256(data).hexdigest()
 bad=[]
@@ -64,13 +68,16 @@ for name,expected in manifest['tracked'].items():
  if not path.startswith(app+os.sep) or not os.path.isfile(path): bad.append(name+': missing or outside release'); continue
  if digest(open(path,'rb').read().replace(b'\\r\\n',b'\\n'))!=expected: bad.append(name+': source mismatch')
 for name,expected in manifest['admin'].items():
- path=os.path.realpath(os.path.join(app,'dist/admin',name))
- if not path.startswith(app+os.sep) or not os.path.isfile(path): bad.append('dist/admin/'+name+': missing'); continue
+ path=os.path.realpath(os.path.join(admin_root,name))
+ if not path.startswith(admin_root+os.sep) or not os.path.isfile(path): bad.append('admin/'+name+': missing'); continue
  if digest(open(path,'rb').read())!=expected: bad.append('dist/admin/'+name+': build mismatch')
-print(json.dumps({'process_pid':pid,'release':app,'tracked_checked':len(manifest['tracked']),'admin_checked':len(manifest['admin']),'mismatches':bad},ensure_ascii=False))
+print(json.dumps({'process_pid':pid,'release':app,'admin_root':admin_root,'tracked_checked':len(manifest['tracked']),'admin_checked':len(manifest['admin']),'mismatches':bad},ensure_ascii=False))
 if bad: raise SystemExit(1)
 '''
-    payload = json.dumps({"tracked": tracked, "admin": admin}, ensure_ascii=False)
+    payload = json.dumps(
+        {"tracked": tracked, "admin": admin, "remote_admin_root": args.remote_admin_root},
+        ensure_ascii=False,
+    )
     remote = "MANIFEST = " + repr(payload) + "\n" + remote
     result = subprocess.run(
         ["ssh", "-o", "BatchMode=yes", args.host, "sudo -n python3 -"],
