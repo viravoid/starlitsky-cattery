@@ -125,9 +125,10 @@ Do not copy raw access logs into Git or this report.
 Production COS configuration selected the current media bucket in Chengdu and kept
 the legacy bucket as a read source. Signed reads expire after 3600 seconds and
 upload URLs after 600 seconds. Credential presence was confirmed without exposing
-their values. The trial API env declares COS but has a blank write bucket; its COS
-credential values do not equal production's. This avoids the observed shared-key
-risk but leaves trial media upload capability unverified. Effective IAM scope,
+their values. The trial API env declares COS but has no write bucket, region or
+storage keys. `createPresignedPutUpload` requires these values, so managed media
+upload through the current trial API is blocked; the trial API does not share the
+observed production write credentials. Effective IAM scope,
 bucket policy and upload failure behavior in the live environment remain unverified;
 inspect policy read-only before cutover and use synthetic media only after separate
 deployment approval. No COS object was changed in this audit.
@@ -174,6 +175,8 @@ request-log fix PR passes Release gates, is reviewed and merged, its migration i
 included in the approved release, and the actual Nginx log format is ready for a
 controlled path-only change with an independent Admin root. Production and trial code are older than main. WeChat
 formal release status is independently blocked by missing current platform evidence.
+Trial media upload also needs an isolated COS configuration before any trial media
+acceptance; do not copy production write credentials into trial.
 
 Controlled cutover, only after explicit production authorization:
 
