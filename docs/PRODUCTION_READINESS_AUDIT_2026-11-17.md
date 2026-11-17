@@ -64,6 +64,9 @@ table. Prisma applied the first pending migration, then stopped with P3018 on th
 second. Replacing that **isolated, still unwritten** failed copy from the preserved
 pre-migration copy restored byte-identical data, 12 finished migrations,
 `integrity_check=ok`, and zero foreign-key violations.
+The actual production `backup-sqlite.sh` was not executed because it would write a
+production backup. Its operational output and restore path must be verified in the
+approved maintenance window.
 
 The three rehearsal SQLite files remain in an Administrator-only OS temp directory
 outside this repository. The automated command policy rejected deletion outside the
@@ -109,6 +112,15 @@ had one active Admin role and no active parent roles. No production login or mut
 was attempted. Existing authenticated session, parent disable, cross-user access and
 real Admin uploads therefore remain production smoke items after authorization.
 
+The live API request logger and the current Nginx default access log record complete
+request URLs. `/parent-invites/verify` accepts `code`, `token`, `qrCredential` and
+`scene` in the query string, so these logs may contain credentials. The PR changes
+the application logger to record paths only and adds a path-only Nginx log format to
+the deployment template. The actual production and trial Nginx configurations are
+still unchanged; their log formats must be updated during an approved change, and
+historical logs should be reviewed under restricted access for retention/rotation.
+Do not copy raw access logs into Git or this report.
+
 Production COS configuration selected the current media bucket in Chengdu and kept
 the legacy bucket as a read source. Signed reads expire after 3600 seconds and
 upload URLs after 600 seconds. Credential presence was confirmed without exposing
@@ -151,10 +163,11 @@ were CRLF/Prettier and 6 were pre-existing `any` errors in
 Prettier rule disabled, and `git diff --check` passed. Do not reformat the repo to
 make the full lint appear green. Release gates currently do not run full lint.
 
-**BLOCKED for production deployment approval** until the proposed idempotency PR
-passes Release gates, is reviewed and merged, and its migration is included in the
-approved release. Production and trial code are older than main. WeChat formal
-release status is independently blocked by missing current platform evidence.
+**BLOCKED for production deployment approval** until the proposed idempotency and
+request-log fix PR passes Release gates, is reviewed and merged, its migration is
+included in the approved release, and the actual Nginx log format is ready for a
+controlled path-only change. Production and trial code are older than main. WeChat
+formal release status is independently blocked by missing current platform evidence.
 
 Controlled cutover, only after explicit production authorization:
 
@@ -163,7 +176,7 @@ Controlled cutover, only after explicit production authorization:
    existing release and its hashed static assets.
 2. Obtain maintenance window and write freeze. Recheck systemd/Nginx paths, env
    presence, production migration ledger, SQLite integrity/foreign keys, storage
-   policy, and available disk space. Stop API writes. Make a verified SQLite online
+   policy, path-only access logging, and available disk space. Stop API writes. Make a verified SQLite online
    backup and preserve a separate copy; test that it can be read.
 3. Run only the reviewed, ordered pending Prisma migrations against production while
    writes are stopped. Verify status, integrity, foreign keys and key counts. On any

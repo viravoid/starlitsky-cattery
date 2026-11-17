@@ -131,6 +131,10 @@ an existing production service, prepare a separate immutable release and switch 
 during an approved maintenance window. Do not run the in-place script as the final
 production cutover procedure.
 
+The current production Nginx global access log uses full request URLs, which can
+contain parent-invite credentials. The template now uses a path-only log format, but
+the live Nginx config and historical logs require a separately approved change.
+
 ## Env Templates
 
 - API server env: `deploy/production/env/starlitsky-api.env.example`
