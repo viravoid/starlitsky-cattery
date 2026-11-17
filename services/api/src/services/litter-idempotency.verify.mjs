@@ -72,6 +72,22 @@ try {
   const retry = await post(body, "same-key-0001", adminToken);
   assert.equal(first.data.id, retry.data.id, "same key and body must reuse the litter");
   assert.equal(await prisma.litter.count(), baseline + 1);
+  await assert.rejects(
+    () => prisma.litter.create({
+      data: {
+        name: "Synthetic duplicate identity",
+        father_cat_id: father.id,
+        mother_cat_id: mother.id,
+        create_request_identity: createHash("sha256")
+          .update(`${admin.id}:same-key-0001`)
+          .digest("hex"),
+      },
+    }),
+    (error) => error?.code === "P2002" &&
+      error?.meta?.target?.length === 1 &&
+      error.meta.target[0] === "create_request_identity",
+    "Prisma must identify the exact idempotency unique target",
+  );
 
   const otherAdminsLitter = await post(body, "same-key-0001", otherAdminToken);
   assert.notEqual(otherAdminsLitter.data.id, first.data.id, "a shared key cannot replay another admin's litter");
