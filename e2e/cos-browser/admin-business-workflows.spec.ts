@@ -995,6 +995,8 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   await expect(detail.getByText("微信验证", { exact: true })).toBeVisible();
   await detail.getByRole("button", { name: "保存家长资料与关系" }).click();
   await expect(page.getByText("已认证为家长，并复用原 users.id")).toBeVisible();
+  await expect(detail.getByRole("button", { name: "保存家长资料与关系" })).toBeEnabled();
+  await expect(detail.getByText("微信验证", { exact: true })).toBeVisible();
   const unchangedPhoneDb = openDatabase();
   try {
     expect(
@@ -1006,7 +1008,16 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
     unchangedPhoneDb.close();
   }
   await detail.getByLabel("手机").fill("13900000001");
+  await expect(detail.getByLabel("手机")).toHaveValue("13900000001");
+  const manualPhoneSave = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/admin/users/${userId}/certify-parent`) &&
+      response.request().method() === "POST",
+  );
   await detail.getByRole("button", { name: "保存家长资料与关系" }).click();
+  const manualPhoneResponse = await manualPhoneSave;
+  expect(manualPhoneResponse.status()).toBe(200);
+  expect(manualPhoneResponse.request().postDataJSON().contactPhone).toBe("13900000001");
   await expect(detail.getByText("管理员录入 / 未经微信验证", { exact: true })).toBeVisible();
   const changedPhoneDb = openDatabase();
   try {
