@@ -764,7 +764,15 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: userHeaders })).status()).toBe(403);
   await loginAdmin(page);
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await Promise.all([
+    page.waitForResponse((response) =>
+      response.url().includes("/admin/users?") &&
+      response.url().includes(`q=${userId}`) &&
+      response.ok(),
+    ),
+    page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId),
+  ]);
+  await expect(page.getByText("加载中...")).toBeHidden();
   await page.getByRole("row").filter({ hasText: userId }).click();
   const detail = page.locator("aside.detail-panel");
   await expect(detail.getByRole("heading", { name: "直接认证为家长" })).toBeVisible();
