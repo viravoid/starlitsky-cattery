@@ -43,7 +43,11 @@ do not run `install-build-migrate-restart.sh` through `/opt/starlitsky/app`.
    work. The template alone never updates live Nginx.
 4. Freeze writes and stop API writers. Verify SQLite migration ledger, schema,
    integrity, foreign keys and disk space against the rehearsal. Run
-   `backup-sqlite.sh`; verify the backup can be opened and its counts/ledger match.
+   `RETENTION_DAYS=36500 /opt/starlitsky/app/deploy/production/scripts/backup-sqlite.sh`
+   with a window-specific retention override so this backup
+   does not prune existing archives; verify the compressed backup can be opened,
+   passes `PRAGMA integrity_check` and `foreign_key_check`, and has matching
+   counts/ledger. Record its SHA-256 and restore-test a protected copy.
    Keep a separately protected backup copy. Apply only the reviewed ordered
    migrations while writes remain frozen; verify them before starting new code.
 5. Switch `/opt/starlitsky/app` with `switch-release-link.sh api <new-sha>`, restart
@@ -73,12 +77,16 @@ credential remains in an access-log path, a critical auth/role check fails, COS
 write scope is wrong, or rollback would require discarding new business records.
 
 The current GET invite-verification route may put credentials in query strings.
-Path-only access logs reduce exposure, but Nginx `error_log` can include a full
-request line on some errors. Keep error logs access-restricted with a defined
-retention and rotation policy, review historical logs only under restricted
-access, and invalidate exposed credentials where needed. Do not copy raw logs to
-GitHub or delete production logs without authorization. Moving legacy clients
-from query credentials to a body-based request is a separate compatibility change.
+The templates use path-only access logs and suppress Nginx errors in that exact
+location, since an upstream failure otherwise logs the complete request line.
+Errors before location selection, other virtual hosts and historical logs remain
+possible exposure paths. Inspect the effective default/global access log and all
+actual production/trial sites during the approved Nginx change. Keep error logs
+access-restricted with a defined retention and rotation policy, review historical
+logs only under restricted access, and invalidate exposed credentials where needed.
+Do not copy raw logs to GitHub or delete production logs without authorization.
+Moving legacy clients from query credentials to a body-based request is a separate
+compatibility change.
 
 Run `bash deploy/production/scripts/verify-independent-release.sh` on an isolated
 Linux host with Nginx, curl and Python to rehearse old/new Admin and API switches,
