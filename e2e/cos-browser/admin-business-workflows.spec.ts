@@ -298,7 +298,7 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
     (response) =>
       response.url() === `${API_ORIGIN}/litters` && response.request().method() === "POST",
   );
-  await editor.getByRole("button", { name: "保存" }).click();
+  await editor.getByRole("button", { name: "保存" }).dblclick();
   const created = await createResponse;
   expect(created.status()).toBe(201);
   const litterId = (await created.json()).data.id as string;
@@ -309,6 +309,18 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
     mother_cat_id: motherId,
     status: "planned",
   });
+  const duplicateDb = openDatabase();
+  try {
+    expect(
+      (
+        duplicateDb
+          .prepare("SELECT COUNT(*) AS count FROM litters WHERE name = ?")
+          .get("业务 E2E 窝次") as { count: number }
+      ).count,
+    ).toBe(1);
+  } finally {
+    duplicateDb.close();
+  }
 
   await editor.getByLabel("出生日期").fill("2026-12-03");
   await editor.getByLabel("状态").selectOption("born");
@@ -397,6 +409,22 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   await expect(editor.getByLabel("出生日期")).toHaveValue("2026-12-03");
   await expect(editor.getByLabel("父亲")).toHaveValue(fatherId);
   await expect(editor.getByLabel("母亲")).toHaveValue(motherId);
+  await editor.locator('select:has(option[value="planned"])').selectOption("archived");
+  await editor.getByLabel("可见性").selectOption("archived");
+  await editor.getByRole("button", { name: "保存" }).click();
+  await expect(page.getByText("窝次资料已更新")).toBeVisible();
+  await page.reload();
+  await page.getByRole("link", { name: "窝次" }).click();
+  const archivedRow = page.getByRole("row").filter({ hasText: "业务 E2E 窝次" });
+  await expect(archivedRow).toContainText("归档");
+  await archivedRow.getByRole("button", { name: "查看" }).click();
+  await expect(editor.getByText("业务 E2E 小猫")).toBeVisible();
+  expect(readRow("litters", litterId)).toMatchObject({
+    status: "archived",
+    visibility: "archived",
+    father_cat_id: fatherId,
+    mother_cat_id: motherId,
+  });
 });
 
 test("dashboard labels total comments as a statistic", async ({ page, request }) => {
@@ -459,7 +487,7 @@ test("submitted questionnaire can be reviewed in Admin and keeps full answers", 
   const applicationId = (await first.json()).data.id as string;
   expect((await replay.json()).data.id).toBe(applicationId);
 
-  await loginAdmin(page);
+  const adminToken = await loginAdmin(page);
   await page.getByRole("link", { name: "问卷提交" }).click();
   const panel = page.locator('aside[aria-label="问卷详情"]');
   await page
@@ -497,6 +525,32 @@ test("submitted questionnaire can be reviewed in Admin and keeps full answers", 
     expect(row.reviewed_at).toBeTruthy();
   } finally {
     database.close();
+  }
+  await expect(panel.getByRole("button", { name: "已审核" })).toBeDisabled();
+  const repeatReview = await request.patch(
+    `${API_ORIGIN}/selection-applications/${applicationId}`,
+    {
+      headers: { authorization: `Bearer ${adminToken}` },
+      data: { status: "reviewed", adminNote: "已电话核对，可继续沟通" },
+    },
+  );
+  expect(repeatReview.status()).toBe(200);
+  const repeatDb = openDatabase();
+  try {
+    expect(
+      (
+        repeatDb
+          .prepare("SELECT COUNT(*) AS count FROM selection_applications WHERE id = ?")
+          .get(applicationId) as { count: number }
+      ).count,
+    ).toBe(1);
+    expect(
+      repeatDb
+        .prepare("SELECT status, admin_note FROM selection_applications WHERE id = ?")
+        .get(applicationId),
+    ).toMatchObject({ status: "reviewed", admin_note: "已电话核对，可继续沟通" });
+  } finally {
+    repeatDb.close();
   }
   await page.reload();
   await page.getByRole("link", { name: "问卷提交" }).click();
@@ -666,6 +720,7 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
 }) => {
   const userId = "business-e2e-parent-user";
   const catId = "business-e2e-parent-hidden-cat";
+  const secondCatId = "business-e2e-parent-second-cat";
   const userToken = "business-e2e-parent-session";
   const now = Date.now();
   const database = openDatabase();
@@ -697,6 +752,11 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
         "INSERT INTO cats (id, name, lifecycle_status, visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
       )
       .run(catId, "业务 E2E 隐藏猫", "growing", "hidden", now, now);
+    database
+      .prepare(
+        "INSERT INTO cats (id, name, lifecycle_status, visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run(secondCatId, "业务 E2E 第二只猫", "growing", "visible", now, now);
   } finally {
     database.close();
   }
@@ -783,6 +843,108 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   } finally {
     dbAfterRestore.close();
   }
+
+  await detail.getByLabel("搜索猫咪档案（包含隐藏档案）").fill("业务 E2E 第二只猫");
+  await detail.getByRole("button", { name: "查询猫咪" }).click();
+  await detail.getByLabel("新增猫咪").selectOption(secondCatId);
+  await detail.getByRole("button", { name: "添加绑定" }).click();
+  await expect(page.getByText("猫咪关联已创建", { exact: true })).toBeVisible();
+  const secondLink = detail.locator(".parent-link-row").filter({ hasText: "业务 E2E 第二只猫" });
+  await expect(secondLink).toBeVisible();
+  const relationshipUpdate = page.waitForResponse(
+    (response) =>
+      response.url().includes("/parent-cat-links/") && response.request().method() === "PATCH",
+  );
+  await secondLink.locator("select").first().selectOption("caregiver");
+  expect((await relationshipUpdate).status()).toBe(200);
+  await expect(page.getByText("猫咪关联已更新", { exact: true })).toBeVisible();
+  const caregiverLink = secondLink.filter({
+    has: page.locator('option[value="caregiver"]:checked'),
+  });
+  await expect(caregiverLink).toHaveCount(1);
+  const statusUpdate = page.waitForResponse(
+    (response) =>
+      response.url().includes("/parent-cat-links/") && response.request().method() === "PATCH",
+  );
+  await caregiverLink.locator("select").nth(1).selectOption("ended");
+  expect((await statusUpdate).status()).toBe(200);
+  await expect(page.getByText("猫咪关联已更新", { exact: true })).toBeVisible();
+  const linkDatabase = openDatabase();
+  try {
+    const history = linkDatabase
+      .prepare(
+        "SELECT relationship, status, ended_at, deleted_at FROM parent_cat_links WHERE cat_id = ?",
+      )
+      .all(secondCatId) as Array<{
+      relationship: string;
+      status: string;
+      ended_at: number | null;
+      deleted_at: number | null;
+    }>;
+    expect(history).toHaveLength(2);
+    expect(history.map((link) => `${link.relationship}:${link.status}`).sort()).toEqual([
+      "caregiver:ended",
+      "owner:ended",
+    ]);
+    expect(history.every((link) => link.ended_at !== null && link.deleted_at === null)).toBe(true);
+  } finally {
+    linkDatabase.close();
+  }
+  await page.reload();
+  await page.getByRole("link", { name: "用户 / 家长管理" }).click();
+  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await expect(secondLink).toHaveCount(2);
+  await expect(secondLink.locator("select").nth(1)).toHaveValue("ended");
+  await expect(secondLink.locator("select").nth(3)).toHaveValue("ended");
+
+  const verifiedFixtureDb = openDatabase();
+  try {
+    verifiedFixtureDb
+      .prepare(
+        "UPDATE parent_profiles SET contact_phone_source = 'wechat_verified', contact_phone_verified_at = ? WHERE user_id = ?",
+      )
+      .run(Date.now(), userId);
+  } finally {
+    verifiedFixtureDb.close();
+  }
+  await page.reload();
+  await page.getByRole("link", { name: "用户 / 家长管理" }).click();
+  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await expect(detail.getByText("微信验证", { exact: true })).toBeVisible();
+  await detail.getByRole("button", { name: "保存家长资料与关系" }).click();
+  await expect(page.getByText("已认证为家长，并复用原 users.id")).toBeVisible();
+  const unchangedPhoneDb = openDatabase();
+  try {
+    expect(
+      unchangedPhoneDb
+        .prepare("SELECT contact_phone_source FROM parent_profiles WHERE user_id = ?")
+        .get(userId),
+    ).toMatchObject({ contact_phone_source: "wechat_verified" });
+  } finally {
+    unchangedPhoneDb.close();
+  }
+  await detail.getByLabel("手机").fill("13900000001");
+  await detail.getByRole("button", { name: "保存家长资料与关系" }).click();
+  await expect(detail.getByText("管理员录入 / 未经微信验证", { exact: true })).toBeVisible();
+  const changedPhoneDb = openDatabase();
+  try {
+    expect(
+      changedPhoneDb
+        .prepare(
+          "SELECT contact_phone_source, contact_phone_verified_at FROM parent_profiles WHERE user_id = ?",
+        )
+        .get(userId),
+    ).toMatchObject({ contact_phone_source: "admin_entered", contact_phone_verified_at: null });
+    changedPhoneDb
+      .prepare("UPDATE parent_profiles SET contact_phone_source = 'unknown' WHERE user_id = ?")
+      .run(userId);
+  } finally {
+    changedPhoneDb.close();
+  }
+  await page.reload();
+  await page.getByRole("link", { name: "用户 / 家长管理" }).click();
+  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await expect(detail.getByText("历史来源未知", { exact: true })).toBeVisible();
 });
 
 test("self submitted parent applications are approved or rejected through Admin", async ({
@@ -860,6 +1022,7 @@ test("self submitted parent applications are approved or rejected through Admin"
   page.on("dialog", (dialog) => dialog.accept());
   await page.getByRole("row").filter({ hasText: "业务 E2E approved用户" }).click();
   await expect(detail.getByRole("heading", { name: "业务 E2E 通过申请" })).toBeVisible();
+  await expect(detail.getByText("自行填写的手机号", { exact: true })).toBeVisible();
   await detail.getByLabel("管理员备注").fill("测试通过");
   await detail.getByRole("button", { name: "通过", exact: true }).click();
   await expect(page.getByText("申请已通过", { exact: true })).toBeVisible();
@@ -982,6 +1145,110 @@ test("self submitted parent applications are approved or rejected through Admin"
   }
 });
 
+test("new cat approval requires explicit confirmation and repeat approval does not duplicate", async ({
+  page,
+  request,
+}) => {
+  const userId = "business-e2e-new-cat-applicant";
+  const userToken = "business-e2e-new-cat-token";
+  const catName = "业务 E2E 确认新猫";
+  const now = Date.now();
+  const db = openDatabase();
+  try {
+    db.prepare(
+      "INSERT INTO users (id, wechat_openid, nickname, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run(userId, "business-e2e-new-cat-openid", "业务 E2E 新猫申请人", "active", now, now);
+    db.prepare("INSERT INTO user_roles (id, user_id, role, granted_at) VALUES (?, ?, ?, ?)").run(
+      "business-e2e-new-cat-role",
+      userId,
+      "user",
+      now,
+    );
+    db.prepare(
+      "INSERT INTO user_sessions (id, user_id, token_hash, expires_at, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run(
+      "business-e2e-new-cat-session",
+      userId,
+      createHash("sha256")
+        .update(`local-cos-e2e-auth-token-secret-32-characters:${userToken}`)
+        .digest("hex"),
+      now + 3_600_000,
+      now,
+      now,
+    );
+  } finally {
+    db.close();
+  }
+
+  const missingPhone = await request.post(`${API_ORIGIN}/parent-applications`, {
+    headers: { authorization: `Bearer ${userToken}` },
+    data: { displayName: "业务 E2E 新猫申请", newCats: [{ name: catName }] },
+  });
+  expect(missingPhone.status()).toBe(400);
+  const submission = await request.post(`${API_ORIGIN}/parent-applications`, {
+    headers: { authorization: `Bearer ${userToken}` },
+    data: {
+      displayName: "业务 E2E 新猫申请",
+      contactPhone: "13800000003",
+      newCats: [{ name: catName, gender: "female", color: "蓝银", relationship: "owner" }],
+    },
+  });
+  expect(submission.status()).toBe(201);
+  const applicationId = (await submission.json()).data.id as string;
+  const adminToken = await loginAdmin(page);
+  await page.getByRole("link", { name: "家长申请审核" }).click();
+  await page.getByRole("row").filter({ hasText: "业务 E2E 新猫申请人" }).click();
+  const detail = page.locator("aside.detail-panel");
+  await expect(detail.getByRole("heading", { name: "业务 E2E 新猫申请" })).toBeVisible();
+  page.on("dialog", (dialog) => dialog.accept());
+  await detail.getByRole("button", { name: "通过", exact: true }).click();
+  await expect(page.locator(".error-banner")).toContainText("请逐条确认");
+  expect(countNamedCats(catName)).toBe(0);
+  await detail.getByLabel("确认尚无档案并新建").check();
+  await detail.getByRole("button", { name: "通过", exact: true }).click();
+  await expect(page.locator(".error-banner")).toContainText("请逐条确认");
+  expect(countNamedCats(catName)).toBe(0);
+  await detail.getByLabel(`已核查现有档案，确认“${catName}”确实尚无档案并新建`).check();
+  const approval = page.waitForResponse(
+    (response) =>
+      response.url() === `${API_ORIGIN}/parent-applications/${applicationId}/approve` &&
+      response.request().method() === "POST",
+  );
+  await detail.getByRole("button", { name: "通过", exact: true }).click();
+  expect((await approval).status()).toBe(200);
+  await expect(page.getByText("申请已通过", { exact: true })).toBeVisible();
+  expect(countNamedCats(catName)).toBe(1);
+  const repeat = await request.post(`${API_ORIGIN}/parent-applications/${applicationId}/approve`, {
+    headers: { authorization: `Bearer ${adminToken}` },
+    data: {},
+  });
+  expect(repeat.status()).toBe(200);
+  expect(countNamedCats(catName)).toBe(1);
+  const finalDb = openDatabase();
+  try {
+    const cat = finalDb.prepare("SELECT id, visibility FROM cats WHERE name = ?").get(catName) as {
+      id: string;
+      visibility: string;
+    };
+    expect(cat.visibility).toBe("hidden");
+    expect(
+      (
+        finalDb
+          .prepare(
+            "SELECT COUNT(*) AS count FROM parent_cat_links WHERE cat_id = ? AND status = 'active' AND deleted_at IS NULL",
+          )
+          .get(cat.id) as { count: number }
+      ).count,
+    ).toBe(1);
+  } finally {
+    finalDb.close();
+  }
+  await page.reload();
+  await page.getByRole("link", { name: "家长申请审核" }).click();
+  await page.getByRole("row").filter({ hasText: "业务 E2E 新猫申请人" }).click();
+  await expect(detail.getByRole("button", { name: "通过", exact: true })).toBeDisabled();
+});
+
 test("media library finds, previews, binds and unbinds an existing asset", async ({
   page,
   request,
@@ -1009,6 +1276,31 @@ test("media library finds, previews, binds and unbinds an existing asset", async
   await expect(detail.getByRole("img", { name: "isolated legacy private image" })).toBeVisible();
   const bindingForm = detail.locator("form.media-add-binding");
   await bindingForm.getByLabel("关联内容").selectOption(catId);
+  const bindingUrl = `${API_ORIGIN}/media/${E2E_LEGACY_MEDIA_ID}/bindings`;
+  await page.route(bindingUrl, (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ success: false, message: "隔离测试模拟绑定失败" }),
+    }),
+  );
+  await bindingForm.getByRole("button", { name: "新增绑定" }).click();
+  await expect(page.locator(".error-banner")).toContainText("隔离测试模拟绑定失败");
+  const failedDb = openDatabase();
+  try {
+    expect(
+      (
+        failedDb
+          .prepare(
+            "SELECT COUNT(*) AS count FROM media_bindings WHERE media_id = ? AND owner_id = ? AND deleted_at IS NULL",
+          )
+          .get(E2E_LEGACY_MEDIA_ID, catId) as { count: number }
+      ).count,
+    ).toBe(0);
+  } finally {
+    failedDb.close();
+  }
+  await page.unroute(bindingUrl);
   await bindingForm.getByRole("button", { name: "新增绑定" }).click();
   await expect(page.getByText("已新增真实业务绑定")).toBeVisible();
   const dbAfterBind = openDatabase();
@@ -1072,6 +1364,19 @@ function openDatabase() {
   const database = new DatabaseSync(path);
   database.exec("PRAGMA busy_timeout = 5000");
   return database;
+}
+
+function countNamedCats(name: string) {
+  const database = openDatabase();
+  try {
+    return (
+      database.prepare("SELECT COUNT(*) AS count FROM cats WHERE name = ?").get(name) as {
+        count: number;
+      }
+    ).count;
+  } finally {
+    database.close();
+  }
 }
 
 function readCat(id: string) {
