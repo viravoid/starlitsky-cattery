@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 022
 
 # Stage a prebuilt Admin bundle without changing the active API or Admin link.
 ROOT_DIR="${ROOT_DIR:-/opt/starlitsky}"
@@ -19,8 +20,10 @@ RELEASES="$ADMIN_DIR/releases"
 TARGET="$RELEASES/$SHA"
 [[ ! -e "$TARGET" ]] || { echo "Admin release already staged: $TARGET" >&2; exit 1; }
 mkdir -p "$RELEASES" "$ADMIN_DIR/assets"
+chmod 0755 "$ADMIN_DIR" "$RELEASES" "$ADMIN_DIR/assets"
 STAGE="$(mktemp -d "$RELEASES/.stage.XXXXXXXX")"
 cp -a "$SOURCE/." "$STAGE/"
+chmod -R u=rwX,go=rX "$STAGE"
 
 # Keep every hash asset referenced by the old and new HTML. Never overwrite a
 # same-named asset with different bytes; that would break a still-open old page.
@@ -28,10 +31,12 @@ while IFS= read -r -d '' FILE; do
   RELATIVE="${FILE#"$STAGE/assets/"}"
   DEST="$ADMIN_DIR/assets/$RELATIVE"
   mkdir -p "$(dirname "$DEST")"
+  chmod 0755 "$(dirname "$DEST")"
   if [[ -e "$DEST" ]]; then
     cmp -s "$FILE" "$DEST" || { echo "Hash asset collision: $RELATIVE" >&2; exit 1; }
   else
     cp -p "$FILE" "$DEST"
+    chmod 0644 "$DEST"
   fi
 done < <(find "$STAGE/assets" -type f -print0)
 

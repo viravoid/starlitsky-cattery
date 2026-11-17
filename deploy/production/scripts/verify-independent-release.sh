@@ -30,6 +30,8 @@ printf '<html>new-admin<script src="/assets/new-hash.js"></script></html>' > "$R
 printf 'window.API_URL="%s";window.ADMIN_VERSION="new";' "$API_URL" > "$ROOT/bundle-new/assets/new-hash.js"
 
 ROOT_DIR="$ROOT" EXPECTED_API_BASE_URL="$API_URL" bash "$SCRIPT_DIR/stage-admin-release.sh" "$OLD" "$ROOT/bundle-old"
+[[ "$(stat -c '%a' "$ROOT/admin/releases/$OLD")" == '755' ]]
+[[ "$(stat -c '%a' "$ROOT/admin/releases/$OLD/index.html")" == '644' ]]
 ROOT_DIR="$ROOT" bash "$SCRIPT_DIR/switch-release-link.sh" admin "$OLD"
 
 cat > "$ROOT/api.py" <<'PY'
