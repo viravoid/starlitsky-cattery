@@ -206,3 +206,33 @@ Approval needed: merge the reviewed PR; execute production maintenance/backup,
 migration, API/Admin switch and restart; obtain a WeChat platform read-only login or
 screenshots from the负责人. Separate approval is required for any real phone charge,
 filing submission, WeChat review or formal release.
+
+## Independent review addendum — 2026-11-18
+
+PR #119's first implementation had two concrete gaps. If creation succeeded but a
+later image upload failed, editing the form and retrying could generate a new key
+and create a second litter. The Admin now enters edit mode as soon as the creation
+response succeeds. A targeted browser test confirms a failed upload followed by a
+changed form sends PATCH and leaves one litter. The P2002 recovery now accepts only
+the `create_request_identity` unique target; other unique failures propagate.
+The API verifier also covers two administrators sharing a key and server-normalized
+equivalent bodies. The SQLite unique index remains the concurrency authority.
+
+The actual production Nginx `error_log` was also examined. An isolated upstream
+failure showed Nginx 1.18 logs the full request line, including invite query
+credentials. PR #119 now provides an exact invite-verification location with its
+error log suppressed for both production API template stages and the trial HTTPS
+template. Path-only access logs retain method, path, status, bytes and request/upstream
+time. The combined templates passed isolated `nginx -t`; a synthetic upstream 502
+left no query credential in access/error logs while unrelated errors remained
+logged. This is a targeted mitigation for the legacy GET route, not a guarantee
+against errors before location selection or exposure in old logs. Keep global
+error logs restricted and rotate them under an approved retention policy.
+
+**No live Nginx setting changed.** The primary and trial sites still inherit the
+old full-URL global access log. Before production switch, prepare the exact live
+configuration change, inspect any other/default virtual host, run `nginx -t`, and
+verify effective access/error log paths after the approved reload. Raw historical
+logs must remain restricted; assess invite credential invalidation without putting
+logs or token values in GitHub. The independent Admin release design and isolated
+switch/rollback rehearsal are in PR #120, which remains a separate approval gate.
