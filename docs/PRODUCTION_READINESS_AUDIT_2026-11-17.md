@@ -112,10 +112,12 @@ real Admin uploads therefore remain production smoke items after authorization.
 Production COS configuration selected the current media bucket in Chengdu and kept
 the legacy bucket as a read source. Signed reads expire after 3600 seconds and
 upload URLs after 600 seconds. Credential presence was confirmed without exposing
-their values. Effective IAM scope, bucket policy, upload failure behavior in the
-live environment, and whether trial and production credentials overlap remain
-unverified; inspect policy read-only before cutover and use synthetic media only
-after separate deployment approval. No COS object was changed in this audit.
+their values. The trial API env declares COS but has a blank write bucket; its COS
+credential values do not equal production's. This avoids the observed shared-key
+risk but leaves trial media upload capability unverified. Effective IAM scope,
+bucket policy and upload failure behavior in the live environment remain unverified;
+inspect policy read-only before cutover and use synthetic media only after separate
+deployment approval. No COS object was changed in this audit.
 
 Admin asset names are content-hashed and currently cached for seven days. The HTML
 entry has no explicit `no-store` or short cache header. Preserve old hashed assets
