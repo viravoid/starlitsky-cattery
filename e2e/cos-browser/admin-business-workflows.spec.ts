@@ -761,18 +761,22 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
     database.close();
   }
   const userHeaders = { authorization: `Bearer ${userToken}` };
+  async function searchForFixtureUser() {
+    await Promise.all([
+      page.waitForResponse((response) =>
+        response.url().includes("/admin/users?") &&
+        response.url().includes(`q=${userId}`) &&
+        response.ok(),
+      ),
+      page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId),
+    ]);
+    await expect(page.getByText("加载中...")).toBeHidden();
+    await expect(page.getByRole("row").filter({ hasText: userId })).toBeVisible();
+  }
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: userHeaders })).status()).toBe(403);
   await loginAdmin(page);
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await Promise.all([
-    page.waitForResponse((response) =>
-      response.url().includes("/admin/users?") &&
-      response.url().includes(`q=${userId}`) &&
-      response.ok(),
-    ),
-    page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId),
-  ]);
-  await expect(page.getByText("加载中...")).toBeHidden();
+  await searchForFixtureUser();
   await page.getByRole("row").filter({ hasText: userId }).click();
   const detail = page.locator("aside.detail-panel");
   await expect(detail.getByRole("heading", { name: "直接认证为家长" })).toBeVisible();
@@ -824,7 +828,7 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: userHeaders })).status()).toBe(403);
   await page.reload();
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await searchForFixtureUser();
   await detail.getByRole("button", { name: "重新启用家长" }).click();
   await expect(page.getByText("家长身份已恢复")).toBeVisible();
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: userHeaders })).status()).toBe(200);
@@ -900,7 +904,7 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   }
   await page.reload();
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await searchForFixtureUser();
   await expect(secondLink).toHaveCount(2);
   await expect(secondLink.locator("select").nth(1)).toHaveValue("ended");
   await expect(secondLink.locator("select").nth(3)).toHaveValue("ended");
@@ -917,7 +921,7 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   }
   await page.reload();
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await searchForFixtureUser();
   await expect(detail.getByText("微信验证", { exact: true })).toBeVisible();
   await detail.getByRole("button", { name: "保存家长资料与关系" }).click();
   await expect(page.getByText("已认证为家长，并复用原 users.id")).toBeVisible();
