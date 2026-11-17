@@ -97,7 +97,7 @@ export async function createLitter(input, { actorId, idempotencyKey } = {}) {
       include: LITTER_INCLUDE,
     });
   } catch (error) {
-    if (error?.code !== "P2002" || !identity) throw error;
+    if (!identity || !isRequestIdentityConflict(error)) throw error;
     litter = await prisma.litter.findUnique({
       where: { create_request_identity: identity },
       include: LITTER_INCLUDE,
@@ -117,6 +117,15 @@ function normalizeIdempotencyKey(value) {
     throw badRequest("Idempotency-Key must contain 8-128 URL-safe characters");
   }
   return value;
+}
+
+function isRequestIdentityConflict(error) {
+  const target = error?.meta?.target;
+  return error?.code === "P2002" &&
+    (target === "litters_create_request_identity_key" ||
+      (Array.isArray(target) &&
+        target.length === 1 &&
+        target[0] === "create_request_identity"));
 }
 
 function hash(value) {

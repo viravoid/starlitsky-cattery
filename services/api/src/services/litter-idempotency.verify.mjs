@@ -49,10 +49,14 @@ try {
   const ordinary = await prisma.user.create({
     data: { nickname: "Synthetic user", roles: { create: { role: "user" } } },
   });
+  const otherAdmin = await prisma.user.create({
+    data: { nickname: "Synthetic second admin", roles: { create: { role: "admin" } } },
+  });
   const father = await prisma.cat.create({ data: { name: "Synthetic father" } });
   const mother = await prisma.cat.create({ data: { name: "Synthetic mother" } });
   const adminToken = await createToken(admin.id);
   const ordinaryToken = await createToken(ordinary.id);
+  const otherAdminToken = await createToken(otherAdmin.id);
   const body = { name: "Synthetic litter", fatherCatId: father.id, motherCatId: mother.id };
   const preflight = await fetch(`http://127.0.0.1:${server.address().port}/litters`, {
     method: "OPTIONS",
@@ -69,6 +73,15 @@ try {
   assert.equal(first.data.id, retry.data.id, "same key and body must reuse the litter");
   assert.equal(await prisma.litter.count(), baseline + 1);
 
+  const otherAdminsLitter = await post(body, "same-key-0001", otherAdminToken);
+  assert.notEqual(otherAdminsLitter.data.id, first.data.id, "a shared key cannot replay another admin's litter");
+  assert.equal(await prisma.litter.count(), baseline + 2);
+
+  const normalized = await post({ ...body, name: `  ${body.name}  ` }, "normalized-key-0001", adminToken);
+  const normalizedRetry = await post(body, "normalized-key-0001", adminToken);
+  assert.equal(normalized.data.id, normalizedRetry.data.id, "hashing must use normalized server data");
+  assert.equal(await prisma.litter.count(), baseline + 3);
+
   await assert.rejects(
     () => post({ ...body, note: "different" }, "same-key-0001", adminToken),
     (error) => error?.statusCode === 409,
@@ -80,22 +93,22 @@ try {
     post(body, "parallel-key-0002", adminToken),
   ]);
   assert.equal(simultaneous[0].data.id, simultaneous[1].data.id);
-  assert.equal(await prisma.litter.count(), baseline + 2);
+  assert.equal(await prisma.litter.count(), baseline + 4);
 
   await post(body, "lost-response-key-0003", adminToken); // The caller discards this response.
   const recovered = await post(body, "lost-response-key-0003", adminToken);
   assert.equal(recovered.data.id, (await post(body, "lost-response-key-0003", adminToken)).data.id);
-  assert.equal(await prisma.litter.count(), baseline + 3);
+  assert.equal(await prisma.litter.count(), baseline + 5);
 
   const distinct = await post(body, "different-key-0004", adminToken);
   assert.notEqual(distinct.data.id, first.data.id, "same name with a new key is a new litter");
-  assert.equal(await prisma.litter.count(), baseline + 4);
+  assert.equal(await prisma.litter.count(), baseline + 6);
 
   await post(body, null, adminToken);
   await post(body, null, adminToken);
   assert.equal(
     await prisma.litter.count(),
-    baseline + 6,
+    baseline + 8,
     "legacy keyless requests stay compatible",
   );
 
@@ -103,7 +116,8 @@ try {
     () => post(body, "forbidden-key-0005", ordinaryToken),
     (error) => error?.statusCode === 403,
   );
-  assert.equal(await prisma.litter.count(), baseline + 6);
+  assert.equal(await prisma.litter.count(), baseline + 8);
+  assert.equal(await prisma.cat.count(), 2, "litter retries must not create parent cats");
   console.log("Litter POST idempotency verification passed");
 } finally {
   await new Promise((resolve) => server.close(resolve));

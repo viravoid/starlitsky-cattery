@@ -1,0 +1,48 @@
+# Trial host is a separate Nginx site in the existing production topology.
+# Install alongside starlitsky.conf so the starlitsky_path_only format is defined once.
+# Apply the same access-log policy to HTTP and HTTPS. The API upstream remains isolated.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name trial-api.__DOMAIN__;
+    access_log /var/log/nginx/starlitsky-trial-access.log starlitsky_path_only;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 308 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name trial-api.__DOMAIN__;
+    access_log /var/log/nginx/starlitsky-trial-access.log starlitsky_path_only;
+
+    ssl_certificate /etc/letsencrypt/live/trial-api.__DOMAIN__/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/trial-api.__DOMAIN__/privkey.pem;
+
+    client_max_body_size 1m;
+
+    location ^~ /trial-media/ {
+        alias /var/www/starlitsky-trial-media/;
+        add_header Cache-Control "public, max-age=3600";
+    }
+
+    location / {
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_pass http://127.0.0.1:8081;
+    }
+}
