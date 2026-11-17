@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { prisma } from "../db/prisma.mjs";
-import { badRequest, notFound } from "../utils/errors.mjs";
+import { badRequest, conflict, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parseBooleanParam, parsePagination } from "../utils/request.mjs";
 import { ensureActiveParentCatsExist } from "./cat-service.mjs";
 
@@ -57,21 +58,69 @@ export async function getLitter(id) {
   return toLitterDto(litter);
 }
 
-export async function createLitter(input) {
+export async function createLitter(input, { actorId, idempotencyKey } = {}) {
   assertPlainObject(input);
   const data = normalizeLitterInput(input, {
     mode: "create",
     allowedFields: CREATE_FIELDS,
   });
 
+  const key = normalizeIdempotencyKey(idempotencyKey);
+  if (key && !actorId) throw badRequest("Idempotency key requires an authenticated actor");
+  const identity = key ? hash(`${actorId}:${key}`) : null;
+  const payloadHash = key ? hash(JSON.stringify(data)) : null;
+
+  if (identity) {
+    const existing = await prisma.litter.findUnique({
+      where: { create_request_identity: identity },
+      include: LITTER_INCLUDE,
+    });
+    if (existing) {
+      if (existing.create_request_hash !== payloadHash) {
+        throw conflict("Idempotency key was already used for different litter data");
+      }
+      return toLitterDto(existing);
+    }
+  }
+
   await ensureActiveParentCatsExist(data.father_cat_id, data.mother_cat_id);
 
-  const litter = await prisma.litter.create({
-    data,
-    include: LITTER_INCLUDE,
-  });
+  let litter;
+  try {
+    litter = await prisma.litter.create({
+      data: {
+        ...data,
+        ...(identity
+          ? { create_request_identity: identity, create_request_hash: payloadHash }
+          : {}),
+      },
+      include: LITTER_INCLUDE,
+    });
+  } catch (error) {
+    if (error?.code !== "P2002" || !identity) throw error;
+    litter = await prisma.litter.findUnique({
+      where: { create_request_identity: identity },
+      include: LITTER_INCLUDE,
+    });
+    if (!litter) throw error;
+    if (litter.create_request_hash !== payloadHash) {
+      throw conflict("Idempotency key was already used for different litter data");
+    }
+  }
 
   return toLitterDto(litter);
+}
+
+function normalizeIdempotencyKey(value) {
+  if (value == null) return null;
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]{8,128}$/.test(value)) {
+    throw badRequest("Idempotency-Key must contain 8-128 URL-safe characters");
+  }
+  return value;
+}
+
+function hash(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 export async function updateLitter(id, input) {

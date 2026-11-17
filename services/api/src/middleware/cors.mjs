@@ -1,5 +1,5 @@
 const CORS_METHODS = "GET,POST,PATCH,DELETE,OPTIONS";
-const CORS_HEADERS = "authorization,content-type";
+const CORS_HEADERS = "authorization,content-type,idempotency-key";
 
 export function applyCorsHeaders(request, response, config) {
   const origin = request.headers.origin;

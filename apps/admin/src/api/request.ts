@@ -14,8 +14,12 @@ export function adminGet<TData>(path: string) {
   return adminRequest<TData>({ path }, "GET");
 }
 
-export function adminPost<TData, TBody = unknown>(path: string, data?: TBody) {
-  return adminRequest<TData, TBody>({ path, data }, "POST");
+export function adminPost<TData, TBody = unknown>(
+  path: string,
+  data?: TBody,
+  headers?: Record<string, string>,
+) {
+  return adminRequest<TData, TBody>({ path, data, headers }, "POST");
 }
 
 export function adminPatch<TData, TBody = unknown>(path: string, data?: TBody) {

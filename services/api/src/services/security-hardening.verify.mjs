@@ -56,7 +56,7 @@ await simulateServerRequest(
     headers: {
       origin: "https://admin.example.com",
       host: "api.example.com",
-      "access-control-request-headers": "authorization,content-type",
+      "access-control-request-headers": "authorization,content-type,idempotency-key",
     },
     remoteAddress: "203.0.113.10",
   },
@@ -65,7 +65,7 @@ await simulateServerRequest(
 );
 assert.equal(optionsResponse.statusCode, 204);
 assert.equal(optionsResponse.headers["access-control-allow-origin"], "https://admin.example.com");
-assert.equal(optionsResponse.headers["access-control-allow-headers"], "authorization,content-type");
+assert.equal(optionsResponse.headers["access-control-allow-headers"], "authorization,content-type,idempotency-key");
 
 const miniappHealthResponse = createFakeResponse();
 await simulateServerRequest(
