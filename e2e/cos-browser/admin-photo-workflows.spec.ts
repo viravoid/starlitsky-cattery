@@ -75,6 +75,13 @@ test("admin can add gallery photos and replace one without leaving stale present
 
   await page.reload();
   await page.getByRole("link", { name: "其它猫咪" }).click();
+  const refreshedCats = page.waitForResponse(
+    (response) =>
+      response.url().startsWith(`${API_ORIGIN}/cats?`) && response.request().method() === "GET",
+  );
+  await page.getByRole("button", { name: "刷新" }).click();
+  expect((await refreshedCats).status()).toBe(200);
+  await expect(page.getByText("正在加载真实数据...")).toHaveCount(0);
   await page.getByLabel("搜索猫咪").fill("COS E2E 隔离测试猫");
   await expect(page.getByText("COS E2E 隔离测试猫")).toBeVisible();
   await page

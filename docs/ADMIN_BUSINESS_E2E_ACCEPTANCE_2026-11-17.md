@@ -18,7 +18,7 @@
 | 家长自主申请、拒绝与再申请       | 两个测试用户提交申请；后台分别通过、拒绝；通过者停用后再次申请并通过。                                                    | 只有通过者获得 `/me/cats` 200；审核状态、备注持久化；再申请后只有一个资料和一条有效猫咪关系。为满足冷却期，仅调整隔离库测试申请时间。                                       | 同一 spec：`self submitted parent applications...`                                  | PASS |
 | 媒体库                           | 搜索、类型/状态筛选、预览测试图片、绑定测试猫、刷新后解绑。                                                               | `media_bindings` 从 1→2→1 条有效引用；目标绑定删除，原有引用与文件仍保留。                                                                                                  | 同一 spec：`media library finds...`                                                 | PASS |
 | 概览统计                         | 打开概览，将评论总数视为统计而非待处理事项。                                                                              | `/admin/dashboard` 的评论数与 SQLite `comments` 非删除记录计数一致；UI 文案位置符合含义。                                                                                   | 同一 spec：`dashboard labels...`；`DashboardPage.tsx`                               | PASS |
-| 既有照片、固定页面、COS 上传回归 | 执行原有相册替换、草稿预览、双桶上传等 6 个浏览器用例。                                                                   | PR #116/#117 阶段全套 17/17；加入边界补测后最终全套 18/18 通过；相册用例改为先搜索目标猫以适配分页。                                                                        | `e2e/cos-browser/admin-photo-workflows.spec.ts` 等既有 spec                         | PASS |
+| 既有照片、固定页面、COS 上传回归 | 执行原有相册替换、草稿预览、双桶上传等 6 个浏览器用例。                                                                   | PR #116/#117 阶段全套 17/17；加入边界补测后本地全套 18/18 通过；相册用例搜索前明确刷新并等待 API 和载入结束，以适配分页及异步加载。                                         | `e2e/cos-browser/admin-photo-workflows.spec.ts` 等既有 spec                         | PASS |
 
 ## 隔离环境边界补测
 
