@@ -1,0 +1,118 @@
+# Reviewed against the observed live four-server production site on 2026-11-18.
+# Use only after substituting __DOMAIN__ and comparing against the live config.
+# Define this log format exactly once in the Nginx http context. The separate
+# trial site references the same name and must be updated in the same window.
+log_format starlitsky_path_only '$remote_addr [$time_local] '
+                               '"$request_method $uri $server_protocol" '
+                               '$status $body_bytes_sent $request_time $upstream_response_time';
+
+upstream starlitsky_api {
+    server 127.0.0.1:8080;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name admin.__DOMAIN__;
+    access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 308 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.__DOMAIN__;
+    access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 308 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name admin.__DOMAIN__;
+    access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
+
+    ssl_certificate /etc/letsencrypt/live/__DOMAIN__/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/__DOMAIN__/privkey.pem;
+
+    root /opt/starlitsky/admin/current;
+    index index.html;
+    client_max_body_size 10m;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-store" always;
+    }
+
+    location ^~ /assets/ {
+        root /opt/starlitsky/admin;
+        try_files $uri =404;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+    }
+
+    location ~* \.(?:css|js|mjs|png|jpg|jpeg|gif|webp|svg|ico|woff2?)$ {
+        try_files $uri =404;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name api.__DOMAIN__;
+    access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
+
+    ssl_certificate /etc/letsencrypt/live/__DOMAIN__/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/__DOMAIN__/privkey.pem;
+    client_max_body_size 10m;
+
+    location / {
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_pass http://starlitsky_api;
+    }
+
+    # Legacy GET verification carries invite credentials in its query string.
+    location = /parent-invites/verify {
+        error_log /dev/null;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_pass http://starlitsky_api;
+    }
+}

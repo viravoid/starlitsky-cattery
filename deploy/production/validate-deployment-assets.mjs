@@ -62,6 +62,27 @@ const checks = [
     excludes: ["add_header Access-Control-Allow-Origin *"],
   },
   {
+    path: "deploy/production/nginx/starlitsky-https-cutover.conf.template",
+    includes: [
+      "log_format starlitsky_path_only",
+      "root /opt/starlitsky/admin/current;",
+      "root /opt/starlitsky/admin;",
+      'add_header Cache-Control "no-store" always;',
+      "location = /parent-invites/verify",
+      "error_log /dev/null;",
+      "server_name api.__DOMAIN__;",
+      "server_name admin.__DOMAIN__;",
+    ],
+  },
+  {
+    path: "deploy/production/nginx/starlitsky-trial.conf.template",
+    includes: [
+      "access_log /var/log/nginx/starlitsky-trial-access.log starlitsky_path_only;",
+      "location = /parent-invites/verify",
+      "error_log /dev/null;",
+    ],
+  },
+  {
     path: "deploy/production/scripts/backup-sqlite.sh",
     includes: [".backup", "RETENTION_DAYS", "Retention skipped: only one backup exists."],
     excludes: [" cp ", "rsync", "scp ", "ssh "],
