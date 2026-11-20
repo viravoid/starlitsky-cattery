@@ -34,6 +34,7 @@
     "verify:cos-migration": "npm --workspace @starlitsky/api run verify:cos-migration",
     "e2e:cos-browser": "playwright test --config e2e/cos-browser/playwright.config.ts",
     "verify:migration-smoke": "npm --workspace @starlitsky/api run verify:migration-smoke",
+    "verify:litter-idempotency": "npm --workspace @starlitsky/api run verify:litter-idempotency",
     "verify:parent-flow": "npm --workspace @starlitsky/api run verify:parent-flow",
     "verify:security": "npm --workspace @starlitsky/api run verify:security",
     "verify:selection-application": "npm --workspace @starlitsky/api run verify:selection-application",

@@ -3,6 +3,11 @@
 # Stage 1 is the active HTTP bootstrap config. After certificates are issued,
 # replace the Stage 1 server blocks with the commented Stage 2 HTTPS blocks.
 
+# Log request paths only. Invite/QR credentials may be carried in query strings.
+log_format starlitsky_path_only '$remote_addr [$time_local] '
+                               '"$request_method $uri $server_protocol" '
+                               '$status $body_bytes_sent $request_time $upstream_response_time';
+
 upstream starlitsky_api {
     server 127.0.0.1:8080;
     keepalive 16;
@@ -12,6 +17,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name admin.__DOMAIN__;
+    access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
 
     root /opt/starlitsky/app/dist/admin;
     index index.html;
@@ -38,6 +44,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name api.__DOMAIN__;
+    access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
 
     client_max_body_size 10m;
 
@@ -58,6 +65,22 @@ server {
         proxy_send_timeout 60s;
         proxy_pass http://starlitsky_api;
     }
+
+    # Nginx error_log includes the full request line on upstream failures.
+    # Legacy invite verification carries credentials in its query string.
+    location = /parent-invites/verify {
+        error_log /dev/null;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_pass http://starlitsky_api;
+    }
 }
 
 # Stage 2 final HTTPS config. Enable only after certificates exist.
@@ -65,6 +88,7 @@ server {
 #     listen 80;
 #     listen [::]:80;
 #     server_name admin.__DOMAIN__;
+#     access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
 #     return 308 https://$host$request_uri;
 # }
 #
@@ -72,6 +96,7 @@ server {
 #     listen 80;
 #     listen [::]:80;
 #     server_name api.__DOMAIN__;
+#     access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
 #     return 308 https://$host$request_uri;
 # }
 #
@@ -79,6 +104,7 @@ server {
 #     listen 443 ssl http2;
 #     listen [::]:443 ssl http2;
 #     server_name admin.__DOMAIN__;
+#     access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
 #
 #     ssl_certificate /etc/letsencrypt/live/admin.__DOMAIN__/fullchain.pem;
 #     ssl_certificate_key /etc/letsencrypt/live/admin.__DOMAIN__/privkey.pem;
@@ -104,6 +130,7 @@ server {
 #     listen 443 ssl http2;
 #     listen [::]:443 ssl http2;
 #     server_name api.__DOMAIN__;
+#     access_log /var/log/nginx/starlitsky-access.log starlitsky_path_only;
 #
 #     ssl_certificate /etc/letsencrypt/live/api.__DOMAIN__/fullchain.pem;
 #     ssl_certificate_key /etc/letsencrypt/live/api.__DOMAIN__/privkey.pem;
@@ -111,6 +138,20 @@ server {
 #     client_max_body_size 10m;
 #
 #     location / {
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_set_header X-Forwarded-Host $host;
+#         proxy_set_header Connection "";
+#         proxy_read_timeout 60s;
+#         proxy_send_timeout 60s;
+#         proxy_pass http://starlitsky_api;
+#     }
+#
+#     location = /parent-invites/verify {
+#         error_log /dev/null;
 #         proxy_http_version 1.1;
 #         proxy_set_header Host $host;
 #         proxy_set_header X-Real-IP $remote_addr;

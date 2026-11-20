@@ -19,6 +19,7 @@
     "verify:cos-migration": "node src/services/object-storage-lightcos.verify.mjs && node src/services/lightcos-read-probe.verify.mjs && node src/services/cos-migration-service.verify.mjs && node src/services/offline-image-inventory.verify.mjs",
     "verify:fixed-page-media": "node src/services/fixed-page-media-service.verify.mjs",
     "verify:migration-smoke": "node src/services/prisma-migration-smoke.verify.mjs",
+    "verify:litter-idempotency": "node src/services/litter-idempotency.verify.mjs",
     "verify:production-env": "node src/config/production-env.verify.mjs",
     "verify:security": "node src/services/security-hardening.verify.mjs",
     "verify:admin-auth": "node src/services/admin-auth-service.verify.mjs",

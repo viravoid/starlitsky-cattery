@@ -45,10 +45,13 @@ export async function routeLittersRequest(request, response, url, context) {
     }
 
     if (request.method === "POST") {
-      await requireAdminMutationRole(request, context.config);
+      const actor = await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         statusCode: 201,
-        data: await createLitter(await readJsonBody(request)),
+        data: await createLitter(await readJsonBody(request), {
+          actorId: actor.id,
+          idempotencyKey: request.headers["idempotency-key"],
+        }),
         message: "Litter created",
       });
       return;

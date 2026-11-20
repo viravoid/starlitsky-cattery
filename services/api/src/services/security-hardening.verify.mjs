@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { applyCorsHeaders, isAllowedOrigin } from "../middleware/cors.mjs";
+import { attachRequestLogger } from "../middleware/request-logger.mjs";
 import {
   assertRateLimit,
   buildIpRateLimitKey,
@@ -11,9 +12,26 @@ import {
 import { ApiError } from "../utils/errors.mjs";
 import { fetchWithTimeout, isFetchTimeoutError } from "../utils/fetch.mjs";
 import { sendError } from "../utils/response.mjs";
+import { logger } from "../utils/logger.mjs";
 import { routeRequest } from "../routes/index.mjs";
 
 const originalNodeEnv = process.env.NODE_ENV;
+const capturedLogs = [];
+const originalLogInfo = logger.info;
+logger.info = (message) => capturedLogs.push(message);
+try {
+  const response = new EventEmitter();
+  response.statusCode = 200;
+  attachRequestLogger(
+    { method: "GET", url: "/parent-invites/verify?token=private-invite-token" },
+    response,
+  );
+  response.emit("finish");
+  assert.match(capturedLogs[0], /GET \/parent-invites\/verify 200/);
+  assert.equal(capturedLogs[0].includes("private-invite-token"), false);
+} finally {
+  logger.info = originalLogInfo;
+}
 const originalCorsAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS;
 process.env.NODE_ENV = "production";
 delete process.env.CORS_ALLOWED_ORIGINS;
@@ -56,7 +74,7 @@ await simulateServerRequest(
     headers: {
       origin: "https://admin.example.com",
       host: "api.example.com",
-      "access-control-request-headers": "authorization,content-type",
+      "access-control-request-headers": "authorization,content-type,idempotency-key",
     },
     remoteAddress: "203.0.113.10",
   },
@@ -65,7 +83,7 @@ await simulateServerRequest(
 );
 assert.equal(optionsResponse.statusCode, 204);
 assert.equal(optionsResponse.headers["access-control-allow-origin"], "https://admin.example.com");
-assert.equal(optionsResponse.headers["access-control-allow-headers"], "authorization,content-type");
+assert.equal(optionsResponse.headers["access-control-allow-headers"], "authorization,content-type,idempotency-key");
 
 const miniappHealthResponse = createFakeResponse();
 await simulateServerRequest(

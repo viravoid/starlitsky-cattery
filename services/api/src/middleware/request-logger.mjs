@@ -6,7 +6,15 @@ export function attachRequestLogger(request, response) {
   response.on("finish", () => {
     const durationMs = Date.now() - startedAt;
     logger.info(
-      `${request.method || "UNKNOWN"} ${request.url || "/"} ${response.statusCode} ${durationMs}ms`,
+      `${request.method || "UNKNOWN"} ${safePathname(request.url)} ${response.statusCode} ${durationMs}ms`,
     );
   });
+}
+
+function safePathname(rawUrl) {
+  try {
+    return new URL(rawUrl || "/", "http://localhost").pathname;
+  } catch {
+    return "/invalid-url";
+  }
 }

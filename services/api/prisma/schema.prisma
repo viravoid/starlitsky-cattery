@@ -281,6 +281,8 @@ model Litter {
   created_at           DateTime  @default(now())
   updated_at           DateTime  @updatedAt
   deleted_at           DateTime?
+  create_request_identity String?  @unique
+  create_request_hash     String?
 
   father_cat      Cat             @relation("LitterFather", fields: [father_cat_id], references: [id], onDelete: Restrict)
   mother_cat      Cat             @relation("LitterMother", fields: [mother_cat_id], references: [id], onDelete: Restrict)

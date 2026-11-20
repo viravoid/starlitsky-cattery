@@ -90,17 +90,19 @@ test("all fixed-page templates open a readable preview without changing public c
     "contact",
   ];
   for (const slug of slugs) {
-    await page.goto(`/#fixed-pages/${slug}`);
-    const editor = page.getByRole("complementary", { name: "固定页面编辑" });
-    await expect(editor.getByRole("button", { name: "预览未保存内容" })).toBeVisible();
-    await editor.getByRole("button", { name: "预览未保存内容" }).click();
-    const preview = page.getByRole("region", { name: "未保存内容预览" });
-    await expect(preview).toBeVisible();
-    await expect(preview.locator(".fixed-draft-preview-content"), slug).not.toBeEmpty();
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
-    ).toBe(true);
-    await preview.getByRole("button", { name: "返回编辑" }).click();
+    await test.step(`preview ${slug}`, async () => {
+      await page.goto(`/#fixed-pages/${slug}`);
+      const editor = page.getByRole("complementary", { name: "固定页面编辑" });
+      await expect(editor.getByRole("button", { name: "预览未保存内容" })).toBeVisible();
+      await editor.getByRole("button", { name: "预览未保存内容" }).click();
+      const preview = page.getByRole("region", { name: "未保存内容预览" });
+      await expect(preview).toBeVisible();
+      await expect(preview.locator(".fixed-draft-preview-content"), slug).not.toBeEmpty();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+      ).toBe(true);
+      await preview.getByRole("button", { name: "返回编辑" }).click();
+    });
   }
 });
 

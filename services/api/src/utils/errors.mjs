@@ -41,6 +41,14 @@ export function notFound(message = "Not found") {
   });
 }
 
+export function conflict(message = "Conflict") {
+  return new ApiError({
+    statusCode: 409,
+    code: "CONFLICT",
+    message,
+  });
+}
+
 export function methodNotAllowed(message = "Method not allowed") {
   return new ApiError({
     statusCode: 405,

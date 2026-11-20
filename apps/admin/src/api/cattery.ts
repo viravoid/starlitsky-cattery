@@ -248,8 +248,10 @@ export function getLitter(id: string) {
   return unwrap<LitterData>(adminGet(`/litters/${encodeURIComponent(id)}`));
 }
 
-export function createLitter(data: CreateLitterRequest) {
-  return unwrap<LitterData, CreateLitterRequest>(adminPost("/litters", data));
+export function createLitter(data: CreateLitterRequest, idempotencyKey: string) {
+  return unwrap<LitterData, CreateLitterRequest>(
+    adminPost("/litters", data, { "idempotency-key": idempotencyKey }),
+  );
 }
 
 export function updateLitter(id: string, data: UpdateLitterRequest) {

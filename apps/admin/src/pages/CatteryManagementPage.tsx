@@ -244,6 +244,7 @@ export function CatteryManagementPage() {
   const [litters, setLitters] = useState<LitterData[]>([]);
   const [selectedCat, setSelectedCat] = useState<CatData | null>(null);
   const selectedCatIdRef = useRef<string | null>(null);
+  const litterCreateRequestRef = useRef<{ payload: string; key: string } | null>(null);
   const [selectedLitter, setSelectedLitter] = useState<LitterData | null>(null);
   const [catEditorMode, setCatEditorMode] = useState<EditorMode>(null);
   const [litterEditorMode, setLitterEditorMode] = useState<EditorMode>(null);
@@ -640,6 +641,7 @@ export function CatteryManagementPage() {
 
   function openCreateLitter() {
     if (litterDirty && !confirm("当前窝次表单有未保存修改，确定新建吗？")) return;
+    litterCreateRequestRef.current = null;
     setActiveSection("litters");
     setSelectedLitter(null);
     const next = {
@@ -665,6 +667,7 @@ export function CatteryManagementPage() {
       !confirm("当前窝次表单有未保存修改，确定切换吗？")
     )
       return;
+    litterCreateRequestRef.current = null;
     setActiveSection("litters");
     setNotice("");
     setError("");
@@ -709,12 +712,24 @@ export function CatteryManagementPage() {
     setNotice("");
     try {
       const payload = toLitterPayload(litterDraft);
+      const isCreate = litterEditorMode !== "edit";
+      const payloadSignature = JSON.stringify(payload);
+      if (
+        isCreate &&
+        litterCreateRequestRef.current?.payload !== payloadSignature
+      ) {
+        litterCreateRequestRef.current = { payload: payloadSignature, key: crypto.randomUUID() };
+      }
       const savedLitter =
-        litterEditorMode === "edit" && selectedLitter
+        !isCreate && selectedLitter
           ? await updateLitter(selectedLitter.id, payload)
-          : await createLitter(payload as CreateLitterRequest);
+          : await createLitter(payload as CreateLitterRequest, litterCreateRequestRef.current!.key);
 
       setSelectedLitter(savedLitter);
+      if (isCreate) {
+        setLitterEditorMode("edit");
+        litterCreateRequestRef.current = null;
+      }
       if (pendingLitterImageFile) await uploadPendingLitterImage(savedLitter.id);
       else await loadLitterImages(savedLitter.id);
       await loadLitterKittens(savedLitter.id);
@@ -722,7 +737,8 @@ export function CatteryManagementPage() {
       setLitterDraft(next);
       setLitterBaseline(serializeDraft(next));
       setLitterEditorMode("edit");
-      setNotice(litterEditorMode === "edit" ? "窝次资料已更新" : "窝次已新增");
+      litterCreateRequestRef.current = null;
+      setNotice(isCreate ? "窝次已新增" : "窝次资料已更新");
       await loadData();
     } catch (saveError) {
       setError(getErrorMessage(saveError));

@@ -118,17 +118,25 @@ Behavior:
 
 `deploy/production/scripts/install-build-migrate-restart.sh` calls this backup script before `db:migrate:deploy` whenever the configured database already exists. If the backup fails, deployment stops before migration. On first deploy, when no database exists yet, the migration proceeds and then database ownership is normalized for the service user.
 
-Restore outline:
+Restoring a pre-migration SQLite file is safe only while writes remain stopped and no
+business record has been created since that backup. A code rollback usually does not
+require a schema rollback when the old API has been tested against the migrated copy.
+After writes resume, preserve the current database and use a forward repair or a
+reviewed record-level replay plan; never overwrite new parent applications, posts, or
+other records with an old backup. See
+`docs/PRODUCTION_READINESS_AUDIT_2026-11-17.md` for the tested recovery sequence.
 
-```bash
-sudo systemctl stop starlitsky-api
-sudo deploy/production/scripts/backup-sqlite.sh
-sudo gunzip -c /opt/starlitsky/backups/sqlite/starlitsky-YYYYMMDDTHHMMSSZ.sqlite.gz > /opt/starlitsky/data/starlitsky.sqlite
-sudo chown starlitsky:starlitsky /opt/starlitsky/data/starlitsky.sqlite
-sudo chmod 0640 /opt/starlitsky/data/starlitsky.sqlite
-sudo systemctl start starlitsky-api
-curl --fail http://127.0.0.1:8080/health
-```
+The `install-build-migrate-restart.sh` script builds inside the active app path. For
+an existing production service, prepare a separate immutable release and switch it
+during an approved maintenance window. Do not run the in-place script as the final
+production cutover procedure.
+
+The current production Nginx global access log uses full request URLs, which can
+contain parent-invite credentials. The template now uses a path-only log format, but
+the live Nginx config and historical logs require a separately approved change.
+The current Admin root is under the same active `app` symlink as the API. The
+approved cutover must first decouple Admin into an independent root to switch the
+two in sequence; otherwise a symlink flip changes both at once.
 
 ## Env Templates
 

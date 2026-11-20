@@ -427,6 +427,76 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   });
 });
 
+test("failed image upload after litter creation retries as an edit", async ({ page, request }) => {
+  const token = await loginAdmin(page);
+  const headers = { authorization: `Bearer ${token}` };
+  const father = await request.post(`${API_ORIGIN}/cats`, {
+    headers,
+    data: { name: "Upload retry father", gender: "male" },
+  });
+  const mother = await request.post(`${API_ORIGIN}/cats`, {
+    headers,
+    data: { name: "Upload retry mother", gender: "female" },
+  });
+  expect(father.status()).toBe(201);
+  expect(mother.status()).toBe(201);
+  const fatherId = (await father.json()).data.id as string;
+  const motherId = (await mother.json()).data.id as string;
+
+  await page.getByRole("link", { name: "窝次" }).click();
+  await page.getByRole("button", { name: "刷新" }).click();
+  const editor = page.locator('aside[aria-label="窝次详情"]');
+  await editor.getByRole("button", { name: "新增窝次" }).click();
+  await editor.getByLabel("窝次名称").fill("Upload retry litter");
+  await editor.getByLabel("父亲").selectOption(fatherId);
+  await editor.getByLabel("母亲").selectOption(motherId);
+  await editor.getByLabel("上传图片").setInputFiles({
+    name: "synthetic.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==",
+      "base64",
+    ),
+  });
+  await page.route(`${API_ORIGIN}/media/uploads`, (route) =>
+    route.fulfill({ status: 503, contentType: "application/json", body: '{"message":"synthetic upload failure"}' }),
+  );
+  const createResponse = page.waitForResponse(
+    (response) => response.url() === `${API_ORIGIN}/litters` && response.request().method() === "POST",
+  );
+  const uploadFailure = page.waitForResponse(
+    (response) => response.url() === `${API_ORIGIN}/media/uploads` && response.status() === 503,
+  );
+  await editor.getByRole("button", { name: "保存" }).click();
+  const created = await createResponse;
+  expect(created.status()).toBe(201);
+  const litterId = (await created.json()).data.id as string;
+  await uploadFailure;
+  await expect(editor.getByRole("button", { name: "保存" })).toBeEnabled();
+
+  await editor.getByRole("textbox", { name: "备注", exact: true }).fill("Retry after image failure");
+  const updateResponse = page.waitForResponse(
+    (response) =>
+      response.url() === `${API_ORIGIN}/litters/${litterId}` &&
+      response.request().method() === "PATCH",
+  );
+  await editor.getByRole("button", { name: "保存" }).click();
+  expect((await updateResponse).status()).toBe(200);
+  expect(readRow("litters", litterId)).toMatchObject({ note: "Retry after image failure" });
+  const database = openDatabase();
+  try {
+    expect(
+      (
+        database.prepare("SELECT COUNT(*) AS count FROM litters WHERE name = ?").get("Upload retry litter") as {
+          count: number;
+        }
+      ).count,
+    ).toBe(1);
+  } finally {
+    database.close();
+  }
+});
+
 test("dashboard labels total comments as a statistic", async ({ page, request }) => {
   const token = await loginAdmin(page);
   const response = await request.get(`${API_ORIGIN}/admin/dashboard`, {
@@ -761,10 +831,22 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
     database.close();
   }
   const userHeaders = { authorization: `Bearer ${userToken}` };
+  async function searchForFixtureUser() {
+    await Promise.all([
+      page.waitForResponse((response) =>
+        response.url().includes("/admin/users?") &&
+        response.url().includes(`q=${userId}`) &&
+        response.ok(),
+      ),
+      page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId),
+    ]);
+    await expect(page.getByText("加载中...")).toBeHidden();
+    await expect(page.getByRole("row").filter({ hasText: userId })).toBeVisible();
+  }
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: userHeaders })).status()).toBe(403);
   await loginAdmin(page);
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await searchForFixtureUser();
   await page.getByRole("row").filter({ hasText: userId }).click();
   const detail = page.locator("aside.detail-panel");
   await expect(detail.getByRole("heading", { name: "直接认证为家长" })).toBeVisible();
@@ -816,7 +898,7 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: userHeaders })).status()).toBe(403);
   await page.reload();
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await searchForFixtureUser();
   await detail.getByRole("button", { name: "重新启用家长" }).click();
   await expect(page.getByText("家长身份已恢复")).toBeVisible();
   expect((await request.get(`${API_ORIGIN}/me/cats`, { headers: userHeaders })).status()).toBe(200);
@@ -892,7 +974,7 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   }
   await page.reload();
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await searchForFixtureUser();
   await expect(secondLink).toHaveCount(2);
   await expect(secondLink.locator("select").nth(1)).toHaveValue("ended");
   await expect(secondLink.locator("select").nth(3)).toHaveValue("ended");
@@ -909,10 +991,12 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   }
   await page.reload();
   await page.getByRole("link", { name: "用户 / 家长管理" }).click();
-  await page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId);
+  await searchForFixtureUser();
   await expect(detail.getByText("微信验证", { exact: true })).toBeVisible();
   await detail.getByRole("button", { name: "保存家长资料与关系" }).click();
   await expect(page.getByText("已认证为家长，并复用原 users.id")).toBeVisible();
+  await expect(detail.getByRole("button", { name: "保存家长资料与关系" })).toBeEnabled();
+  await expect(detail.getByText("微信验证", { exact: true })).toBeVisible();
   const unchangedPhoneDb = openDatabase();
   try {
     expect(
@@ -924,7 +1008,16 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
     unchangedPhoneDb.close();
   }
   await detail.getByLabel("手机").fill("13900000001");
+  await expect(detail.getByLabel("手机")).toHaveValue("13900000001");
+  const manualPhoneSave = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/admin/users/${userId}/certify-parent`) &&
+      response.request().method() === "POST",
+  );
   await detail.getByRole("button", { name: "保存家长资料与关系" }).click();
+  const manualPhoneResponse = await manualPhoneSave;
+  expect(manualPhoneResponse.status()).toBe(200);
+  expect(manualPhoneResponse.request().postDataJSON().contactPhone).toBe("13900000001");
   await expect(detail.getByText("管理员录入 / 未经微信验证", { exact: true })).toBeVisible();
   const changedPhoneDb = openDatabase();
   try {

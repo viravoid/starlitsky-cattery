@@ -5,11 +5,11 @@ This repository is configured for the real StarlitSky Mini Program.
 ## Production config
 
 - AppID: `wx6d3a94b9d6eadeaa`
-- trial API base: unset until the isolated HTTPS test API is ready; trial upload is blocked
+- trial API base in source: `https://trial-api.starlitskycattery.top`; the currently uploaded trial package still requires platform verification
 - release API base: `https://api.starlitskycattery.top`
 - AppSecret: not stored in source. Keep it only in the backend production environment.
 
-`develop` uses the isolated local API at `http://127.0.0.1:4312`. The trial build must use a separate HTTPS host and pass `npm run verify:miniapp-trial-ready` before upload. A blank trial address throws instead of falling back to production.
+`develop` uses the isolated local API at `http://127.0.0.1:4312`. The trial build uses the separate HTTPS trial host and must pass `npm run verify:miniapp-trial-ready` before any future upload. A blank trial address throws instead of falling back to production.
 
 ## WeChat legal-domain checklist
 
@@ -20,11 +20,13 @@ Migration caveat: the checked-in COS hostname and assertions below describe curr
 | Category                  | Domain to enter                                                           | Required by                                                                                                                                                                           |
 | ------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | request legal domain      | `https://api.starlitskycattery.top`                                       | `wx.request` API calls through `apps/miniapp/utils/request/index.ts`, including auth, fixed pages, cats, community, parent invite, selection application, and admin QR approval APIs. |
+| request legal domain      | `https://trial-api.starlitskycattery.top`                                 | Trial-channel `wx.request` API calls. Platform acceptance remains to be checked. |
 | request legal domain      | `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`       | Community image upload uses `wx.request` with `PUT` to API-issued COS presigned upload URLs.                                                                                          |
 | request legal domain      | `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com` | Community image upload after the primary COS bucket changes.                                                                                                                          |
 | uploadFile legal domain   | Not required by current code                                              | The miniapp does not call `wx.uploadFile`.                                                                                                                                            |
 | downloadFile legal domain | `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`       | Remote `<image>` components and `wx.previewImage` display API-issued signed COS image URLs.                                                                                           |
 | downloadFile legal domain | `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com` | Signed image URLs after the reference switch.                                                                                                                                         |
+| downloadFile legal domain | `https://trial-api.starlitskycattery.top`                                 | Present in the current source allowlist for trial media. Confirm actual platform setting before upload. |
 | socket legal domain       | Not required by current code                                              | The miniapp does not call `wx.connectSocket`.                                                                                                                                         |
 
 The Admin web domain `https://admin.starlitskycattery.top` is not a miniapp legal domain for the current code because the miniapp does not call it directly.
@@ -36,7 +38,7 @@ The Admin web domain `https://admin.starlitskycattery.top` is not a miniapp lega
    - `https://api.starlitskycattery.top`
    - `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`
    - `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com`
-   - the isolated trial API HTTPS host, once provisioned
+   - `https://trial-api.starlitskycattery.top`
 3. Add the downloadFile legal domain:
    - `https://starlitsky-cattery-1480740947.cos.ap-chengdu.myqcloud.com`
    - `https://starlitsky-cattery-media-1480740947.cos.ap-chengdu.myqcloud.com`
