@@ -62,9 +62,17 @@ const checks = [
     excludes: ["add_header Access-Control-Allow-Origin *"],
   },
   {
-    path: "deploy/production/nginx/starlitsky-https-cutover.conf.template",
+    path: "deploy/production/nginx/starlitsky-log-format.conf.template",
     includes: [
       "log_format starlitsky_path_only",
+      '"$request_method $uri $server_protocol"',
+    ],
+    excludes: ["$request_uri"],
+  },
+  {
+    path: "deploy/production/nginx/starlitsky-https-cutover.conf.template",
+    includes: [
+      "Install starlitsky-log-format.conf.template in /etc/nginx/conf.d/ first.",
       "root /opt/starlitsky/admin/current;",
       "root /opt/starlitsky/admin;",
       'add_header Cache-Control "no-store" always;',
@@ -153,6 +161,16 @@ for (const check of checks) {
 
 const nginxText = readFileSync("deploy/production/nginx/starlitsky.conf.template", "utf8");
 const activeNginxText = uncommentedText(nginxText);
+for (const site of [
+  "starlitsky.conf.template",
+  "starlitsky-https-cutover.conf.template",
+  "starlitsky-trial.conf.template",
+]) {
+  const siteText = readFileSync(`deploy/production/nginx/${site}`, "utf8");
+  if (uncommentedText(siteText).includes("log_format starlitsky_path_only")) {
+    failures.push(`${site} must reference the separately installed log format, not define it.`);
+  }
+}
 if (activeNginxText.includes("return 308 https://$host$request_uri;")) {
   failures.push(
     "deploy/production/nginx/starlitsky.conf.template must not enable HTTP-to-HTTPS redirects in the active bootstrap config.",

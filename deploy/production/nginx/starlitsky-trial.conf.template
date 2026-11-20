@@ -1,5 +1,5 @@
 # Trial host is a separate Nginx site in the existing production topology.
-# Install alongside starlitsky.conf so the starlitsky_path_only format is defined once.
+# Install starlitsky-log-format.conf.template in /etc/nginx/conf.d/ first.
 # Apply the same access-log policy to HTTP and HTTPS. The API upstream remains isolated.
 server {
     listen 80;
