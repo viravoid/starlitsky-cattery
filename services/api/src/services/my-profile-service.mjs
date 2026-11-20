@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { config } from "../config/env.mjs";
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, serviceUnavailable, unauthorized } from "../utils/errors.mjs";
-import { createPresignedPutUpload, putObject } from "./object-storage-service.mjs";
+import { createPresignedGetUrl, createPresignedPutUpload, putObject } from "./object-storage-service.mjs";
+import { checkCommunityText, requestCommunityImageCheck } from "./community-content-safety.mjs";
 import { toCurrentUserDto } from "./auth-service.mjs";
 
 const PROFILE_FIELDS = new Set(["nickname", "gender", "city", "contactWechat"]);
@@ -18,6 +19,10 @@ export async function updateMyProfile(userId, input) {
   if (gender && !["male", "female"].includes(gender)) throw badRequest("Invalid gender");
   const city = optionalText(input.city, "city", 120);
   const contactWechat = optionalText(input.contactWechat, "contactWechat", 120);
+  const profileOwner = await prisma.user.findUnique({ where: { id: userId }, select: { wechat_openid: true } });
+  if (!profileOwner) throw unauthorized();
+  const safetyResult = await checkCommunityText([nickname, city, contactWechat].filter(Boolean).join(" "), profileOwner, 1);
+  if (safetyResult !== "pass") throw badRequest("资料需修改后再提交");
 
   return prisma.$transaction(async (transaction) => {
     const existing = await transaction.user.findUnique({ where: { id: userId }, select: { id: true } });
@@ -47,16 +52,37 @@ export async function uploadMyAvatar(userId, input) {
   if (body.length === 0 || body.length > MAX_AVATAR_BYTES) throw badRequest("Avatar must be at most 700 KB");
   const mimeType = detectImageType(body);
   if (!mimeType || mimeType !== input.mimeType) throw badRequest("Avatar must be a JPEG or PNG image");
-  const existing = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  const existing = await prisma.user.findUnique({
+    where: { id: userId }, include: { roles: true, parent_profile: true },
+  });
   if (!existing) throw unauthorized();
 
-  const avatarUrl = await storeAvatar(userId, body, mimeType);
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: { avatar_url: avatarUrl },
-    include: { roles: true, parent_profile: true },
+  const avatar = await storeAvatar(userId, body, mimeType);
+  const traceId = await requestCommunityImageCheck(avatar.checkUrl, existing, { scene: 1 });
+  await prisma.mediaAsset.create({
+    data: {
+      kind: "image",
+      source_url: avatar.publicUrl,
+      mime_type: mimeType,
+      size_bytes: body.length,
+      status: "active",
+      metadata_json: { contentSafety: {
+        purpose: "avatar",
+        userId,
+        traceId,
+        suggest: traceId === "development-mock" ? "pass" : "pending",
+        requestedAt: new Date().toISOString(),
+      } },
+    },
   });
-  return toCurrentUserDto(user);
+  if (traceId === "development-mock") {
+    const user = await prisma.user.update({
+      where: { id: userId }, data: { avatar_url: avatar.publicUrl },
+      include: { roles: true, parent_profile: true },
+    });
+    return toCurrentUserDto(user);
+  }
+  return toCurrentUserDto(existing);
 }
 
 async function storeAvatar(userId, body, mimeType) {
@@ -73,11 +99,15 @@ async function storeAvatar(userId, body, mimeType) {
     const filePath = join(config.avatar.localStorageDir, fileName);
     await writeFile(filePath, body, { flag: "wx", mode: 0o644 });
     await chmod(filePath, 0o644);
-    return new URL(fileName, baseUrl).toString();
+    const publicUrl = new URL(fileName, baseUrl).toString();
+    return { publicUrl, checkUrl: publicUrl };
   }
   const upload = createPresignedPutUpload({ objectKey: `avatars/${userId}/${fileName}`, mimeType });
   await putObject({ objectKey: upload.objectKey, body, contentType: mimeType, forbidOverwrite: true });
-  return upload.publicUrl;
+  return {
+    publicUrl: upload.publicUrl,
+    checkUrl: createPresignedGetUrl({ bucket: upload.bucket, objectKey: upload.objectKey }).url,
+  };
 }
 
 function detectImageType(body) {

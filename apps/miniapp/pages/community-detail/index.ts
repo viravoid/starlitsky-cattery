@@ -184,9 +184,10 @@ Page({
 
     try {
       await ensureLoggedIn();
-      await createCommunityComment(this.data.id, content);
+      const comment = await createCommunityComment(this.data.id, content);
       this.setData({ commentText: "" });
       await this.loadPost(this.data.id);
+      showToast(comment.visibility === "hidden" ? "评论已提交，审核后展示" : "评论已发布");
     } catch (error) {
       showToast(getErrorMessage(error));
     }

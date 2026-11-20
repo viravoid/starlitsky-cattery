@@ -2,6 +2,7 @@ import type { CommunityPostData } from "@starlitsky/shared";
 import {
   deleteCommunityPost,
   deleteCommunityPostImage,
+  completeCommunityPostImageUpload,
   getCommunityPostOptions,
   listMyCommunityPosts,
   updateCommunityPost,
@@ -28,6 +29,8 @@ interface PostCard {
   linkedCatIds: string[];
   linkedLitterIds: string[];
   meta: string;
+  reviewLabel: string;
+  retryableMediaIds: string[];
   previewUrls: string[];
 }
 
@@ -90,6 +93,20 @@ Page({
   async onPullDownRefresh(this: MyPostsPage) {
     await this.loadPosts();
     wx.stopPullDownRefresh();
+  },
+
+  async retryImageCheck(this: MyPostsPage, event: TapEvent) {
+    const post = this.data.posts.find((item) => item.id === event.currentTarget.dataset.id);
+    if (!post || !post.canEdit) return;
+    try {
+      for (const mediaId of post.retryableMediaIds) {
+        await completeCommunityPostImageUpload(post.id, mediaId, {});
+      }
+      wx.showToast({ icon: "none", title: "图片已重新提交检测" });
+      await this.loadPosts();
+    } catch (error) {
+      wx.showToast({ icon: "none", title: error instanceof Error ? error.message : "重新检测失败" });
+    }
   },
 
   async loadPosts(this: MyPostsPage) {
@@ -326,6 +343,10 @@ function isParentInactive() {
 }
 
 function toPostCard(post: CommunityPostData): PostCard {
+  const statuses = post.mediaAssets.map((item) => item.safetyStatus);
+  const retryableMediaIds = post.mediaAssets
+    .filter((item) => item.safetyStatus === "failed" || item.safetyStatus === "timeout")
+    .map((item) => item.id);
   const images = post.mediaAssets
     .filter((item) => item.kind === "image")
     .slice(0, 9)
@@ -344,6 +365,12 @@ function toPostCard(post: CommunityPostData): PostCard {
     linkedCatIds: post.cats.map((cat) => cat.id),
     linkedLitterIds: post.litters.map((litter) => litter.id),
     meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
+    reviewLabel: post.visibility === "visible" ? "已公开" :
+      post.visibility === "archived" ? "已隐藏" :
+      statuses.includes("risky") ? "图片未通过检测，请更换" :
+      retryableMediaIds.length ? "图片检测失败或超时，可重新检测" :
+      statuses.includes("pending") ? "图片检测中" : "待管理员审核",
+    retryableMediaIds,
     previewUrls: images.map((image) => image.url),
   };
 }
