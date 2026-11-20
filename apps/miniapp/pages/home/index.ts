@@ -213,6 +213,10 @@ Page({
     wx.switchTab({ url: "/pages/cats/index" });
   },
 
+  openPrivacyGuide() {
+    wx.navigateTo({ url: "/pages/privacy-consent/index" });
+  },
+
   async updateHeroLayout(this: HomePage, metrics?: WindowMetrics) {
     this.setData({ heroHeightStyle: `height: ${calculateHeroHeightPx(metrics ?? (await getWindowMetrics()))}px;` });
   },

@@ -42,6 +42,14 @@ if (!authSecret) {
 requireNonPlaceholder("WECHAT_APP_ID");
 requireNonPlaceholder("WECHAT_APP_SECRET");
 requireNonPlaceholder("WECHAT_MESSAGE_TOKEN");
+const encodingAesKey = requireNonPlaceholder("WECHAT_ENCODING_AES_KEY");
+if (encodingAesKey && !/^[A-Za-z0-9+/]{43}$/.test(encodingAesKey)) {
+  fail("WECHAT_ENCODING_AES_KEY must be a 43-character WeChat EncodingAESKey.");
+}
+const trialCallbackUrl = readEnv("WECHAT_TRIAL_CALLBACK_URL");
+if (trialCallbackUrl && trialCallbackUrl !== "http://127.0.0.1:8081/webhooks/wechat/content-safety") {
+  fail("WECHAT_TRIAL_CALLBACK_URL must target the isolated loopback trial API.");
+}
 validateAdminPasswordLogin();
 
 rejectEnabled("WECHAT_MOCK_LOGIN_ENABLED");

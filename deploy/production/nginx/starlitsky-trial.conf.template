@@ -28,6 +28,10 @@ server {
 
     client_max_body_size 1m;
 
+    # WeChat uses the production receiver for this AppID; only the authenticated
+    # encrypted envelope may be forwarded to the loopback trial API.
+    location = /webhooks/wechat/content-safety { return 404; }
+
     location ^~ /trial-media/ {
         alias /var/www/starlitsky-trial-media/;
         add_header Cache-Control "public, max-age=3600";

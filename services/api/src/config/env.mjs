@@ -49,6 +49,8 @@ export const config = {
     appId: process.env.WECHAT_APP_ID || "",
     appSecret: process.env.WECHAT_APP_SECRET || "",
     messageToken: process.env.WECHAT_MESSAGE_TOKEN || "",
+    encodingAesKey: process.env.WECHAT_ENCODING_AES_KEY || "",
+    trialCallbackUrl: process.env.WECHAT_TRIAL_CALLBACK_URL || "",
     phoneVerificationEnabled: process.env.WECHAT_PHONE_VERIFICATION_ENABLED === "true",
     mockLoginEnabled:
       !isProduction && parseBoolean(process.env.WECHAT_MOCK_LOGIN_ENABLED || "true"),

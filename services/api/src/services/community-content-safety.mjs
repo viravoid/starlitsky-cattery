@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createDecipheriv, createHash, timingSafeEqual } from "node:crypto";
 import { config } from "../config/env.mjs";
 import { prisma } from "../db/prisma.mjs";
 import { badRequest, forbidden, serviceUnavailable } from "../utils/errors.mjs";
@@ -54,6 +54,53 @@ export function verifyWechatCallbackSignature(searchParams, messageToken = confi
     .digest("hex");
   if (!timingSafeEqual(Buffer.from(signature.toLowerCase()), Buffer.from(expected))) {
     throw forbidden("Invalid WeChat callback signature");
+  }
+}
+
+export function decodeWechatSecureCallback(searchParams, body, {
+  messageToken = config.wechat.messageToken,
+  encodingAesKey = config.wechat.encodingAesKey,
+  appId = config.wechat.appId,
+  now = Date.now(),
+} = {}) {
+  const timestamp = searchParams.get("timestamp") || "";
+  const nonce = searchParams.get("nonce") || "";
+  const signature = searchParams.get("msg_signature") || "";
+  const encrypted = body?.Encrypt;
+  if (!messageToken || !appId || !/^[A-Za-z0-9+/]{43}$/.test(encodingAesKey || "") ||
+      !/^\d{10}$/.test(timestamp) || Math.abs(now / 1000 - Number(timestamp)) > 600 ||
+      !/^[A-Za-z0-9]{1,128}$/.test(nonce) || !/^[a-f0-9]{40}$/i.test(signature) ||
+      typeof encrypted !== "string" || !/^[A-Za-z0-9+/]+={0,2}$/.test(encrypted)) {
+    throw forbidden("Invalid WeChat secure callback");
+  }
+  const expected = createHash("sha1")
+    .update([messageToken, timestamp, nonce, encrypted].sort().join(""))
+    .digest("hex");
+  if (!timingSafeEqual(Buffer.from(signature.toLowerCase()), Buffer.from(expected))) {
+    throw forbidden("Invalid WeChat secure callback");
+  }
+  try {
+    const key = Buffer.from(`${encodingAesKey}=`, "base64");
+    const ciphertext = Buffer.from(encrypted, "base64");
+    if (key.length !== 32 || ciphertext.length === 0 || ciphertext.length % 16 !== 0) throw new Error("shape");
+    const decipher = createDecipheriv("aes-256-cbc", key, key.subarray(0, 16));
+    decipher.setAutoPadding(false);
+    const padded = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    const padding = padded.at(-1);
+    if (!padding || padding > 32 || !padded.subarray(-padding).every((value) => value === padding)) {
+      throw new Error("padding");
+    }
+    const plain = padded.subarray(0, -padding);
+    if (plain.length < 20) throw new Error("length");
+    const messageLength = plain.readUInt32BE(16);
+    const appIdOffset = 20 + messageLength;
+    if (messageLength === 0 || appIdOffset >= plain.length ||
+        plain.subarray(appIdOffset).toString("utf8") !== appId) throw new Error("appid");
+    const event = JSON.parse(plain.subarray(20, appIdOffset).toString("utf8"));
+    if (!event || typeof event !== "object" || Array.isArray(event)) throw new Error("event");
+    return event;
+  } catch {
+    throw forbidden("Invalid WeChat secure callback");
   }
 }
 

@@ -120,5 +120,6 @@
       <text class="cats-desc">{{catsPreview.description}}</text>
       <text class="cats-link">{{catsPreview.buttonText}} →</text>
     </button>
+    <button class="privacy-entry" bindtap="openPrivacyGuide">查看小程序隐私保护指引</button>
   </view>
 </view>

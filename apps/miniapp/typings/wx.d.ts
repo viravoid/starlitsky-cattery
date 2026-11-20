@@ -71,7 +71,13 @@ declare const wx: {
     };
   };
   showToast(options: { title: string; icon?: "none" | "success" | "error" | "loading" }): void;
-  navigateTo(options: { url: string }): void;
+  navigateTo(options: { url: string; fail?(): void }): void;
+  navigateBack(options?: { delta?: number }): void;
+  openPrivacyContract(options?: { success?(): void; fail?(): void }): void;
+  onNeedPrivacyAuthorization(callback: (resolve: (decision: {
+    buttonId?: string;
+    event: "agree" | "disagree";
+  }) => void) => void): void;
   previewImage(options: { current: string; urls: string[] }): void;
   setClipboardData(options: { data: string }): void;
   setNavigationBarTitle(options: { title: string }): void;

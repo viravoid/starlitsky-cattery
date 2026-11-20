@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="panel">
+    <text class="title">隐私保护指引</text>
+    <text class="description">你可以先阅读星月缅因猫舍小程序隐私保护指引。普通浏览无需同意非必要权限。</text>
+    <button class="guide" bindtap="openGuide">查看完整隐私保护指引</button>
+    <view wx:if="{{needsDecision}}" class="actions">
+      <button class="agree" id="agree-btn" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agree">同意并继续</button>
+      <button class="refuse" bindtap="refuse">暂不同意</button>
+    </view>
+  </view>
+</view>

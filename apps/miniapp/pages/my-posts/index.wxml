@@ -39,8 +39,10 @@
             />
           </view>
           <view class="meta">{{item.meta}}</view>
+          <view class="meta">审核状态：{{item.reviewLabel}}</view>
         </view>
         <view class="actions">
+          <button wx:if="{{item.retryableMediaIds.length && item.canEdit}}" class="action-button" data-id="{{item.id}}" bindtap="retryImageCheck">重新检测图片</button>
           <button class="action-button" disabled="{{!item.canEdit}}" data-id="{{item.id}}" bindtap="openEdit">编辑</button>
           <button class="action-button danger" disabled="{{!item.canDelete}}" data-id="{{item.id}}" bindtap="deletePost">删除</button>
         </view>

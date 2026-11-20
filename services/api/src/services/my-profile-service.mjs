@@ -71,6 +71,7 @@ export async function uploadMyAvatar(userId, input) {
         userId,
         traceId,
         suggest: traceId === "development-mock" ? "pass" : "pending",
+        requestedAt: new Date().toISOString(),
       } },
     },
   });
