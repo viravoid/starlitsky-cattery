@@ -36,7 +36,9 @@ do not run `install-build-migrate-restart.sh` through `/opt/starlitsky/app`.
    verified old bundle, then for the new bundle. Preserve both version directories.
 3. Point `admin/current` to the **old** Admin with `switch-release-link.sh admin
    <old-sha>`. Prepare actual production and trial Nginx site files with path-only
-   access logs. The log format must be defined exactly once in the `http` context;
+   access logs. Install `deploy/production/nginx/starlitsky-log-format.conf.template`
+   once as `/etc/nginx/conf.d/starlitsky-log-format.conf` before enabling either site;
+   the `conf.d` include must precede `sites-enabled` in the Nginx `http` context.
    compare `deploy/production/nginx/starlitsky-https-cutover.conf.template` with the
    current live four-server site and `starlitsky-trial.conf.template` with the
    separate trial site. Confirm no format-name collision in `nginx -T`. Run

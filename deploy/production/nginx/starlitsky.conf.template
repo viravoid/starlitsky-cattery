@@ -3,10 +3,8 @@
 # Stage 1 is the active HTTP bootstrap config. After certificates are issued,
 # replace the Stage 1 server blocks with the commented Stage 2 HTTPS blocks.
 
-# Log request paths only. Invite/QR credentials may be carried in query strings.
-log_format starlitsky_path_only '$remote_addr [$time_local] '
-                               '"$request_method $uri $server_protocol" '
-                               '$status $body_bytes_sent $request_time $upstream_response_time';
+# Install starlitsky-log-format.conf.template in /etc/nginx/conf.d/ first.
+# Invite/QR credentials may be carried in query strings.
 
 upstream starlitsky_api {
     server 127.0.0.1:8080;

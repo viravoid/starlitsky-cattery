@@ -1,0 +1,5 @@
+# Install once in /etc/nginx/conf.d/ before sites-enabled is included.
+# Use request path without query parameters in production and trial access logs.
+log_format starlitsky_path_only '$remote_addr [$time_local] '
+                               '"$request_method $uri $server_protocol" '
+                               '$status $body_bytes_sent $request_time $upstream_response_time';
