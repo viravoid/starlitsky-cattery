@@ -50,7 +50,9 @@ const checks = [
       "server_name admin.__DOMAIN__;",
       "server_name api.__DOMAIN__;",
       "server 127.0.0.1:8080;",
-      "root /opt/starlitsky/app/dist/admin;",
+      "root /opt/starlitsky/admin/current;",
+      "root /opt/starlitsky/admin;",
+      'add_header Cache-Control "no-store" always;',
       "try_files $uri $uri/ /index.html;",
       "proxy_pass http://starlitsky_api;",
       "proxy_set_header Host $host;",
@@ -58,6 +60,27 @@ const checks = [
       "client_max_body_size 10m;",
     ],
     excludes: ["add_header Access-Control-Allow-Origin *"],
+  },
+  {
+    path: "deploy/production/nginx/starlitsky-https-cutover.conf.template",
+    includes: [
+      "log_format starlitsky_path_only",
+      "root /opt/starlitsky/admin/current;",
+      "root /opt/starlitsky/admin;",
+      'add_header Cache-Control "no-store" always;',
+      "location = /parent-invites/verify",
+      "error_log /dev/null;",
+      "server_name api.__DOMAIN__;",
+      "server_name admin.__DOMAIN__;",
+    ],
+  },
+  {
+    path: "deploy/production/nginx/starlitsky-trial.conf.template",
+    includes: [
+      "access_log /var/log/nginx/starlitsky-trial-access.log starlitsky_path_only;",
+      "location = /parent-invites/verify",
+      "error_log /dev/null;",
+    ],
   },
   {
     path: "deploy/production/scripts/backup-sqlite.sh",
