@@ -14,6 +14,7 @@
     "start": "node src/server.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify:community": "node src/services/community-service.verify.mjs",
+    "verify:community-safety": "node src/services/community-content-safety.verify.mjs",
     "verify:media-upload": "node src/services/media-upload-service.verify.mjs",
     "verify:private-cos-read": "node src/services/private-cos-read-delivery.verify.mjs",
     "verify:cos-migration": "node src/services/object-storage-lightcos.verify.mjs && node src/services/lightcos-read-probe.verify.mjs && node src/services/cos-migration-service.verify.mjs && node src/services/offline-image-inventory.verify.mjs",

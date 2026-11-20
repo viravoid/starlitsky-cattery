@@ -63,6 +63,7 @@ Page({
       if (!mimeType) throw new Error("请选择 JPG 或 PNG 头像");
       const user = await uploadMyAvatar({ mimeType, dataBase64 });
       this.setData({ avatarUrl: user.avatarUrl || "" });
+      wx.showToast({ icon: "none", title: "头像已提交审核" });
     } catch (error) {
       wx.showToast({ icon: "none", title: errorMessage(error) });
     }

@@ -660,6 +660,7 @@ export interface CommunityPostMediaAssetData {
   height?: number | null;
   usage: string;
   sortOrder: number;
+  safetyStatus?: "pending" | "pass" | "review" | "risky" | null;
 }
 
 export interface CommunityPostRelatedCatData {

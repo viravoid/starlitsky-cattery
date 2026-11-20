@@ -92,6 +92,9 @@ jobs:
       - name: Verify community
         run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:community
 
+      - name: Verify community content safety
+        run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:community-safety
+
       - name: Verify litter create idempotency
         run: npm exec --yes --package bun@1.3.14 -- bun run --cwd services/api verify:litter-idempotency
 
@@ -136,6 +139,7 @@ jobs:
           ADMIN_PASSWORD_HASH: scrypt$16384$8$1$MDEyMzQ1Njc4OWFiY2RlZg$TsfdUS3OaL3k5RwvYKn8tSxBhQbNCJGpnp2rIuKZIRc
           WECHAT_APP_ID: wxcirelease1234567890
           WECHAT_APP_SECRET: ci-wechat-secret-release-readiness-32-chars
+          WECHAT_MESSAGE_TOKEN: ci-wechat-message-token
           WECHAT_MOCK_LOGIN_ENABLED: "false"
           WECHAT_MOCK_QR_ENABLED: "false"
           CORS_ALLOWED_ORIGINS: https://admin.staging.starlitsky.example.org

@@ -41,6 +41,7 @@ if (!authSecret) {
 
 requireNonPlaceholder("WECHAT_APP_ID");
 requireNonPlaceholder("WECHAT_APP_SECRET");
+requireNonPlaceholder("WECHAT_MESSAGE_TOKEN");
 validateAdminPasswordLogin();
 
 rejectEnabled("WECHAT_MOCK_LOGIN_ENABLED");

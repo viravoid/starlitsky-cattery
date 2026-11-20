@@ -26,6 +26,7 @@
     "verify:cat-admin-hardening": "npm --workspace @starlitsky/api run verify:cat-admin-hardening",
     "verify:cat-story-json": "node apps/admin/src/utils/cat-story-json.verify.ts",
     "verify:community": "npm --workspace @starlitsky/api run verify:community",
+    "verify:community-safety": "npm --workspace @starlitsky/api run verify:community-safety",
     "verify:fixed-page-media": "npm --workspace @starlitsky/api run verify:fixed-page-media",
     "verify:environment-media-batch": "npm --workspace @starlitsky/api run verify:environment-media-batch",
     "verify:miniapp-production-config": "node scripts/verify-miniapp-production-config.mjs",

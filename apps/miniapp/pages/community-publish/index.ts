@@ -271,7 +271,9 @@ Page({
         return;
       }
 
-      showToast(this.data.isEditing ? "已保存" : "已发布");
+      showToast(post.visibility === "hidden"
+        ? (this.data.isEditing ? "已保存，等待审核" : "已提交，等待审核")
+        : (this.data.isEditing ? "已保存" : "已发布"));
       wx.navigateTo({ url: `/pages/community-detail/index?id=${encodeURIComponent(post.id)}` });
     } catch (error) {
       showToast(getErrorMessage(error));
