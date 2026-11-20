@@ -1,10 +1,7 @@
 # Reviewed against the observed live four-server production site on 2026-11-18.
 # Use only after substituting __DOMAIN__ and comparing against the live config.
-# Define this log format exactly once in the Nginx http context. The separate
-# trial site references the same name and must be updated in the same window.
-log_format starlitsky_path_only '$remote_addr [$time_local] '
-                               '"$request_method $uri $server_protocol" '
-                               '$status $body_bytes_sent $request_time $upstream_response_time';
+# Install starlitsky-log-format.conf.template in /etc/nginx/conf.d/ first.
+# The separate trial site references the same format.
 
 upstream starlitsky_api {
     server 127.0.0.1:8080;
