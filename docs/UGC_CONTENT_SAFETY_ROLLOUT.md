@@ -6,7 +6,7 @@ This change adds prepublication moderation for parent community posts, comments,
 
 1. Generate a new random message token. Store it as `WECHAT_MESSAGE_TOKEN` in the API service environment only. Keep `WECHAT_APP_ID` and `WECHAT_APP_SECRET` available to the API.
 2. Deploy the API and configure the WeChat Mini Program message receiver URL as `https://api.starlitskycattery.top/webhooks/wechat/content-safety`, with that same token, **plaintext** encryption mode, and **JSON** data format. The GET handshake returns `echostr`; POST requests verify the WeChat signature and accept `wxa_media_check` callbacks.
-3. Check that the API's public Nginx route permits this webhook and that WeChat can fetch a signed COS image URL during the one hour read URL lifetime. A callback can arrive within 30 minutes. A missing callback leaves the image pending and blocks publication.
+3. Check that the API's public Nginx route permits this webhook and that WeChat can fetch a signed COS image URL during the one hour read URL lifetime. A callback can arrive within 30 minutes. An unknown `trace_id` receives a retryable error to cover the short gap before the upload record is stored. A missing callback leaves the image pending and blocks publication.
 4. Exercise a test post, comment, image, nickname, and avatar with a real recent WeChat login. Confirm parent post and comment remain hidden until keeper approval; avatar remains unchanged until a passing image callback. Confirm risky or failed checks never publish automatically.
 
 ## Existing UGC and platform declaration

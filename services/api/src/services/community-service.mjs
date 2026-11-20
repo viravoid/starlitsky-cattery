@@ -598,21 +598,21 @@ export async function completeCommunityPostImageUpload(postId, mediaId, input, u
 export async function applyCommunityImageCheckResult(event) {
   if (event?.Event !== "wxa_media_check" ||
       event.appid !== config.wechat.appId ||
-      typeof event.trace_id !== "string") return;
+      typeof event.trace_id !== "string") return true;
   const matches = await prisma.$queryRaw`
     SELECT id FROM media_assets
     WHERE json_extract(metadata_json, '$.contentSafety.traceId') = ${event.trace_id}
     LIMIT 1
   `;
-  if (!matches.length) return;
+  if (!matches.length) return false;
   const media = await prisma.mediaAsset.findUnique({
     where: { id: matches[0].id },
     include: { bindings: true },
   });
-  if (!media) return;
+  if (!media) return false;
   const safety = media.metadata_json?.contentSafety;
   if (safety?.purpose !== "avatar" &&
-      !media.bindings.some((binding) => binding.owner_type === "post" && !binding.deleted_at)) return;
+      !media.bindings.some((binding) => binding.owner_type === "post" && !binding.deleted_at)) return true;
   const suggest = event.errcode === 0 && ["pass", "review", "risky"].includes(event.result?.suggest)
     ? event.result.suggest : "review";
   await prisma.mediaAsset.update({
@@ -635,7 +635,7 @@ export async function applyCommunityImageCheckResult(event) {
         });
       }
     }
-    return;
+    return true;
   }
   if (suggest !== "pass") {
     await prisma.$transaction([
@@ -649,6 +649,7 @@ export async function applyCommunityImageCheckResult(event) {
       }),
     ]);
   }
+  return true;
 }
 
 export async function deleteCommunityPostMedia(postId, mediaId, user) {

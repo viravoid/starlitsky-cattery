@@ -482,6 +482,13 @@ try {
     errcode: 0,
     result: { suggest: "pass" },
   });
+  assert.equal(await applyCommunityImageCheckResult({
+    Event: "wxa_media_check",
+    appid: process.env.WECHAT_APP_ID,
+    trace_id: `${RUN_PREFIX}-not-yet-stored`,
+    errcode: 0,
+    result: { suggest: "pass" },
+  }), false, "unknown trace must stay retryable until the upload records it");
   const approvedPost = await routeJson(`/community/admin/posts/${createdPost.id}`, admin, "PATCH", {
     visibility: "visible",
   });
