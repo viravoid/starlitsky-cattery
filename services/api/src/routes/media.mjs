@@ -45,6 +45,7 @@ export async function routeMediaRequest(request, response, url, context) {
     }
 
     if (request.method === "GET") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await listMediaBindings(bindingRoute.mediaId),
       });
@@ -96,6 +97,7 @@ export async function routeMediaRequest(request, response, url, context) {
 
   if (url.pathname === "/media") {
     if (request.method === "GET") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await listMedia(url.searchParams),
       });
@@ -117,6 +119,7 @@ export async function routeMediaRequest(request, response, url, context) {
 
   if (id) {
     if (request.method === "GET") {
+      await requireAdminMutationRole(request, context.config);
       sendSuccess(response, {
         data: await getMedia(id),
       });

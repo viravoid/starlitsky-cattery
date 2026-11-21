@@ -10,6 +10,7 @@ import { routeMediaRequest } from "./media.mjs";
 import { routeMeRequest } from "./me.mjs";
 import { routeParentsRequest } from "./parents.mjs";
 import { routeSelectionApplicationsRequest } from "./selection-applications.mjs";
+import { routeWechatContentSafety } from "./wechat-content-safety.mjs";
 import { notFound } from "../utils/errors.mjs";
 import { sendNoContent } from "../utils/response.mjs";
 
@@ -26,6 +27,11 @@ export async function routeRequest(request, response, context) {
 
   if (request.method === "GET" && url.pathname === "/health") {
     handleHealth(request, response, context);
+    return;
+  }
+
+  if (url.pathname === "/webhooks/wechat/content-safety") {
+    await routeWechatContentSafety(request, response, url);
     return;
   }
 

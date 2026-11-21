@@ -6,9 +6,11 @@ import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
 process.env.DATABASE_URL ??= "file:community-verify.db";
+process.env.WECHAT_APP_ID ??= "verify-community-app";
 await ensureLocalSqliteSchema(process.env.DATABASE_URL);
 const { prisma } = await import("../db/prisma.mjs");
 const { routeRequest } = await import("../routes/index.mjs");
+const { applyCommunityImageCheckResult } = await import("./community-service.mjs");
 
 const RUN_PREFIX = "verify-community";
 
@@ -350,11 +352,14 @@ try {
     litterIds: [litterA.id],
   });
   assert.equal(createdPost.category, "parent_share", "parent should create an allowed category");
+  assert.equal(createdPost.visibility, "hidden", "parent post must wait for moderation");
+  assert.equal((await routeGet("/community/posts?pageSize=100", null)).items.some((item) => item.id === createdPost.id), false);
 
   const updatedOwnPost = await routeJson(`/community/posts/${createdPost.id}`, parentA, "PATCH", {
     content: "parent own post updated",
   });
   assert.equal(updatedOwnPost.content, "parent own post updated", "author should edit own post");
+  assert.equal(updatedOwnPost.visibility, "hidden", "parent edit must return to moderation");
   await assertRouteRejects(
     "foreign parent cannot edit post",
     `/community/posts/${createdPost.id}`,
@@ -438,6 +443,160 @@ try {
     "DELETE",
   );
 
+  const checkedMedia = await prisma.mediaAsset.create({
+    data: {
+      id: `${RUN_PREFIX}-checked-media`,
+      kind: "image",
+      source_url: "https://example.test/checked.jpg",
+      status: "active",
+      metadata_json: { contentSafety: { traceId: `${RUN_PREFIX}-trace`, suggest: "pending" } },
+      bindings: {
+        create: [{
+          id: `${RUN_PREFIX}-checked-binding`,
+          owner_type: "post",
+          owner_id: createdPost.id,
+          usage: "gallery",
+          sort_order: 0,
+          visibility: "hidden",
+        }],
+      },
+    },
+  });
+  await assertRouteRejects(
+    "keeper cannot bypass parent moderation through the ordinary edit route",
+    `/community/posts/${createdPost.id}`, admin, 403, "PATCH",
+    { content: "unchecked keeper rewrite", visibility: "visible" },
+  );
+  assert.equal(
+    (await routeGet(`/community/posts/${createdPost.id}`, parentA)).mediaAssets.some((item) => item.id === checkedMedia.id),
+    true,
+    "author should see an image waiting for review",
+  );
+  await assertRouteRejects(
+    "post with unchecked image cannot be approved",
+    `/community/admin/posts/${createdPost.id}`,
+    admin,
+    409,
+    "PATCH",
+    { visibility: "visible" },
+  );
+  await applyCommunityImageCheckResult({
+    Event: "wxa_media_check",
+    appid: process.env.WECHAT_APP_ID,
+    trace_id: `${RUN_PREFIX}-trace`,
+    errcode: 0,
+    result: { suggest: "pass" },
+  });
+  assert.equal(await applyCommunityImageCheckResult({
+    Event: "wxa_media_check",
+    appid: process.env.WECHAT_APP_ID,
+    trace_id: `${RUN_PREFIX}-not-yet-stored`,
+    errcode: 0,
+    result: { suggest: "pass" },
+  }), false, "unknown trace must stay retryable until the upload records it");
+  const readyPost = await routeGet(`/community/admin/posts/${createdPost.id}`, admin);
+  const approvedPost = await routeJson(`/community/admin/posts/${createdPost.id}`, admin, "PATCH", {
+    visibility: "visible",
+    expectedUpdatedAt: readyPost.updatedAt,
+    expectedRevision: readyPost.moderationRevision,
+  });
+  assert.equal(approvedPost.visibility, "visible", "keeper should approve scanned parent post");
+  assert.equal(
+    (await routeGet(`/community/posts/${createdPost.id}`, null)).mediaAssets.some((item) => item.id === checkedMedia.id),
+    true,
+    "approved image should appear publicly",
+  );
+  await applyCommunityImageCheckResult({
+    Event: "wxa_media_check", appid: process.env.WECHAT_APP_ID,
+    trace_id: `${RUN_PREFIX}-trace`, errcode: 0, result: { suggest: "risky" },
+  });
+  assert.equal((await prisma.mediaAsset.findUnique({ where: { id: checkedMedia.id } }))
+    .metadata_json.contentSafety.suggest, "pass", "conflicting duplicate cannot replace a verdict");
+  await routeJson(`/community/posts/${createdPost.id}`, parentA, "PATCH", { content: "Edited after review" });
+  await assertRouteRejects(
+    "stale keeper approval cannot publish an edited post",
+    `/community/admin/posts/${createdPost.id}`, admin, 409, "PATCH",
+    { visibility: "visible", expectedUpdatedAt: approvedPost.updatedAt,
+      expectedRevision: approvedPost.moderationRevision },
+  );
+  const edited = await routeGet(`/community/admin/posts/${createdPost.id}`, admin);
+  await routeJson(`/community/admin/posts/${createdPost.id}`, admin, "PATCH", {
+    visibility: "visible", expectedUpdatedAt: edited.updatedAt,
+    expectedRevision: edited.moderationRevision,
+  });
+  const failedMedia = await prisma.mediaAsset.create({
+    data: {
+      id: `${RUN_PREFIX}-failed-media`, kind: "image", source_url: "https://example.test/failed.jpg",
+      status: "active",
+      metadata_json: { contentSafety: { traceId: `${RUN_PREFIX}-failed-trace`, suggest: "pending" } },
+      bindings: { create: [{
+        id: `${RUN_PREFIX}-failed-binding`, owner_type: "post", owner_id: createdPost.id,
+        usage: "gallery", visibility: "hidden",
+      }] },
+    },
+  });
+  await applyCommunityImageCheckResult({
+    Event: "wxa_media_check", appid: process.env.WECHAT_APP_ID,
+    trace_id: `${RUN_PREFIX}-failed-trace`, errcode: 500,
+  });
+  assert.equal((await prisma.mediaAsset.findUnique({ where: { id: failedMedia.id } }))
+    .metadata_json.contentSafety.suggest, "failed", "upstream errors are not manual-review results");
+  const failedPost = await routeGet(`/community/admin/posts/${createdPost.id}`, admin);
+  await assertRouteRejects(
+    "failed image cannot be approved",
+    `/community/admin/posts/${createdPost.id}`, admin, 409, "PATCH",
+    { visibility: "visible", expectedUpdatedAt: failedPost.updatedAt,
+      expectedRevision: failedPost.moderationRevision },
+  );
+  await assertRouteRejects("failed image keeps post private",
+    `/community/posts/${createdPost.id}`, null, 404);
+
+  const avatarMedia = await prisma.mediaAsset.create({
+    data: {
+      id: `${RUN_PREFIX}-avatar-media`,
+      kind: "image",
+      source_url: "https://example.test/avatar.jpg",
+      status: "active",
+      metadata_json: { contentSafety: {
+        purpose: "avatar", userId: parentA.id, traceId: `${RUN_PREFIX}-avatar-trace`, suggest: "pending",
+      } },
+    },
+  });
+  await applyCommunityImageCheckResult({
+    Event: "wxa_media_check",
+    appid: process.env.WECHAT_APP_ID,
+    trace_id: `${RUN_PREFIX}-avatar-trace`,
+    errcode: 0,
+    result: { suggest: "pass" },
+  });
+  assert.equal(
+    (await prisma.user.findUnique({ where: { id: parentA.id } })).avatar_url,
+    avatarMedia.source_url,
+    "only a passed avatar should become visible",
+  );
+  for (const suffix of ["older", "newer"]) {
+    await prisma.mediaAsset.create({ data: {
+      id: `${RUN_PREFIX}-avatar-${suffix}`, kind: "image",
+      source_url: `https://example.test/avatar-${suffix}.jpg`, status: "active",
+      metadata_json: { contentSafety: {
+        purpose: "avatar", userId: parentA.id,
+        traceId: `${RUN_PREFIX}-avatar-${suffix}-trace`, suggest: "pending",
+      } },
+    } });
+  }
+  await applyCommunityImageCheckResult({
+    Event: "wxa_media_check", appid: process.env.WECHAT_APP_ID,
+    trace_id: `${RUN_PREFIX}-avatar-older-trace`, errcode: 0, result: { suggest: "pass" },
+  });
+  assert.equal((await prisma.user.findUnique({ where: { id: parentA.id } })).avatar_url,
+    avatarMedia.source_url, "late older avatar cannot replace the current public avatar");
+  await applyCommunityImageCheckResult({
+    Event: "wxa_media_check", appid: process.env.WECHAT_APP_ID,
+    trace_id: `${RUN_PREFIX}-avatar-newer-trace`, errcode: 0, result: { suggest: "pass" },
+  });
+  assert.equal((await prisma.user.findUnique({ where: { id: parentA.id } })).avatar_url,
+    "https://example.test/avatar-newer.jpg", "only the newest passed avatar is published");
+
   const firstLike = await routeJson(`/community/posts/${visiblePost.id}/like`, parentA, "POST");
   const secondLike = await routeJson(`/community/posts/${visiblePost.id}/like`, parentA, "POST");
   assert.equal(firstLike.liked, true, "first like should create one like");
@@ -451,6 +610,8 @@ try {
   const comment = await routeJson(`/community/posts/${visiblePost.id}/comments`, parentA, "POST", {
     content: "parent comment",
   });
+  assert.equal(comment.visibility, "hidden", "parent comment must wait for moderation");
+  assert.equal((await routeGet(`/community/posts/${visiblePost.id}`, null)).comments.some((item) => item.id === comment.id), false);
   await assertRouteRejects(
     "foreign parent cannot delete comment",
     `/community/posts/${visiblePost.id}/comments/${comment.id}`,

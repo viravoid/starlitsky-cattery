@@ -6,6 +6,7 @@ import { validateParentCatLinkRelationship } from "./parent-cat-link-validation.
 import { consumeParentPhoneVerification } from "./parent-phone-verification-service.mjs";
 import { limitParentRequest } from "./parent-request-limit.mjs";
 import { createMiniProgramCode } from "./wechat-mini-program-code-service.mjs";
+import { checkCommunityText } from "./community-content-safety.mjs";
 
 const INVITE_STATUS_ACTIVE = "active";
 const INVITE_STATUS_REVOKED = "revoked";
@@ -123,6 +124,8 @@ export async function submitParentApplication(input, user) {
   assertNoUnknownFields(input, SUBMIT_APPLICATION_FIELDS);
 
   const profile = normalizeProfileInput(input);
+  const displayNameCheck = await checkCommunityText(profile.displayName, user, 1);
+  if (displayNameCheck !== "pass") throw badRequest("展示名称需修改后再提交");
   const hasInviteCredential = INVITE_FIELDS.some((field) => input[field] !== undefined);
   if (
     !hasInviteCredential &&

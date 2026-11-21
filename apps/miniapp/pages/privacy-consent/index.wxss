@@ -1,0 +1,8 @@
+.page { min-height: 100vh; padding: 32rpx; background: var(--xy-color-background); }
+.panel { padding: 36rpx; border-radius: 32rpx; background: var(--xy-color-surface); }
+.title { display: block; color: var(--xy-color-heading); font-size: 42rpx; font-weight: 700; }
+.description { display: block; margin: 24rpx 0; color: var(--xy-color-text); font-size: 28rpx; line-height: 1.7; }
+.guide { color: var(--xy-color-secondary); background: transparent; text-decoration: underline; }
+.actions { margin-top: 32rpx; }
+.agree, .refuse { margin-top: 16rpx; }
+.refuse { background: transparent; color: var(--xy-color-muted); }

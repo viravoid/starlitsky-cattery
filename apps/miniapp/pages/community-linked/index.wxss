@@ -191,8 +191,9 @@
 }
 
 .post-image {
+  display: block;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: auto;
   margin-top: 22rpx;
   border-radius: 24rpx;
   background: var(--xy-gradient-cream);
@@ -203,7 +204,6 @@
 }
 
 .single-image-grid .post-image {
-  aspect-ratio: 4 / 3;
   border-radius: 32rpx;
 }
 

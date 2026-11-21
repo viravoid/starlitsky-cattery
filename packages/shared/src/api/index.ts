@@ -660,6 +660,7 @@ export interface CommunityPostMediaAssetData {
   height?: number | null;
   usage: string;
   sortOrder: number;
+  safetyStatus?: "pending" | "pass" | "review" | "risky" | "failed" | "timeout" | null;
 }
 
 export interface CommunityPostRelatedCatData {
@@ -696,6 +697,7 @@ export interface CommunityCommentData {
 export interface AdminCommunityPostData extends CommunityPostData {
   authorUserId: string;
   deletedAt: string | null;
+  moderationRevision: string;
 }
 
 export interface AdminCommunityCommentData extends CommunityCommentData {
@@ -796,6 +798,8 @@ export interface ModerateCommunityPostRequest {
   visibility?: string;
   pinned?: boolean;
   deleted?: boolean;
+  expectedUpdatedAt?: string;
+  expectedRevision?: string;
 }
 
 export interface ToggleCommunityPostLikeData {

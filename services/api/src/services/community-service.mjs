@@ -1,15 +1,18 @@
+import { createHash } from "node:crypto";
 import { prisma } from "../db/prisma.mjs";
-import { badRequest, forbidden, notFound } from "../utils/errors.mjs";
+import { config } from "../config/env.mjs";
+import { badRequest, conflict, forbidden, notFound } from "../utils/errors.mjs";
 import { buildPaginationMeta, parsePagination } from "../utils/request.mjs";
 import { resolveMediaSourceUrl, resolveMediaThumbnailUrl } from "./media-delivery-service.mjs";
 import { completeMediaUpload, requestImageUpload } from "./media-upload-service.mjs";
+import { checkCommunityText, requestCommunityImageCheck } from "./community-content-safety.mjs";
 
 const CATEGORY_VALUES = new Set(["cattery_daily", "parent_share", "personal_thoughts"]);
 const PARENT_CATEGORY_VALUES = new Set(["parent_share", "personal_thoughts"]);
 const VISIBILITY_VALUES = new Set(["visible", "hidden", "archived"]);
 const POST_CREATE_FIELDS = ["category", "content", "catIds", "litterIds", "visibility", "pinned"];
 const POST_UPDATE_FIELDS = ["category", "content", "catIds", "litterIds", "visibility", "pinned"];
-const POST_MODERATION_FIELDS = ["visibility", "pinned", "deleted"];
+const POST_MODERATION_FIELDS = ["visibility", "pinned", "deleted", "expectedUpdatedAt", "expectedRevision"];
 const COMMENT_MODERATION_FIELDS = ["visibility", "deleted"];
 const COMMENT_CREATE_FIELDS = ["content"];
 
@@ -57,6 +60,7 @@ export async function listAdminCommunityPosts(searchParams, user) {
     items.map((post) => post.id),
     {
       includeComments: true,
+      includeHiddenMedia: true,
       relationAccess: { revealAll: true },
       viewer: user,
     },
@@ -108,6 +112,7 @@ export async function getCommunityPost(id, viewer = null) {
   const relationAccess = await getRelationAccessForPostDetail(viewer, post);
   const publicData = await getPublicPostSupplements([post.id], {
     includeComments: true,
+    includeHiddenMedia: canManagePost(viewer, post),
     relationAccess,
     viewer,
   });
@@ -124,6 +129,7 @@ export async function getAdminCommunityPost(id, user) {
 
   const publicData = await getPublicPostSupplements([post.id], {
     includeComments: false,
+    includeHiddenMedia: true,
     relationAccess: { revealAll: true },
     viewer: user,
   });
@@ -159,6 +165,7 @@ export async function listMyCommunityPosts(searchParams, user) {
     items.map((post) => post.id),
     {
       includeComments: true,
+      includeHiddenMedia: true,
       revealHiddenRelations: true,
       viewer: user,
     },
@@ -264,6 +271,7 @@ export async function createCommunityPost(input, user) {
   assertPlainObject(input);
   assertNoUnknownFields(input, POST_CREATE_FIELDS);
   const data = await normalizePostMutationInput(input, user, { mode: "create" });
+  if (!isPrivilegedUser(user)) await checkCommunityText(data.content, user, 3);
   const authorSnapshot = getAuthorSnapshot(user);
 
   const post = await prisma.$transaction(async (transaction) => {
@@ -274,7 +282,7 @@ export async function createCommunityPost(input, user) {
         author_name_snapshot: authorSnapshot.name,
         category: data.category,
         content: data.content,
-        visibility: data.visibility,
+        visibility: isPrivilegedUser(user) ? data.visibility : "hidden",
         pinned: data.pinned,
       },
     });
@@ -288,6 +296,7 @@ export async function createCommunityPost(input, user) {
 
   const publicData = await getPublicPostSupplements([post.id], {
     includeComments: true,
+    includeHiddenMedia: true,
     revealHiddenRelations: true,
     viewer: user,
   });
@@ -303,6 +312,7 @@ export async function updateCommunityPost(id, input, user) {
   const existing = await getMutablePost(id);
   ensureCanManagePost(user, existing);
   const data = await normalizePostMutationInput(input, user, { mode: "update", existing });
+  if (!isPrivilegedUser(user) && data.content) await checkCommunityText(data.content, user, 3);
 
   const post = await prisma.$transaction(async (transaction) => {
     await transaction.post.update({
@@ -310,7 +320,7 @@ export async function updateCommunityPost(id, input, user) {
       data: {
         ...(data.category ? { category: data.category } : {}),
         ...(data.content ? { content: data.content } : {}),
-        ...(data.visibility ? { visibility: data.visibility } : {}),
+        ...(!isPrivilegedUser(user) ? { visibility: "hidden" } : data.visibility ? { visibility: data.visibility } : {}),
         ...(typeof data.pinned === "boolean" ? { pinned: data.pinned } : {}),
       },
     });
@@ -324,6 +334,7 @@ export async function updateCommunityPost(id, input, user) {
 
   const publicData = await getPublicPostSupplements([post.id], {
     includeComments: true,
+    includeHiddenMedia: true,
     revealHiddenRelations: true,
     viewer: user,
   });
@@ -370,6 +381,7 @@ export async function moderateCommunityPost(id, input, user) {
   if (!existing) throw notFound("Community post not found");
 
   const data = {};
+  const expectedUpdatedAt = input.expectedUpdatedAt;
   if (Object.hasOwn(input, "visibility")) {
     data.visibility = normalizeVisibility(input.visibility);
   }
@@ -383,11 +395,51 @@ export async function moderateCommunityPost(id, input, user) {
   }
   if (Object.keys(data).length === 0)
     throw badRequest("At least one moderation field must be provided");
-
-  const post = await prisma.post.update({
-    where: { id },
-    data,
-    include: COMMUNITY_POST_ADMIN_DETAIL_INCLUDE,
+  if (data.visibility === "visible" && !isPrivilegedPost(existing) &&
+      (typeof expectedUpdatedAt !== "string" || expectedUpdatedAt !== toIsoString(existing.updated_at) ||
+       typeof input.expectedRevision !== "string")) {
+    throw conflict("动态在审核期间发生变化，请刷新后重新审核");
+  }
+  const post = await prisma.$transaction(async (transaction) => {
+    // Acquire the post write lock before reading attachments. Author edits, uploads,
+    // and callbacks all touch updated_at, so approval cannot use a stale snapshot.
+    const changed = await transaction.post.updateMany({
+      where: { id, updated_at: existing.updated_at },
+      data,
+    });
+    if (changed.count !== 1) throw conflict("动态在审核期间发生变化，请刷新后重新审核");
+    if (data.visibility === "visible" && !isPrivilegedPost(existing)) {
+      const current = await transaction.post.findUnique({
+        where: { id }, include: { post_cats: true, post_litters: true },
+      });
+      const attachments = await transaction.mediaAsset.findMany({
+        where: {
+          deleted_at: null,
+          bindings: { some: { owner_type: "post", owner_id: id, deleted_at: null } },
+        },
+        select: { id: true, status: true, metadata_json: true },
+      });
+      const mediaForRevision = attachments.map((item) => ({
+        id: item.id,
+        status: item.status,
+        safetyStatus: item.metadata_json?.contentSafety?.suggest ?? null,
+      }));
+      if (moderationRevision(current, mediaForRevision) !== input.expectedRevision) {
+        throw conflict("动态在审核期间发生变化，请刷新后重新审核");
+      }
+      if (attachments.some((item) => item.status !== "active" ||
+          !["pass", "review"].includes(item.metadata_json?.contentSafety?.suggest))) {
+        throw conflict("图片仍在安全检测中或未通过，暂不能公开动态");
+      }
+      await transaction.mediaBinding.updateMany({
+        where: { owner_type: "post", owner_id: id, deleted_at: null },
+        data: { visibility: "visible" },
+      });
+    }
+    return transaction.post.findUnique({
+      where: { id },
+      include: COMMUNITY_POST_ADMIN_DETAIL_INCLUDE,
+    });
   });
   const publicData = await getPublicPostSupplements([post.id], {
     includeComments: false,
@@ -438,12 +490,15 @@ export async function createCommunityComment(postId, input, user) {
   assertPlainObject(input);
   assertNoUnknownFields(input, COMMENT_CREATE_FIELDS);
   await ensureVisiblePostExists(postId);
+  const content = normalizeContent(input.content, "content", 500);
+  if (!isPrivilegedUser(user)) await checkCommunityText(content, user, 2);
 
   const comment = await prisma.comment.create({
     data: {
       post_id: postId,
       author_user_id: user.id,
-      content: normalizeContent(input.content, "content", 500),
+      content,
+      visibility: isPrivilegedUser(user) ? "visible" : "hidden",
     },
     include: COMMENT_INCLUDE,
   });
@@ -512,12 +567,19 @@ export async function moderateCommunityComment(postId, commentId, input, user) {
 
 export async function requestCommunityPostImageUpload(postId, input, user) {
   await ensureCanUploadToPost(postId, user);
-  return requestImageUpload({
+  if (!isPrivilegedUser(user) && !["image/jpeg", "image/png", "image/gif"].includes(input?.mimeType)) {
+    throw badRequest("猫友圈图片仅支持 JPG、PNG 或 GIF");
+  }
+  const upload = await requestImageUpload({
     ...input,
     ownerType: "post",
     ownerId: postId,
-    bindingVisibility: "visible",
+    bindingVisibility: isPrivilegedUser(user) ? "visible" : "hidden",
   });
+  if (!isPrivilegedUser(user)) {
+    await prisma.post.update({ where: { id: postId }, data: { visibility: "hidden" } });
+  }
+  return upload;
 }
 
 export async function completeCommunityPostImageUpload(postId, mediaId, input, user) {
@@ -537,7 +599,89 @@ export async function completeCommunityPostImageUpload(postId, mediaId, input, u
     select: { id: true },
   });
   if (!media) throw notFound("Community post media not found");
-  return completeMediaUpload(mediaId, input);
+  const completed = await completeMediaUpload(mediaId, input);
+  if (isPrivilegedUser(user)) return completed;
+  const record = await prisma.mediaAsset.findUnique({ where: { id: mediaId } });
+  const previousSafety = record.metadata_json?.contentSafety;
+  const ageMs = Date.now() - Date.parse(previousSafety?.requestedAt || record.created_at);
+  if (previousSafety?.traceId && previousSafety.suggest !== "failed" &&
+      !(previousSafety.suggest === "pending" && ageMs > 30 * 60 * 1000)) return completed;
+  const traceId = await requestCommunityImageCheck(resolveMediaSourceUrl(record), user);
+  const metadata = record.metadata_json || {};
+  const changed = await prisma.mediaAsset.updateMany({
+    where: { id: mediaId, updated_at: record.updated_at },
+    data: { metadata_json: { ...metadata, contentSafety: {
+      traceId,
+      suggest: traceId === "development-mock" ? "pass" : "pending",
+      requestedAt: new Date().toISOString(),
+    } } },
+  });
+  if (changed.count !== 1) throw conflict("图片检测状态已变化，请刷新后重试");
+  await prisma.post.update({ where: { id: postId }, data: { visibility: "hidden" } });
+  return completed;
+}
+
+export async function applyCommunityImageCheckResult(event) {
+  if (event?.Event !== "wxa_media_check" ||
+      event.appid !== config.wechat.appId ||
+      typeof event.trace_id !== "string") return true;
+  return prisma.$transaction(async (transaction) => {
+    const matches = await transaction.$queryRaw`
+      SELECT id FROM media_assets
+      WHERE json_extract(metadata_json, '$.contentSafety.traceId') = ${event.trace_id}
+      LIMIT 1
+    `;
+    if (!matches.length) return false;
+    const media = await transaction.mediaAsset.findUnique({
+      where: { id: matches[0].id }, include: { bindings: true },
+    });
+    if (!media) return false;
+    const safety = media.metadata_json?.contentSafety;
+    if (safety?.traceId !== event.trace_id || media.deleted_at) return true;
+    // WeChat retries are idempotent. A later, conflicting result never changes a verdict.
+    if (safety.suggest !== "pending") return true;
+    const suggest = event.errcode === 0 && ["pass", "review", "risky"].includes(event.result?.suggest)
+      ? event.result.suggest : "failed";
+    const changed = await transaction.mediaAsset.updateMany({
+      where: { id: media.id, updated_at: media.updated_at },
+      data: { metadata_json: { ...media.metadata_json,
+        contentSafety: { ...safety, suggest } } },
+    });
+    if (changed.count !== 1) return true;
+    if (safety.purpose === "avatar") {
+      if (suggest === "pass" && typeof safety.userId === "string") {
+        const latest = await transaction.$queryRaw`
+          SELECT id FROM media_assets
+          WHERE json_extract(metadata_json, '$.contentSafety.purpose') = 'avatar'
+            AND json_extract(metadata_json, '$.contentSafety.userId') = ${safety.userId}
+          ORDER BY rowid DESC LIMIT 1
+        `;
+        if (latest[0]?.id === media.id) {
+          await transaction.user.updateMany({
+            where: { id: safety.userId, status: "active" },
+            data: { avatar_url: media.source_url },
+          });
+        }
+      }
+      return true;
+    }
+    const postIds = media.bindings
+      .filter((binding) => binding.owner_type === "post" && !binding.deleted_at)
+      .map((binding) => binding.owner_id);
+    if (postIds.length) {
+      if (suggest !== "pass") {
+        await transaction.mediaBinding.updateMany({
+          where: { media_id: media.id, owner_type: "post", deleted_at: null },
+          data: { visibility: "hidden" },
+        });
+      }
+      await transaction.post.updateMany({
+        where: { id: { in: postIds }, deleted_at: null },
+        data: { ...(suggest !== "pass" ? { visibility: "hidden" } : {}), updated_at: new Date() },
+      });
+    }
+    return true;
+  });
 }
 
 export async function deleteCommunityPostMedia(postId, mediaId, user) {
@@ -559,6 +703,7 @@ export async function deleteCommunityPostMedia(postId, mediaId, user) {
       visibility: "archived",
     },
   });
+  await prisma.post.update({ where: { id: postId }, data: { visibility: "hidden" } });
 
   return {
     id: updated.media_id,
@@ -675,12 +820,13 @@ async function getPublicPostSupplements(
   postIds,
   {
     includeComments = false,
+    includeHiddenMedia = false,
     relationAccess = null,
     revealHiddenRelations = false,
     viewer = null,
   } = {},
 ) {
-  const mediaByPostId = await listVisiblePostMedia(postIds);
+  const mediaByPostId = await listVisiblePostMedia(postIds, { includeHiddenMedia });
   const [commentGroups, likeGroups, viewerLikes, comments] =
     postIds.length === 0
       ? [[], [], [], []]
@@ -739,7 +885,7 @@ async function getPublicPostSupplements(
   };
 }
 
-async function listVisiblePostMedia(postIds) {
+async function listVisiblePostMedia(postIds, { includeHiddenMedia = false } = {}) {
   if (postIds.length === 0) return new Map();
 
   const media = await prisma.mediaAsset.findMany({
@@ -750,7 +896,7 @@ async function listVisiblePostMedia(postIds) {
         some: {
           owner_type: "post",
           owner_id: { in: postIds },
-          visibility: "visible",
+          ...(!includeHiddenMedia ? { visibility: "visible" } : {}),
           deleted_at: null,
         },
       },
@@ -760,7 +906,7 @@ async function listVisiblePostMedia(postIds) {
         where: {
           owner_type: "post",
           owner_id: { in: postIds },
-          visibility: "visible",
+          ...(!includeHiddenMedia ? { visibility: "visible" } : {}),
           deleted_at: null,
         },
         orderBy: [{ sort_order: "asc" }, { created_at: "desc" }, { id: "asc" }],
@@ -811,11 +957,26 @@ function toCommunityPostDto(post, publicData) {
 }
 
 function toAdminCommunityPostDto(post, publicData) {
+  const media = publicData.mediaByPostId.get(post.id) ?? [];
   return {
     ...toCommunityPostDto(post, publicData),
     authorUserId: post.author_user_id,
     deletedAt: toIsoString(post.deleted_at),
+    moderationRevision: moderationRevision(post, media.map((item) => ({
+      id: item.id, status: "active", safetyStatus: item.safetyStatus,
+    }))),
   };
+}
+
+function moderationRevision(post, media) {
+  const input = {
+    content: post.content,
+    category: post.category,
+    catIds: post.post_cats.map((item) => item.cat_id).sort(),
+    litterIds: post.post_litters.map((item) => item.litter_id).sort(),
+    media: media.map((item) => [item.id, item.status, item.safetyStatus]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+  };
+  return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 }
 
 function toAdminCommunityCommentDto(comment, { viewer = null } = {}) {
@@ -905,6 +1066,9 @@ function toPostMediaDto(media, binding) {
     height: media.height,
     usage: binding.usage,
     sortOrder: binding.sort_order,
+    safetyStatus: media.metadata_json?.contentSafety?.suggest === "pending" &&
+      Date.now() - Date.parse(media.metadata_json.contentSafety.requestedAt || media.created_at) > 30 * 60 * 1000
+      ? "timeout" : media.metadata_json?.contentSafety?.suggest ?? null,
   };
 }
 
@@ -1139,7 +1303,12 @@ function ensurePrivilegedUser(user) {
 
 function canManagePost(user, post) {
   if (!user || !post) return false;
-  return isPrivilegedUser(user) || (isActiveParentUser(user) && post.author_user_id === user.id);
+  if (isPrivilegedUser(user)) return isPrivilegedPost(post);
+  return isActiveParentUser(user) && !isPrivilegedPost(post) && post.author_user_id === user.id;
+}
+
+function isPrivilegedPost(post) {
+  return post.author_role_snapshot === "keeper" || post.author_role_snapshot === "admin";
 }
 
 function canReadPostDetail(user, post) {

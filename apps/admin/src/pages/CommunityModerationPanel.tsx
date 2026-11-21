@@ -130,7 +130,9 @@ export function CommunityModerationPanel({
     setNotice("");
     setError("");
     try {
-      const updated = await moderateCommunityPost(post.id, input);
+      const updated = await moderateCommunityPost(post.id, {
+        ...input, expectedUpdatedAt: post.updatedAt, expectedRevision: post.moderationRevision,
+      });
       setSelectedPost(updated);
       setNotice("动态状态已更新");
       await loadPosts();
@@ -814,12 +816,14 @@ function PostMediaStrip({ post }: { post: AdminCommunityPostData }) {
   return (
     <div className="community-media-strip">
       {post.mediaAssets.slice(0, 6).map((media) => (
-        <img
-          alt={media.altText || media.title || "动态图片"}
-          className="community-media-preview"
-          key={media.id}
-          src={media.thumbnailUrl || media.sourceUrl}
-        />
+        <div key={media.id}>
+          <img
+            alt={media.altText || media.title || "动态图片"}
+            className="community-media-preview"
+            src={media.thumbnailUrl || media.sourceUrl}
+          />
+          <p className="muted compact">图片检测：{media.safetyStatus === "pass" ? "通过" : media.safetyStatus === "review" ? "需人工复核" : media.safetyStatus === "risky" ? "风险" : media.safetyStatus === "failed" ? "检测失败" : media.safetyStatus === "timeout" ? "检测超时" : media.safetyStatus === "pending" ? "待结果" : "未检测"}</p>
+        </div>
       ))}
     </div>
   );
