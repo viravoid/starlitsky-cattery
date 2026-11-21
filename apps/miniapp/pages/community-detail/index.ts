@@ -27,6 +27,7 @@ interface CommunityDetailData {
   authorRoleClass: string;
   canDelete: boolean;
   canEdit: boolean;
+  canInteract: boolean;
   category: string;
   commentActionLabel: string;
   commentText: string;
@@ -45,6 +46,7 @@ interface CommunityDetailData {
   meta: string;
   pinned: boolean;
   previewUrls: string[];
+  reviewNotice: string;
 }
 
 interface CommunityDetailPage {
@@ -93,6 +95,7 @@ Page({
     authorRoleClass: "",
     canDelete: false,
     canEdit: false,
+    canInteract: false,
     category: "",
     commentActionLabel: "",
     commentText: "",
@@ -111,6 +114,7 @@ Page({
     meta: "",
     pinned: false,
     previewUrls: [],
+    reviewNotice: "",
   } as CommunityDetailData,
 
   async onLoad(this: CommunityDetailPage, options: DetailOptions) {
@@ -165,7 +169,7 @@ Page({
   },
 
   async toggleLike(this: CommunityDetailPage) {
-    if (!this.data.id) return;
+    if (!this.data.id || !this.data.canInteract) return;
     try {
       await ensureLoggedIn();
       await toggleCommunityPostLike(this.data.id);
@@ -176,6 +180,7 @@ Page({
   },
 
   async submitComment(this: CommunityDetailPage) {
+    if (!this.data.canInteract) return;
     const content = this.data.commentText.trim();
     if (!content) {
       showToast("请先写下评论");
@@ -257,6 +262,7 @@ function toDetailView(post: CommunityPostData) {
     authorRoleClass: roleClass(post.authorRole),
     canDelete: post.canDelete,
     canEdit: post.canEdit,
+    canInteract: post.visibility === "visible",
     category: categoryLabel(post.category),
     commentActionLabel: `${post.commentCount} 条评论`,
     comments: post.comments.map(toCommentView),
@@ -271,6 +277,11 @@ function toDetailView(post: CommunityPostData) {
     meta: `${post.commentCount} 条评论 · ${post.likeCount} 个喜欢`,
     pinned: post.pinned,
     previewUrls: images.map((item) => item.url),
+    reviewNotice: post.visibility === "hidden"
+      ? "动态正在审核。审核通过后会出现在猫友圈；已关联猫咪的动态也会出现在猫咪页面，届时可点赞、评论。"
+      : post.visibility === "archived"
+        ? "动态已归档，不能点赞或评论。"
+        : "",
   };
 }
 
@@ -323,7 +334,10 @@ function pad(value: number) {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "动态详情加载失败";
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error &&
+      typeof error.message === "string") return error.message;
+  return "动态详情加载失败";
 }
 
 async function ensureLoggedIn() {

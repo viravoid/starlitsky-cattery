@@ -18,6 +18,8 @@
       </view>
     </view>
 
+    <view wx:if="{{reviewNotice}}" class="review-notice">{{reviewNotice}}</view>
+
     <text class="content">{{content}}</text>
 
     <view wx:if="{{images.length}}" class="{{imageGridClass}}">
@@ -26,7 +28,7 @@
         wx:key="id"
         class="gallery-image"
         src="{{item.url}}"
-        mode="aspectFill"
+        mode="widthFix"
         data-url="{{item.url}}"
         bindtap="previewImage"
       />
@@ -58,7 +60,7 @@
       </view>
     </view>
 
-    <view class="post-foot">
+    <view wx:if="{{canInteract}}" class="post-foot">
       <button class="{{likedByMe ? 'like-button liked' : 'like-button'}}" bindtap="toggleLike">
         <image
           class="like-icon"
@@ -75,7 +77,7 @@
       <button wx:if="{{canDelete}}" class="danger-button" bindtap="deletePost">删除</button>
     </view>
 
-    <view id="comments-section" class="comments">
+    <view wx:if="{{canInteract}}" id="comments-section" class="comments">
       <text class="comments-title">评论</text>
       <view wx:if="{{!comments.length}}" class="empty-comments">还没有人评论，来说点什么吧～</view>
       <view wx:for="{{comments}}" wx:key="id" class="comment-row">
@@ -99,7 +101,7 @@
     </view>
   </view>
 
-  <view wx:if="{{!isLoading && !error}}" class="comment-form">
+  <view wx:if="{{!isLoading && !error && canInteract}}" class="comment-form">
     <input
       class="comment-input"
       placeholder="留下你的评论…"

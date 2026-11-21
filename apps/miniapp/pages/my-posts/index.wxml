@@ -32,7 +32,7 @@
               wx:key="id"
               class="post-image"
               src="{{image.url}}"
-              mode="aspectFill"
+              mode="widthFix"
               data-post-index="{{postIndex}}"
               data-image-index="{{imageIndex}}"
               catchtap="previewImage"
