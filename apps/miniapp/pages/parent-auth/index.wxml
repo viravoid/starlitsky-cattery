@@ -77,7 +77,7 @@
           {{item.name}}
         </button>
       </view>
-      <text class="hint">找不到猫咪？已有档案请联系主理人；没有档案请选择「填写新猫」。</text>
+      <text class="hint">找不到猫咪？请选择「填写新猫」，主理人审核时会核对是否已有档案。</text>
     </view>
 
     <view wx:if="{{catMode === 'new'}}">
