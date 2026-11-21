@@ -55,7 +55,6 @@
     <text class="section-title">我的猫</text>
     <view class="switch-row">
       <button class="{{catMode === 'existing' ? 'active' : 'secondary'}}" style="width: 100%;" bindtap="useExistingCat">猫库选择</button>
-      <button class="{{catMode === 'unlisted' ? 'active' : 'secondary'}}" style="width: 100%;" bindtap="useUnlistedCat">认领未公开猫咪</button>
       <button class="{{catMode === 'new' ? 'active' : 'secondary'}}" style="width: 100%;" bindtap="useNewCat">填写新猫</button>
     </view>
 
@@ -78,19 +77,14 @@
           {{item.name}}
         </button>
       </view>
-      <text class="hint">找不到猫咪？已有档案请选择「认领未公开猫咪」；确实没有档案才选择「填写新猫」。</text>
+      <text class="hint">找不到猫咪？已有档案请联系主理人；没有档案请选择「填写新猫」。</text>
     </view>
 
-    <view wx:if="{{catMode === 'unlisted' || catMode === 'new'}}">
+    <view wx:if="{{catMode === 'new'}}">
       <view class="field">
         <text>猫咪名字</text>
         <input class="field-control" placeholder="必填" value="{{newCatName}}" bindinput="onNewCatNameInput" />
       </view>
-      <view wx:if="{{catMode === 'unlisted'}}" class="field">
-        <text>识别说明</text>
-        <textarea class="field-control textarea-control" placeholder="颜色、到家时间等供主理人核对的信息" value="{{unlistedCatIdentification}}" bindinput="onUnlistedCatIdentificationInput" />
-      </view>
-      <block wx:if="{{catMode === 'new'}}">
       <view class="field">
         <text>性别</text>
         <view class="gender-row">
@@ -115,7 +109,6 @@
         <text>性格/备注</text>
         <textarea class="field-control textarea-control" placeholder="可选" value="{{newCatPersonality}}" bindinput="onNewCatPersonalityInput" />
       </view>
-      </block>
     </view>
   </view>
 

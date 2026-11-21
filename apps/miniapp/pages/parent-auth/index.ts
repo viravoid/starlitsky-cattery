@@ -38,7 +38,7 @@ interface ParentAuthData {
   applicationStatusClass: string;
   applicationStatusLabel: string;
   cats: ParentClaimCatCandidateData[];
-  catMode: "existing" | "unlisted" | "new";
+  catMode: "existing" | "new";
   catQuery: string;
   applicantGender: "" | "male" | "female";
   contactWechat: string;
@@ -57,7 +57,6 @@ interface ParentAuthData {
   newCatColor: string;
   newCatGender: string;
   newCatName: string;
-  unlistedCatIdentification: string;
   newCatPersonality: string;
 }
 
@@ -87,7 +86,6 @@ const DEFAULT_DATA: ParentAuthData = {
   newCatColor: "",
   newCatGender: "",
   newCatName: "",
-  unlistedCatIdentification: "",
   newCatPersonality: "",
 };
 
@@ -167,10 +165,6 @@ Page({
     this.setData({ catMode: "new" });
   },
 
-  useUnlistedCat(this: ParentAuthPage) {
-    this.setData({ catMode: "unlisted" });
-  },
-
   async onSubmit(this: ParentAuthPage) {
     const payload = toSubmitPayload(this.data);
     if (!payload) return;
@@ -240,9 +234,6 @@ Page({
   onNewCatNameInput(this: ParentAuthPage, event: InputEvent) {
     this.setData({ newCatName: event.detail.value });
   },
-  onUnlistedCatIdentificationInput(this: ParentAuthPage, event: InputEvent) {
-    this.setData({ unlistedCatIdentification: event.detail.value });
-  },
   setNewCatGender(this: ParentAuthPage, event: TapEvent) {
     const gender = event.currentTarget.dataset.gender || "";
     this.setData({ newCatGender: gender });
@@ -301,20 +292,6 @@ function toSubmitPayload(data: ParentAuthData): SubmitParentApplicationRequest |
   if (!data.newCatName.trim()) {
     showToast("请填写猫咪名字");
     return null;
-  }
-  if (data.catMode === "unlisted") {
-    if (!data.unlistedCatIdentification.trim()) {
-      showToast("请填写识别说明供主理人核对");
-      return null;
-    }
-    payload.unlistedCatClaims = [
-      {
-        name: data.newCatName.trim(),
-        identification: data.unlistedCatIdentification.trim(),
-        relationship: "owner",
-      },
-    ];
-    return payload;
   }
   payload.newCats = [
     {
