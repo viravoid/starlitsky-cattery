@@ -35,6 +35,17 @@ async function loginAdmin(page: Page): Promise<string> {
   return token!;
 }
 
+test("kitten entry explains the required litter before editing", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginAdmin(page);
+  await page.getByRole("link", { name: "小猫", exact: true }).click();
+  await expect(page.getByText("新增小猫前需要先创建窝次。", { exact: false })).toBeVisible();
+  await expect(page.locator(".table-panel").getByRole("button", { name: "新增" })).toBeDisabled();
+  await page.getByRole("link", { name: "前往创建窝次" }).click();
+  await expect(page).toHaveURL(/#litters$/);
+  await expect(page.getByRole("heading", { name: "窝次管理" })).toBeVisible();
+});
+
 test("cat profile can be created, edited, hidden and read back from SQLite", async ({
   page,
   request,
@@ -280,7 +291,7 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   const fatherId = (await fatherResponse.json()).data.id as string;
   const motherId = (await motherResponse.json()).data.id as string;
 
-  await page.getByRole("link", { name: "窝次" }).click();
+  await page.getByRole("link", { name: "窝次", exact: true }).click();
   await page.getByRole("button", { name: "刷新" }).click();
   await page
     .locator('aside[aria-label="窝次详情"]')
@@ -354,6 +365,9 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   const kittenEditor = page.locator('aside[aria-label="小猫管理详情"]');
   await kittenEditor.getByLabel("名字").fill("业务 E2E 小猫");
   await kittenEditor.getByLabel("性别").selectOption("male");
+  await expect(kittenEditor.getByLabel("所属窝次（必选）")).toHaveAttribute("required", "");
+  await kittenEditor.getByRole("button", { name: "保存" }).click();
+  await expect(kittenEditor.getByLabel("所属窝次（必选）")).toBeFocused();
   await kittenEditor.getByLabel("所属窝次").selectOption(litterId);
   await kittenEditor.getByLabel("找家状态").selectOption("available");
   const kittenResponse = page.waitForResponse(
@@ -397,7 +411,7 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
     updatedKittenDatabase.close();
   }
   await page.reload();
-  await page.getByRole("link", { name: "窝次" }).click();
+  await page.getByRole("link", { name: "窝次", exact: true }).click();
   await page
     .getByRole("row")
     .filter({ hasText: "业务 E2E 窝次" })
@@ -414,7 +428,7 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   await editor.getByRole("button", { name: "保存" }).click();
   await expect(page.getByText("窝次资料已更新")).toBeVisible();
   await page.reload();
-  await page.getByRole("link", { name: "窝次" }).click();
+  await page.getByRole("link", { name: "窝次", exact: true }).click();
   const archivedRow = page.getByRole("row").filter({ hasText: "业务 E2E 窝次" });
   await expect(archivedRow).toContainText("归档");
   await archivedRow.getByRole("button", { name: "查看" }).click();
@@ -443,7 +457,7 @@ test("failed image upload after litter creation retries as an edit", async ({ pa
   const fatherId = (await father.json()).data.id as string;
   const motherId = (await mother.json()).data.id as string;
 
-  await page.getByRole("link", { name: "窝次" }).click();
+  await page.getByRole("link", { name: "窝次", exact: true }).click();
   await page.getByRole("button", { name: "刷新" }).click();
   const editor = page.locator('aside[aria-label="窝次详情"]');
   await editor.getByRole("button", { name: "新增窝次" }).click();

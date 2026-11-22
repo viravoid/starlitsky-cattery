@@ -1032,6 +1032,7 @@ export function CatteryManagementPage() {
           imagePreviewUrl={catImagePreviewUrl}
           imageUploadState={catImageUploadState}
           includeArchived={includeArchivedCats}
+          isLoading={isLoading}
           isSaving={isSaving}
           litters={litters}
           mode="kittens"
@@ -1089,6 +1090,7 @@ export function CatteryManagementPage() {
           imagePreviewUrl={catImagePreviewUrl}
           imageUploadState={catImageUploadState}
           includeArchived={includeArchivedCats}
+          isLoading={isLoading}
           isSaving={isSaving}
           litters={litters}
           mode="studs"
@@ -1120,6 +1122,7 @@ export function CatteryManagementPage() {
           imagePreviewUrl={catImagePreviewUrl}
           imageUploadState={catImageUploadState}
           includeArchived={includeArchivedCats}
+          isLoading={isLoading}
           isSaving={isSaving}
           litters={litters}
           mode="cats"
@@ -1170,6 +1173,7 @@ function CatManagementWorkspace({
   imagePreviewUrl,
   imageUploadState,
   includeArchived,
+  isLoading,
   isSaving,
   litters,
   mode,
@@ -1198,6 +1202,7 @@ function CatManagementWorkspace({
   imagePreviewUrl: string;
   imageUploadState: ImageUploadState;
   includeArchived: boolean;
+  isLoading: boolean;
   isSaving: boolean;
   litters: LitterData[];
   mode: "kittens" | "studs" | "cats";
@@ -1222,6 +1227,7 @@ function CatManagementWorkspace({
   onToggleArchived: (value: boolean) => void;
 }) {
   const title = mode === "kittens" ? "小猫管理" : mode === "studs" ? "种猫管理" : "其它猫咪";
+  const needsLitter = mode === "kittens" && !isLoading && litters.length === 0;
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [visibility, setVisibility] = useState("");
@@ -1270,11 +1276,16 @@ function CatManagementWorkspace({
               />
               显示归档
             </label>
-            <button type="button" onClick={onNew}>
+            <button type="button" disabled={needsLitter} onClick={onNew}>
               新增
             </button>
           </div>
         </div>
+        {needsLitter ? (
+          <div className="prerequisite-note">
+            新增小猫前需要先创建窝次。<a href="#litters">前往创建窝次</a>
+          </div>
+        ) : null}
         <div className="filter-bar">
           <label>
             搜索猫咪
@@ -1428,10 +1439,12 @@ function CatManagementWorkspace({
           />
         ) : (
           <div className="empty-state">
-            <strong>选择一只猫查看详情</strong>
-            <button type="button" onClick={onNew}>
-              新增
-            </button>
+            <strong>{needsLitter ? "先创建窝次，再新增小猫" : "选择一只猫查看详情"}</strong>
+            {!needsLitter ? (
+              <button type="button" onClick={onNew}>
+                新增
+              </button>
+            ) : null}
           </div>
         )}
       </aside>
@@ -1543,12 +1556,13 @@ function CatEditor({
           <h4>小猫与窝次</h4>
           <div className="form-grid">
             <SelectField
-              label="所属窝次"
+              label="所属窝次（必选）"
               options={[
                 { label: "请选择窝次", value: "" },
                 ...litters.map((litter) => ({ label: litter.name, value: litter.id })),
               ]}
               value={draft.kittenLitterId}
+              required
               onChange={(value) => onChange({ ...draft, kittenLitterId: value })}
             />
             <SelectField
@@ -2630,18 +2644,20 @@ function CatThumb({ cat }: { cat: CatData }) {
 function SelectField({
   label,
   options,
+  required = false,
   value,
   onChange,
 }: {
   label: string;
   options: Array<{ label: string; value: string }>;
+  required?: boolean;
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
     <label>
       {label}
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
+      <select required={required} value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
