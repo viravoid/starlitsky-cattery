@@ -39,6 +39,25 @@ test("photo wall creates three photos and keeps cover, order, crop and visibilit
   await expect(page.locator(".photo-card-pending").nth(1).getByText("待上传封面")).toBeVisible();
   await page.getByText("待上传 · 3 张").scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${evidence}/after-pending-1440.png` });
+  let leaveWarningShown = false;
+  page.once("dialog", (dialog) => {
+    leaveWarningShown = dialog.message().includes("未保存");
+    return dialog.dismiss();
+  });
+  await page.getByRole("link", { name: "其它猫咪" }).click();
+  expect(leaveWarningShown).toBe(true);
+  await expect(page).toHaveURL(/#studs$/);
+  await expect(page.getByText("待上传 · 3 张")).toBeVisible();
+  const disconnectCreate = (url: URL) =>
+    url.origin === API_ORIGIN && url.pathname.endsWith("/cats/with-breeding-profile");
+  await page.route(disconnectCreate, (route) =>
+    route.request().method() === "POST" ? route.abort("internetdisconnected") : route.continue(),
+  );
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.locator(".error-banner")).toContainText("网络连接中断，请检查连接后重试");
+  await expect(page.getByLabel("名字")).toHaveValue("照片墙隔离测试猫");
+  await expect(page.getByText("待上传 · 3 张")).toBeVisible();
+  await page.unroute(disconnectCreate);
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect(page.getByText("猫咪已新增")).toBeVisible();
   await expect(page.locator(".photo-card")).toHaveCount(3);
