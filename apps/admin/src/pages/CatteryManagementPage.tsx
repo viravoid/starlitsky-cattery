@@ -1103,11 +1103,16 @@ export function CatteryManagementPage() {
       ) : null}
       {activeSection === "kittens" && createdKittenLitterId && !error ? (
         <div className="form-actions next-step-actions">
-          <button type="button" onClick={() => void returnToLitter(createdKittenLitterId)}>
+          <button
+            disabled={isSaving}
+            type="button"
+            onClick={() => void returnToLitter(createdKittenLitterId)}
+          >
             返回所属窝次
           </button>
           <button
             className="secondary-button"
+            disabled={isSaving}
             type="button"
             onClick={() =>
               openCreateCat(
@@ -2664,7 +2669,7 @@ function CatDetail({
           [
             "家长/归属",
             parentLinks
-              .map((link) => link.parentProfile?.displayName ?? "未填写姓名的家长")
+              .map((link) => link.parentProfile?.displayName ?? "家长资料不可用")
               .join("、") || "-",
           ],
           ["动态数量", "当前 API 未提供可靠计数"],
@@ -3090,7 +3095,7 @@ function formatParentOwnership(cat: CatData) {
   const links = cat.parentCatLinks ?? [];
   const link = links.find((item) => item.status === "active") ?? links[0];
   if (!link) return "-";
-  const parentName = link.parentProfile?.displayName || "未填写姓名的家长";
+  const parentName = link.parentProfile?.displayName || "家长资料不可用";
   return `${parentName} / ${formatParentRelationship(link.relationship)}`;
 }
 
