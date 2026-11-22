@@ -8,6 +8,7 @@ export default defineConfig({
   testMatch: [
     "upload-acceptance.spec.ts",
     "admin-photo-workflows.spec.ts",
+    "photo-wall-rendered.spec.ts",
     "fixed-page-draft-preview.spec.ts",
     "admin-business-workflows.spec.ts",
   ],

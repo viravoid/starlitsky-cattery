@@ -66,6 +66,7 @@ type SectionKey =
   | "selectionApplications";
 type EditorMode = "create" | "edit" | null;
 type ImageUploadState = "idle" | "pending" | "uploading" | "uploaded";
+type PendingCatPhoto = { id: string; file: File; url: string };
 type Visibility = "visible" | "hidden" | "archived";
 type CoverEntry = "listCard" | "breedingPlanCard" | "communityProfile";
 
@@ -196,7 +197,7 @@ const REPRODUCTIVE_STATE_OPTIONS = [
 const COVER_ENTRY_META: Array<{ key: CoverEntry; label: string; ratio: string }> = [
   { key: "listCard", label: "列表封面", ratio: "16:10" },
   { key: "breedingPlanCard", label: "繁育计划", ratio: "1:1" },
-  { key: "communityProfile", label: "家长档案", ratio: "4:3" },
+  { key: "communityProfile", label: "猫友圈展示", ratio: "4:3" },
 ];
 
 const DEFAULT_CAT_DRAFT: CatDraft = {
@@ -264,8 +265,8 @@ export function CatteryManagementPage() {
   const [litterKittensByLitterId, setLitterKittensByLitterId] = useState<
     Record<string, KittenProfileData[]>
   >({});
-  const [catImagePreviewUrl, setCatImagePreviewUrl] = useState("");
-  const [pendingCatImageFile, setPendingCatImageFile] = useState<File | null>(null);
+  const [pendingCatPhotos, setPendingCatPhotos] = useState<PendingCatPhoto[]>([]);
+  const [pendingCatCoverId, setPendingCatCoverId] = useState("");
   const [catImageUploadState, setCatImageUploadState] = useState<ImageUploadState>("idle");
   const [litterImagePreviewUrl, setLitterImagePreviewUrl] = useState("");
   const [pendingLitterImageFile, setPendingLitterImageFile] = useState<File | null>(null);
@@ -293,7 +294,7 @@ export function CatteryManagementPage() {
     ? (litterImagesByLitterId[selectedLitter.id] ?? [])
     : [];
   const catDirty = catEditorMode
-    ? serializeDraft(catDraft) !== catBaseline || Boolean(pendingCatImageFile)
+    ? serializeDraft(catDraft) !== catBaseline || pendingCatPhotos.length > 0
     : false;
   const litterDirty = litterEditorMode
     ? serializeDraft(litterDraft) !== litterBaseline || Boolean(pendingLitterImageFile)
@@ -341,12 +342,6 @@ export function CatteryManagementPage() {
 
   useEffect(() => {
     return () => {
-      if (catImagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(catImagePreviewUrl);
-    };
-  }, [catImagePreviewUrl]);
-
-  useEffect(() => {
-    return () => {
       if (litterImagePreviewUrl.startsWith("blob:")) URL.revokeObjectURL(litterImagePreviewUrl);
     };
   }, [litterImagePreviewUrl]);
@@ -385,6 +380,22 @@ export function CatteryManagementPage() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, [activeSection, catDirty, litterDirty]);
 
+  useEffect(() => {
+    if (!catDirty && !litterDirty) return;
+    const warnBeforeLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeave);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeave);
+  }, [catDirty, litterDirty]);
+
+  function cancelCatEditor() {
+    if (catDirty && !confirm("当前档案或待上传照片尚未保存，确定离开吗？")) return;
+    clearPendingCatImages();
+    setCatEditorMode(null);
+  }
+
   function navigateWithinPage(section: SectionKey) {
     if (window.location.hash !== SECTION_HASHES[section]) {
       internalNavigationRef.current = true;
@@ -404,7 +415,7 @@ export function CatteryManagementPage() {
     const next = { ...createEmptyCatDraft(section), kittenLitterId: litter?.id ?? "" };
     setCatDraft(next);
     setCatBaseline(serializeDraft(next));
-    clearPendingCatImage();
+    clearPendingCatImages();
     setCatEditorMode("create");
     setCreatedKittenLitterId("");
     setConfirmingArchiveCatId("");
@@ -433,7 +444,7 @@ export function CatteryManagementPage() {
       const next = toCatDraft(freshCat);
       setCatDraft(next);
       setCatBaseline(serializeDraft(next));
-      clearPendingCatImage();
+      clearPendingCatImages();
       setCatEditorMode("edit");
     } catch (selectError) {
       setError(getErrorMessage(selectError));
@@ -488,32 +499,93 @@ export function CatteryManagementPage() {
     }
   }
 
-  function handleCatImageSelected(file: File | null) {
-    clearPendingCatImage();
-    if (!file) return;
-    setPendingCatImageFile(file);
-    setCatImagePreviewUrl(URL.createObjectURL(file));
+  function handleCatImagesSelected(files: File[]) {
+    if (!files.length) return;
+    const added = files.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      url: URL.createObjectURL(file),
+    }));
+    setPendingCatPhotos((current) => [...current, ...added]);
+    if (!pendingCatCoverId && selectedCatImages.length === 0) setPendingCatCoverId(added[0].id);
     setCatImageUploadState("pending");
   }
 
-  function clearPendingCatImage() {
-    setPendingCatImageFile(null);
-    setCatImagePreviewUrl((current) => {
-      if (current.startsWith("blob:")) URL.revokeObjectURL(current);
-      return "";
+  function removePendingCatPhoto(id: string) {
+    setPendingCatPhotos((current) => {
+      const removed = current.find((photo) => photo.id === id);
+      if (removed) URL.revokeObjectURL(removed.url);
+      return current.filter((photo) => photo.id !== id);
     });
+    if (pendingCatCoverId === id) setPendingCatCoverId("");
+  }
+
+  function clearPendingCatImages() {
+    setPendingCatPhotos((current) => {
+      current.forEach((photo) => URL.revokeObjectURL(photo.url));
+      return [];
+    });
+    setPendingCatCoverId("");
     setCatImageUploadState("idle");
   }
 
-  async function uploadPendingCatImage(catId: string) {
-    if (!pendingCatImageFile) return null;
+  async function uploadPendingCatImages(catId: string) {
+    if (!pendingCatPhotos.length) return;
     setCatImageUploadState("uploading");
-    const media = await uploadCatImage(catId, pendingCatImageFile);
-    setPendingCatImageFile(null);
-    setCatImagePreviewUrl(media.thumbnailUrl || media.sourceUrl);
+    let nextSortOrder = selectedCatImages.reduce(
+      (max, media) => Math.max(max, (media.bindings[0]?.sortOrder ?? -1) + 1),
+      0,
+    );
+    for (const photo of pendingCatPhotos) {
+      const isCover = photo.id === pendingCatCoverId;
+      const media = await uploadCatImage(catId, photo.file, {
+        usage: isCover ? "cover" : "gallery",
+        sortOrder: nextSortOrder++,
+      });
+      setPendingCatPhotos((current) => current.filter((item) => item.id !== photo.id));
+      URL.revokeObjectURL(photo.url);
+      setNotice(`已上传 ${media.title || photo.file.name}`);
+      if (isCover) {
+        setPendingCatCoverId("");
+        try {
+          for (const other of selectedCatImages) {
+            if (other.bindings[0]?.usage === "cover") {
+              await updateMediaBinding(other.id, other.bindings[0].id, { usage: "gallery" });
+            }
+          }
+          const fresh = await getCat(catId);
+          const presentation = readImagePresentation(fresh);
+          await updateCat(catId, {
+            storyJson: {
+              ...(isRecord(fresh.storyJson) ? fresh.storyJson : {}),
+              imagePresentation: {
+                ...presentation,
+                entryCoverSelections: {
+                  ...presentation.entryCoverSelections,
+                  listCard: { imageId: media.id, cropRect: defaultCropRect() },
+                },
+              },
+            },
+          });
+          setCatDraft((current) => ({
+            ...current,
+            imagePresentation: {
+              ...current.imagePresentation,
+              entryCoverSelections: {
+                ...current.imagePresentation.entryCoverSelections,
+                listCard: { imageId: media.id, cropRect: defaultCropRect() },
+              },
+            },
+          }));
+        } catch (coverError) {
+          throw new Error(
+            `照片已上传，但封面尚未完成：${getErrorMessage(coverError)}。可在照片墙重新点击“设为封面”。`,
+          );
+        }
+      }
+    }
     setCatImageUploadState("uploaded");
     await loadCatImages(catId);
-    return media;
   }
 
   async function loadLitterImages(litterId: string) {
@@ -578,6 +650,9 @@ export function CatteryManagementPage() {
     setError("");
     setNotice("");
 
+    let recordSaved = false;
+    let savedCatId = selectedCat?.id ?? "";
+    let photoUploadIncomplete = false;
     try {
       const wasCreating = catEditorMode === "create";
       if (
@@ -600,9 +675,6 @@ export function CatteryManagementPage() {
           cat: payload as CreateCatRequest,
           kittenProfile: toKittenProfilePayload(catDraft),
         });
-        // The cat may already exist if its photo upload fails. A retry must edit it.
-        setSelectedCat(savedCat);
-        setCatEditorMode("edit");
         setCreatedKittenLitterId(catDraft.kittenLitterId);
       } else if (activeSection === "studs") {
         savedCat = await createCatWithBreedingProfile({
@@ -612,6 +684,11 @@ export function CatteryManagementPage() {
       } else {
         savedCat = await createCat(payload as CreateCatRequest);
       }
+      recordSaved = true;
+      savedCatId = savedCat.id;
+      // Once creation succeeds, every retry updates this record, even if a later upload fails.
+      setSelectedCat(savedCat);
+      setCatEditorMode("edit");
 
       if (catEditorMode === "edit" && activeSection === "kittens") {
         await saveKittenProfile(savedCat.id, catDraft, selectedCat?.kittenProfile ?? null);
@@ -619,8 +696,10 @@ export function CatteryManagementPage() {
       if (catEditorMode === "edit" && activeSection === "studs") {
         await saveBreedingProfile(savedCat.id, catDraft, selectedCat?.breedingProfile ?? null);
       }
-      if (pendingCatImageFile) {
-        await uploadPendingCatImage(savedCat.id);
+      if (pendingCatPhotos.length) {
+        photoUploadIncomplete = true;
+        await uploadPendingCatImages(savedCat.id);
+        photoUploadIncomplete = false;
       } else {
         await loadCatImages(savedCat.id);
       }
@@ -645,8 +724,19 @@ export function CatteryManagementPage() {
       );
       await loadData();
     } catch (saveError) {
-      if (pendingCatImageFile) setCatImageUploadState("pending");
-      setError(getErrorMessage(saveError));
+      if (recordSaved && savedCatId) {
+        try {
+          await loadCatImages(savedCatId);
+        } catch {
+          /* The original error remains actionable. */
+        }
+      }
+      if (photoUploadIncomplete) setCatImageUploadState("pending");
+      setError(
+        recordSaved
+          ? `档案已保存，但后续步骤未完成：${getErrorMessage(saveError)}。保留待上传照片，可点击保存重试；不会再新建一只猫。`
+          : getErrorMessage(saveError),
+      );
     } finally {
       catSubmitInFlightRef.current = false;
       setIsSaving(false);
@@ -841,10 +931,109 @@ export function CatteryManagementPage() {
         });
       }
       await loadCatImages(selectedCat.id);
-      setNotice("图片绑定已更新");
+      setNotice(
+        patch.visibility === "hidden"
+          ? "照片已隐藏，立即生效"
+          : patch.visibility === "visible"
+            ? "照片已显示，立即生效"
+            : "照片设置已生效",
+      );
     } catch (mediaError) {
       setError(getErrorMessage(mediaError));
     } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function reorderCatMedia(fromId: string, toId: string) {
+    if (!selectedCat || isSaving || fromId === toId) return;
+    const catId = selectedCat.id;
+    const reordered = movePhoto(selectedCatImages, fromId, toId);
+    setCatImagesByCatId((current) => ({ ...current, [catId]: reordered }));
+    setIsSaving(true);
+    setError("");
+    setNotice("正在保存照片顺序…");
+    try {
+      for (const [index, media] of reordered.entries()) {
+        const binding = media.bindings[0];
+        if (binding && binding.sortOrder !== index) {
+          await updateMediaBinding(media.id, binding.id, { sortOrder: index });
+        }
+      }
+      setNotice("照片顺序已保存，刷新后仍会保持");
+    } catch (orderError) {
+      setError(`照片顺序未全部保存：${getErrorMessage(orderError)}。请重试调整。`);
+    } finally {
+      try {
+        await loadCatImages(catId);
+      } catch (reloadError) {
+        setError(getErrorMessage(reloadError));
+      }
+      setIsSaving(false);
+    }
+  }
+
+  async function setPrimaryCatCover(media: MediaAssetData) {
+    if (!selectedCat || isSaving) return;
+    const catId = selectedCat.id;
+    const nextBinding = media.bindings[0];
+    if (!nextBinding) return;
+    setIsSaving(true);
+    setError("");
+    setNotice("正在设置封面…");
+    try {
+      await updateMediaBinding(media.id, nextBinding.id, { usage: "cover", visibility: "visible" });
+      for (const other of selectedCatImages) {
+        if (other.id !== media.id && other.bindings[0]?.usage === "cover") {
+          await updateMediaBinding(other.id, other.bindings[0].id, { usage: "gallery" });
+        }
+      }
+      const fresh = await getCat(catId);
+      const presentation = readImagePresentation(fresh);
+      const entryCoverSelections = {
+        ...presentation.entryCoverSelections,
+        listCard: { imageId: media.id, cropRect: defaultCropRect() },
+      };
+      await updateCat(catId, {
+        storyJson: {
+          ...(isRecord(fresh.storyJson) ? fresh.storyJson : {}),
+          imagePresentation: { ...presentation, entryCoverSelections },
+        },
+      });
+      if (selectedCatIdRef.current === catId) {
+        setCatDraft((current) => ({
+          ...current,
+          imagePresentation: {
+            ...current.imagePresentation,
+            entryCoverSelections: {
+              ...current.imagePresentation.entryCoverSelections,
+              listCard: entryCoverSelections.listCard,
+            },
+          },
+        }));
+        setCatBaseline((current) => {
+          const baseline = JSON.parse(current) as CatDraft;
+          return serializeDraft({
+            ...baseline,
+            imagePresentation: {
+              ...baseline.imagePresentation,
+              entryCoverSelections: {
+                ...baseline.imagePresentation.entryCoverSelections,
+                listCard: entryCoverSelections.listCard,
+              },
+            },
+          });
+        });
+      }
+      setNotice("主要封面已生效；其它展示位置仍可单独设置");
+    } catch (coverError) {
+      setError(`封面未全部设置完成：${getErrorMessage(coverError)}。请查看当前标记后重试。`);
+    } finally {
+      try {
+        await loadCatImages(catId);
+      } catch (reloadError) {
+        setError(getErrorMessage(reloadError));
+      }
       setIsSaving(false);
     }
   }
@@ -854,15 +1043,52 @@ export function CatteryManagementPage() {
     const binding = media.bindings.find(
       (item) => item.ownerType === "cat" && item.ownerId === selectedCat.id && !item.deletedAt,
     );
-    if (!binding) return;
+    if (!binding || !confirm("从这只猫的相册移除这张照片？其它位置使用的原始文件不会删除。"))
+      return;
     setIsSaving(true);
     setError("");
+    let bindingRemoved = false;
     try {
       await archiveMediaBinding(media.id, binding.id);
+      bindingRemoved = true;
+      const fresh = await getCat(selectedCat.id);
+      const presentation = removeImagePresentationReferences(
+        readImagePresentation(fresh),
+        media.id,
+      );
+      await updateCat(selectedCat.id, {
+        storyJson: {
+          ...(isRecord(fresh.storyJson) ? fresh.storyJson : {}),
+          imagePresentation: compactImagePresentation(presentation),
+        },
+      });
+      setCatDraft((current) => ({
+        ...current,
+        imagePresentation: removeImagePresentationReferences(current.imagePresentation, media.id),
+      }));
+      setCatBaseline((current) => {
+        const baseline = JSON.parse(current) as CatDraft;
+        return serializeDraft({
+          ...baseline,
+          imagePresentation: removeImagePresentationReferences(
+            baseline.imagePresentation,
+            media.id,
+          ),
+        });
+      });
       await loadCatImages(selectedCat.id);
       setNotice("图片已从当前猫咪移除");
     } catch (mediaError) {
-      setError(getErrorMessage(mediaError));
+      if (bindingRemoved) {
+        try {
+          await loadCatImages(selectedCat.id);
+        } catch {
+          /* Keep the partial-result message visible. */
+        }
+        setError(
+          `照片已从相册移除，但旧展示设置未能清理：${getErrorMessage(mediaError)}。其它位置的图片文件未受影响。`,
+        );
+      } else setError(getErrorMessage(mediaError));
     } finally {
       setIsSaving(false);
     }
@@ -870,10 +1096,6 @@ export function CatteryManagementPage() {
 
   async function replaceCatMediaBinding(media: MediaAssetData, file: File) {
     if (!selectedCat || isSaving) return;
-    if (catDirty) {
-      setError("请先保存猫咪资料，再替换图片");
-      return;
-    }
     const catId = selectedCat.id;
     const binding = media.bindings.find(
       (item) => item.ownerType === "cat" && item.ownerId === catId && !item.deletedAt,
@@ -922,72 +1144,37 @@ export function CatteryManagementPage() {
             replacement.id,
           ),
         }));
-        setCatBaseline(serializeDraft(toCatDraft(completeCat)));
+        setCatBaseline((current) =>
+          serializeDraft({
+            ...(JSON.parse(current) as CatDraft),
+            imagePresentation: replaceImagePresentationReferences(
+              (JSON.parse(current) as CatDraft).imagePresentation,
+              media.id,
+              replacement.id,
+            ),
+          }),
+        );
       }
       await archiveMediaBinding(media.id, binding.id);
     } catch (mediaError) {
       errorMessage = !uploaded
         ? getErrorMessage(mediaError)
         : !referencesUpdated
-          ? `新图片已上传，但档案引用未更新：${getErrorMessage(mediaError)}。旧图片仍保留，请手动移除新图片绑定。`
-          : `新图片已启用，但旧图片未能移除：${getErrorMessage(mediaError)}。请手动移除旧图片绑定。`;
+          ? `新照片已上传，但展示位置未切换：${getErrorMessage(mediaError)}。旧照片仍可用；可从相册移除新照片后重试。`
+          : `新照片已启用，但旧照片仍留在相册：${getErrorMessage(mediaError)}。可从相册移除旧照片。`;
     } finally {
       try {
         const [freshCat] = await Promise.all([getCat(catId), loadCatImages(catId)]);
         setCats((current) => current.map((cat) => (cat.id === catId ? freshCat : cat)));
         if (selectedCatIdRef.current === catId) {
           setSelectedCat(freshCat);
-          setCatBaseline(serializeDraft(toCatDraft(freshCat)));
+          // Keep unsaved text and presentation changes in the current draft.
         }
       } catch (refreshError) {
         errorMessage += ` 图片列表刷新失败：${getErrorMessage(refreshError)}`;
       }
       if (errorMessage) setError(errorMessage.trim());
       else setNotice("猫咪图片已替换");
-      setIsSaving(false);
-    }
-  }
-
-  async function addCatGalleryImages(files: File[]) {
-    if (!selectedCat || isSaving || files.length === 0) return;
-    if (catDirty) {
-      setError("请先保存猫咪资料，再添加相册图片");
-      return;
-    }
-    const catId = selectedCat.id;
-    let nextSortOrder = 0;
-    for (const media of selectedCatImages) {
-      for (const binding of media.bindings) {
-        if (binding.ownerType === "cat" && binding.ownerId === catId) {
-          nextSortOrder = Math.max(nextSortOrder, binding.sortOrder + 1);
-        }
-      }
-    }
-    setIsSaving(true);
-    setError("");
-    setNotice("");
-    let uploaded = 0;
-    let errorMessage = "";
-    try {
-      for (const file of files) {
-        await uploadCatImage(catId, file, {
-          usage: "gallery",
-          sortOrder: nextSortOrder + uploaded,
-        });
-        uploaded += 1;
-      }
-    } catch (uploadError) {
-      errorMessage = `已加入 ${uploaded} 张；第 ${uploaded + 1} 张上传失败：${getErrorMessage(uploadError)}。其余图片未上传。`;
-    } finally {
-      try {
-        const [freshCat] = await Promise.all([getCat(catId), loadCatImages(catId)]);
-        setCats((current) => current.map((cat) => (cat.id === catId ? freshCat : cat)));
-        setSelectedCat((current) => (current?.id === catId ? freshCat : current));
-      } catch (refreshError) {
-        errorMessage += ` 图片列表刷新失败：${getErrorMessage(refreshError)}`;
-      }
-      if (errorMessage) setError(errorMessage.trim());
-      else setNotice(`已加入 ${uploaded} 张相册图片`);
       setIsSaving(false);
     }
   }
@@ -1021,7 +1208,8 @@ export function CatteryManagementPage() {
       (item) =>
         item.ownerType === "litter" && item.ownerId === selectedLitter.id && !item.deletedAt,
     );
-    if (!binding) return;
+    if (!binding || !confirm("从当前窝次的相册移除这张照片？其它位置使用的原始文件不会删除。"))
+      return;
     setIsSaving(true);
     setError("");
     try {
@@ -1031,6 +1219,60 @@ export function CatteryManagementPage() {
     } catch (mediaError) {
       setError(getErrorMessage(mediaError));
     } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function reorderLitterMedia(fromId: string, toId: string) {
+    if (!selectedLitter || isSaving || fromId === toId) return;
+    const litterId = selectedLitter.id;
+    const reordered = movePhoto(selectedLitterImages, fromId, toId);
+    setLitterImagesByLitterId((current) => ({ ...current, [litterId]: reordered }));
+    setIsSaving(true);
+    setError("");
+    try {
+      for (const [index, media] of reordered.entries()) {
+        const binding = media.bindings[0];
+        if (binding && binding.sortOrder !== index)
+          await updateMediaBinding(media.id, binding.id, { sortOrder: index });
+      }
+      setNotice("窝次照片顺序已保存");
+    } catch (orderError) {
+      setError(`窝次照片顺序未全部保存：${getErrorMessage(orderError)}`);
+    } finally {
+      try {
+        await loadLitterImages(litterId);
+      } catch (reloadError) {
+        setError(getErrorMessage(reloadError));
+      }
+      setIsSaving(false);
+    }
+  }
+
+  async function setPrimaryLitterCover(media: MediaAssetData) {
+    if (!selectedLitter || isSaving || !media.bindings[0]) return;
+    const litterId = selectedLitter.id;
+    setIsSaving(true);
+    setError("");
+    try {
+      await updateMediaBinding(media.id, media.bindings[0].id, {
+        usage: "cover",
+        visibility: "visible",
+      });
+      for (const other of selectedLitterImages) {
+        if (other.id !== media.id && other.bindings[0]?.usage === "cover") {
+          await updateMediaBinding(other.id, other.bindings[0].id, { usage: "gallery" });
+        }
+      }
+      setNotice("窝次封面已设置，立即生效");
+    } catch (coverError) {
+      setError(`窝次封面未全部设置完成：${getErrorMessage(coverError)}`);
+    } finally {
+      try {
+        await loadLitterImages(litterId);
+      } catch (reloadError) {
+        setError(getErrorMessage(reloadError));
+      }
       setIsSaving(false);
     }
   }
@@ -1057,7 +1299,7 @@ export function CatteryManagementPage() {
       await archiveMediaBinding(media.id, binding.id);
     } catch (mediaError) {
       errorMessage = uploaded
-        ? `新图片已上传，但旧图片未能移除：${getErrorMessage(mediaError)}。请手动移除旧图片绑定。`
+        ? `新照片已上传，但旧照片仍留在相册：${getErrorMessage(mediaError)}。可从相册移除旧照片。`
         : getErrorMessage(mediaError);
     } finally {
       try {
@@ -1134,7 +1376,8 @@ export function CatteryManagementPage() {
           catDirty={catDirty}
           catEditorMode={catEditorMode}
           confirmingArchiveCatId={confirmingArchiveCatId}
-          imagePreviewUrl={catImagePreviewUrl}
+          pendingPhotos={pendingCatPhotos}
+          pendingCoverId={pendingCatCoverId}
           imageUploadState={catImageUploadState}
           includeArchived={includeArchivedCats}
           hasLoaded={hasLoaded}
@@ -1147,11 +1390,14 @@ export function CatteryManagementPage() {
           selectedCat={selectedCat}
           selectedCatImages={selectedCatImages}
           onArchive={handleArchiveCat}
-          onCancel={() => setCatEditorMode(null)}
+          onCancel={cancelCatEditor}
           onChange={setCatDraft}
           onEdit={(cat) => openEditCat(cat, "kittens")}
-          onImageChange={handleCatImageSelected}
-          onGalleryAdd={addCatGalleryImages}
+          onPhotosSelected={handleCatImagesSelected}
+          onPendingPhotoRemove={removePendingCatPhoto}
+          onPendingCoverChange={setPendingCatCoverId}
+          onMediaReorder={reorderCatMedia}
+          onSetPrimaryCover={setPrimaryCatCover}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
           onMediaBindingReplace={replaceCatMediaBinding}
@@ -1181,6 +1427,8 @@ export function CatteryManagementPage() {
           onMediaBindingChange={updateLitterMediaBinding}
           onMediaBindingRemove={removeLitterMediaBinding}
           onMediaBindingReplace={replaceLitterMediaBinding}
+          onMediaReorder={reorderLitterMedia}
+          onSetPrimaryCover={setPrimaryLitterCover}
           onNew={openCreateLitter}
           onAddKitten={(litter) => openCreateCat("kittens", litter)}
           onSelect={selectLitter}
@@ -1195,7 +1443,8 @@ export function CatteryManagementPage() {
           catDirty={catDirty}
           catEditorMode={catEditorMode}
           confirmingArchiveCatId={confirmingArchiveCatId}
-          imagePreviewUrl={catImagePreviewUrl}
+          pendingPhotos={pendingCatPhotos}
+          pendingCoverId={pendingCatCoverId}
           imageUploadState={catImageUploadState}
           includeArchived={includeArchivedCats}
           isLoading={isLoading}
@@ -1206,11 +1455,14 @@ export function CatteryManagementPage() {
           selectedCat={selectedCat}
           selectedCatImages={selectedCatImages}
           onArchive={handleArchiveCat}
-          onCancel={() => setCatEditorMode(null)}
+          onCancel={cancelCatEditor}
           onChange={setCatDraft}
           onEdit={(cat) => openEditCat(cat, "studs")}
-          onImageChange={handleCatImageSelected}
-          onGalleryAdd={addCatGalleryImages}
+          onPhotosSelected={handleCatImagesSelected}
+          onPendingPhotoRemove={removePendingCatPhoto}
+          onPendingCoverChange={setPendingCatCoverId}
+          onMediaReorder={reorderCatMedia}
+          onSetPrimaryCover={setPrimaryCatCover}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
           onMediaBindingReplace={replaceCatMediaBinding}
@@ -1227,7 +1479,8 @@ export function CatteryManagementPage() {
           catDirty={catDirty}
           catEditorMode={catEditorMode}
           confirmingArchiveCatId={confirmingArchiveCatId}
-          imagePreviewUrl={catImagePreviewUrl}
+          pendingPhotos={pendingCatPhotos}
+          pendingCoverId={pendingCatCoverId}
           imageUploadState={catImageUploadState}
           includeArchived={includeArchivedCats}
           isLoading={isLoading}
@@ -1238,11 +1491,14 @@ export function CatteryManagementPage() {
           selectedCat={selectedCat}
           selectedCatImages={selectedCatImages}
           onArchive={handleArchiveCat}
-          onCancel={() => setCatEditorMode(null)}
+          onCancel={cancelCatEditor}
           onChange={setCatDraft}
           onEdit={(cat) => openEditCat(cat, "cats")}
-          onImageChange={handleCatImageSelected}
-          onGalleryAdd={addCatGalleryImages}
+          onPhotosSelected={handleCatImagesSelected}
+          onPendingPhotoRemove={removePendingCatPhoto}
+          onPendingCoverChange={setPendingCatCoverId}
+          onMediaReorder={reorderCatMedia}
+          onSetPrimaryCover={setPrimaryCatCover}
           onMediaBindingChange={updateCatMediaBinding}
           onMediaBindingRemove={removeCatMediaBinding}
           onMediaBindingReplace={replaceCatMediaBinding}
@@ -1278,7 +1534,7 @@ function CatManagementWorkspace({
   catDirty,
   catEditorMode,
   confirmingArchiveCatId,
-  imagePreviewUrl,
+  pendingPhotos,
   imageUploadState,
   includeArchived,
   hasLoaded,
@@ -1294,8 +1550,12 @@ function CatManagementWorkspace({
   onCancel,
   onChange,
   onEdit,
-  onImageChange,
-  onGalleryAdd,
+  onPhotosSelected,
+  onPendingPhotoRemove,
+  pendingCoverId,
+  onPendingCoverChange,
+  onMediaReorder,
+  onSetPrimaryCover,
   onMediaBindingChange,
   onMediaBindingRemove,
   onMediaBindingReplace,
@@ -1309,7 +1569,7 @@ function CatManagementWorkspace({
   catDirty: boolean;
   catEditorMode: EditorMode;
   confirmingArchiveCatId: string;
-  imagePreviewUrl: string;
+  pendingPhotos: PendingCatPhoto[];
   imageUploadState: ImageUploadState;
   includeArchived: boolean;
   hasLoaded?: boolean;
@@ -1325,8 +1585,12 @@ function CatManagementWorkspace({
   onCancel: () => void;
   onChange: (draft: CatDraft) => void;
   onEdit: (cat: CatData) => void;
-  onImageChange: (file: File | null) => void;
-  onGalleryAdd: (files: File[]) => void;
+  onPhotosSelected: (files: File[]) => void;
+  onPendingPhotoRemove: (id: string) => void;
+  pendingCoverId: string;
+  onPendingCoverChange: (id: string) => void;
+  onMediaReorder: (fromId: string, toId: string) => void;
+  onSetPrimaryCover: (media: MediaAssetData) => void;
   onMediaBindingChange: (
     media: MediaAssetData,
     patch: { usage?: string; sortOrder?: number; visibility?: string },
@@ -1373,7 +1637,9 @@ function CatManagementWorkspace({
   const currentPage = Math.min(page, totalPages);
   const visibleCats = filteredCats.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   return (
-    <section className="management-grid wide-detail">
+    <section
+      className={`management-grid wide-detail ${catEditorMode ? "photo-editor-layout" : ""}`}
+    >
       <div className="table-panel">
         <div className="section-heading">
           <div>
@@ -1527,7 +1793,8 @@ function CatManagementWorkspace({
         {catEditorMode ? (
           <CatEditor
             draft={catDraft}
-            imagePreviewUrl={imagePreviewUrl}
+            pendingPhotos={pendingPhotos}
+            pendingCoverId={pendingCoverId}
             imageUploadState={imageUploadState}
             isDirty={catDirty}
             isSaving={isSaving}
@@ -1537,8 +1804,11 @@ function CatManagementWorkspace({
             selectedCatImages={selectedCatImages}
             onCancel={onCancel}
             onChange={onChange}
-            onImageChange={onImageChange}
-            onGalleryAdd={onGalleryAdd}
+            onPhotosSelected={onPhotosSelected}
+            onPendingPhotoRemove={onPendingPhotoRemove}
+            onPendingCoverChange={onPendingCoverChange}
+            onMediaReorder={onMediaReorder}
+            onSetPrimaryCover={onSetPrimaryCover}
             onMediaBindingChange={onMediaBindingChange}
             onMediaBindingRemove={onMediaBindingRemove}
             onMediaBindingReplace={onMediaBindingReplace}
@@ -1576,7 +1846,7 @@ function CatManagementWorkspace({
 
 function CatEditor({
   draft,
-  imagePreviewUrl,
+  pendingPhotos,
   imageUploadState,
   isDirty,
   isSaving,
@@ -1586,15 +1856,19 @@ function CatEditor({
   selectedCatImages,
   onCancel,
   onChange,
-  onImageChange,
-  onGalleryAdd,
+  onPhotosSelected,
+  onPendingPhotoRemove,
+  pendingCoverId,
+  onPendingCoverChange,
+  onMediaReorder,
+  onSetPrimaryCover,
   onMediaBindingChange,
   onMediaBindingRemove,
   onMediaBindingReplace,
   onSubmit,
 }: {
   draft: CatDraft;
-  imagePreviewUrl: string;
+  pendingPhotos: PendingCatPhoto[];
   imageUploadState: ImageUploadState;
   isDirty: boolean;
   isSaving: boolean;
@@ -1604,8 +1878,12 @@ function CatEditor({
   selectedCatImages: MediaAssetData[];
   onCancel: () => void;
   onChange: (draft: CatDraft) => void;
-  onImageChange: (file: File | null) => void;
-  onGalleryAdd: (files: File[]) => void;
+  onPhotosSelected: (files: File[]) => void;
+  onPendingPhotoRemove: (id: string) => void;
+  pendingCoverId: string;
+  onPendingCoverChange: (id: string) => void;
+  onMediaReorder: (fromId: string, toId: string) => void;
+  onSetPrimaryCover: (media: MediaAssetData) => void;
   onMediaBindingChange: (
     media: MediaAssetData,
     patch: { usage?: string; sortOrder?: number; visibility?: string },
@@ -1815,17 +2093,19 @@ function CatEditor({
       </div>
 
       <CatImageManager
-        canAddGallery={Boolean(selectedCat)}
         draft={draft}
-        imagePreviewUrl={imagePreviewUrl}
+        pendingPhotos={pendingPhotos}
+        pendingCoverId={pendingCoverId}
         imageUploadState={imageUploadState}
         images={selectedCatImages}
-        isDirty={isDirty}
         isSaving={isSaving}
         mode={mode}
         onChange={onChange}
-        onImageChange={onImageChange}
-        onGalleryAdd={onGalleryAdd}
+        onPhotosSelected={onPhotosSelected}
+        onPendingPhotoRemove={onPendingPhotoRemove}
+        onPendingCoverChange={onPendingCoverChange}
+        onMediaReorder={onMediaReorder}
+        onSetPrimaryCover={onSetPrimaryCover}
         onMediaBindingChange={onMediaBindingChange}
         onMediaBindingRemove={onMediaBindingRemove}
         onMediaBindingReplace={onMediaBindingReplace}
@@ -1837,32 +2117,36 @@ function CatEditor({
 }
 
 function CatImageManager({
-  canAddGallery,
   draft,
-  imagePreviewUrl,
+  pendingPhotos,
+  pendingCoverId,
   imageUploadState,
   images,
-  isDirty,
   isSaving,
   mode,
   onChange,
-  onImageChange,
-  onGalleryAdd,
+  onPhotosSelected,
+  onPendingPhotoRemove,
+  onPendingCoverChange,
+  onMediaReorder,
+  onSetPrimaryCover,
   onMediaBindingChange,
   onMediaBindingRemove,
   onMediaBindingReplace,
 }: {
-  canAddGallery: boolean;
   draft: CatDraft;
-  imagePreviewUrl: string;
+  pendingPhotos: PendingCatPhoto[];
+  pendingCoverId: string;
   imageUploadState: ImageUploadState;
   images: MediaAssetData[];
-  isDirty: boolean;
   isSaving: boolean;
   mode: "kittens" | "studs" | "cats";
   onChange: (draft: CatDraft) => void;
-  onImageChange: (file: File | null) => void;
-  onGalleryAdd: (files: File[]) => void;
+  onPhotosSelected: (files: File[]) => void;
+  onPendingPhotoRemove: (id: string) => void;
+  onPendingCoverChange: (id: string) => void;
+  onMediaReorder: (fromId: string, toId: string) => void;
+  onSetPrimaryCover: (media: MediaAssetData) => void;
   onMediaBindingChange: (
     media: MediaAssetData,
     patch: { usage?: string; sortOrder?: number; visibility?: string },
@@ -1870,82 +2154,138 @@ function CatImageManager({
   onMediaBindingRemove: (media: MediaAssetData) => void;
   onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
 }) {
-  const visibleImages = images.filter((media) =>
-    media.bindings.some((binding) => binding.visibility === "visible"),
-  );
+  const [showPresentation, setShowPresentation] = useState(false);
+  const [detailImageId, setDetailImageId] = useState("");
+  const visibleImages = images.filter((media) => media.bindings[0]?.visibility === "visible");
   return (
-    <div className="cat-image-uploader">
+    <section className="cat-image-uploader photo-workspace" aria-label="照片管理">
       <div className="subsection-heading">
-        <h4>图片 / 封面 / 展示参数</h4>
+        <div>
+          <h4>照片</h4>
+          <p className="muted compact">添加照片后点保存上传；已在相册中的操作会立即生效。</p>
+        </div>
         <span className={`upload-state upload-state-${imageUploadState}`}>
           {formatImageState(imageUploadState)}
         </span>
       </div>
-      <label>
-        上传新图片
+      <label className="secondary-button photo-add-button">
+        添加照片
         <input
+          aria-label="添加照片"
           accept="image/*"
           disabled={isSaving}
-          type="file"
-          onChange={(event) => {
-            onImageChange(event.target.files?.[0] ?? null);
-            event.currentTarget.value = "";
-          }}
-        />
-      </label>
-      <label>
-        批量加入相册
-        <input
-          accept="image/*"
-          disabled={isSaving || isDirty || !canAddGallery}
           multiple
           type="file"
           onChange={(event) => {
-            const files = Array.from(event.target.files ?? []);
-            if (files.length) onGalleryAdd(files);
+            onPhotosSelected(Array.from(event.target.files ?? []));
             event.currentTarget.value = "";
           }}
         />
       </label>
-      {!canAddGallery ? <p className="muted compact">先保存猫咪档案，再批量加入相册。</p> : null}
-      {imagePreviewUrl ? (
-        <img alt="待上传图片预览" className="cat-image-preview" src={imagePreviewUrl} />
+      {pendingPhotos.length > 0 ? (
+        <div className="photo-pending-section">
+          <strong>待上传 · {pendingPhotos.length} 张</strong>
+          <p className="muted compact">这些照片只在本地预览，保存成功后才会显示到小程序。</p>
+          <div className="photo-wall">
+            {pendingPhotos.map((photo) => (
+              <div className="photo-card photo-card-pending" key={photo.id}>
+                <img alt={photo.file.name} src={photo.url} />
+                <div className="photo-card-body">
+                  <span className="status-badge">
+                    {photo.id === pendingCoverId ? "待上传封面" : "待上传"}
+                  </span>
+                  <div className="photo-card-actions">
+                    <button
+                      className="secondary-button small-button"
+                      disabled={isSaving}
+                      type="button"
+                      onClick={() => onPendingCoverChange(photo.id)}
+                    >
+                      设为封面
+                    </button>
+                    <button
+                      className="secondary-button small-button"
+                      disabled={isSaving}
+                      type="button"
+                      onClick={() => onPendingPhotoRemove(photo.id)}
+                    >
+                      移除
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : null}
       <MediaBindingEditor
         images={images}
         onChange={onMediaBindingChange}
         onRemove={onMediaBindingRemove}
         onReplace={onMediaBindingReplace}
+        onReorder={onMediaReorder}
+        onSetCover={onSetPrimaryCover}
+        onAdjust={(media) => {
+          setDetailImageId(media.id);
+          setShowPresentation(true);
+        }}
+        ownerLabel="这只猫"
         disabled={isSaving}
-        replaceDisabled={isDirty}
       />
-      {isDirty ? <p className="muted compact">保存当前档案后可替换或批量加入相册图片。</p> : null}
-      <EntryCoverEditor
-        entries={
-          mode === "studs"
-            ? ["listCard", "breedingPlanCard", "communityProfile"]
-            : ["listCard", "communityProfile"]
-        }
-        images={visibleImages}
-        value={draft.imagePresentation.entryCoverSelections}
-        onChange={(entryCoverSelections) =>
-          onChange({
-            ...draft,
-            imagePresentation: { ...draft.imagePresentation, entryCoverSelections },
-          })
-        }
-      />
-      <DetailPresentationEditor
-        images={visibleImages}
-        value={draft.imagePresentation.detailImagePresentations}
-        onChange={(detailImagePresentations) =>
-          onChange({
-            ...draft,
-            imagePresentation: { ...draft.imagePresentation, detailImagePresentations },
-          })
-        }
-      />
-    </div>
+      {showPresentation ? (
+        <div className="photo-presentation-settings">
+          <div className="subsection-heading">
+            <h4>调整展示</h4>
+            <button
+              className="secondary-button small-button"
+              type="button"
+              onClick={() => setShowPresentation(false)}
+            >
+              收起
+            </button>
+          </div>
+          <p className="muted compact">
+            不同位置可以使用不同照片和裁剪。这里的调整将在保存档案后生效。
+          </p>
+          <EntryCoverEditor
+            entries={
+              mode === "studs"
+                ? ["listCard", "breedingPlanCard", "communityProfile"]
+                : mode === "kittens"
+                  ? ["listCard", "communityProfile"]
+                  : ["listCard"]
+            }
+            images={visibleImages}
+            value={draft.imagePresentation.entryCoverSelections}
+            onChange={(entryCoverSelections) =>
+              onChange({
+                ...draft,
+                imagePresentation: { ...draft.imagePresentation, entryCoverSelections },
+              })
+            }
+          />
+          <DetailPresentationEditor
+            images={visibleImages}
+            initialImageId={detailImageId}
+            value={draft.imagePresentation.detailImagePresentations}
+            onChange={(detailImagePresentations) =>
+              onChange({
+                ...draft,
+                imagePresentation: { ...draft.imagePresentation, detailImagePresentations },
+              })
+            }
+          />
+        </div>
+      ) : (
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => setShowPresentation(true)}
+        >
+          不同展示位置的图片设置
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -1954,8 +2294,11 @@ function MediaBindingEditor({
   onChange,
   onRemove,
   onReplace,
+  onReorder,
+  onSetCover,
+  onAdjust,
+  ownerLabel = "当前内容",
   disabled = false,
-  replaceDisabled = false,
 }: {
   images: MediaAssetData[];
   onChange: (
@@ -1964,83 +2307,240 @@ function MediaBindingEditor({
   ) => void;
   onRemove: (media: MediaAssetData) => void;
   onReplace?: (media: MediaAssetData, file: File) => void;
+  onReorder?: (fromId: string, toId: string) => void;
+  onSetCover?: (media: MediaAssetData) => void;
+  onAdjust?: (media: MediaAssetData) => void;
+  ownerLabel?: string;
   disabled?: boolean;
-  replaceDisabled?: boolean;
 }) {
-  if (images.length === 0) return <div className="cat-image-placeholder">暂无已绑定图片</div>;
+  const [preview, setPreview] = useState<MediaAssetData | null>(null);
+  if (images.length === 0)
+    return <div className="cat-image-placeholder">相册还没有照片。点击“添加照片”开始。</div>;
   return (
-    <div className="image-gallery-editor">
-      {images.map((media) => {
-        const binding = media.bindings[0];
-        return (
-          <div className="image-gallery-row" key={media.id}>
-            <img
-              alt={media.altText || media.title || media.id}
-              src={media.thumbnailUrl || media.sourceUrl}
-            />
-            <div className="form-grid">
-              <label>
-                用途
-                <select
-                  disabled={disabled}
-                  value={binding?.usage ?? "gallery"}
-                  onChange={(event) => onChange(media, { usage: event.target.value })}
+    <>
+      <div className="photo-wall">
+        {images.map((media, index) => (
+          <PhotoCard
+            key={media.id}
+            media={media}
+            index={index}
+            count={images.length}
+            disabled={disabled}
+            previousId={images[index - 1]?.id}
+            nextId={images[index + 1]?.id}
+            onChange={onChange}
+            onRemove={onRemove}
+            onReplace={onReplace}
+            onReorder={onReorder}
+            onSetCover={onSetCover}
+            onAdjust={onAdjust}
+            onPreview={() => setPreview(media)}
+            ownerLabel={ownerLabel}
+          />
+        ))}
+      </div>
+      {preview ? (
+        <div
+          className="photo-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="查看照片"
+          onClick={() => setPreview(null)}
+        >
+          <button type="button" className="photo-lightbox-close" onClick={() => setPreview(null)}>
+            关闭
+          </button>
+          <img
+            alt={preview.altText || preview.title || "照片"}
+            src={preview.sourceUrl || preview.thumbnailUrl || ""}
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function PhotoCard({
+  media,
+  index,
+  count,
+  disabled,
+  previousId,
+  nextId,
+  onChange,
+  onRemove,
+  onReplace,
+  onReorder,
+  onSetCover,
+  onAdjust,
+  onPreview,
+  ownerLabel,
+}: {
+  media: MediaAssetData;
+  index: number;
+  count: number;
+  disabled: boolean;
+  previousId?: string;
+  nextId?: string;
+  onChange: (
+    media: MediaAssetData,
+    patch: { usage?: string; sortOrder?: number; visibility?: string },
+  ) => void;
+  onRemove: (media: MediaAssetData) => void;
+  onReplace?: (media: MediaAssetData, file: File) => void;
+  onReorder?: (fromId: string, toId: string) => void;
+  onSetCover?: (media: MediaAssetData) => void;
+  onAdjust?: (media: MediaAssetData) => void;
+  onPreview: () => void;
+  ownerLabel: string;
+}) {
+  const [replacement, setReplacement] = useState<{ file: File; url: string } | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(
+    () => () => {
+      if (replacement) URL.revokeObjectURL(replacement.url);
+    },
+    [replacement],
+  );
+  useEffect(() => setImageFailed(false), [media.id, replacement]);
+  const binding = media.bindings[0];
+  const hidden = binding?.visibility !== "visible";
+  return (
+    <article
+      className="photo-card"
+      draggable={Boolean(onReorder) && !disabled}
+      onDragStart={(event) => event.dataTransfer.setData("text/plain", media.id)}
+      onDragOver={(event) => {
+        if (onReorder) event.preventDefault();
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        onReorder?.(event.dataTransfer.getData("text/plain"), media.id);
+      }}
+    >
+      <button
+        className="photo-thumb-button"
+        type="button"
+        onClick={() => (imageFailed ? setImageFailed(false) : onPreview())}
+        aria-label={`查看第 ${index + 1} 张大图`}
+      >
+        {imageFailed ? (
+          <span className="photo-load-error">
+            照片暂时无法加载
+            <br />
+            点击重试
+          </span>
+        ) : (
+          <img
+            alt={media.altText || media.title || `照片 ${index + 1}`}
+            src={replacement?.url || media.thumbnailUrl || media.sourceUrl}
+            onError={() => setImageFailed(true)}
+          />
+        )}
+      </button>
+      <div className="photo-card-body">
+        <div className="status-cluster">
+          {binding?.usage === "cover" ? (
+            <span className="status-badge status-pinned">封面</span>
+          ) : null}
+          {hidden ? <span className="status-badge">已隐藏</span> : null}
+          {replacement ? <span className="status-badge">替换预览</span> : null}
+        </div>
+        <div className="photo-card-actions">
+          {onSetCover ? (
+            <button
+              className="secondary-button small-button"
+              disabled={disabled}
+              type="button"
+              onClick={() => onSetCover(media)}
+            >
+              设为封面
+            </button>
+          ) : null}
+          {onAdjust ? (
+            <button
+              className="secondary-button small-button"
+              type="button"
+              onClick={() => onAdjust(media)}
+            >
+              调整展示
+            </button>
+          ) : null}
+        </div>
+        <details className="photo-more">
+          <summary>更多操作</summary>
+          <div className="photo-more-actions">
+            {onReorder ? (
+              <>
+                <button
+                  type="button"
+                  disabled={disabled || index === 0}
+                  onClick={() => {
+                    if (previousId) onReorder(media.id, previousId);
+                  }}
                 >
-                  <option value="cover">封面</option>
-                  <option value="gallery">相册</option>
-                </select>
-              </label>
+                  向前移动
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled || index === count - 1}
+                  onClick={() => {
+                    if (nextId) onReorder(media.id, nextId);
+                  }}
+                >
+                  向后移动
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(media, { visibility: hidden ? "visible" : "hidden" })}
+            >
+              {hidden ? "显示照片" : "隐藏照片"}
+            </button>
+            {onReplace ? (
               <label>
-                排序
+                替换照片
                 <input
+                  aria-label="替换图片"
+                  accept="image/*"
                   disabled={disabled}
-                  inputMode="numeric"
-                  value={binding?.sortOrder ?? 0}
-                  onChange={(event) =>
-                    onChange(media, { sortOrder: Number.parseInt(event.target.value, 10) || 0 })
-                  }
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) setReplacement({ file, url: URL.createObjectURL(file) });
+                    event.currentTarget.value = "";
+                  }}
                 />
               </label>
-              <label>
-                可见性
-                <select
-                  disabled={disabled}
-                  value={binding?.visibility ?? "visible"}
-                  onChange={(event) => onChange(media, { visibility: event.target.value })}
-                >
-                  <option value="visible">显示</option>
-                  <option value="hidden">隐藏</option>
-                  <option value="archived">归档</option>
-                </select>
-              </label>
-              <button
-                className="secondary-button"
-                disabled={disabled}
-                type="button"
-                onClick={() => onRemove(media)}
-              >
-                移除绑定
-              </button>
-              {onReplace ? (
-                <label>
-                  替换图片
-                  <input
-                    accept="image/*"
-                    disabled={disabled || replaceDisabled}
-                    type="file"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) onReplace(media, file);
-                      event.currentTarget.value = "";
-                    }}
-                  />
-                </label>
-              ) : null}
-            </div>
+            ) : null}
+            <button type="button" disabled={disabled} onClick={() => onRemove(media)}>
+              从{ownerLabel}的相册移除
+            </button>
           </div>
-        );
-      })}
-    </div>
+        </details>
+        {replacement ? (
+          <div className="photo-replace-confirm">
+            <span>确认用新照片替换？原照片会保留到替换完成。</span>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                onReplace?.(media, replacement.file);
+                setReplacement(null);
+              }}
+            >
+              确认替换
+            </button>
+            <button type="button" onClick={() => setReplacement(null)}>
+              取消
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </article>
   );
 }
 
@@ -2060,7 +2560,11 @@ function EntryCoverEditor({
     if (!entries.includes(activeEntry)) setActiveEntry(entries[0]);
   }, [activeEntry, entries]);
   const selection = value?.[activeEntry];
-  const selectedImageId = selection?.imageId ?? images[0]?.id ?? "";
+  const selectedImageId =
+    selection?.imageId ??
+    images.find((item) => item.bindings[0]?.usage === "cover")?.id ??
+    images[0]?.id ??
+    "";
   const currentCrop = selection?.cropRect ?? defaultCropRect();
 
   function patchSelection(patch: Partial<EntryCoverSelection> | null) {
@@ -2078,7 +2582,7 @@ function EntryCoverEditor({
   return (
     <div className="presentation-editor">
       <div className="subsection-heading">
-        <h4>入口封面构图</h4>
+        <h4>不同展示位置的封面</h4>
       </div>
       <div className="tabs">
         {entries.map((entry) => (
@@ -2093,19 +2597,23 @@ function EntryCoverEditor({
         ))}
       </div>
       <div className="form-grid">
-        <SelectField
-          label="展示图片"
-          options={
-            images.length
-              ? images.map((image, index) => ({
-                  label: image.title || `图片 ${index + 1}`,
-                  value: image.id,
-                }))
-              : [{ label: "暂无图片", value: "" }]
-          }
-          value={selectedImageId}
-          onChange={(imageId) => patchSelection({ imageId })}
-        />
+        <div className="photo-entry-options" aria-label="选择展示照片">
+          {images.map((image, index) => (
+            <button
+              key={image.id}
+              className={`photo-entry-option ${selectedImageId === image.id ? "selected" : ""}`}
+              type="button"
+              aria-label={`选择第 ${index + 1} 张作为${COVER_ENTRY_META.find((item) => item.key === activeEntry)?.label}`}
+              onClick={() => patchSelection({ imageId: image.id })}
+            >
+              <img
+                alt={image.altText || image.title || `照片 ${index + 1}`}
+                src={image.thumbnailUrl || image.sourceUrl}
+              />
+              <span>照片 {index + 1}</span>
+            </button>
+          ))}
+        </div>
         <div className="presentation-preview">
           <CroppedPreview
             aspectRatio={entryAspectRatio(activeEntry)}
@@ -2129,14 +2637,19 @@ function EntryCoverEditor({
 
 function DetailPresentationEditor({
   images,
+  initialImageId,
   value,
   onChange,
 }: {
   images: MediaAssetData[];
+  initialImageId?: string;
   value?: DetailImagePresentations;
   onChange: (value: DetailImagePresentations | undefined) => void;
 }) {
-  const [activeImageId, setActiveImageId] = useState("");
+  const [activeImageId, setActiveImageId] = useState(initialImageId ?? "");
+  useEffect(() => {
+    if (initialImageId) setActiveImageId(initialImageId);
+  }, [initialImageId]);
   useEffect(() => {
     if (activeImageId && images.some((image) => image.id === activeImageId)) return;
     setActiveImageId(images[0]?.id ?? "");
@@ -2157,7 +2670,7 @@ function DetailPresentationEditor({
   return (
     <div className="presentation-editor">
       <div className="subsection-heading">
-        <h4>详情轮播展示参数</h4>
+        <h4>详情页照片</h4>
       </div>
       <SelectField
         label="轮播图片"
@@ -2204,24 +2717,35 @@ function DetailPresentationEditor({
 }
 
 function CropInputs({ value, onChange }: { value: CropRect; onChange: (value: CropRect) => void }) {
+  const controls: Array<{ key: keyof CropRect; label: string }> = [
+    { key: "width", label: "裁剪宽度" },
+    { key: "height", label: "裁剪高度" },
+    { key: "x", label: "水平位置" },
+    { key: "y", label: "垂直位置" },
+  ];
   return (
-    <div className="form-grid">
-      {(["x", "y", "width", "height"] as const).map((key) => (
+    <div className="photo-crop-controls">
+      {controls.map(({ key, label }) => (
         <label key={key}>
-          {key}
+          {label}
           <input
-            max="1"
-            min="0"
+            max={
+              key === "x"
+                ? 1 - value.width
+                : key === "y"
+                  ? 1 - value.height
+                  : key === "width"
+                    ? 1 - value.x
+                    : 1 - value.y
+            }
+            min={key === "width" || key === "height" ? 0.1 : 0}
             step="0.01"
-            type="number"
+            type="range"
             value={value[key]}
             onChange={(event) =>
               onChange({
                 ...value,
-                [key]: clampUnit(
-                  Number.parseFloat(event.target.value),
-                  key === "width" || key === "height" ? 1 : 0,
-                ),
+                [key]: Number.parseFloat(event.target.value),
               })
             }
           />
@@ -2313,6 +2837,8 @@ function LitterWorkspace({
   onMediaBindingChange,
   onMediaBindingRemove,
   onMediaBindingReplace,
+  onMediaReorder,
+  onSetPrimaryCover,
   onNew,
   onAddKitten,
   onSelect,
@@ -2340,6 +2866,8 @@ function LitterWorkspace({
   ) => void;
   onMediaBindingRemove: (media: MediaAssetData) => void;
   onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
+  onMediaReorder: (fromId: string, toId: string) => void;
+  onSetPrimaryCover: (media: MediaAssetData) => void;
   onNew: () => void;
   onAddKitten: (litter: LitterData) => void;
   onSelect: (litter: LitterData) => void;
@@ -2430,6 +2958,8 @@ function LitterWorkspace({
             onMediaBindingChange={onMediaBindingChange}
             onMediaBindingRemove={onMediaBindingRemove}
             onMediaBindingReplace={onMediaBindingReplace}
+            onMediaReorder={onMediaReorder}
+            onSetPrimaryCover={onSetPrimaryCover}
             onSubmit={onSubmit}
           />
         ) : selectedLitter ? (
@@ -2463,6 +2993,8 @@ function LitterForm({
   onMediaBindingChange,
   onMediaBindingRemove,
   onMediaBindingReplace,
+  onMediaReorder,
+  onSetPrimaryCover,
   onSubmit,
 }: {
   activeCats: CatData[];
@@ -2480,6 +3012,8 @@ function LitterForm({
   ) => void;
   onMediaBindingRemove: (media: MediaAssetData) => void;
   onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
+  onMediaReorder: (fromId: string, toId: string) => void;
+  onSetPrimaryCover: (media: MediaAssetData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const catOptions = [
@@ -2595,6 +3129,9 @@ function LitterForm({
           onChange={onMediaBindingChange}
           onRemove={onMediaBindingRemove}
           onReplace={onMediaBindingReplace}
+          onReorder={onMediaReorder}
+          onSetCover={onSetPrimaryCover}
+          ownerLabel="当前窝次"
           disabled={isSaving}
         />
       </div>
@@ -2911,28 +3448,61 @@ function replaceImagePresentationReferences(
     ? (Object.fromEntries(
         Object.entries(value.entryCoverSelections).map(([entry, selection]) => [
           entry,
-          selection?.imageId === previousId
-            ? { imageId: replacementId, cropRect: defaultCropRect() }
-            : selection,
+          selection?.imageId === previousId ? { ...selection, imageId: replacementId } : selection,
         ]),
       ) as EntryCoverSelections)
     : undefined;
   return {
     ...value,
     entryCoverSelections,
-    detailImagePresentations: omitImageKey(value.detailImagePresentations, previousId),
-    detailCarouselPresentations: omitImageKey(value.detailCarouselPresentations, previousId),
+    detailImagePresentations: renameImageKey(
+      value.detailImagePresentations,
+      previousId,
+      replacementId,
+    ),
+    detailCarouselPresentations: renameImageKey(
+      value.detailCarouselPresentations,
+      previousId,
+      replacementId,
+    ),
   };
 }
 
-function omitImageKey<T>(
+function removeImagePresentationReferences(
+  value: ImagePresentation,
+  imageId: string,
+): ImagePresentation {
+  const entryCoverSelections = { ...value.entryCoverSelections };
+  for (const entry of Object.keys(entryCoverSelections) as CoverEntry[]) {
+    if (entryCoverSelections[entry]?.imageId === imageId) delete entryCoverSelections[entry];
+  }
+  const detailImagePresentations = { ...value.detailImagePresentations };
+  const detailCarouselPresentations = { ...value.detailCarouselPresentations };
+  delete detailImagePresentations[imageId];
+  delete detailCarouselPresentations[imageId];
+  return {
+    ...value,
+    entryCoverSelections: Object.keys(entryCoverSelections).length
+      ? entryCoverSelections
+      : undefined,
+    detailImagePresentations: Object.keys(detailImagePresentations).length
+      ? detailImagePresentations
+      : undefined,
+    detailCarouselPresentations: Object.keys(detailCarouselPresentations).length
+      ? detailCarouselPresentations
+      : undefined,
+  };
+}
+
+function renameImageKey<T>(
   value: Record<string, T> | undefined,
   previousId: string,
+  replacementId: string,
 ): Record<string, T> | undefined {
   if (!value || !Object.hasOwn(value, previousId)) return value;
-  const next = { ...value };
+  const next = { ...value, [replacementId]: value[previousId] };
   delete next[previousId];
-  return Object.keys(next).length ? next : undefined;
+  return next;
 }
 
 function toCatDraft(cat: CatData): CatDraft {
@@ -3033,6 +3603,15 @@ function sortMediaByBinding(items: MediaAssetData[], ownerType: string, ownerId:
     }))
     .filter((media) => media.bindings.length > 0)
     .sort((a, b) => a.bindings[0].sortOrder - b.bindings[0].sortOrder || a.id.localeCompare(b.id));
+}
+
+function movePhoto(items: MediaAssetData[], fromId: string, toId: string) {
+  const from = items.findIndex((item) => item.id === fromId);
+  const to = items.findIndex((item) => item.id === toId);
+  if (from < 0 || to < 0 || from === to) return items;
+  const next = [...items];
+  next.splice(to, 0, next.splice(from, 1)[0]);
+  return next;
 }
 
 function getPrimaryCatImageDto(cat: CatData) {
