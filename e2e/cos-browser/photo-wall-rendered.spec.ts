@@ -45,7 +45,7 @@ test("photo wall creates three photos and keeps cover, order, crop and visibilit
     return dialog.dismiss();
   });
   await page.getByRole("link", { name: "其它猫咪" }).click();
-  expect(leaveWarningShown).toBe(true);
+  await expect.poll(() => leaveWarningShown).toBe(true);
   await expect(page).toHaveURL(/#studs$/);
   await expect(page.getByText("待上传 · 3 张")).toBeVisible();
   const disconnectCreate = (url: URL) =>
