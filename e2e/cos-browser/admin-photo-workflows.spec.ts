@@ -91,14 +91,16 @@ test("admin can add gallery photos and replace one without leaving stale present
     .click();
   await expect(page.getByRole("heading", { name: "猫咪档案" })).toBeVisible();
 
-  await page.getByLabel("批量加入相册").setInputFiles(
+  await page.getByLabel("添加照片").setInputFiles(
     ["gallery-first.png", "gallery-second.png"].map((name) => ({
       name,
       mimeType: "image/png",
       buffer: TEST_PNG,
     })),
   );
-  await expect(page.getByText("已加入 2 张相册图片")).toBeVisible();
+  await expect(page.getByText("待上传 · 2 张")).toBeVisible();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByText("猫咪资料已更新")).toBeVisible();
   const afterBatch = await listOwnerMedia(request, headers, "cat", E2E_CAT_ID);
   for (const [index, name] of ["gallery-first.png", "gallery-second.png"].entries()) {
     const media = afterBatch.find((item) => item.title === name);
@@ -111,15 +113,43 @@ test("admin can add gallery photos and replace one without leaving stale present
     });
   }
 
-  const legacyRow = page.locator(".image-gallery-row").filter({
+  const legacyRow = page.locator(".photo-card").filter({
     has: page.getByRole("img", { name: "isolated legacy private image" }),
   });
+  await page.route(`**/cats/${E2E_CAT_ID}`, async (route) => {
+    if (route.request().method() === "PATCH") {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ success: false, message: "模拟引用更新失败" }),
+      });
+    } else await route.continue();
+  });
+  await legacyRow.getByLabel("替换图片").setInputFiles({
+    name: "failed-reference.png",
+    mimeType: "image/png",
+    buffer: TEST_PNG,
+  });
+  await legacyRow.getByRole("button", { name: "确认替换" }).click();
+  await expect(page.getByText("模拟引用更新失败", { exact: false })).toBeVisible();
+  await expect(legacyRow).toBeVisible();
+  await page.screenshot({ path: "E:/小程序/photo-wall-evidence/after-reference-failure-1440.png" });
+  await page.unroute(`**/cats/${E2E_CAT_ID}`);
+  const failedReplacement = page
+    .locator(".photo-card")
+    .filter({ has: page.getByRole("img", { name: "failed-reference.png" }) });
+  await failedReplacement.getByText("更多操作").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await failedReplacement.getByRole("button", { name: "从这只猫的相册移除" }).click();
+  await expect(failedReplacement).toHaveCount(0);
   await legacyRow.getByLabel("替换图片").setInputFiles({
     name: "replacement.png",
     mimeType: "image/png",
     buffer: TEST_PNG,
   });
+  await legacyRow.getByRole("button", { name: "确认替换" }).click();
   await expect(page.getByText("猫咪图片已替换")).toBeVisible();
+  await page.screenshot({ path: "E:/小程序/photo-wall-evidence/after-replace-1440.png" });
 
   const afterReplace = await listOwnerMedia(request, headers, "cat", E2E_CAT_ID);
   const replacement = afterReplace.find((item) => item.title === "replacement.png");
@@ -138,10 +168,17 @@ test("admin can add gallery photos and replace one without leaving stale present
   const presentation = cat.storyJson.imagePresentation;
   expect(presentation.entryCoverSelections.listCard).toEqual({
     imageId: replacement?.id,
-    cropRect: { x: 0, y: 0, width: 1, height: 1 },
+    cropRect: { x: 0.2, y: 0.1, width: 0.5, height: 0.5 },
   });
-  expect(presentation.detailImagePresentations?.[E2E_LEGACY_MEDIA_ID]).toBeUndefined();
+  expect(presentation.detailImagePresentations?.[replacement?.id ?? ""]).toEqual({
+    mode: "original",
+  });
   expect(presentation.detailCarouselPresentations?.[E2E_LEGACY_MEDIA_ID]).toBeUndefined();
+  expect(presentation.detailCarouselPresentations?.[replacement?.id ?? ""]).toEqual({
+    objectPositionX: 45,
+    objectPositionY: 55,
+    zoom: 1.2,
+  });
 
   const originalResponse = await request.get(`${API_ORIGIN}/media/${E2E_LEGACY_MEDIA_ID}`, {
     headers,
@@ -167,7 +204,7 @@ test("admin can add gallery photos and replace one without leaving stale present
   await expect(page.getByText("COS E2E 隔离测试窝次")).toBeVisible();
   await page.getByRole("button", { name: "编辑" }).first().click();
   await expect(page.getByRole("heading", { name: "窝次编辑" })).toBeVisible();
-  const litterLegacyRow = page.locator(".image-gallery-row").filter({
+  const litterLegacyRow = page.locator(".photo-card").filter({
     has: page.getByRole("img", { name: "isolated legacy private image" }),
   });
   await litterLegacyRow.getByLabel("替换图片").setInputFiles({
@@ -175,6 +212,7 @@ test("admin can add gallery photos and replace one without leaving stale present
     mimeType: "image/png",
     buffer: TEST_PNG,
   });
+  await litterLegacyRow.getByRole("button", { name: "确认替换" }).click();
   await expect(page.getByText("窝次图片已替换")).toBeVisible();
   const litterMedia = await listOwnerMedia(request, headers, "litter", litterId);
   expect(litterMedia.some((item) => item.id === E2E_LEGACY_MEDIA_ID)).toBe(false);
@@ -186,6 +224,28 @@ test("admin can add gallery photos and replace one without leaving stale present
     sortOrder: 7,
     visibility: "visible",
   });
+  await page.getByLabel("上传图片").setInputFiles({
+    name: "litter-added.png",
+    mimeType: "image/png",
+    buffer: TEST_PNG,
+  });
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByText("窝次资料已更新")).toBeVisible();
+  await expect(page.locator(".photo-card")).toHaveCount(2);
+  const movedLitterPhoto = await page
+    .locator(".photo-card")
+    .last()
+    .locator("img")
+    .getAttribute("alt");
+  await page.locator(".photo-card").last().getByText("更多操作").click();
+  await page.locator(".photo-card").last().getByRole("button", { name: "向前移动" }).click();
+  await expect(page.getByText("窝次照片顺序已保存")).toBeVisible();
+  await expect(page.locator(".photo-card").first().locator("img")).toHaveAttribute(
+    "alt",
+    movedLitterPhoto!,
+  );
+  await page.getByRole("heading", { name: "窝次图片" }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "E:/小程序/photo-wall-evidence/after-litter-1440.png" });
 });
 
 async function listOwnerMedia(

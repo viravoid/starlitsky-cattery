@@ -428,7 +428,7 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   await captureUx(page, "04-second-litter-preselected-1280.png");
   await kittenEditor.getByLabel("名字").fill("业务 E2E 第二只小猫");
   await kittenEditor.getByLabel("颜色").fill("蓝银");
-  await kittenEditor.getByLabel("上传新图片").setInputFiles({
+  await kittenEditor.getByLabel("添加照片").setInputFiles({
     name: "kitten.png",
     mimeType: "image/png",
     buffer: TEST_PNG,
@@ -444,10 +444,10 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   await expect(page.getByText("模拟保存失败")).toBeVisible();
   await expect(kittenEditor.getByLabel("名字")).toHaveValue("业务 E2E 第二只小猫");
   await expect(kittenEditor.getByLabel("所属窝次（必选）")).toHaveValue(secondLitterId);
-  await expect(kittenEditor.getByAltText("待上传图片预览")).toBeVisible();
+  await expect(kittenEditor.getByAltText("kitten.png")).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await captureUx(page, "05-failed-save-retains-input-1280.png");
-  await kittenEditor.getByAltText("待上传图片预览").scrollIntoViewIfNeeded();
+  await kittenEditor.getByAltText("kitten.png").scrollIntoViewIfNeeded();
   await captureUx(page, "05b-failed-save-retains-photo-1280.png");
   await page.unroute("**/cats/with-kitten-profile");
   const secondKittenResponse = page.waitForResponse(
@@ -492,7 +492,7 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
 
   await editor.getByRole("button", { name: "添加小猫" }).click();
   await kittenEditor.getByLabel("名字").fill("业务 E2E 照片重试小猫");
-  await kittenEditor.getByLabel("上传新图片").setInputFiles({
+  await kittenEditor.getByLabel("添加照片").setInputFiles({
     name: "retry.png",
     mimeType: "image/png",
     buffer: TEST_PNG,
@@ -512,7 +512,7 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   await expect(
     page.getByText("Object storage upload failed with HTTP 503", { exact: false }),
   ).toBeVisible();
-  await expect(kittenEditor.getByAltText("待上传图片预览")).toBeVisible();
+  await expect(kittenEditor.getByAltText("retry.png")).toBeVisible();
   await page.unroute(failCosUpload);
   await kittenEditor.getByRole("button", { name: "保存" }).click();
   await expect(page.getByText("猫咪资料已更新")).toBeVisible();
