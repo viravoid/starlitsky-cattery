@@ -245,6 +245,8 @@ export function CatteryManagementPage() {
   const [selectedCat, setSelectedCat] = useState<CatData | null>(null);
   const selectedCatIdRef = useRef<string | null>(null);
   const litterCreateRequestRef = useRef<{ payload: string; key: string } | null>(null);
+  const catSubmitInFlightRef = useRef(false);
+  const internalNavigationRef = useRef(false);
   const [selectedLitter, setSelectedLitter] = useState<LitterData | null>(null);
   const [catEditorMode, setCatEditorMode] = useState<EditorMode>(null);
   const [litterEditorMode, setLitterEditorMode] = useState<EditorMode>(null);
@@ -272,6 +274,9 @@ export function CatteryManagementPage() {
   const [includeArchivedLitters, setIncludeArchivedLitters] = useState(false);
   const [confirmingArchiveCatId, setConfirmingArchiveCatId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [createdKittenLitterId, setCreatedKittenLitterId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -300,7 +305,7 @@ export function CatteryManagementPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    setError("");
+    setLoadError("");
 
     try {
       const [catList, litterList, fixedPageList] = await Promise.all([
@@ -316,6 +321,7 @@ export function CatteryManagementPage() {
       setCats(catList);
       setFixedPages(fixedPageList);
       setLitters(litterList);
+      setHasLoaded(true);
       setSelectedCat((current) =>
         current ? (catList.find((cat) => cat.id === current.id) ?? null) : null,
       );
@@ -323,7 +329,7 @@ export function CatteryManagementPage() {
         current ? (litterList.find((litter) => litter.id === current.id) ?? null) : null,
       );
     } catch (loadError) {
-      setError(getErrorMessage(loadError));
+      setLoadError(getErrorMessage(loadError));
     } finally {
       setIsLoading(false);
     }
@@ -348,6 +354,12 @@ export function CatteryManagementPage() {
   useEffect(() => {
     function handleHashChange() {
       const nextSection = getSectionFromHash();
+      if (internalNavigationRef.current) {
+        internalNavigationRef.current = false;
+        setActiveHash(window.location.hash);
+        setActiveSection(nextSection);
+        return;
+      }
       if (nextSection !== activeSection) {
         if (
           (catDirty || litterDirty) &&
@@ -363,6 +375,7 @@ export function CatteryManagementPage() {
         setLitterEditorMode(null);
         setNotice("");
         setError("");
+        setCreatedKittenLitterId("");
       }
       setActiveHash(window.location.hash);
       setActiveSection(nextSection);
@@ -372,15 +385,28 @@ export function CatteryManagementPage() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, [activeSection, catDirty, litterDirty]);
 
-  function openCreateCat(section: SectionKey) {
-    if (catDirty && !confirm("当前猫咪表单有未保存修改，确定新建吗？")) return;
+  function navigateWithinPage(section: SectionKey) {
+    if (window.location.hash !== SECTION_HASHES[section]) {
+      internalNavigationRef.current = true;
+      window.location.hash = SECTION_HASHES[section];
+    }
     setActiveSection(section);
+  }
+
+  function openCreateCat(section: SectionKey, litter?: LitterData) {
+    if ((catDirty || litterDirty) && !confirm("当前表单有未保存修改，确定新建吗？")) return;
+    if (litter && !isUsableLitter(litter)) {
+      setError("此窝次已归档，不能用于新增小猫");
+      return;
+    }
+    navigateWithinPage(section);
     setSelectedCat(null);
-    const next = createEmptyCatDraft(section);
+    const next = { ...createEmptyCatDraft(section), kittenLitterId: litter?.id ?? "" };
     setCatDraft(next);
     setCatBaseline(serializeDraft(next));
     clearPendingCatImage();
     setCatEditorMode("create");
+    setCreatedKittenLitterId("");
     setConfirmingArchiveCatId("");
     setNotice("");
     setError("");
@@ -396,6 +422,7 @@ export function CatteryManagementPage() {
     setActiveSection(section);
     setConfirmingArchiveCatId("");
     setNotice("");
+    setCreatedKittenLitterId("");
     setError("");
 
     try {
@@ -424,6 +451,7 @@ export function CatteryManagementPage() {
     setCatEditorMode(null);
     setConfirmingArchiveCatId("");
     setNotice("");
+    setCreatedKittenLitterId("");
     setError("");
 
     try {
@@ -544,11 +572,24 @@ export function CatteryManagementPage() {
 
   async function handleCatSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (catSubmitInFlightRef.current) return;
+    catSubmitInFlightRef.current = true;
     setIsSaving(true);
     setError("");
     setNotice("");
 
     try {
+      const wasCreating = catEditorMode === "create";
+      if (
+        activeSection === "kittens" &&
+        (catEditorMode === "create" ||
+          selectedCat?.kittenProfile?.litterId !== catDraft.kittenLitterId)
+      ) {
+        const selected = litters.find((litter) => litter.id === catDraft.kittenLitterId);
+        if (!selected || !isUsableLitter(selected)) {
+          throw new Error("请选择一个可用的窝次后再保存小猫");
+        }
+      }
       const payload = toCatPayload(catDraft, selectedCat);
       let savedCat: CatData;
 
@@ -559,6 +600,10 @@ export function CatteryManagementPage() {
           cat: payload as CreateCatRequest,
           kittenProfile: toKittenProfilePayload(catDraft),
         });
+        // The cat may already exist if its photo upload fails. A retry must edit it.
+        setSelectedCat(savedCat);
+        setCatEditorMode("edit");
+        setCreatedKittenLitterId(catDraft.kittenLitterId);
       } else if (activeSection === "studs") {
         savedCat = await createCatWithBreedingProfile({
           breedingProfile: toBreedingProfilePayload(catDraft),
@@ -586,12 +631,41 @@ export function CatteryManagementPage() {
       setCatDraft(next);
       setCatBaseline(serializeDraft(next));
       setCatEditorMode("edit");
-      setNotice(catEditorMode === "edit" ? "猫咪资料已更新" : "猫咪已新增");
+      setCreatedKittenLitterId(
+        activeSection === "kittens" && (wasCreating || createdKittenLitterId)
+          ? catDraft.kittenLitterId
+          : "",
+      );
+      setNotice(
+        wasCreating
+          ? activeSection === "kittens"
+            ? "小猫已新增"
+            : "猫咪已新增"
+          : "猫咪资料已更新",
+      );
       await loadData();
     } catch (saveError) {
+      if (pendingCatImageFile) setCatImageUploadState("pending");
       setError(getErrorMessage(saveError));
     } finally {
+      catSubmitInFlightRef.current = false;
       setIsSaving(false);
+    }
+  }
+
+  async function returnToLitter(litterId: string) {
+    if (catDirty && !confirm("当前小猫表单有未保存修改，确定返回窝次吗？")) return;
+    try {
+      const litter = await getLitter(litterId);
+      navigateWithinPage("litters");
+      setSelectedLitter(litter);
+      setLitterEditorMode(null);
+      setCreatedKittenLitterId("");
+      setNotice("");
+      setError("");
+      await Promise.all([loadLitterImages(litter.id), loadLitterKittens(litter.id)]);
+    } catch (returnError) {
+      setError(getErrorMessage(returnError));
     }
   }
 
@@ -714,10 +788,7 @@ export function CatteryManagementPage() {
       const payload = toLitterPayload(litterDraft);
       const isCreate = litterEditorMode !== "edit";
       const payloadSignature = JSON.stringify(payload);
-      if (
-        isCreate &&
-        litterCreateRequestRef.current?.payload !== payloadSignature
-      ) {
+      if (isCreate && litterCreateRequestRef.current?.payload !== payloadSignature) {
         litterCreateRequestRef.current = { payload: payloadSignature, key: crypto.randomUUID() };
       }
       const savedLitter =
@@ -736,7 +807,7 @@ export function CatteryManagementPage() {
       const next = toLitterDraft(savedLitter);
       setLitterDraft(next);
       setLitterBaseline(serializeDraft(next));
-      setLitterEditorMode("edit");
+      setLitterEditorMode(isCreate ? null : "edit");
       litterCreateRequestRef.current = null;
       setNotice(isCreate ? "窝次已新增" : "窝次资料已更新");
       await loadData();
@@ -1019,7 +1090,36 @@ export function CatteryManagementPage() {
 
       {activeSection !== "media" && notice ? <div className="notice">{notice}</div> : null}
       {activeSection !== "media" && error ? <div className="error-banner">{error}</div> : null}
-      {activeSection !== "media" && isLoading ? <p className="muted">正在加载真实数据...</p> : null}
+      {activeSection !== "media" && loadError ? (
+        <div className="error-banner" role="alert">
+          数据加载失败：{loadError}{" "}
+          <button type="button" onClick={loadData}>
+            重试加载
+          </button>
+        </div>
+      ) : null}
+      {activeSection !== "media" && isLoading ? (
+        <p className="muted">{hasLoaded ? "正在刷新数据..." : "正在加载数据..."}</p>
+      ) : null}
+      {activeSection === "kittens" && createdKittenLitterId && !error ? (
+        <div className="form-actions next-step-actions">
+          <button type="button" onClick={() => void returnToLitter(createdKittenLitterId)}>
+            返回所属窝次
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() =>
+              openCreateCat(
+                "kittens",
+                litters.find((item) => item.id === createdKittenLitterId),
+              )
+            }
+          >
+            继续录入下一只小猫
+          </button>
+        </div>
+      ) : null}
 
       {activeSection === "dashboard" && <DashboardPage />}
       {activeSection === "kittens" && (
@@ -1032,9 +1132,11 @@ export function CatteryManagementPage() {
           imagePreviewUrl={catImagePreviewUrl}
           imageUploadState={catImageUploadState}
           includeArchived={includeArchivedCats}
+          hasLoaded={hasLoaded}
           isLoading={isLoading}
           isSaving={isSaving}
           litters={litters}
+          loadError={loadError}
           mode="kittens"
           parentLinks={selectedCat ? (parentLinksByCatId[selectedCat.id] ?? []) : []}
           selectedCat={selectedCat}
@@ -1075,6 +1177,7 @@ export function CatteryManagementPage() {
           onMediaBindingRemove={removeLitterMediaBinding}
           onMediaBindingReplace={replaceLitterMediaBinding}
           onNew={openCreateLitter}
+          onAddKitten={(litter) => openCreateCat("kittens", litter)}
           onSelect={selectLitter}
           onSubmit={handleLitterSubmit}
           onToggleArchived={setIncludeArchivedLitters}
@@ -1173,9 +1276,11 @@ function CatManagementWorkspace({
   imagePreviewUrl,
   imageUploadState,
   includeArchived,
+  hasLoaded,
   isLoading,
   isSaving,
   litters,
+  loadError,
   mode,
   parentLinks,
   selectedCat,
@@ -1202,9 +1307,11 @@ function CatManagementWorkspace({
   imagePreviewUrl: string;
   imageUploadState: ImageUploadState;
   includeArchived: boolean;
+  hasLoaded?: boolean;
   isLoading: boolean;
   isSaving: boolean;
   litters: LitterData[];
+  loadError?: string;
   mode: "kittens" | "studs" | "cats";
   parentLinks: ParentCatLinkData[];
   selectedCat: CatData | null;
@@ -1227,7 +1334,10 @@ function CatManagementWorkspace({
   onToggleArchived: (value: boolean) => void;
 }) {
   const title = mode === "kittens" ? "小猫管理" : mode === "studs" ? "种猫管理" : "其它猫咪";
-  const needsLitter = mode === "kittens" && !isLoading && litters.length === 0;
+  const usableLitters = litters.filter(isUsableLitter);
+  const needsLitter =
+    mode === "kittens" && hasLoaded && !isLoading && !loadError && usableLitters.length === 0;
+  const cannotCreateKitten = mode === "kittens" && (isLoading || Boolean(loadError) || needsLitter);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [visibility, setVisibility] = useState("");
@@ -1276,14 +1386,15 @@ function CatManagementWorkspace({
               />
               显示归档
             </label>
-            <button type="button" disabled={needsLitter} onClick={onNew}>
+            <button type="button" disabled={cannotCreateKitten} onClick={onNew}>
               新增
             </button>
           </div>
         </div>
         {needsLitter ? (
           <div className="prerequisite-note">
-            新增小猫前需要先创建窝次。<a href="#litters">前往创建窝次</a>
+            {litters.length ? "当前没有可用于新增小猫的窝次。" : "新增小猫前需要先创建窝次。"}
+            <a href="#litters">前往创建窝次</a>
           </div>
         ) : null}
         <div className="filter-bar">
@@ -1439,8 +1550,14 @@ function CatManagementWorkspace({
           />
         ) : (
           <div className="empty-state">
-            <strong>{needsLitter ? "先创建窝次，再新增小猫" : "选择一只猫查看详情"}</strong>
-            {!needsLitter ? (
+            <strong>
+              {needsLitter
+                ? "先创建可用窝次，再新增小猫"
+                : mode === "kittens"
+                  ? "从左侧选择小猫，或点击上方新增"
+                  : "选择一只猫查看详情"}
+            </strong>
+            {mode !== "kittens" && !cannotCreateKitten ? (
               <button type="button" onClick={onNew}>
                 新增
               </button>
@@ -1492,6 +1609,13 @@ function CatEditor({
   onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const selectableLitters = litters.filter(
+    (litter) =>
+      isUsableLitter(litter) || (litter.id === draft.kittenLitterId && Boolean(selectedCat)),
+  );
+  const selectedLitterName = selectableLitters.find(
+    (litter) => litter.id === draft.kittenLitterId,
+  )?.name;
   return (
     <form className="form-stack" onSubmit={onSubmit}>
       <div className="section-heading">
@@ -1554,12 +1678,17 @@ function CatEditor({
       {mode === "kittens" ? (
         <div className="editor-section-body">
           <h4>小猫与窝次</h4>
+          {selectedLitterName ? (
+            <p className="prerequisite-note">
+              当前所属窝次：<strong>{selectedLitterName}</strong>。可在下方更换。
+            </p>
+          ) : null}
           <div className="form-grid">
             <SelectField
               label="所属窝次（必选）"
               options={[
                 { label: "请选择窝次", value: "" },
-                ...litters.map((litter) => ({ label: litter.name, value: litter.id })),
+                ...selectableLitters.map((litter) => ({ label: litter.name, value: litter.id })),
               ]}
               value={draft.kittenLitterId}
               required
@@ -2180,6 +2309,7 @@ function LitterWorkspace({
   onMediaBindingRemove,
   onMediaBindingReplace,
   onNew,
+  onAddKitten,
   onSelect,
   onSubmit,
   onToggleArchived,
@@ -2206,6 +2336,7 @@ function LitterWorkspace({
   onMediaBindingRemove: (media: MediaAssetData) => void;
   onMediaBindingReplace: (media: MediaAssetData, file: File) => void;
   onNew: () => void;
+  onAddKitten: (litter: LitterData) => void;
   onSelect: (litter: LitterData) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onToggleArchived: (value: boolean) => void;
@@ -2254,8 +2385,8 @@ function LitterWorkspace({
                   </td>
                   <td>{formatOption(litter.status, LITTER_STATUS_OPTIONS)}</td>
                   <td>
-                    {litter.fatherCat?.name ?? litter.fatherCatId} /{" "}
-                    {litter.motherCat?.name ?? litter.motherCatId}
+                    {litter.fatherCat?.name ?? "父亲资料不可用"} /{" "}
+                    {litter.motherCat?.name ?? "母亲资料不可用"}
                   </td>
                   <td>{formatDate(litter.birthDate || litter.expectedBirthDate)}</td>
                   <td>{formatOption(litter.visibility, VISIBILITY_OPTIONS)}</td>
@@ -2302,13 +2433,11 @@ function LitterWorkspace({
             images={selectedImages}
             kittens={kittens}
             onEdit={onEdit}
+            onAddKitten={onAddKitten}
           />
         ) : (
           <div className="empty-state">
-            <strong>选择一个窝次查看详情</strong>
-            <button type="button" onClick={onNew}>
-              新增窝次
-            </button>
+            <strong>从左侧选择窝次，或点击上方新增窝次</strong>
           </div>
         )}
       </aside>
@@ -2535,7 +2664,7 @@ function CatDetail({
           [
             "家长/归属",
             parentLinks
-              .map((link) => link.parentProfile?.displayName ?? link.parentProfileId)
+              .map((link) => link.parentProfile?.displayName ?? "未填写姓名的家长")
               .join("、") || "-",
           ],
           ["动态数量", "当前 API 未提供可靠计数"],
@@ -2561,11 +2690,13 @@ function LitterDetail({
   kittens,
   litter,
   onEdit,
+  onAddKitten,
 }: {
   images: MediaAssetData[];
   kittens: KittenProfileData[];
   litter: LitterData;
   onEdit: (litter: LitterData) => void;
+  onAddKitten: (litter: LitterData) => void;
 }) {
   const primaryImage = getPrimaryMedia(images);
   return (
@@ -2575,13 +2706,20 @@ function LitterDetail({
           <p className="eyebrow">Litter Detail</p>
           <h3>{litter.name}</h3>
         </div>
-        <button
-          className="secondary-button small-button"
-          type="button"
-          onClick={() => onEdit(litter)}
-        >
-          编辑
-        </button>
+        <div className="table-actions">
+          {isUsableLitter(litter) ? (
+            <button type="button" onClick={() => onAddKitten(litter)}>
+              添加小猫
+            </button>
+          ) : null}
+          <button
+            className="secondary-button small-button"
+            type="button"
+            onClick={() => onEdit(litter)}
+          >
+            编辑
+          </button>
+        </div>
       </div>
       {primaryImage ? (
         <img
@@ -2592,8 +2730,8 @@ function LitterDetail({
       ) : null}
       <DescriptionList
         items={[
-          ["父亲", litter.fatherCat?.name ?? litter.fatherCatId],
-          ["母亲", litter.motherCat?.name ?? litter.motherCatId],
+          ["父亲", litter.fatherCat?.name ?? "父亲资料不可用"],
+          ["母亲", litter.motherCat?.name ?? "母亲资料不可用"],
           ["状态", formatOption(litter.status, LITTER_STATUS_OPTIONS)],
           ["预产期", formatDate(litter.expectedBirthDate)],
           ["出生日期", formatDate(litter.birthDate)],
@@ -2606,8 +2744,8 @@ function LitterDetail({
         {kittens.length ? (
           kittens.map((kitten) => (
             <div className="mini-list-row" key={kitten.catId}>
-              <strong>{kitten.cat?.name ?? kitten.catId}</strong>
-              <span>{kitten.saleStatus}</span>
+              <strong>{kitten.cat?.name ?? "猫咪资料不可用"}</strong>
+              <span>{formatOption(kitten.saleStatus, KITTEN_STATUS_OPTIONS)}</span>
               <span>{kitten.priceText ?? "-"}</span>
             </div>
           ))
@@ -2934,12 +3072,16 @@ function mediaDtoToAsset(media?: CatMediaAssetData): MediaAssetData | undefined 
 }
 
 function formatCatStatus(cat: CatData, mode: "kittens" | "studs" | "cats") {
-  if (mode === "kittens") return cat.kittenProfile?.saleStatus ?? cat.lifecycleStatus;
+  if (mode === "kittens")
+    return cat.kittenProfile
+      ? formatOption(cat.kittenProfile.saleStatus, KITTEN_STATUS_OPTIONS)
+      : formatOption(cat.lifecycleStatus, CAT_STATUS_OPTIONS);
   if (mode === "studs")
     return (
       cat.breedingProfile?.statusLabel ||
-      cat.breedingProfile?.reproductiveState ||
-      cat.lifecycleStatus
+      (cat.breedingProfile?.reproductiveState
+        ? formatOption(cat.breedingProfile.reproductiveState, REPRODUCTIVE_STATE_OPTIONS)
+        : formatOption(cat.lifecycleStatus, CAT_STATUS_OPTIONS))
     );
   return formatOption(cat.lifecycleStatus, CAT_STATUS_OPTIONS);
 }
@@ -2948,8 +3090,12 @@ function formatParentOwnership(cat: CatData) {
   const links = cat.parentCatLinks ?? [];
   const link = links.find((item) => item.status === "active") ?? links[0];
   if (!link) return "-";
-  const parentName = link.parentProfile?.displayName || link.parentProfileId;
+  const parentName = link.parentProfile?.displayName || "未填写姓名的家长";
   return `${parentName} / ${formatParentRelationship(link.relationship)}`;
+}
+
+function isUsableLitter(litter: LitterData) {
+  return !litter.deletedAt && litter.status !== "archived" && litter.visibility !== "archived";
 }
 
 function formatParentRelationship(value: string) {

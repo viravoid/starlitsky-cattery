@@ -2,11 +2,15 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import {
   API_ORIGIN,
+  COS_ORIGIN,
   E2E_ADMIN_PASSWORD,
   E2E_ADMIN_USERNAME,
   E2E_LEGACY_MEDIA_ID,
+  TEST_PNG,
 } from "./constants";
 
 test.setTimeout(90_000);
@@ -35,11 +39,19 @@ async function loginAdmin(page: Page): Promise<string> {
   return token!;
 }
 
+async function captureUx(page: Page, name: string) {
+  const directory = process.env.ADMIN_UX_EVIDENCE_DIR;
+  if (!directory) return;
+  mkdirSync(directory, { recursive: true });
+  await page.screenshot({ path: join(directory, name), fullPage: false });
+}
+
 test("kitten entry explains the required litter before editing", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loginAdmin(page);
   await page.getByRole("link", { name: "小猫", exact: true }).click();
   await expect(page.getByText("新增小猫前需要先创建窝次。", { exact: false })).toBeVisible();
+  await captureUx(page, "00-no-litter-1440.png");
   await expect(page.locator(".table-panel").getByRole("button", { name: "新增" })).toBeDisabled();
   await page.getByRole("link", { name: "前往创建窝次" }).click();
   await expect(page).toHaveURL(/#litters$/);
@@ -276,6 +288,9 @@ test("cat list search, status, visibility and pagination reflect SQLite", async 
 });
 
 test("litter and kitten relationship survives edits and refresh", async ({ page, request }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
   const token = await loginAdmin(page);
   const headers = { authorization: `Bearer ${token}` };
   const fatherResponse = await request.post(`${API_ORIGIN}/cats`, {
@@ -293,10 +308,7 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
 
   await page.getByRole("link", { name: "窝次", exact: true }).click();
   await page.getByRole("button", { name: "刷新" }).click();
-  await page
-    .locator('aside[aria-label="窝次详情"]')
-    .getByRole("button", { name: "新增窝次" })
-    .click();
+  await page.locator(".table-panel").getByRole("button", { name: "新增窝次" }).click();
   const editor = page.locator('aside[aria-label="窝次详情"]');
   await editor.getByLabel("窝次名称").fill("业务 E2E 窝次");
   await editor.getByLabel("父亲").selectOption(fatherId);
@@ -333,6 +345,9 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
     duplicateDb.close();
   }
 
+  await expect(editor.getByRole("button", { name: "添加小猫" })).toBeVisible();
+  await captureUx(page, "01-litter-created-1440.png");
+  await editor.getByRole("button", { name: "编辑" }).click();
   await editor.getByLabel("出生日期").fill("2026-12-03");
   await editor.getByLabel("状态").selectOption("born");
   await editor.getByRole("textbox", { name: "备注", exact: true }).fill("已出生，状态稳定");
@@ -357,18 +372,20 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   expect(invalidParent.status()).toBe(400);
   expect(readRow("litters", litterId).father_cat_id).toBe(fatherId);
 
-  await page.getByRole("link", { name: "小猫", exact: true }).click();
-  await page
-    .locator('aside[aria-label="小猫管理详情"]')
-    .getByRole("button", { name: "新增" })
-    .click();
+  await editor.getByRole("button", { name: "取消" }).click();
+  await editor.getByRole("button", { name: "添加小猫" }).click();
+  await expect(page).toHaveURL(/#kittens$/);
   const kittenEditor = page.locator('aside[aria-label="小猫管理详情"]');
   await kittenEditor.getByLabel("名字").fill("业务 E2E 小猫");
   await kittenEditor.getByLabel("性别").selectOption("male");
   await expect(kittenEditor.getByLabel("所属窝次（必选）")).toHaveAttribute("required", "");
-  await kittenEditor.getByRole("button", { name: "保存" }).click();
-  await expect(kittenEditor.getByLabel("所属窝次（必选）")).toBeFocused();
-  await kittenEditor.getByLabel("所属窝次").selectOption(litterId);
+  await expect(kittenEditor.getByLabel("所属窝次（必选）")).toHaveValue(litterId);
+  await expect(kittenEditor.getByText("当前所属窝次：", { exact: false })).toContainText(
+    "业务 E2E 窝次",
+  );
+  await page.getByRole("button", { name: "刷新" }).click();
+  await expect(kittenEditor.getByLabel("所属窝次（必选）")).toHaveValue(litterId);
+  await captureUx(page, "02-kitten-preselected-1440.png");
   await kittenEditor.getByLabel("找家状态").selectOption("available");
   const kittenResponse = page.waitForResponse(
     (response) =>
@@ -379,7 +396,157 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   const kittenCreated = await kittenResponse;
   expect(kittenCreated.status()).toBe(201);
   const kittenId = (await kittenCreated.json()).data.id as string;
-  await expect(page.getByText("猫咪已新增")).toBeVisible();
+  await expect(page.getByText("小猫已新增")).toBeVisible();
+  await page.getByRole("button", { name: "返回所属窝次" }).click();
+  await expect(page).toHaveURL(/#litters$/);
+  await expect(editor.getByText("业务 E2E 小猫")).toBeVisible();
+  await captureUx(page, "03-return-to-litter-1440.png");
+
+  const secondLitterResponse = await request.post(`${API_ORIGIN}/litters`, {
+    headers: { ...headers, "idempotency-key": crypto.randomUUID() },
+    data: { name: "业务 E2E 第二窝", fatherCatId: fatherId, motherCatId: motherId, status: "born" },
+  });
+  expect(secondLitterResponse.status()).toBe(201);
+  const secondLitterId = (await secondLitterResponse.json()).data.id as string;
+  await page.getByRole("button", { name: "刷新" }).click();
+  await page
+    .getByRole("row")
+    .filter({ hasText: "业务 E2E 第二窝" })
+    .getByRole("button", { name: "查看" })
+    .click();
+  await editor.getByRole("button", { name: "添加小猫" }).click();
+  await expect(kittenEditor.getByLabel("所属窝次（必选）")).toHaveValue(secondLitterId);
+  await expect(kittenEditor.getByText("当前所属窝次：", { exact: false })).toContainText(
+    "业务 E2E 第二窝",
+  );
+  await kittenEditor.getByLabel("所属窝次（必选）").selectOption(litterId);
+  await expect(kittenEditor.getByText("当前所属窝次：", { exact: false })).toContainText(
+    "业务 E2E 窝次",
+  );
+  await kittenEditor.getByLabel("所属窝次（必选）").selectOption(secondLitterId);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await captureUx(page, "04-second-litter-preselected-1280.png");
+  await kittenEditor.getByLabel("名字").fill("业务 E2E 第二只小猫");
+  await kittenEditor.getByLabel("颜色").fill("蓝银");
+  await kittenEditor.getByLabel("上传新图片").setInputFiles({
+    name: "kitten.png",
+    mimeType: "image/png",
+    buffer: TEST_PNG,
+  });
+  await page.route("**/cats/with-kitten-profile", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ success: false, message: "模拟保存失败" }),
+    });
+  });
+  await kittenEditor.getByRole("button", { name: "保存" }).click();
+  await expect(page.getByText("模拟保存失败")).toBeVisible();
+  await expect(kittenEditor.getByLabel("名字")).toHaveValue("业务 E2E 第二只小猫");
+  await expect(kittenEditor.getByLabel("所属窝次（必选）")).toHaveValue(secondLitterId);
+  await expect(kittenEditor.getByAltText("待上传图片预览")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await captureUx(page, "05-failed-save-retains-input-1280.png");
+  await kittenEditor.getByAltText("待上传图片预览").scrollIntoViewIfNeeded();
+  await captureUx(page, "05b-failed-save-retains-photo-1280.png");
+  await page.unroute("**/cats/with-kitten-profile");
+  const secondKittenResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/cats/with-kitten-profile") &&
+      response.request().method() === "POST",
+  );
+  await kittenEditor.getByRole("button", { name: "保存" }).dblclick();
+  const secondKittenCreated = await secondKittenResponse;
+  expect(secondKittenCreated.status()).toBe(201);
+  const secondKittenId = (await secondKittenCreated.json()).data.id as string;
+  await expect(page.getByText("小猫已新增")).toBeVisible();
+  const secondKittenRead = await request.get(`${API_ORIGIN}/cats/${secondKittenId}`, { headers });
+  expect(secondKittenRead.status()).toBe(200);
+  expect((await secondKittenRead.json()).data.kittenProfile.litterId).toBe(secondLitterId);
+  expect(
+    (await request.get(`${API_ORIGIN}/litters/${secondLitterId}/kittens`, { headers })).status(),
+  ).toBe(200);
+  const secondKittenDb = openDatabase();
+  try {
+    const rows = secondKittenDb
+      .prepare(
+        "SELECT kp.litter_id FROM kitten_profiles kp JOIN cats c ON c.id = kp.cat_id WHERE c.name = ?",
+      )
+      .all("业务 E2E 第二只小猫") as Array<{ litter_id: string }>;
+    expect(rows).toEqual([{ litter_id: secondLitterId }]);
+    expect(
+      (
+        secondKittenDb
+          .prepare(
+            "SELECT COUNT(*) AS count FROM media_bindings WHERE owner_type = 'cat' AND owner_id = ? AND deleted_at IS NULL",
+          )
+          .get(secondKittenId) as { count: number }
+      ).count,
+    ).toBe(1);
+  } finally {
+    secondKittenDb.close();
+  }
+  await page.getByRole("button", { name: "返回所属窝次" }).click();
+  await expect(editor.getByText("业务 E2E 第二只小猫")).toBeVisible();
+  await captureUx(page, "06-second-kitten-linked-1280.png");
+
+  await editor.getByRole("button", { name: "添加小猫" }).click();
+  await kittenEditor.getByLabel("名字").fill("业务 E2E 照片重试小猫");
+  await kittenEditor.getByLabel("上传新图片").setInputFiles({
+    name: "retry.png",
+    mimeType: "image/png",
+    buffer: TEST_PNG,
+  });
+  const failCosUpload = (url: URL) =>
+    url.origin === COS_ORIGIN && url.pathname.includes("/cos-e2e-new-bucket/");
+  await page.route(failCosUpload, async (route) =>
+    route.fulfill({ status: 503, body: "simulated COS failure" }),
+  );
+  const uploadFailureCreate = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/cats/with-kitten-profile") &&
+      response.request().method() === "POST",
+  );
+  await kittenEditor.getByRole("button", { name: "保存" }).click();
+  expect((await uploadFailureCreate).status()).toBe(201);
+  await expect(
+    page.getByText("Object storage upload failed with HTTP 503", { exact: false }),
+  ).toBeVisible();
+  await expect(kittenEditor.getByAltText("待上传图片预览")).toBeVisible();
+  await page.unroute(failCosUpload);
+  await kittenEditor.getByRole("button", { name: "保存" }).click();
+  await expect(page.getByText("猫咪资料已更新")).toBeVisible();
+  expect(countNamedCats("业务 E2E 照片重试小猫")).toBe(1);
+  await expect(page.getByRole("button", { name: "返回所属窝次" })).toBeVisible();
+  await page.getByRole("button", { name: "返回所属窝次" }).click();
+  await expect(editor.getByText("业务 E2E 照片重试小猫")).toBeVisible();
+
+  await page.getByRole("link", { name: "小猫", exact: true }).click();
+  await page.route("**/litters?**", async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ success: false, message: "模拟窝次加载失败" }),
+    });
+  });
+  await page.reload();
+  await expect(page.getByText("数据加载失败：模拟窝次加载失败", { exact: false })).toBeVisible();
+  await expect(page.getByText("新增小猫前需要先创建窝次。", { exact: false })).toHaveCount(0);
+  await expect(page.locator(".table-panel").getByRole("button", { name: "新增" })).toBeDisabled();
+  await captureUx(page, "07-litter-load-error-1280.png");
+  await page.unroute("**/litters?**");
+  await page.getByRole("button", { name: "重试加载" }).click();
+  await expect(page.getByText("数据加载失败：模拟窝次加载失败", { exact: false })).toHaveCount(0);
+  await expect(page.locator(".table-panel").getByRole("button", { name: "新增" })).toBeEnabled();
+  await expect(page.getByRole("row").filter({ hasText: "业务 E2E 第二只小猫" })).toBeVisible();
+  await page.locator(".table-panel").getByRole("button", { name: "新增" }).click();
+  await expect(kittenEditor.getByLabel("所属窝次（必选）")).toHaveValue("");
+  await captureUx(page, "08-reentry-no-stale-selection-1280.png");
+  await kittenEditor.getByLabel("名字").fill("尚未保存的小猫");
+  page.once("dialog", (dialog) => void dialog.dismiss());
+  await page.getByRole("link", { name: "窝次", exact: true }).click();
+  await expect(page).toHaveURL(/#kittens$/);
+  await expect(kittenEditor.getByLabel("名字")).toHaveValue("尚未保存的小猫");
   const database = openDatabase();
   try {
     expect(
@@ -433,12 +600,20 @@ test("litter and kitten relationship survives edits and refresh", async ({ page,
   await expect(archivedRow).toContainText("归档");
   await archivedRow.getByRole("button", { name: "查看" }).click();
   await expect(editor.getByText("业务 E2E 小猫")).toBeVisible();
+  await expect(editor.getByRole("button", { name: "添加小猫" })).toHaveCount(0);
   expect(readRow("litters", litterId)).toMatchObject({
     status: "archived",
     visibility: "archived",
     father_cat_id: fatherId,
     mother_cat_id: motherId,
   });
+  const archivedAssociation = await request.post(`${API_ORIGIN}/cats/with-kitten-profile`, {
+    headers,
+    data: { cat: { name: "不应创建的小猫" }, kittenProfile: { litterId } },
+  });
+  expect(archivedAssociation.status()).toBe(400);
+  expect(countNamedCats("不应创建的小猫")).toBe(0);
+  expect(pageErrors).toEqual([]);
 });
 
 test("failed image upload after litter creation retries as an edit", async ({ page, request }) => {
@@ -460,7 +635,7 @@ test("failed image upload after litter creation retries as an edit", async ({ pa
   await page.getByRole("link", { name: "窝次", exact: true }).click();
   await page.getByRole("button", { name: "刷新" }).click();
   const editor = page.locator('aside[aria-label="窝次详情"]');
-  await editor.getByRole("button", { name: "新增窝次" }).click();
+  await page.locator(".table-panel").getByRole("button", { name: "新增窝次" }).click();
   await editor.getByLabel("窝次名称").fill("Upload retry litter");
   await editor.getByLabel("父亲").selectOption(fatherId);
   await editor.getByLabel("母亲").selectOption(motherId);
@@ -473,10 +648,15 @@ test("failed image upload after litter creation retries as an edit", async ({ pa
     ),
   });
   await page.route(`${API_ORIGIN}/media/uploads`, (route) =>
-    route.fulfill({ status: 503, contentType: "application/json", body: '{"message":"synthetic upload failure"}' }),
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: '{"message":"synthetic upload failure"}',
+    }),
   );
   const createResponse = page.waitForResponse(
-    (response) => response.url() === `${API_ORIGIN}/litters` && response.request().method() === "POST",
+    (response) =>
+      response.url() === `${API_ORIGIN}/litters` && response.request().method() === "POST",
   );
   const uploadFailure = page.waitForResponse(
     (response) => response.url() === `${API_ORIGIN}/media/uploads` && response.status() === 503,
@@ -488,7 +668,9 @@ test("failed image upload after litter creation retries as an edit", async ({ pa
   await uploadFailure;
   await expect(editor.getByRole("button", { name: "保存" })).toBeEnabled();
 
-  await editor.getByRole("textbox", { name: "备注", exact: true }).fill("Retry after image failure");
+  await editor
+    .getByRole("textbox", { name: "备注", exact: true })
+    .fill("Retry after image failure");
   const updateResponse = page.waitForResponse(
     (response) =>
       response.url() === `${API_ORIGIN}/litters/${litterId}` &&
@@ -501,7 +683,9 @@ test("failed image upload after litter creation retries as an edit", async ({ pa
   try {
     expect(
       (
-        database.prepare("SELECT COUNT(*) AS count FROM litters WHERE name = ?").get("Upload retry litter") as {
+        database
+          .prepare("SELECT COUNT(*) AS count FROM litters WHERE name = ?")
+          .get("Upload retry litter") as {
           count: number;
         }
       ).count,
@@ -847,10 +1031,11 @@ test("admin directly certifies, disables and restores a parent with a hidden cat
   const userHeaders = { authorization: `Bearer ${userToken}` };
   async function searchForFixtureUser() {
     await Promise.all([
-      page.waitForResponse((response) =>
-        response.url().includes("/admin/users?") &&
-        response.url().includes(`q=${userId}`) &&
-        response.ok(),
+      page.waitForResponse(
+        (response) =>
+          response.url().includes("/admin/users?") &&
+          response.url().includes(`q=${userId}`) &&
+          response.ok(),
       ),
       page.getByPlaceholder("user id / 昵称 / 手机 / 家长姓名").fill(userId),
     ]);
