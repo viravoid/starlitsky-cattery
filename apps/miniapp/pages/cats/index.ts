@@ -1,6 +1,7 @@
 import type { CatData } from "@starlitsky/shared";
 import { listPublicCats } from "../../utils/public-content/index";
 import { resolveCatFrame, type ImageFrameMode } from "../../utils/cat-presentation";
+import { setNativeShareMenu } from "../../utils/native-share";
 
 type TabKey = "kittens" | "studs";
 type GenderFilterId = "" | "male" | "female";
@@ -109,7 +110,24 @@ Page({
   },
 
   onShow(this: CatsPage) {
+    setNativeShareMenu(true);
     this.getTabBar?.()?.setData({ selected: 1 });
+  },
+
+  onHide() {
+    setNativeShareMenu(false);
+  },
+
+  onUnload() {
+    setNativeShareMenu(false);
+  },
+
+  onShareAppMessage() {
+    return { title: "星月缅因猫舍 · 我们的猫", path: "/pages/cats/index" };
+  },
+
+  onShareTimeline() {
+    return { title: "星月缅因猫舍 · 我们的猫", query: "" };
   },
 
   async onPullDownRefresh(this: CatsPage) {

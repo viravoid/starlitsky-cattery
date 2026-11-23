@@ -8,6 +8,7 @@ import {
 } from "../../utils/public-content/index";
 import { loginWithWechat, refreshCurrentUser } from "../../utils/session/auth";
 import { configureVisualQaAdapter } from "../../utils/visual-qa/adapter";
+import { decodeRouteParam, isTimelineSinglePage, setNativeShareMenu, sharePath, shareQuery, unavailableFriendShare } from "../../utils/native-share";
 
 interface DetailOptions {
   id?: string;
@@ -39,6 +40,7 @@ interface CommunityDetailData {
   imageGridClass: string;
   images: DetailImage[];
   isLoading: boolean;
+  shareReady: boolean;
   linkedCats: LinkedCatView[];
   linkedLitters: LinkedLitterView[];
   likedByMe: boolean;
@@ -51,6 +53,7 @@ interface CommunityDetailData {
 
 interface CommunityDetailPage {
   data: CommunityDetailData;
+  shareVisible?: boolean;
   loadPost(id: string): Promise<void>;
   retryLoad(): Promise<void>;
   setData(data: Partial<CommunityDetailData>): void;
@@ -107,6 +110,7 @@ Page({
     imageGridClass: "",
     images: [],
     isLoading: true,
+    shareReady: false,
     linkedCats: [],
     linkedLitters: [],
     likedByMe: false,
@@ -118,12 +122,44 @@ Page({
   } as CommunityDetailData,
 
   async onLoad(this: CommunityDetailPage, options: DetailOptions) {
+    setNativeShareMenu(false);
     if (typeof options.visualQa === "string") {
       configureVisualQaAdapter({ visualQa: options.visualQa });
     }
-    const id = typeof options.id === "string" ? decodeURIComponent(options.id) : "";
-    this.setData({ id });
+    const id = decodeRouteParam(options.id);
+    this.setData({ id, shareReady: false });
     await this.loadPost(id);
+  },
+
+  onShow(this: CommunityDetailPage) {
+    this.shareVisible = true;
+    setNativeShareMenu(this.data.shareReady);
+  },
+
+  onHide(this: CommunityDetailPage) {
+    this.shareVisible = false;
+    setNativeShareMenu(false);
+  },
+
+  onUnload(this: CommunityDetailPage) {
+    this.shareVisible = false;
+    setNativeShareMenu(false);
+  },
+
+  onShareAppMessage(this: CommunityDetailPage) {
+    if (!this.data.shareReady) return unavailableFriendShare();
+    return {
+      title: communityShareTitle(this.data.content),
+      path: sharePath("/pages/community-detail/index", { id: this.data.id }),
+    };
+  },
+
+  onShareTimeline(this: CommunityDetailPage) {
+    if (!this.data.shareReady) return { title: "星月缅因猫舍", query: "" };
+    return {
+      title: communityShareTitle(this.data.content),
+      query: shareQuery({ id: this.data.id }),
+    };
   },
 
   async onPullDownRefresh(this: CommunityDetailPage) {
@@ -132,6 +168,8 @@ Page({
   },
 
   async loadPost(this: CommunityDetailPage, id: string) {
+    this.setData({ shareReady: false });
+    if (this.shareVisible) setNativeShareMenu(false);
     if (!id) {
       this.setData({ error: "缺少动态 ID", isLoading: false });
       return;
@@ -140,10 +178,12 @@ Page({
     this.setData({ error: "", isLoading: true });
     try {
       const post = await getCommunityPost(id);
-      this.setData({ ...toDetailView(post), error: "", id, isLoading: false });
-      wx.setNavigationBarTitle({ title: "动态详情" });
+      const shareReady = post.id === id && post.visibility === "visible";
+      this.setData({ ...toDetailView(post), error: "", id, isLoading: false, shareReady });
+      if (this.shareVisible) setNativeShareMenu(shareReady);
+      if (!isTimelineSinglePage()) wx.setNavigationBarTitle({ title: "动态详情" });
     } catch (error) {
-      this.setData({ error: getErrorMessage(error), isLoading: false });
+      this.setData({ error: getErrorMessage(error), isLoading: false, shareReady: false });
     }
   },
 
@@ -240,6 +280,11 @@ Page({
     }
   },
 });
+
+function communityShareTitle(content: string) {
+  const excerpt = Array.from(content.replace(/\s+/g, " ").trim()).slice(0, 32).join("");
+  return excerpt ? `${excerpt} · 星月猫友圈` : "星月缅因猫舍 · 猫友圈动态";
+}
 
 function toDetailView(post: CommunityPostData) {
   const images = post.mediaAssets

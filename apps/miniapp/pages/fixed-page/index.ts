@@ -1,5 +1,6 @@
 import type { FixedPageMediaAssetData } from "@starlitsky/shared";
 import { getFixedPage, listPublicCats } from "../../utils/public-content/index";
+import { decodeRouteParam, isTimelineSinglePage, setNativeShareMenu, sharePath, shareQuery, unavailableFriendShare } from "../../utils/native-share";
 import {
   emptyFixedPageView,
   normalizeFixedPageView,
@@ -11,10 +12,12 @@ interface FixedPageOptions {
 }
 
 interface FixedPageInstance {
-  data: FixedPageViewData;
+  data: FixedPageViewData & { shareReady: boolean };
+  shareAllowed?: boolean;
+  shareVisible?: boolean;
   loadPage(slug: string): Promise<void>;
   retryLoad(): Promise<void>;
-  setData(data: Partial<FixedPageViewData>): void;
+  setData(data: Partial<FixedPageViewData & { shareReady: boolean }>): void;
 }
 
 interface TapEvent {
@@ -27,12 +30,46 @@ Page({
   data: {
     ...emptyFixedPageView("about"),
     isLoading: true,
-  } as FixedPageViewData,
+    shareReady: false,
+  } as FixedPageViewData & { shareReady: boolean },
 
   async onLoad(this: FixedPageInstance, options: FixedPageOptions) {
+    setNativeShareMenu(false);
     const slug = normalizeSlug(options.slug);
-    this.setData({ ...emptyFixedPageView(slug), isLoading: true, slug });
+    this.shareAllowed = decodeRouteParam(options.slug) === slug;
+    this.setData({ ...emptyFixedPageView(slug), isLoading: true, shareReady: false, slug });
     await this.loadPage(slug);
+  },
+
+  onShow(this: FixedPageInstance) {
+    this.shareVisible = true;
+    setNativeShareMenu(this.data.shareReady);
+  },
+
+  onHide(this: FixedPageInstance) {
+    this.shareVisible = false;
+    setNativeShareMenu(false);
+  },
+
+  onUnload(this: FixedPageInstance) {
+    this.shareVisible = false;
+    setNativeShareMenu(false);
+  },
+
+  onShareAppMessage(this: FixedPageInstance) {
+    if (!this.data.shareReady) return unavailableFriendShare();
+    return {
+      title: `${this.data.title} · 星月缅因猫舍`,
+      path: sharePath("/pages/fixed-page/index", { slug: this.data.slug }),
+    };
+  },
+
+  onShareTimeline(this: FixedPageInstance) {
+    if (!this.data.shareReady) return { title: "星月缅因猫舍", query: "" };
+    return {
+      title: `${this.data.title} · 星月缅因猫舍`,
+      query: shareQuery({ slug: this.data.slug }),
+    };
   },
 
   async onPullDownRefresh(this: FixedPageInstance) {
@@ -42,7 +79,8 @@ Page({
 
   async loadPage(this: FixedPageInstance, slug: string) {
     const fallback = emptyFixedPageView(slug);
-    this.setData({ ...fallback, error: "", isLoading: true, slug });
+    this.setData({ ...fallback, error: "", isLoading: true, shareReady: false, slug });
+    if (this.shareVisible) setNativeShareMenu(false);
     try {
       const page = await getFixedPage(slug);
       const cats = slug === "breeding-plan" ? (await listPublicCats({ pageSize: 100 })).items : [];
@@ -53,16 +91,19 @@ Page({
         page.mediaAssets as FixedPageMediaAssetData[],
         cats,
       );
-      this.setData({ ...viewData, error: "", isLoading: false, slug });
-      wx.setNavigationBarTitle({ title: viewData.title });
+      const shareReady = this.shareAllowed === true && page.slug === slug && page.status === "published";
+      this.setData({ ...viewData, error: "", isLoading: false, shareReady, slug });
+      if (this.shareVisible) setNativeShareMenu(shareReady);
+      if (!isTimelineSinglePage()) wx.setNavigationBarTitle({ title: viewData.title });
     } catch (error) {
       this.setData({
         ...fallback,
         error: getErrorMessage(error),
         isLoading: false,
+        shareReady: false,
         slug,
       });
-      wx.setNavigationBarTitle({ title: fallback.title });
+      if (!isTimelineSinglePage()) wx.setNavigationBarTitle({ title: fallback.title });
     }
   },
 
@@ -172,7 +213,7 @@ function downloadTempFile(url: string, extension: string) {
 }
 
 function normalizeSlug(value: unknown) {
-  const slug = typeof value === "string" ? decodeURIComponent(value) : "about";
+  const slug = decodeRouteParam(value);
   return [
     "about",
     "aftercare",

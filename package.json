@@ -41,6 +41,7 @@
     "verify:selection-application": "npm --workspace @starlitsky/api run verify:selection-application",
     "verify:public-content-import": "npm --workspace @starlitsky/api run verify:public-content-import",
     "verify:miniapp-native-runtime": "node scripts/verify-miniapp-native-runtime.mjs",
+    "verify:miniapp-native-share": "node scripts/verify-miniapp-native-share.mjs",
     "import:public-content": "npm --workspace @starlitsky/api run import:public-content --",
     "media:apply-environment-batch": "npm --workspace @starlitsky/api run media:apply-environment-batch --",
     "media:cos-migration": "npm --workspace @starlitsky/api run media:cos-migration --",

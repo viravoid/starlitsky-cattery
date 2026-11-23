@@ -7,6 +7,10 @@ declare function Component(options: Record<string, unknown>): void;
 declare function getCurrentPages(): Array<{ route?: string }>;
 
 declare const wx: {
+  getEnterOptionsSync?(): { scene: number };
+  getLaunchOptionsSync?(): { scene: number };
+  showShareMenu(options: { menus: Array<"shareAppMessage" | "shareTimeline"> }): void;
+  hideShareMenu(options: { menus: Array<"shareAppMessage" | "shareTimeline"> }): void;
   arrayBufferToBase64(data: ArrayBuffer): string;
   request(options: {
     url: string;
