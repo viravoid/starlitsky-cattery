@@ -51,6 +51,9 @@ jobs:
       - name: Verify miniapp native share
         run: npm run verify:miniapp-native-share
 
+      - name: Verify local public preview isolation
+        run: npm run verify:local-public-preview
+
       - name: Typecheck admin
         run: npm run typecheck:admin
 

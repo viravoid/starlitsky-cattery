@@ -1,7 +1,7 @@
 type MiniProgramEnvVersion = "develop" | "trial" | "release";
 
 export const MINIAPP_PRODUCTION_API_BASE_URL = "https://api.starlitskycattery.top";
-export const MINIAPP_DEVELOP_API_BASE_URL = "http://127.0.0.1:4312";
+export const MINIAPP_DEVELOP_API_BASE_URL = "http://127.0.0.1:4310";
 export const MINIAPP_TRIAL_API_BASE_URL = "https://trial-api.starlitskycattery.top";
 export const MINIAPP_PRODUCTION_API_HOST = "api.starlitskycattery.top";
 export const MINIAPP_PRODUCTION_COS_HOST =

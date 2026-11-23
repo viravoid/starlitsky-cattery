@@ -6,6 +6,7 @@ import { routeCatsRequest } from "./cats.mjs";
 import { routeCommunityRequest } from "./community.mjs";
 import { routeFixedPagesRequest } from "./fixed-pages.mjs";
 import { routeLittersRequest } from "./litters.mjs";
+import { routeLocalPublicPreview } from "./local-public-preview.mjs";
 import { routeMediaRequest } from "./media.mjs";
 import { routeMeRequest } from "./me.mjs";
 import { routeParentsRequest } from "./parents.mjs";
@@ -24,6 +25,8 @@ export async function routeRequest(request, response, context) {
     sendNoContent(response);
     return;
   }
+
+  if (await routeLocalPublicPreview(request, response, url, context.config)) return;
 
   if (request.method === "GET" && url.pathname === "/health") {
     handleHealth(request, response, context);
