@@ -23,13 +23,23 @@ import type {
   UpdateMyCatRequest,
 } from "@starlitsky/shared";
 import { get, post, patch, del } from "../request/index";
+import { getMiniProgramEnvVersion } from "../../config/env";
 import { getPublicContentAdapter } from "./adapter";
+
+function publicPreviewRequest() {
+  return getMiniProgramEnvVersion() === "develop"
+    ? { header: { "x-local-public-preview": "1" } }
+    : {};
+}
 
 export async function getFixedPage(slug: string) {
   const adapter = getPublicContentAdapter();
   if (adapter?.getFixedPage) return adapter.getFixedPage(slug);
 
-  const response = await get<FixedPageData>(`/fixed-pages/${encodeURIComponent(slug)}`);
+  const response = await get<FixedPageData>(
+    `/fixed-pages/${encodeURIComponent(slug)}`,
+    slug === "questionnaire" ? {} : publicPreviewRequest(),
+  );
   if (!response.success) throw new Error(response.message);
   return response.data;
 }
@@ -48,6 +58,7 @@ export async function listPublicCats(params: {
       pageSize: String(params.pageSize ?? 100),
       q: params.q,
     })}`,
+    publicPreviewRequest(),
   );
   if (!response.success) throw new Error(response.message);
   return response.data;
@@ -57,7 +68,7 @@ export async function getPublicCat(id: string) {
   const adapter = getPublicContentAdapter();
   if (adapter?.getPublicCat) return adapter.getPublicCat(id);
 
-  const response = await get<CatData>(`/cats/${encodeURIComponent(id)}`);
+  const response = await get<CatData>(`/cats/${encodeURIComponent(id)}`, publicPreviewRequest());
   if (!response.success) throw new Error(response.message);
   return response.data;
 }
@@ -132,6 +143,7 @@ export async function listCommunityPosts(params: {
       pageSize: String(params.pageSize ?? 50),
       q: params.q,
     })}`,
+    publicPreviewRequest(),
   );
   if (!response.success) throw new Error(response.message);
   return response.data;
@@ -141,7 +153,7 @@ export async function getCommunityPost(id: string) {
   const adapter = getPublicContentAdapter();
   if (adapter?.getCommunityPost) return adapter.getCommunityPost(id);
 
-  const response = await get<CommunityPostData>(`/community/posts/${encodeURIComponent(id)}`);
+  const response = await get<CommunityPostData>(`/community/posts/${encodeURIComponent(id)}`, publicPreviewRequest());
   if (!response.success) throw new Error(response.message);
   return response.data;
 }

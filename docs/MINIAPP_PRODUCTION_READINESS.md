@@ -9,7 +9,7 @@ This repository is configured for the real StarlitSky Mini Program.
 - release API base: `https://api.starlitskycattery.top`
 - AppSecret: not stored in source. Keep it only in the backend production environment.
 
-`develop` uses the isolated local API at `http://127.0.0.1:4312`. The trial build uses the separate HTTPS trial host and must pass `npm run verify:miniapp-trial-ready` before any future upload. A blank trial address throws instead of falling back to production.
+`develop` uses the isolated local API at `http://127.0.0.1:4310`. For miniapp public content reads only, that API serves an anonymous, published-content preview from the fixed Production API host. The proxy is available only from the loopback development server, accepts only the explicit GET allowlist, forwards no credentials, and never stores signed media URLs. Admin, parent, and all write operations remain local. The trial build uses the separate HTTPS trial host and must pass `npm run verify:miniapp-trial-ready` before any future upload. A blank trial address throws instead of falling back to production.
 
 ## WeChat legal-domain checklist
 

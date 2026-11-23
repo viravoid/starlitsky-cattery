@@ -22,7 +22,7 @@ const miniappTextByPath = new Map(miniappFiles.map((path) => [path, readFileSync
 const combinedMiniappText = [...miniappTextByPath.values()].join("\n");
 
 const apiBaseUrls = extractApiBaseUrls(envText);
-assert.equal(apiBaseUrls.develop, "http://127.0.0.1:4312");
+assert.equal(apiBaseUrls.develop, "http://127.0.0.1:4310");
 if (apiBaseUrls.trial) {
   const trial = new URL(apiBaseUrls.trial);
   assert.equal(trial.protocol, "https:", "Trial API must use HTTPS.");
@@ -42,10 +42,14 @@ for (const envVersion of ["release"]) {
   assert.equal(url.hostname, "api.starlitskycattery.top");
 }
 
+const otherMiniappText = [...miniappTextByPath]
+  .filter(([path]) => path !== envPath)
+  .map(([, text]) => text)
+  .join("\n");
 assert.equal(
-  /http:\/\/127\.0\.0\.1:4310|localhost/.test(combinedMiniappText),
+  /http:\/\/(?:127\.0\.0\.1|localhost)/.test(otherMiniappText),
   false,
-  "Miniapp source must not contain loopback API defaults.",
+  "Only the develop API configuration may contain a loopback URL.",
 );
 assert.equal(
   /MINIAPP_LOCAL_API_BASE_URL_STORAGE_KEY|getExplicitLocalApiBaseUrl|localApiBaseUrl/i.test(

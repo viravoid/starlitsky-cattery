@@ -78,7 +78,10 @@ function verifyProjectConfig() {
 
 function verifyProductionEnvGuards() {
   const envText = readFileSync(envPath, "utf8");
-  const miniappText = listTextFiles(miniappRoot)
+  const miniappFiles = listTextFiles(miniappRoot);
+  const miniappText = miniappFiles.map((path) => readFileSync(path, "utf8")).join("\n");
+  const otherMiniappText = miniappFiles
+    .filter((path) => path !== envPath)
     .map((path) => readFileSync(path, "utf8"))
     .join("\n");
 
@@ -101,8 +104,8 @@ function verifyProductionEnvGuards() {
   if (!developMatch || developMatch[1].trim() !== "MINIAPP_DEVELOP_API_BASE_URL") {
     failures.push("Miniapp develop API base URL must use the isolated local API.");
   }
-  if (/http:\/\/127\.0\.0\.1:4310|localhost/.test(miniappText)) {
-    failures.push("apps/miniapp must not contain loopback API defaults.");
+  if (/http:\/\/(?:127\.0\.0\.1|localhost)/.test(otherMiniappText)) {
+    failures.push("Only the develop API configuration may contain a loopback URL.");
   }
   if (/MINIAPP_LOCAL_API_BASE_URL_STORAGE_KEY|getExplicitLocalApiBaseUrl|localApiBaseUrl/i.test(envText)) {
     failures.push("Miniapp API base URL must not be overridable from local storage.");
