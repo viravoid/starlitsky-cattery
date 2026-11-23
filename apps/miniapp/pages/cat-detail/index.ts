@@ -1,9 +1,11 @@
 import type { CatData } from "@starlitsky/shared";
 import { getPublicCat } from "../../utils/public-content/index";
 import { resolveCatDetailFrames, type ImageFrameMode } from "../../utils/cat-presentation";
+import { decodeRouteParam, isTimelineSinglePage, setNativeShareMenu, sharePath, shareQuery, unavailableFriendShare } from "../../utils/native-share";
 
 interface DetailOptions {
   id?: string;
+  kind?: string;
 }
 
 interface InfoItem {
@@ -51,8 +53,10 @@ interface CatDetailData {
   gallery: string[];
   galleryItems: GalleryItem[];
   id: string;
+  kind: string;
   info: InfoItem[];
   isLoading: boolean;
+  shareReady: boolean;
   litterId: string;
   litterName: string;
   noteParagraphs: NoteParagraph[];
@@ -63,6 +67,7 @@ interface CatDetailData {
 
 interface CatDetailPage {
   data: CatDetailData;
+  shareVisible?: boolean;
   loadCat(id: string): Promise<void>;
   retryLoad(): Promise<void>;
   setData(data: Partial<CatDetailData>): void;
@@ -85,8 +90,10 @@ Page({
     gallery: [],
     galleryItems: [],
     id: "",
+    kind: "",
     info: [],
     isLoading: true,
+    shareReady: false,
     litterId: "",
     litterName: "",
     noteParagraphs: [],
@@ -96,9 +103,44 @@ Page({
   } as CatDetailData,
 
   async onLoad(this: CatDetailPage, options: DetailOptions) {
-    const id = typeof options.id === "string" ? decodeURIComponent(options.id) : "";
-    this.setData({ id });
+    setNativeShareMenu(false);
+    const id = decodeRouteParam(options.id);
+    const kind = options.kind === "kittens" || options.kind === "studs" ? options.kind : "";
+    this.setData({ id, kind, shareReady: false });
     await this.loadCat(id);
+  },
+
+  onShow(this: CatDetailPage) {
+    this.shareVisible = true;
+    setNativeShareMenu(this.data.shareReady);
+  },
+
+  onHide(this: CatDetailPage) {
+    this.shareVisible = false;
+    setNativeShareMenu(false);
+  },
+
+  onUnload(this: CatDetailPage) {
+    this.shareVisible = false;
+    setNativeShareMenu(false);
+  },
+
+  onShareAppMessage(this: CatDetailPage) {
+    const cat = this.data.shareReady ? this.data.cat : null;
+    if (!cat) return unavailableFriendShare();
+    return {
+      title: `来认识${cat.name} · 星月缅因猫舍`,
+      path: sharePath("/pages/cat-detail/index", catShareParams(cat, this.data.kind)),
+    };
+  },
+
+  onShareTimeline(this: CatDetailPage) {
+    const cat = this.data.shareReady ? this.data.cat : null;
+    if (!cat) return { title: "星月缅因猫舍", query: "" };
+    return {
+      title: `来认识${cat.name} · 星月缅因猫舍`,
+      query: shareQuery(catShareParams(cat, this.data.kind)),
+    };
   },
 
   async onPullDownRefresh(this: CatDetailPage) {
@@ -107,8 +149,10 @@ Page({
   },
 
   async loadCat(this: CatDetailPage, id: string) {
+    this.setData({ shareReady: false });
+    if (this.shareVisible) setNativeShareMenu(false);
     if (!id) {
-      this.setData({ error: "缺少猫咪 ID", isLoading: false });
+      this.setData({ cat: null, error: "缺少猫咪 ID", isLoading: false });
       return;
     }
 
@@ -116,10 +160,12 @@ Page({
     try {
       const cat = await getPublicCat(id);
       const view = toDetailView(cat);
-      this.setData({ cat, error: "", isLoading: false, ...view });
-      wx.setNavigationBarTitle({ title: cat.name });
+      const shareReady = cat.id === id && cat.visibility === "visible";
+      this.setData({ cat, error: "", isLoading: false, shareReady, ...view });
+      if (this.shareVisible) setNativeShareMenu(shareReady);
+      if (!isTimelineSinglePage()) wx.setNavigationBarTitle({ title: cat.name });
     } catch (error) {
-      this.setData({ cat: null, error: getErrorMessage(error), isLoading: false });
+      this.setData({ cat: null, error: getErrorMessage(error), isLoading: false, shareReady: false });
     }
   },
 
@@ -145,6 +191,13 @@ Page({
     });
   },
 });
+
+function catShareParams(cat: CatData, routeKind: string) {
+  const kind = cat.kittenProfile ? "kittens" : cat.breedingProfile ? "studs" : routeKind;
+  const params: Record<string, string> = { id: cat.id };
+  if (kind) params.kind = kind;
+  return params;
+}
 
 function toDetailView(cat: CatData) {
   const mediaById = new Map(cat.mediaAssets.map((item) => [item.id, item]));

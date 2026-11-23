@@ -1,5 +1,6 @@
 import type { FixedPageMediaAssetData } from "@starlitsky/shared";
 import { getFixedPage } from "../../utils/public-content/index";
+import { setNativeShareMenu } from "../../utils/native-share";
 
 interface HomeEntry {
   desc: string;
@@ -155,7 +156,24 @@ Page({
   },
 
   onShow(this: HomePage) {
+    setNativeShareMenu(true);
     void this.updateHeroLayout();
+  },
+
+  onHide() {
+    setNativeShareMenu(false);
+  },
+
+  onUnload() {
+    setNativeShareMenu(false);
+  },
+
+  onShareAppMessage() {
+    return { title: "星月缅因猫舍", path: "/pages/home/index" };
+  },
+
+  onShareTimeline() {
+    return { title: "星月缅因猫舍", query: "" };
   },
 
   onResize(this: HomePage, event: ResizeEvent) {

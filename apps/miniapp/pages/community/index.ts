@@ -2,6 +2,7 @@ import type { CommunityPostCategory, CommunityPostData } from "@starlitsky/share
 import { listCommunityPosts, toggleCommunityPostLike } from "../../utils/public-content/index";
 import { getSessionState } from "../../store/session/index";
 import { loginWithWechat, logout, refreshCurrentUser } from "../../utils/session/auth";
+import { setNativeShareMenu } from "../../utils/native-share";
 
 interface CategoryTab {
   key: "" | CommunityPostCategory;
@@ -105,9 +106,26 @@ Page({
   },
 
   async onShow(this: CommunityPage) {
+    setNativeShareMenu(true);
     this.getTabBar?.()?.setData({ selected: 2 });
     await refreshCurrentUser();
     this.setData(deriveSessionView());
+  },
+
+  onHide() {
+    setNativeShareMenu(false);
+  },
+
+  onUnload() {
+    setNativeShareMenu(false);
+  },
+
+  onShareAppMessage() {
+    return { title: "星月缅因猫舍 · 猫友圈", path: "/pages/community/index" };
+  },
+
+  onShareTimeline() {
+    return { title: "星月缅因猫舍 · 猫友圈", query: "" };
   },
 
   async onPullDownRefresh(this: CommunityPage) {
