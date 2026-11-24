@@ -57,6 +57,17 @@ export function resolveCatFrame(
   const targetMedia = selectedMedia ?? cover;
   const aspectRatio = aspectRatioOverride ?? ENTRY_ASPECT_RATIO[entry];
 
+  // The saved listCard crop targets the horizontal card. Reusing its zoom in the
+  // portrait list can cut off the cat's face, so keep the chosen photo and fit it
+  // to the portrait frame with the existing focal fallback instead.
+  if (
+    entry === "listCard" &&
+    aspectRatioOverride !== undefined &&
+    aspectRatioOverride !== ENTRY_ASPECT_RATIO.listCard
+  ) {
+    return toLegacyFrame(targetMedia, aspectRatio, fallbackLegacy(entry, cat.id));
+  }
+
   if (selectedMedia) {
     const cropRect = normalizeCropRect(selection?.cropRect);
     if (cropRect) return toCropFrame(targetMedia, aspectRatio, cropRect);

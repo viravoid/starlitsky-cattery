@@ -81,8 +81,9 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
       cardGender: "",
       cardAge: "",
       cardIdentity: category,
-      cardColor: cat.color?.trim() || "",
-      cardNote: cat.breedingProfile.trait?.trim() || cat.personality?.trim() || "",
+      cardColor: displayableCardText(cat.color),
+      cardNote:
+        displayableCardText(cat.breedingProfile.trait) || displayableCardText(cat.personality),
       cardPrice: "",
       litterId: "",
       litterName: "",
@@ -106,6 +107,13 @@ function ageLabel(birthday: string | null) {
   const years = Math.floor(months / 12);
   const remainingMonths = months % 12;
   return remainingMonths ? `${years}岁${remainingMonths}个月` : `${years}岁`;
+}
+
+function displayableCardText(value: string | null) {
+  const text = value?.trim() || "";
+  return /^示例文字[（(]缺少/.test(text) || ["待补充", "颜色待补充", "资料待补充"].includes(text)
+    ? ""
+    : text;
 }
 
 export function isSeekingHomeKitten(cat: CatData) {
