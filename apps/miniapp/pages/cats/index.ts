@@ -1,34 +1,11 @@
-import type { CatData } from "@starlitsky/shared";
 import { listPublicCats } from "../../utils/public-content/index";
-import { resolveCatFrame, type ImageFrameMode } from "../../utils/cat-presentation";
+import { toPublicCatCard, type PublicCatCard } from "../../utils/public-cat-card";
 import { setNativeShareMenu } from "../../utils/native-share";
 
 type TabKey = "kittens" | "studs";
 type GenderFilterId = "" | "male" | "female";
 
-interface CatListItem {
-  id: string;
-  imageClass: string;
-  imageMode: ImageFrameMode;
-  imageStyle: string;
-  imageUrl: string;
-  kind: TabKey;
-  lineOne: string;
-  lineTwo: string;
-  lineThree: string;
-  litterId: string;
-  litterName: string;
-  genderKey: string;
-  metaItems: CatMetaItem[];
-  name: string;
-  pill: string;
-  statusKey: string;
-}
-
-interface CatMetaItem {
-  label: string;
-  value: string;
-}
+type CatListItem = PublicCatCard;
 
 interface CatsPage {
   data: {
@@ -140,7 +117,7 @@ Page({
     try {
       const data = await listPublicCats({ pageSize: 100 });
       const items = data.items
-        .map(toCatListItem)
+        .map(toPublicCatCard)
         .filter((item): item is CatListItem => Boolean(item));
       this.setData({
         error: "",
@@ -309,72 +286,6 @@ function deriveView(
   };
 }
 
-function toCatListItem(cat: CatData): CatListItem | null {
-  const image = cat.mediaAssets.find((item) => item.usage === "cover") ?? cat.mediaAssets[0];
-  const frame = resolveCatFrame(cat, "listCard");
-  const imageFields = {
-    imageClass: frame?.style ? "thumb-image positioned-image" : "thumb-image",
-    imageMode: frame?.mode ?? "aspectFill",
-    imageStyle: frame?.style ?? "",
-    imageUrl: frame?.url || image?.thumbnailUrl || image?.sourceUrl || "",
-  };
-  if (cat.kittenProfile) {
-    const status = saleStatusLabel(cat.kittenProfile.saleStatus);
-    const color = cat.color || "待补充";
-    const birthday = formatBirthday(cat.birthday);
-    const litterName = formatLitterName(cat.kittenProfile.litter?.name || "");
-    return {
-      id: cat.id,
-      ...imageFields,
-      kind: "kittens",
-      lineOne: `性别 ${genderLabel(cat.gender)} · 颜色 ${color}`,
-      lineTwo: `生日 ${birthday}`,
-      lineThree: "",
-      litterId: cat.kittenProfile.litter?.id || "",
-      litterName,
-      genderKey: cat.gender || "",
-      metaItems: [
-        { label: "性别", value: genderLabel(cat.gender) },
-        { label: "颜色", value: color },
-        { label: "生日", value: birthday },
-      ],
-      name: cat.name,
-      pill: status,
-      statusKey: status,
-    };
-  }
-
-  if (cat.breedingProfile) {
-    const category = breedingCategoryLabel(cat.breedingProfile.category);
-    const reproductiveState =
-      cat.breedingProfile.statusLabel ||
-      reproductiveStateLabel(cat.breedingProfile.reproductiveState);
-    const color = cat.color || "颜色待补充";
-    const trait = cat.breedingProfile.trait || cat.breedingProfile.source || "";
-    const metaItems = [
-      { label: "身份", value: category },
-      { label: "颜色", value: color },
-    ];    if (cat.birthday) metaItems.push({ label: "生日", value: formatBirthday(cat.birthday) });
-    return {
-      id: cat.id,
-      ...imageFields,
-      kind: "studs",
-      lineOne: `${category} · ${color}`,
-      lineTwo: trait || "资料待补充",
-      lineThree: cat.birthday ? `生日 ${formatBirthday(cat.birthday)}` : "",
-      litterId: "",
-      litterName: "",
-      genderKey: cat.gender || "",
-      metaItems,
-      name: cat.name,
-      pill: reproductiveState,
-      statusKey: category,
-    };
-  }
-
-  return null;
-}
-
 function deriveLitterFilters(items: CatListItem[]) {
   const filters: LitterFilter[] = [];
   const seen = new Set<string>();
@@ -385,45 +296,6 @@ function deriveLitterFilters(items: CatListItem[]) {
     filters.push({ id: item.litterId, name });
   }
   return filters;
-}
-
-function formatLitterName(value: string) {
-  const match = value.match(/([A-Z])\s*窝/i);
-  if (match) return `${match[1].toUpperCase()}窝`;
-  return value;
-}
-
-function formatBirthday(value: string | null) {
-  return value ? value.slice(0, 10) : "待补充";
-}
-
-function genderLabel(value: string | null) {
-  if (value === "male") return "弟弟";
-  if (value === "female") return "妹妹";
-  return "未设置";
-}
-
-function saleStatusLabel(value: string) {
-  if (value === "available") return "待找家";
-  if (value === "reserved") return "找家中";
-  if (value === "adopted") return "已有家";
-  return value || "待评估";
-}
-
-function breedingCategoryLabel(value: string) {
-  if (value === "king") return "现役公猫";
-  if (value === "queen") return "现役母猫";
-  if (value === "candidate") return "预备役种猫";
-  return value || "种猫";
-}
-
-function reproductiveStateLabel(value: string) {
-  if (value === "observing") return "观察中";
-  if (value === "active") return "在役";
-  if (value === "paused") return "暂停";
-  if (value === "retired") return "已退休";
-  if (value === "semiRetired") return "半退役";
-  return value || "在役";
 }
 
 function getErrorMessage(error: unknown) {

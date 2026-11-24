@@ -71,10 +71,7 @@
   </view>
 
   <view wx:else class="list">
-    <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row {{item.litterName ? 'has-litter' : ''}}" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
-      <view wx:if="{{item.litterName}}" class="card-pills">
-        <text class="pill litter-pill">{{item.litterName}}</text>
-      </view>
+    <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
       <view class="thumb">
         <image
           wx:if="{{item.imageUrl}}"
@@ -82,19 +79,18 @@
           src="{{item.imageUrl}}"
           mode="{{item.imageMode}}"
           style="{{item.imageStyle}}"
+          lazy-load="{{true}}"
         />
         <view wx:else class="thumb-empty xy-soft-placeholder">
           <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
         </view>
+        <text class="card-badge">{{item.badge}}</text>
       </view>
       <view class="info">
         <text class="name">{{item.name}}</text>
-        <view class="meta-grid">
-          <view wx:for="{{item.metaItems}}" wx:key="label" class="meta-item">
-            <text class="meta-label">{{item.label}}</text>
-            <text class="meta-value">{{item.value}}</text>
-          </view>
-        </view>
+        <text class="card-line">{{item.lineOne}}</text>
+        <text class="card-line secondary">{{item.lineTwo}}</text>
+        <text wx:if="{{item.litterName}}" class="litter-label">{{item.litterName}}</text>
         <view class="detail">
           <text>了解详情</text>
           <text class="detail-arrow">›</text>

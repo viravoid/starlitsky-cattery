@@ -39,6 +39,7 @@ const imports = {
   "../../utils/public-content/index": publicContent,
   "../../utils/fixed-page-content": fixedContent,
   "../../utils/cat-presentation": { resolveCatDetailFrames: () => [], resolveCatFrame: () => null },
+  "../../utils/public-cat-card": { isSeekingHomeKitten: () => false, toPublicCatCard: () => null },
   "../../utils/session/auth": { refreshCurrentUser: async () => null },
   "../../store/session/index": { getSessionState: () => ({ roles: [], user: null }) },
   "../../utils/visual-qa/adapter": { configureVisualQaAdapter: () => {} },

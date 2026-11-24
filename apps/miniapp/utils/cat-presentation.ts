@@ -61,12 +61,7 @@ export function resolveCatFrame(cat: CatData, entry: CatPresentationEntry): Imag
   const legacy = normalizeLegacyPresentation(asRecord(cat.coverPresentations)?.[entry]);
   if (legacy) return toLegacyFrame(targetMedia, aspectRatio, legacy);
 
-  const fallbackAspectRatio = entry === "listCard" ? 218 / 236 : aspectRatio;
-  return toLegacyFrame(
-    targetMedia,
-    fallbackAspectRatio,
-    fallbackLegacy(entry, cat.id),
-  );
+  return toLegacyFrame(targetMedia, aspectRatio, fallbackLegacy(entry, cat.id));
 }
 
 export function resolveCatDetailFrames(cat: CatData): ImageFrameView[] {
