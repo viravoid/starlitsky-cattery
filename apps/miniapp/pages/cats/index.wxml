@@ -88,8 +88,9 @@
       </view>
       <view class="info">
         <text class="name">{{item.name}}</text>
-        <text class="card-line">{{item.lineOne}}</text>
-        <text class="card-line secondary">{{item.lineTwo}}</text>
+        <text wx:if="{{item.listLineOne}}" class="card-line">{{item.listLineOne}}</text>
+        <text wx:if="{{item.listLineTwo}}" class="card-line secondary">{{item.listLineTwo}}</text>
+        <text wx:if="{{item.listLineThree}}" class="card-line card-extra">{{item.listLineThree}}</text>
         <text wx:if="{{item.litterName}}" class="litter-label">{{item.litterName}}</text>
         <view class="detail">
           <text>了解详情</text>

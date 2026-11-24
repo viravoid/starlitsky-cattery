@@ -12,6 +12,9 @@ export interface PublicCatCard {
   badge: string;
   lineOne: string;
   lineTwo: string;
+  listLineOne: string;
+  listLineTwo: string;
+  listLineThree: string;
   litterId: string;
   litterName: string;
   genderKey: string;
@@ -19,8 +22,16 @@ export interface PublicCatCard {
 }
 
 export function toPublicCatCard(cat: CatData): PublicCatCard | null {
+  return buildPublicCatCard(cat, false);
+}
+
+export function toPortraitPublicCatCard(cat: CatData): PublicCatCard | null {
+  return buildPublicCatCard(cat, true);
+}
+
+function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | null {
   const image = cat.mediaAssets.find((item) => item.usage === "cover") ?? cat.mediaAssets[0];
-  const frame = resolveCatFrame(cat, "listCard");
+  const frame = resolveCatFrame(cat, "listCard", portrait ? 4 / 5 : undefined);
   const common = {
     id: cat.id,
     name: cat.name,
@@ -39,6 +50,16 @@ export function toPublicCatCard(cat: CatData): PublicCatCard | null {
       badge: status,
       lineOne: `${genderLabel(cat.gender)} · ${cat.color || "颜色待补充"}`,
       lineTwo: cat.birthday ? `生日 ${cat.birthday.slice(0, 10)}` : "生日待补充",
+      listLineOne: [cat.gender ? genderLabel(cat.gender) : "", ageLabel(cat.birthday)]
+        .filter(Boolean)
+        .join(" · "),
+      listLineTwo: cat.color || "",
+      listLineThree:
+        cat.kittenProfile.saleStatus !== "adopted" &&
+        cat.kittenProfile.priceText &&
+        !["已预留", "已有家"].includes(cat.kittenProfile.priceText)
+          ? `价格 ${cat.kittenProfile.priceText}`
+          : "",
       litterId: cat.kittenProfile.litter?.id || "",
       litterName: formatLitterName(cat.kittenProfile.litter?.name || ""),
       statusKey: status,
@@ -53,6 +74,9 @@ export function toPublicCatCard(cat: CatData): PublicCatCard | null {
       badge: category,
       lineOne: cat.color || "颜色待补充",
       lineTwo: cat.breedingProfile.trait || cat.breedingProfile.source || "资料待补充",
+      listLineOne: category,
+      listLineTwo: cat.color || "",
+      listLineThree: cat.breedingProfile.trait || cat.breedingProfile.source || "",
       litterId: "",
       litterName: "",
       statusKey: category,
@@ -60,6 +84,21 @@ export function toPublicCatCard(cat: CatData): PublicCatCard | null {
   }
 
   return null;
+}
+
+function ageLabel(birthday: string | null) {
+  if (!birthday || !/^\d{4}-\d{2}-\d{2}/.test(birthday)) return "";
+  const born = new Date(`${birthday.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(born.getTime())) return "";
+  const today = new Date();
+  let months = (today.getFullYear() - born.getFullYear()) * 12 + today.getMonth() - born.getMonth();
+  if (today.getDate() < born.getDate()) months -= 1;
+  if (months < 0) return "";
+  if (months === 0) return "未满1个月";
+  if (months < 12) return `${months}个月`;
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  return remainingMonths ? `${years}岁${remainingMonths}个月` : `${years}岁`;
 }
 
 export function isSeekingHomeKitten(cat: CatData) {
