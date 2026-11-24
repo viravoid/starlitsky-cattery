@@ -33,9 +33,29 @@ const API_BASE_URLS: Record<MiniProgramEnvVersion, string> = {
 
 export function getApiBaseUrl() {
   const envVersion = getMiniProgramEnvVersion();
-  const apiBaseUrl = API_BASE_URLS[envVersion].trim();
+  // WeChat may run a submitted review package as "develop" on a real device.
+  // Loopback is only reachable from the local Developer Tools simulator.
+  const apiBaseUrl = (
+    envVersion === "develop" && !isLocalMiniProgramDevelopment()
+      ? MINIAPP_PRODUCTION_API_BASE_URL
+      : API_BASE_URLS[envVersion]
+  ).trim();
   if (apiBaseUrl) return apiBaseUrl;
   throw new Error(`Miniapp API base URL is not configured for ${envVersion}`);
+}
+
+export function isLocalMiniProgramDevelopment() {
+  if (getMiniProgramEnvVersion() !== "develop") return false;
+  try {
+    if (wx.getDeviceInfo?.().platform === "devtools") return true;
+  } catch {
+    /* Fall back to the older synchronous API. */
+  }
+  try {
+    return wx.getSystemInfoSync?.().platform === "devtools";
+  } catch {
+    return false;
+  }
 }
 
 export function getMiniProgramEnvVersion(): MiniProgramEnvVersion {

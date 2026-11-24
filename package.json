@@ -31,6 +31,8 @@
     "verify:fixed-page-media": "npm --workspace @starlitsky/api run verify:fixed-page-media",
     "verify:environment-media-batch": "npm --workspace @starlitsky/api run verify:environment-media-batch",
     "verify:miniapp-production-config": "node scripts/verify-miniapp-production-config.mjs",
+    "verify:miniapp-review-routing": "node scripts/verify-miniapp-review-routing.mjs",
+    "probe:miniapp-review-readonly": "node scripts/probe-miniapp-review-readonly.mjs",
     "verify:miniapp-trial-ready": "node scripts/verify-miniapp-trial-ready.mjs",
     "verify:media-upload": "npm --workspace @starlitsky/api run verify:media-upload",
     "verify:cos-migration": "npm --workspace @starlitsky/api run verify:cos-migration",

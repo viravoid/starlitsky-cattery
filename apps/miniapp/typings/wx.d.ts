@@ -6,6 +6,8 @@ declare function Component(options: Record<string, unknown>): void;
 
 declare function getCurrentPages(): Array<{ route?: string }>;
 
+declare const console: { warn(...values: unknown[]): void };
+
 declare const wx: {
   getEnterOptionsSync?(): { scene: number };
   getLaunchOptionsSync?(): { scene: number };
@@ -74,14 +76,17 @@ declare const wx: {
       envVersion: "develop" | "trial" | "release";
     };
   };
+  getDeviceInfo?(): { platform?: string };
+  getSystemInfoSync?(): { platform?: string };
   showToast(options: { title: string; icon?: "none" | "success" | "error" | "loading" }): void;
   navigateTo(options: { url: string; fail?(): void }): void;
   navigateBack(options?: { delta?: number }): void;
   openPrivacyContract(options?: { success?(): void; fail?(): void }): void;
-  onNeedPrivacyAuthorization(callback: (resolve: (decision: {
-    buttonId?: string;
-    event: "agree" | "disagree";
-  }) => void) => void): void;
+  onNeedPrivacyAuthorization(
+    callback: (
+      resolve: (decision: { buttonId?: string; event: "agree" | "disagree" }) => void,
+    ) => void,
+  ): void;
   previewImage(options: { current: string; urls: string[] }): void;
   setClipboardData(options: { data: string }): void;
   setNavigationBarTitle(options: { title: string }): void;

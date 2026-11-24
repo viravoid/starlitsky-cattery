@@ -23,13 +23,11 @@ import type {
   UpdateMyCatRequest,
 } from "@starlitsky/shared";
 import { get, post, patch, del } from "../request/index";
-import { getMiniProgramEnvVersion } from "../../config/env";
+import { isLocalMiniProgramDevelopment } from "../../config/env";
 import { getPublicContentAdapter } from "./adapter";
 
 function publicPreviewRequest() {
-  return getMiniProgramEnvVersion() === "develop"
-    ? { header: { "x-local-public-preview": "1" } }
-    : {};
+  return isLocalMiniProgramDevelopment() ? { header: { "x-local-public-preview": "1" } } : {};
 }
 
 export async function getFixedPage(slug: string) {
@@ -125,13 +123,15 @@ export async function deleteMyCat(id: string) {
   return response.data;
 }
 
-export async function listCommunityPosts(params: {
-  catId?: string;
-  category?: CommunityPostCategory | string;
-  litterId?: string;
-  pageSize?: number;
-  q?: string;
-} = {}) {
+export async function listCommunityPosts(
+  params: {
+    catId?: string;
+    category?: CommunityPostCategory | string;
+    litterId?: string;
+    pageSize?: number;
+    q?: string;
+  } = {},
+) {
   const adapter = getPublicContentAdapter();
   if (adapter?.listCommunityPosts) return adapter.listCommunityPosts(params);
 
@@ -153,7 +153,10 @@ export async function getCommunityPost(id: string) {
   const adapter = getPublicContentAdapter();
   if (adapter?.getCommunityPost) return adapter.getCommunityPost(id);
 
-  const response = await get<CommunityPostData>(`/community/posts/${encodeURIComponent(id)}`, publicPreviewRequest());
+  const response = await get<CommunityPostData>(
+    `/community/posts/${encodeURIComponent(id)}`,
+    publicPreviewRequest(),
+  );
   if (!response.success) throw new Error(response.message);
   return response.data;
 }

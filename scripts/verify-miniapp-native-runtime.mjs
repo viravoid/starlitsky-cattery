@@ -219,8 +219,8 @@ function verifyVisualQaFixtures() {
   if (!/query\[VISUAL_QA_QUERY_KEY\]\s*===\s*"1"/.test(modeText)) {
     failures.push("Visual QA fixture mode must require visualQa=1.");
   }
-  if (!/getMiniProgramEnvVersion\(\)\s*===\s*"develop"/.test(modeText)) {
-    failures.push("Visual QA fixture mode must be disabled outside develop.");
+  if (!/isLocalMiniProgramDevelopment\(\)/.test(modeText)) {
+    failures.push("Visual QA fixture mode must be disabled outside local Developer Tools.");
   }
   if (!appText.includes("configureVisualQaAdapter(options?.query)")) {
     failures.push("App launch must configure the Visual QA adapter from the explicit launch query.");
