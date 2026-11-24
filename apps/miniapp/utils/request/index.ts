@@ -39,16 +39,17 @@ function request<TResponse, TBody = unknown>(
   method: RequestMethod,
 ): Promise<ApiResponse<TResponse>> {
   const token = getToken();
+  const requestUrl = buildUrl(options.url);
 
   return new Promise((resolve, reject) => {
     wx.request({
-      url: buildUrl(options.url),
+      url: requestUrl,
       method,
       data: options.data,
       header: {
         "content-type": "application/json",
         ...(token ? { authorization: `Bearer ${token}` } : {}),
-        ...options.header
+        ...options.header,
       },
       success(response) {
         if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -60,15 +61,22 @@ function request<TResponse, TBody = unknown>(
           clearToken();
         }
 
+        console.warn(
+          "Miniapp API response failed",
+          method,
+          requestUrl.split("?")[0],
+          response.statusCode,
+        );
         reject(normalizeError(response.statusCode, response.data));
       },
       fail(error) {
+        console.warn("Miniapp API network failed", method, requestUrl.split("?")[0], error.errMsg);
         reject({
           success: false,
           error: { code: "NETWORK_ERROR" },
-          message: error.errMsg || "Network request failed"
+          message: error.errMsg || "Network request failed",
         } satisfies ApiErrorResponse);
-      }
+      },
     });
   });
 }
@@ -91,6 +99,6 @@ function normalizeError(statusCode: number, data: unknown): ApiErrorResponse {
   return {
     success: false,
     error: { code: `HTTP_${statusCode}` },
-    message: "Request failed"
+    message: "Request failed",
   };
 }

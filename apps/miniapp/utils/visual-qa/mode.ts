@@ -1,4 +1,4 @@
-import { getMiniProgramEnvVersion } from "../../config/env";
+import { isLocalMiniProgramDevelopment } from "../../config/env";
 
 export const VISUAL_QA_QUERY_KEY = "visualQa";
 
@@ -9,5 +9,5 @@ export function configureVisualQaMode(query: Record<string, string | undefined> 
 }
 
 export function isVisualQaModeEnabled() {
-  return visualQaRequested && getMiniProgramEnvVersion() === "develop";
+  return visualQaRequested && isLocalMiniProgramDevelopment();
 }
