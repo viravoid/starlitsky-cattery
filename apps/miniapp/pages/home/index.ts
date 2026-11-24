@@ -1,5 +1,10 @@
 import type { FixedPageMediaAssetData } from "@starlitsky/shared";
-import { getFixedPage } from "../../utils/public-content/index";
+import { getFixedPage, listPublicCats } from "../../utils/public-content/index";
+import {
+  isSeekingHomeKitten,
+  toPublicCatCard,
+  type PublicCatCard,
+} from "../../utils/public-cat-card";
 import { setNativeShareMenu } from "../../utils/native-share";
 
 interface HomeEntry {
@@ -42,6 +47,8 @@ interface HomeData {
   introBody: string;
   introMeta: string;
   isLoading: boolean;
+  kittenPreview: PublicCatCard[];
+  previewLoading: boolean;
   previewUrls: string[];
   subtitle: string;
   title: string;
@@ -50,6 +57,7 @@ interface HomeData {
 interface HomePage {
   data: HomeData;
   loadHome(): Promise<void>;
+  loadKittenPreview(): Promise<void>;
   onHeroChange(event: SwiperChangeEvent): void;
   updateHeroLayout(metrics?: WindowMetrics): Promise<void>;
   previewHeroImage(event: TapEvent): void;
@@ -123,10 +131,10 @@ const DEFAULT_HOME = {
     },
   ],
   catsPreview: {
-    eyebrow: "Our Cats",
-    title: "我们的猫",
-    description: "在售与观察中的小猫，以及陪伴我们的种猫，血线清晰、健康透明。",
-    buttonText: "查看小猫与种猫",
+    eyebrow: "Kittens",
+    title: "找家的小猫",
+    description: "看看正在找家的小猫",
+    buttonText: "查看更多",
   },
   hasHeroImages: false,
   currentHeroIndex: 0,
@@ -144,11 +152,13 @@ Page({
     ...DEFAULT_HOME,
     error: "",
     isLoading: true,
+    kittenPreview: [],
+    previewLoading: true,
   } as HomeData,
 
   async onLoad(this: HomePage) {
     void this.updateHeroLayout();
-    await this.loadHome();
+    await Promise.all([this.loadHome(), this.loadKittenPreview()]);
   },
 
   onReady(this: HomePage) {
@@ -181,7 +191,7 @@ Page({
   },
 
   async onPullDownRefresh(this: HomePage) {
-    await this.loadHome();
+    await Promise.all([this.loadHome(), this.loadKittenPreview()]);
     wx.stopPullDownRefresh();
   },
 
@@ -203,8 +213,23 @@ Page({
     }
   },
 
+  async loadKittenPreview(this: HomePage) {
+    this.setData({ previewLoading: true });
+    try {
+      const data = await listPublicCats({ pageSize: 100 });
+      const kittenPreview = data.items
+        .filter(isSeekingHomeKitten)
+        .map(toPublicCatCard)
+        .filter((item): item is PublicCatCard => Boolean(item))
+        .slice(0, 6);
+      this.setData({ kittenPreview, previewLoading: false });
+    } catch {
+      this.setData({ kittenPreview: [], previewLoading: false });
+    }
+  },
+
   async retryLoad(this: HomePage) {
-    await this.loadHome();
+    await Promise.all([this.loadHome(), this.loadKittenPreview()]);
   },
 
   previewHeroImage(this: HomePage, event: TapEvent) {
@@ -229,6 +254,13 @@ Page({
 
   openCats() {
     wx.switchTab({ url: "/pages/cats/index" });
+  },
+
+  openKitten(event: TapEvent) {
+    const id = event.currentTarget.dataset.id;
+    if (id) {
+      wx.navigateTo({ url: `/pages/cat-detail/index?id=${encodeURIComponent(id)}&kind=kittens` });
+    }
   },
 
   openPrivacyGuide() {
@@ -257,7 +289,6 @@ function normalizeHomeContent(value: unknown, mediaAssets: FixedPageMediaAssetDa
   const input = value as Record<string, any>;
   const hero = isObject(input.hero) ? input.hero : {};
   const intro = isObject(input.intro) ? input.intro : {};
-  const catsPreview = isObject(input.catsPreview) ? input.catsPreview : {};
   const entriesInput = isObject(input.entries) ? input.entries : {};
   const groupsInput = Array.isArray(input.groups) ? input.groups : [];
   return {
@@ -268,12 +299,7 @@ function normalizeHomeContent(value: unknown, mediaAssets: FixedPageMediaAssetDa
       .filter(Boolean)
       .join(" "),
     introBody: stringOr(intro.body, DEFAULT_HOME.introBody),
-    catsPreview: {
-      eyebrow: stringOr(catsPreview.eyebrow, DEFAULT_HOME.catsPreview.eyebrow),
-      title: stringOr(catsPreview.title, DEFAULT_HOME.catsPreview.title),
-      description: stringOr(catsPreview.description, DEFAULT_HOME.catsPreview.description),
-      buttonText: stringOr(catsPreview.buttonText, DEFAULT_HOME.catsPreview.buttonText),
-    },
+    catsPreview: DEFAULT_HOME.catsPreview,
     groups: normalizeGroups(groupsInput, entriesInput),
     ...images,
   };

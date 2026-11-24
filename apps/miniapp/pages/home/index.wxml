@@ -113,13 +113,34 @@
       </block>
     </view>
 
-    <button class="cats-preview" bindtap="openCats">
-      <image class="cats-art" src="../../assets/illustrations/curled-cat-blue.png" mode="aspectFit" />
-      <text class="eyebrow">{{catsPreview.eyebrow}}</text>
-      <text class="cats-title">{{catsPreview.title}}</text>
-      <text class="cats-desc">{{catsPreview.description}}</text>
-      <text class="cats-link">{{catsPreview.buttonText}} →</text>
-    </button>
+    <view class="cats-preview">
+      <view class="cats-heading">
+        <view class="cats-heading-copy">
+          <text class="eyebrow">{{catsPreview.eyebrow}}</text>
+          <text class="cats-title">{{catsPreview.title}}</text>
+          <text class="cats-desc">{{catsPreview.description}}</text>
+        </view>
+        <button class="cats-link" bindtap="openCats">{{catsPreview.buttonText}} →</button>
+      </view>
+      <scroll-view wx:if="{{kittenPreview.length}}" class="kitten-scroll" scroll-x show-scrollbar="{{false}}" enable-flex>
+        <view class="kitten-rail">
+          <button wx:for="{{kittenPreview}}" wx:key="id" class="preview-card" data-id="{{item.id}}" bindtap="openKitten">
+            <view class="preview-thumb">
+              <image wx:if="{{item.imageUrl}}" class="{{item.imageClass}}" src="{{item.imageUrl}}" mode="{{item.imageMode}}" style="{{item.imageStyle}}" lazy-load="{{true}}" />
+              <view wx:else class="thumb-empty xy-soft-placeholder">
+                <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
+              </view>
+              <text class="preview-badge">{{item.badge}}</text>
+            </view>
+            <text class="preview-name">{{item.name}}</text>
+            <text class="preview-line">{{item.lineOne}}</text>
+          </button>
+        </view>
+      </scroll-view>
+      <view wx:elif="{{previewLoading}}" class="preview-state">正在看看小猫...</view>
+      <view wx:else class="preview-state">暂时没有正在找家的小猫，欢迎查看更多猫咪。</view>
+      <view wx:if="{{kittenPreview.length > 1}}" class="scroll-hint">左右滑动看看更多 →</view>
+    </view>
     <button class="privacy-entry" bindtap="openPrivacyGuide">查看小程序隐私保护指引</button>
   </view>
 </view>

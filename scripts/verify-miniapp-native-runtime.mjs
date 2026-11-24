@@ -556,7 +556,7 @@ function verifyCatPhotoRenderingInvariants() {
 
   const presentation = evaluateCatPresentationModule(catPresentationText);
   const listManualAspectRatio = 16 / 10;
-  const listFallbackAspectRatio = 218 / 236;
+  const listFallbackAspectRatio = listManualAspectRatio;
   const breedingPlanAspectRatio = 1;
   const communityProfileAspectRatio = 4 / 3;
   const mediaCases = [
@@ -915,8 +915,8 @@ function verifyPublicCatUiInvariants() {
   ) {
     failures.push("Our Cats list must render gender options inside the kitten filter panel.");
   }
-  if (!/class="cat-row \{\{item\.litterName \? 'has-litter' : ''\}\}"/.test(catsWxml)) {
-    failures.push("Our Cats list must position litter tags from the card container.");
+  if (!catsWxml.includes('class="cat-row"') || !catsWxml.includes('class="litter-label"')) {
+    failures.push("Our Cats list must keep a full-card tap target and kitten litter label.");
   }
 
   const detailPageText = readFileSync(detailPagePath, "utf8");
