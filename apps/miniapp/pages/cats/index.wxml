@@ -84,16 +84,25 @@
         <view wx:else class="thumb-empty xy-soft-placeholder">
           <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
         </view>
-        <text class="card-badge">{{item.badge}}</text>
+        <text wx:if="{{item.badge}}" class="card-badge">{{item.badge}}</text>
       </view>
       <view class="info">
         <text class="name">{{item.name}}</text>
-        <text wx:if="{{item.listLineOne}}" class="card-line">{{item.listLineOne}}</text>
-        <text wx:if="{{item.listLineTwo}}" class="card-line secondary">{{item.listLineTwo}}</text>
-        <text wx:if="{{item.listLineThree}}" class="card-line card-extra">{{item.listLineThree}}</text>
-        <text wx:if="{{item.litterName}}" class="litter-label">{{item.litterName}}</text>
-        <view class="detail">
-          <text>了解详情</text>
+        <view wx:if="{{item.kind === 'kittens' && (item.cardGender || item.cardAge)}}" class="card-meta">
+          <text wx:if="{{item.cardGender}}" class="{{item.cardAge ? 'card-meta-cell' : 'card-meta-cell single'}}">{{item.cardGender}}</text>
+          <view wx:if="{{item.cardGender && item.cardAge}}" class="card-meta-divider"></view>
+          <text wx:if="{{item.cardAge}}" class="{{item.cardGender ? 'card-meta-cell' : 'card-meta-cell single'}}">{{item.cardAge}}</text>
+        </view>
+        <view wx:if="{{item.kind === 'studs' && (item.cardIdentity || item.cardColor)}}" class="card-meta">
+          <text wx:if="{{item.cardIdentity}}" class="{{item.cardColor ? 'card-meta-cell' : 'card-meta-cell single'}}">{{item.cardIdentity}}</text>
+          <view wx:if="{{item.cardIdentity && item.cardColor}}" class="card-meta-divider"></view>
+          <text wx:if="{{item.cardColor}}" class="{{item.cardIdentity ? 'card-meta-cell' : 'card-meta-cell single'}}">{{item.cardColor}}</text>
+        </view>
+        <text wx:if="{{item.kind === 'studs' && item.cardNote}}" class="card-note">{{item.cardNote}}</text>
+        <view class="card-footer">
+          <text wx:if="{{item.kind === 'kittens' && item.cardPrice}}" class="card-price">{{item.cardPrice}}</text>
+          <text wx:if="{{item.kind === 'kittens' && item.litterName}}" class="litter-label">{{item.litterName}}</text>
+          <text wx:if="{{item.kind === 'studs' || !item.cardPrice}}" class="detail-label">了解详情</text>
           <text class="detail-arrow">›</text>
         </view>
       </view>

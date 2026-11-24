@@ -12,9 +12,12 @@ export interface PublicCatCard {
   badge: string;
   lineOne: string;
   lineTwo: string;
-  listLineOne: string;
-  listLineTwo: string;
-  listLineThree: string;
+  cardGender: string;
+  cardAge: string;
+  cardIdentity: string;
+  cardColor: string;
+  cardNote: string;
+  cardPrice: string;
   litterId: string;
   litterName: string;
   genderKey: string;
@@ -50,15 +53,16 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
       badge: status,
       lineOne: `${genderLabel(cat.gender)} · ${cat.color || "颜色待补充"}`,
       lineTwo: cat.birthday ? `生日 ${cat.birthday.slice(0, 10)}` : "生日待补充",
-      listLineOne: [cat.gender ? genderLabel(cat.gender) : "", ageLabel(cat.birthday)]
-        .filter(Boolean)
-        .join(" · "),
-      listLineTwo: cat.color || "",
-      listLineThree:
+      cardGender: cat.gender === "male" || cat.gender === "female" ? genderLabel(cat.gender) : "",
+      cardAge: ageLabel(cat.birthday),
+      cardIdentity: "",
+      cardColor: "",
+      cardNote: "",
+      cardPrice:
         cat.kittenProfile.saleStatus !== "adopted" &&
         cat.kittenProfile.priceText &&
         !["已预留", "已有家"].includes(cat.kittenProfile.priceText)
-          ? `价格 ${cat.kittenProfile.priceText}`
+          ? cat.kittenProfile.priceText.trim()
           : "",
       litterId: cat.kittenProfile.litter?.id || "",
       litterName: formatLitterName(cat.kittenProfile.litter?.name || ""),
@@ -74,9 +78,12 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
       badge: category,
       lineOne: cat.color || "颜色待补充",
       lineTwo: cat.breedingProfile.trait || cat.breedingProfile.source || "资料待补充",
-      listLineOne: category,
-      listLineTwo: cat.color || "",
-      listLineThree: cat.breedingProfile.trait || cat.breedingProfile.source || "",
+      cardGender: "",
+      cardAge: "",
+      cardIdentity: category,
+      cardColor: cat.color?.trim() || "",
+      cardNote: cat.breedingProfile.trait?.trim() || cat.personality?.trim() || "",
+      cardPrice: "",
       litterId: "",
       litterName: "",
       statusKey: category,
