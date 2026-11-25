@@ -71,7 +71,7 @@
   </view>
 
   <view wx:else class="list">
-    <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row {{item.kind === 'kittens' ? 'kitten-card' : ''}}" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
+    <button wx:for="{{visibleItems}}" wx:key="id" class="cat-row" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openCat">
       <view class="thumb">
         <image
           wx:if="{{item.imageUrl}}"
@@ -86,17 +86,12 @@
         </view>
         <text wx:if="{{item.badge}}" class="card-badge">{{item.badge}}</text>
       </view>
-      <view class="info {{item.kind === 'kittens' ? 'kitten-info' : ''}}">
+      <view class="info">
         <text class="name">{{item.name}}</text>
         <view wx:if="{{item.cardGender || item.cardAge}}" class="card-meta">
           <text class="card-meta-cell">{{item.cardGender}}</text>
           <view class="card-meta-divider"></view>
           <text class="card-meta-cell">{{item.cardAge}}</text>
-        </view>
-        <text wx:if="{{item.kind === 'studs' && item.cardNote}}" class="card-note">{{item.cardNote}}</text>
-        <view wx:if="{{item.kind === 'studs'}}" class="card-footer">
-          <text class="detail-label">了解详情</text>
-          <text class="detail-arrow">›</text>
         </view>
       </view>
     </button>

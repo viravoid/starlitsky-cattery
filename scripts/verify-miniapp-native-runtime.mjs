@@ -914,7 +914,7 @@ function verifyPublicCatUiInvariants() {
   ) {
     failures.push("Our Cats list must render gender options inside the kitten filter panel.");
   }
-  if (!catsWxml.includes('class="cat-row {{item.kind === \'kittens\' ? \'kitten-card\' : \'\'}}"') || !catsWxml.includes('bindtap="openCat"')) {
+  if (!catsWxml.includes('class="cat-row"') || !catsWxml.includes('bindtap="openCat"')) {
     failures.push("Our Cats list must keep a full-card tap target.");
   }
   if (
@@ -929,21 +929,24 @@ function verifyPublicCatUiInvariants() {
     catsWxml.includes("card-price") ||
     catsWxss.includes(".card-price") ||
     cardModel.includes("cardPrice") ||
-    !catsWxml.includes('class="cat-row {{item.kind === \'kittens\' ? \'kitten-card\' : \'\'}}"') ||
-    !catsWxml.includes('class="info {{item.kind === \'kittens\' ? \'kitten-info\' : \'\'}}"') ||
-    !/\.info\.kitten-info\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*0\s+0\s+auto;/.test(catsWxss) ||
-    !/\.cat-row\.kitten-card\s*\{[^}]*background:\s*var\(--xy-color-background\);[^}]*box-shadow:\s*none;/.test(catsWxss) ||
+    !catsWxml.includes('class="cat-row"') ||
+    !catsWxml.includes('class="info"') ||
+    !/\.cat-row\s*\{[^}]*border:\s*1rpx solid var\(--xy-color-border\);[^}]*border-radius:\s*28rpx;[^}]*background:\s*var\(--xy-color-surface\);[^}]*box-shadow:\s*var\(--xy-shadow-card\);/.test(catsWxss) ||
+    !/\.thumb\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*5;/.test(catsWxss) ||
+    !/\.info\s*\{[^}]*min-height:\s*0;[^}]*padding:\s*18rpx 18rpx 20rpx;/.test(catsWxss) ||
+    /\.cat-row\.kitten-card|\.info\.kitten-info|\.card-footer|\.card-note|\.detail-label|\.detail-arrow/.test(catsWxss) ||
     !catsWxml.includes('wx:if="{{item.cardGender || item.cardAge}}" class="card-meta"') ||
     !/kind:\s*"studs"[\s\S]*?cardGender:\s*cat\.gender[\s\S]*?cardAge:\s*ageLabel\(cat\.birthday\)/.test(cardModel) ||
-    !catsWxml.includes('wx:if="{{item.kind === \'studs\'}}" class="card-footer"') ||
-    !catsWxml.includes('class="detail-label">了解详情</text>') ||
     !catsWxml.includes('class="card-meta-divider"') ||
-    !catsWxml.includes('class="card-note"') ||
+    /了解详情|card-footer|detail-arrow|card-note|kitten-card|kitten-info/.test(catsWxml) ||
     catsWxml.includes('class="litter-label"') ||
     catsWxml.includes("{{item.cardColor}}") ||
-    catsWxml.includes("{{item.cardIdentity}}")
+    catsWxml.includes("{{item.cardIdentity}}") ||
+    catsWxml.includes("{{item.cardNote}}") ||
+    catsWxml.includes("{{item.lineOne}}") ||
+    catsWxml.includes("{{item.lineTwo}}")
   ) {
-    failures.push("Our Cats cards must show mapped gender and age without kitten price or footer; breeding cards must keep their detail entry and optional traits.");
+    failures.push("Our Cats kitten and breeding cards must share one bordered card layout with only badge, image, name, gender, and age.");
   }
 
   const detailPageText = readFileSync(detailPagePath, "utf8");
