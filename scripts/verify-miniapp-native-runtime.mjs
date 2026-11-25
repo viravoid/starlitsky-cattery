@@ -893,9 +893,6 @@ function verifyPublicCatUiInvariants() {
   }
 
   const catsPageText = readFileSync(catsPagePath, "utf8");
-  if (/label:\s*"价格"|lineThree:\s*`价格/.test(catsPageText)) {
-    failures.push("Our Cats list kitten cards must not expose price fields.");
-  }
   if (
     !catsPageText.includes("activeGenderId") ||
     !catsPageText.includes("GENDER_FILTERS") ||
@@ -915,8 +912,24 @@ function verifyPublicCatUiInvariants() {
   ) {
     failures.push("Our Cats list must render gender options inside the kitten filter panel.");
   }
-  if (!catsWxml.includes('class="cat-row"') || !catsWxml.includes('class="litter-label"')) {
-    failures.push("Our Cats list must keep a full-card tap target and kitten litter label.");
+  if (!catsWxml.includes('class="cat-row"') || !catsWxml.includes('bindtap="openCat"')) {
+    failures.push("Our Cats list must keep a full-card tap target.");
+  }
+  if (
+    !catsWxml.includes('class="filter-section-title">窝次</text>') ||
+    !catsWxml.includes('bindtap="setLitter"') ||
+    !catsPageText.includes("item.litterId === normalizedLitterId")
+  ) {
+    failures.push("Our Cats list must retain litter filtering.");
+  }
+  if (
+    !catsWxml.includes('class="card-price"') ||
+    !catsWxml.includes('class="card-note"') ||
+    catsWxml.includes('class="litter-label"') ||
+    catsWxml.includes("{{item.cardColor}}") ||
+    catsWxml.includes("{{item.cardIdentity}}")
+  ) {
+    failures.push("Our Cats cards must show price and optional traits without litter, coat, or repeated identity text.");
   }
 
   const detailPageText = readFileSync(detailPagePath, "utf8");
