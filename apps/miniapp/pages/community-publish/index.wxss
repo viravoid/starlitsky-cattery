@@ -112,7 +112,7 @@
 .option.active {
   border-color: var(--xy-color-accent);
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
 }
 
 .content-input {

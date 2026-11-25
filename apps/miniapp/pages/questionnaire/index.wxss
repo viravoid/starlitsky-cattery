@@ -159,7 +159,7 @@
 .choice.selected {
   border-color: var(--xy-color-accent);
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
   box-shadow: var(--xy-shadow-card);
 }
 

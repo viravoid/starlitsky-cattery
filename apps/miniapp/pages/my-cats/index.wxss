@@ -68,7 +68,7 @@
   width: 156rpx;
   height: 156rpx;
   padding: 24rpx;
-  border: 1rpx solid rgba(231, 193, 93, 0.28);
+  border: 1rpx solid rgba(243, 212, 95, 0.28);
   border-radius: 999rpx;
   background: #fff4d6;
   opacity: 1;
@@ -97,7 +97,7 @@
   padding: 0 34rpx;
   border-radius: 999rpx;
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
   font-size: 25rpx;
   font-weight: 700;
   line-height: 1.35;
@@ -132,17 +132,17 @@
   width: 100%;
   box-sizing: border-box;
   padding: 28rpx 32rpx;
-  border: 1rpx solid rgba(231, 193, 93, 0.5);
+  border: 1rpx solid rgba(243, 212, 95, 0.5);
   border-radius: 36rpx;
-  background: linear-gradient(135deg, var(--xy-color-accent) 0%, #d9a83e 100%);
-  color: #ffffff;
-  box-shadow: 0 18rpx 42rpx rgba(180, 135, 37, 0.18);
+  background: var(--xy-color-accent);
+  color: var(--xy-color-on-accent);
+  box-shadow: 0 18rpx 42rpx rgba(220, 188, 71, 0.2);
   text-align: left;
 }
 
 .add-card-label {
   display: block;
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
   font-size: 28rpx;
   font-weight: 700;
   line-height: 1.35;
@@ -151,7 +151,7 @@
 .add-card-copy {
   display: block;
   margin-top: 8rpx;
-  color: rgba(255, 255, 255, 0.86);
+  color: rgba(82, 103, 126, 0.82);
   font-size: 23rpx;
   font-weight: 500;
   line-height: 1.55;
@@ -280,7 +280,7 @@
 .card-action.primary {
   border-color: var(--xy-color-accent);
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
 }
 
 .card-action.danger {

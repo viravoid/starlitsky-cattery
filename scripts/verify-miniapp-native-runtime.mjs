@@ -843,7 +843,7 @@ function verifyCatStructureRatingInvariants() {
   if (/\.bonus-star::before/.test(detailWxss)) {
     failures.push("Cat detail sixth bonus star must not render a vertical separator.");
   }
-  if (!/filter:\s*drop-shadow\(0\s+0\s+5rpx\s+rgba\(231,\s*193,\s*93,\s*0\.36\)\)/.test(bonusStarIconBlock)) {
+  if (!/filter:\s*drop-shadow\(0\s+0\s+5rpx\s+rgba\(243,\s*212,\s*95,\s*0\.36\)\)/.test(bonusStarIconBlock)) {
     failures.push("Cat detail sixth bonus star must use only a soft star-shaped halo.");
   }
 
@@ -903,6 +903,8 @@ function verifyPublicCatUiInvariants() {
   }
 
   const catsWxml = readFileSync(catsWxmlPath, "utf8");
+  const catsWxss = readFileSync(join(miniappRoot, "pages/cats/index.wxss"), "utf8");
+  const cardModel = readFileSync(join(miniappRoot, "utils/public-cat-card.ts"), "utf8");
   if (catsWxml.includes("{{item.pill}}")) {
     failures.push("Our Cats list cards must not render public status pills such as active/semi-retired.");
   }
@@ -923,13 +925,21 @@ function verifyPublicCatUiInvariants() {
     failures.push("Our Cats list must retain litter filtering.");
   }
   if (
-    !catsWxml.includes('class="card-price"') ||
+    catsWxml.includes("cardPrice") ||
+    catsWxml.includes("card-price") ||
+    catsWxss.includes(".card-price") ||
+    cardModel.includes("cardPrice") ||
+    !catsWxml.includes('class="info {{item.kind === \'kittens\' ? \'kitten-info\' : \'\'}}"') ||
+    !/\.info\.kitten-info\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*0\s+0\s+auto;/.test(catsWxss) ||
+    !catsWxml.includes('wx:if="{{item.kind === \'studs\'}}" class="card-footer"') ||
+    !catsWxml.includes('class="detail-label">了解详情</text>') ||
+    !catsWxml.includes('class="card-meta-divider"') ||
     !catsWxml.includes('class="card-note"') ||
     catsWxml.includes('class="litter-label"') ||
     catsWxml.includes("{{item.cardColor}}") ||
     catsWxml.includes("{{item.cardIdentity}}")
   ) {
-    failures.push("Our Cats cards must show price and optional traits without litter, coat, or repeated identity text.");
+    failures.push("Our Cats kitten cards must have compact name/gender/age information without price or footer; breeding cards must keep their detail entry and optional traits.");
   }
 
   const detailPageText = readFileSync(detailPagePath, "utf8");

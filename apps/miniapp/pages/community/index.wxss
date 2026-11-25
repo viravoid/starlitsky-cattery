@@ -102,7 +102,7 @@
 .active-category {
   border-color: var(--xy-color-accent);
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
 }
 
 .litter-chevron {
@@ -155,7 +155,7 @@
 .active-litter {
   border-color: var(--xy-color-accent);
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
 }
 
 .category-tab::after,

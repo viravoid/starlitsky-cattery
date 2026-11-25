@@ -72,7 +72,7 @@
   min-width: 176rpx;
   padding: 0 28rpx;
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
   line-height: 72rpx;
 }
 
@@ -87,7 +87,7 @@
   padding: 0 32rpx;
   border-radius: 999rpx;
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
   font-weight: 700;
   line-height: 1.35;
 }
@@ -278,7 +278,7 @@
 .edit-option.active {
   border-color: var(--xy-color-accent);
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
 }
 
 .edit-image-grid {
@@ -387,5 +387,5 @@
 .edit-action.primary {
   border-color: var(--xy-color-accent);
   background: var(--xy-color-accent);
-  color: #ffffff;
+  color: var(--xy-color-on-accent);
 }

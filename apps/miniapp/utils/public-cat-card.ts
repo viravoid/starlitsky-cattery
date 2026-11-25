@@ -17,7 +17,6 @@ export interface PublicCatCard {
   cardIdentity: string;
   cardColor: string;
   cardNote: string;
-  cardPrice: string;
   litterId: string;
   litterName: string;
   genderKey: string;
@@ -58,12 +57,6 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
       cardIdentity: "",
       cardColor: "",
       cardNote: "",
-      cardPrice:
-        cat.kittenProfile.saleStatus !== "adopted" &&
-        cat.kittenProfile.priceText &&
-        !["已预留", "已有家"].includes(cat.kittenProfile.priceText)
-          ? cat.kittenProfile.priceText.trim()
-          : "",
       litterId: cat.kittenProfile.litter?.id || "",
       litterName: formatLitterName(cat.kittenProfile.litter?.name || ""),
       statusKey: status,
@@ -84,7 +77,6 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
       cardColor: displayableCardText(cat.color),
       cardNote:
         nonColorCardNote(cat.breedingProfile.trait) || nonColorCardNote(cat.personality),
-      cardPrice: "",
       litterId: "",
       litterName: "",
       statusKey: category,

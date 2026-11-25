@@ -10,7 +10,7 @@
       class="gallery"
       indicator-dots="{{galleryItems.length > 1}}"
       indicator-color="rgba(255,253,248,0.78)"
-      indicator-active-color="#e7c15d"
+      indicator-active-color="#f3d45f"
     >
       <swiper-item wx:for="{{galleryItems}}" wx:key="id">
         <view class="hero-frame">
