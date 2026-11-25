@@ -117,7 +117,7 @@ export async function createKittenProfileWithClient(client, catId, input, option
     mode: "create",
     allowedFields: KITTEN_CREATE_FIELDS,
   });
-  await ensureActiveLitterExists(data.litter_id, client);
+  await ensureAssignableLitterExists(data.litter_id, client);
 
   const profile = await client.kittenProfile.create({
     data: {
@@ -148,7 +148,17 @@ export async function updateKittenProfile(catId, input) {
   if (Object.keys(data).length === 0) {
     throw badRequest("At least one kitten profile field must be provided");
   }
-  if (data.litter_id) await ensureActiveLitterExists(data.litter_id);
+  if (
+    data.litter_id &&
+    data.litter_id !==
+      (
+        await prisma.kittenProfile.findUnique({
+          where: { cat_id: catId },
+          select: { litter_id: true },
+        })
+      )?.litter_id
+  )
+    await ensureAssignableLitterExists(data.litter_id);
 
   const profile = await prisma.kittenProfile.update({
     where: { cat_id: catId },
@@ -413,6 +423,17 @@ async function ensureActiveLitterExists(litterId, client = prisma) {
     select: { id: true },
   });
   if (!litter) throw notFound("Litter not found");
+}
+
+async function ensureAssignableLitterExists(litterId, client = prisma) {
+  const litter = await client.litter.findFirst({
+    where: { id: litterId, deleted_at: null },
+    select: { id: true, status: true, visibility: true },
+  });
+  if (!litter) throw notFound("Litter not found");
+  if (litter.status === "archived" || litter.visibility === "archived") {
+    throw badRequest("Selected litter is unavailable for new kittens");
+  }
 }
 
 async function ensureParentProfileExists(parentProfileId) {

@@ -162,7 +162,7 @@ test("admin can add gallery photos and replace one without leaving stale present
     ),
   ).toBe(true);
 
-  await page.getByRole("link", { name: "窝次" }).click();
+  await page.getByRole("link", { name: "窝次", exact: true }).click();
   await page.getByRole("button", { name: "刷新" }).click();
   await expect(page.getByText("COS E2E 隔离测试窝次")).toBeVisible();
   await page.getByRole("button", { name: "编辑" }).first().click();
