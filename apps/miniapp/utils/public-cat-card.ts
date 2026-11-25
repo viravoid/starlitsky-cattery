@@ -83,7 +83,7 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
       cardIdentity: category,
       cardColor: displayableCardText(cat.color),
       cardNote:
-        displayableCardText(cat.breedingProfile.trait) || displayableCardText(cat.personality),
+        nonColorCardNote(cat.breedingProfile.trait) || nonColorCardNote(cat.personality),
       cardPrice: "",
       litterId: "",
       litterName: "",
@@ -114,6 +114,14 @@ function displayableCardText(value: string | null) {
   return /^示例文字[（(]缺少/.test(text) || ["待补充", "颜色待补充", "资料待补充"].includes(text)
     ? ""
     : text;
+}
+
+function nonColorCardNote(value: string | null) {
+  return displayableCardText(value)
+    .split(/[，,、；;。]/)
+    .map((part) => part.trim())
+    .filter((part) => part && !/花纹|花色|毛色|颜色|色块|加白|银度|虎斑|玳瑁|麻纹|鱼骨纹|烟色/.test(part))
+    .join("，");
 }
 
 export function isSeekingHomeKitten(cat: CatData) {

@@ -89,19 +89,13 @@
       <view class="info">
         <text class="name">{{item.name}}</text>
         <view wx:if="{{item.kind === 'kittens' && (item.cardGender || item.cardAge)}}" class="card-meta">
-          <text wx:if="{{item.cardGender}}" class="{{item.cardAge ? 'card-meta-cell' : 'card-meta-cell single'}}">{{item.cardGender}}</text>
+          <text wx:if="{{item.cardGender}}" class="card-meta-cell">{{item.cardGender}}</text>
           <view wx:if="{{item.cardGender && item.cardAge}}" class="card-meta-divider"></view>
-          <text wx:if="{{item.cardAge}}" class="{{item.cardGender ? 'card-meta-cell' : 'card-meta-cell single'}}">{{item.cardAge}}</text>
-        </view>
-        <view wx:if="{{item.kind === 'studs' && (item.cardIdentity || item.cardColor)}}" class="card-meta">
-          <text wx:if="{{item.cardIdentity}}" class="{{item.cardColor ? 'card-meta-cell' : 'card-meta-cell single'}}">{{item.cardIdentity}}</text>
-          <view wx:if="{{item.cardIdentity && item.cardColor}}" class="card-meta-divider"></view>
-          <text wx:if="{{item.cardColor}}" class="{{item.cardIdentity ? 'card-meta-cell' : 'card-meta-cell single'}}">{{item.cardColor}}</text>
+          <text wx:if="{{item.cardAge}}" class="card-meta-cell">{{item.cardAge}}</text>
         </view>
         <text wx:if="{{item.kind === 'studs' && item.cardNote}}" class="card-note">{{item.cardNote}}</text>
         <view class="card-footer">
           <text wx:if="{{item.kind === 'kittens' && item.cardPrice}}" class="card-price">{{item.cardPrice}}</text>
-          <text wx:if="{{item.kind === 'kittens' && item.litterName}}" class="litter-label">{{item.litterName}}</text>
           <text wx:if="{{item.kind === 'studs' || !item.cardPrice}}" class="detail-label">了解详情</text>
           <text class="detail-arrow">›</text>
         </view>

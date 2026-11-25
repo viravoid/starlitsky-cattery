@@ -342,6 +342,8 @@
 .info {
   display: flex;
   min-width: 0;
+  min-height: 168rpx;
+  box-sizing: border-box;
   flex: 1;
   flex-direction: column;
   padding: 18rpx 18rpx 20rpx;
@@ -351,20 +353,22 @@
   display: block;
   max-width: 100%;
   overflow: hidden;
-  color: #342d26;
+  color: var(--xy-color-heading);
   font-size: 36rpx;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.3;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .card-meta {
   display: flex;
+  position: relative;
   align-items: center;
   min-width: 0;
   margin-top: 12rpx;
-  color: #77736e;
+  color: var(--xy-color-text);
   font-size: 22rpx;
   line-height: 1.35;
 }
@@ -378,32 +382,23 @@
   white-space: nowrap;
 }
 
-.card-meta-cell:first-child {
-  text-align: left;
-}
-
-.card-meta-cell:last-child {
-  text-align: right;
-}
-
-.card-meta-cell.single {
-  text-align: left;
-}
-
 .card-meta-divider {
+  position: absolute;
+  left: 50%;
   width: 1rpx;
   height: 22rpx;
-  flex-shrink: 0;
-  background: #d8cfc0;
+  background: var(--xy-color-border);
+  transform: translateX(-50%);
 }
 
 .card-note {
   display: block;
   margin-top: 12rpx;
   overflow: hidden;
-  color: #96908a;
+  color: var(--xy-color-text);
   font-size: 21rpx;
   line-height: 1.4;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -428,13 +423,6 @@
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.litter-label {
-  flex-shrink: 0;
-  color: #a99a7e;
-  font-size: 18rpx;
-  line-height: 1.25;
 }
 
 .detail-label {
