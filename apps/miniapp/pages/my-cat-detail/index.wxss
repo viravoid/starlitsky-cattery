@@ -35,7 +35,7 @@
   width: 156rpx;
   height: 156rpx;
   padding: 24rpx;
-  border: 1rpx solid rgba(243, 212, 95, 0.28);
+  border: 1rpx solid rgba(231, 193, 93, 0.28);
   border-radius: 999rpx;
   background: #fff4d6;
   opacity: 1;
@@ -64,7 +64,7 @@
   padding: 0 34rpx;
   border-radius: 999rpx;
   background: var(--xy-color-accent);
-  color: var(--xy-color-on-accent);
+  color: #ffffff;
   font-size: 25rpx;
   font-weight: 700;
   line-height: 1.35;

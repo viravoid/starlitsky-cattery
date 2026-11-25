@@ -253,7 +253,7 @@
 .bonus-star .star-icon {
   width: 25rpx;
   height: 25rpx;
-  filter: drop-shadow(0 0 5rpx rgba(243, 212, 95, 0.36));
+  filter: drop-shadow(0 0 5rpx rgba(231, 193, 93, 0.36));
 }
 
 .rating-note {

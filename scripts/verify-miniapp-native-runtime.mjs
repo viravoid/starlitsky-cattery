@@ -843,7 +843,7 @@ function verifyCatStructureRatingInvariants() {
   if (/\.bonus-star::before/.test(detailWxss)) {
     failures.push("Cat detail sixth bonus star must not render a vertical separator.");
   }
-  if (!/filter:\s*drop-shadow\(0\s+0\s+5rpx\s+rgba\(243,\s*212,\s*95,\s*0\.36\)\)/.test(bonusStarIconBlock)) {
+  if (!/filter:\s*drop-shadow\(0\s+0\s+5rpx\s+rgba\(231,\s*193,\s*93,\s*0\.36\)\)/.test(bonusStarIconBlock)) {
     failures.push("Cat detail sixth bonus star must use only a soft star-shaped halo.");
   }
 
@@ -914,7 +914,7 @@ function verifyPublicCatUiInvariants() {
   ) {
     failures.push("Our Cats list must render gender options inside the kitten filter panel.");
   }
-  if (!catsWxml.includes('class="cat-row"') || !catsWxml.includes('bindtap="openCat"')) {
+  if (!catsWxml.includes('class="cat-row {{item.kind === \'kittens\' ? \'kitten-card\' : \'\'}}"') || !catsWxml.includes('bindtap="openCat"')) {
     failures.push("Our Cats list must keep a full-card tap target.");
   }
   if (
@@ -929,8 +929,12 @@ function verifyPublicCatUiInvariants() {
     catsWxml.includes("card-price") ||
     catsWxss.includes(".card-price") ||
     cardModel.includes("cardPrice") ||
+    !catsWxml.includes('class="cat-row {{item.kind === \'kittens\' ? \'kitten-card\' : \'\'}}"') ||
     !catsWxml.includes('class="info {{item.kind === \'kittens\' ? \'kitten-info\' : \'\'}}"') ||
     !/\.info\.kitten-info\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*0\s+0\s+auto;/.test(catsWxss) ||
+    !/\.cat-row\.kitten-card\s*\{[^}]*background:\s*var\(--xy-color-background\);[^}]*box-shadow:\s*none;/.test(catsWxss) ||
+    !catsWxml.includes('wx:if="{{item.cardGender || item.cardAge}}" class="card-meta"') ||
+    !/kind:\s*"studs"[\s\S]*?cardGender:\s*cat\.gender[\s\S]*?cardAge:\s*ageLabel\(cat\.birthday\)/.test(cardModel) ||
     !catsWxml.includes('wx:if="{{item.kind === \'studs\'}}" class="card-footer"') ||
     !catsWxml.includes('class="detail-label">了解详情</text>') ||
     !catsWxml.includes('class="card-meta-divider"') ||
@@ -939,7 +943,7 @@ function verifyPublicCatUiInvariants() {
     catsWxml.includes("{{item.cardColor}}") ||
     catsWxml.includes("{{item.cardIdentity}}")
   ) {
-    failures.push("Our Cats kitten cards must have compact name/gender/age information without price or footer; breeding cards must keep their detail entry and optional traits.");
+    failures.push("Our Cats cards must show mapped gender and age without kitten price or footer; breeding cards must keep their detail entry and optional traits.");
   }
 
   const detailPageText = readFileSync(detailPagePath, "utf8");

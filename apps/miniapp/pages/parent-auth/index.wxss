@@ -107,7 +107,7 @@
   padding: 0 26rpx;
   border-radius: 999rpx;
   background: var(--xy-color-accent);
-  color: var(--xy-color-on-accent);
+  color: #ffffff;
   font-size: 27rpx;
   font-weight: 700;
   line-height: 1.35;
@@ -127,9 +127,9 @@
 }
 
 .active {
-  border: 1rpx solid rgba(243, 212, 95, 0.78);
+  border: 1rpx solid rgba(231, 193, 93, 0.78);
   background: var(--xy-color-accent);
-  color: var(--xy-color-on-accent);
+  color: #ffffff;
 }
 
 .switch-row {
@@ -168,9 +168,9 @@
 }
 
 .gender-choice.active {
-  border-color: rgba(243, 212, 95, 0.78);
+  border-color: rgba(231, 193, 93, 0.78);
   background: var(--xy-color-accent);
-  color: var(--xy-color-on-accent);
+  color: #ffffff;
 }
 
 .cat-list {
@@ -191,7 +191,7 @@
 .selected {
   border-color: var(--xy-color-accent);
   background: var(--xy-color-accent);
-  color: var(--xy-color-on-accent);
+  color: #ffffff;
 }
 
 .status {
