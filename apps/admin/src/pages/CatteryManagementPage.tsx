@@ -2085,7 +2085,7 @@ function CropInputs({ value, onChange }: { value: CropRect; onChange: (value: Cr
           <input
             max="1"
             min="0"
-            step="any"
+            step="0.01"
             type="number"
             value={value[key]}
             onChange={(event) =>
