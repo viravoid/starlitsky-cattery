@@ -102,6 +102,7 @@ assert.equal(
 const createdKitten = await routeJson("/cats/with-kitten-profile", admin, "POST", {
   cat: {
     color: "blue golden",
+    grade: "pet",
     lifecycleStatus: "growing",
     name: "Verify Atomic Kitten",
     visibility: "visible",
@@ -114,6 +115,7 @@ const createdKitten = await routeJson("/cats/with-kitten-profile", admin, "POST"
   },
 });
 assert.ok(createdKitten.id, "atomic kitten create should return Cat data");
+assert.equal(createdKitten.grade, "pet");
 assert.equal(createdKitten.kittenProfile?.catId, createdKitten.id);
 assert.equal(
   await prisma.kittenProfile.count({ where: { cat_id: createdKitten.id } }),
@@ -129,12 +131,14 @@ const createdStud = await routeJson("/cats/with-breeding-profile", admin, "POST"
     statusLabel: "active",
   },
   cat: {
+    grade: "show",
     lifecycleStatus: "breeding",
     name: "Verify Atomic Stud",
     visibility: "visible",
   },
 });
 assert.ok(createdStud.id, "atomic stud create should return Cat data");
+assert.equal(createdStud.grade, "show");
 assert.equal(createdStud.breedingProfile?.catId, createdStud.id);
 assert.equal(
   await prisma.breedingCatProfile.count({ where: { cat_id: createdStud.id } }),
@@ -170,6 +174,8 @@ await prisma.parentCatLink.create({
 
 const adminCats = await routeJson("/cats?pageSize=200", admin, "GET");
 const listedKitten = adminCats.items.find((item) => item.id === createdKitten.id);
+assert.equal(listedKitten.grade, "pet", "admin list should return persisted kitten grade");
+assert.equal(adminCats.items.find((item) => item.id === createdStud.id).grade, "show");
 assert.equal(
   listedKitten.parentCatLinks[0].parentProfile.displayName,
   "Verify Parent",
@@ -183,6 +189,26 @@ assert.equal(
 
 const publicCats = await routeJson("/cats?pageSize=200", null, "GET");
 const publicListedKitten = publicCats.items.find((item) => item.id === createdKitten.id);
+assert.equal(publicListedKitten.grade, "pet", "public list should return kitten grade");
+assert.equal(publicCats.items.find((item) => item.id === createdStud.id).grade, "show");
+assert.equal((await routeJson(`/cats/${createdKitten.id}`, null, "GET")).grade, "pet");
+assert.equal((await routeJson(`/cats/${createdStud.id}`, null, "GET")).grade, "show");
+assert.equal((await prisma.cat.findUnique({ where: { id: createdKitten.id } })).grade, "pet");
+await routeJson(`/cats/${createdKitten.id}`, admin, "PATCH", { grade: "show" });
+assert.equal((await routeJson(`/cats/${createdKitten.id}`, admin, "GET")).grade, "show");
+assert.equal((await routeJson(`/cats/${createdKitten.id}`, null, "GET")).grade, "show");
+await assertRouteJsonRejects(
+  "invalid grade must be rejected",
+  `/cats/${createdKitten.id}`,
+  admin,
+  "PATCH",
+  { grade: "premium" },
+  400,
+);
+assert.equal((await prisma.cat.findUnique({ where: { id: createdKitten.id } })).grade, "show");
+await routeJson(`/cats/${createdKitten.id}`, admin, "PATCH", { grade: null });
+assert.equal((await routeJson(`/cats/${createdKitten.id}`, null, "GET")).grade, null);
+assert.equal((await routeJson(`/cats/${father.id}`, null, "GET")).grade, null);
 assert.equal(
   Object.hasOwn(publicListedKitten, "parentCatLinks"),
   false,

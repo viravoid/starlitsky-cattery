@@ -13,6 +13,7 @@ export interface PublicCatCard {
   lineOne: string;
   lineTwo: string;
   cardGender: string;
+  cardGrade: string;
   cardAge: string;
   cardIdentity: string;
   cardColor: string;
@@ -42,6 +43,7 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
     imageStyle: frame?.style ?? "",
     imageUrl: frame?.url || image?.thumbnailUrl || image?.sourceUrl || "",
     genderKey: cat.gender || "",
+    cardGrade: cat.grade === "pet" ? "宠物级" : cat.grade === "show" ? "赛级" : "",
   };
 
   if (cat.kittenProfile) {
@@ -53,7 +55,7 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
       lineOne: `${genderLabel(cat.gender)} · ${cat.color || "颜色待补充"}`,
       lineTwo: cat.birthday ? `生日 ${cat.birthday.slice(0, 10)}` : "生日待补充",
       cardGender: cat.gender === "male" || cat.gender === "female" ? genderLabel(cat.gender) : "",
-      cardAge: ageLabel(cat.birthday) || "年龄待补充",
+      cardAge: ageLabel(cat.birthday) || "年龄待补",
       cardIdentity: "",
       cardColor: "",
       cardNote: "",
@@ -72,7 +74,7 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
       lineOne: cat.color || "颜色待补充",
       lineTwo: cat.breedingProfile.trait || cat.breedingProfile.source || "资料待补充",
       cardGender: cat.gender === "male" || cat.gender === "female" ? genderLabel(cat.gender) : "",
-      cardAge: ageLabel(cat.birthday) || "年龄待补充",
+      cardAge: ageLabel(cat.birthday) || "年龄待补",
       cardIdentity: category,
       cardColor: displayableCardText(cat.color),
       cardNote:

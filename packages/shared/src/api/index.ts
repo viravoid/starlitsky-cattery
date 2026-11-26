@@ -85,11 +85,14 @@ export interface AdminPasswordLoginData {
   verificationMode: "admin-password";
 }
 
+export type CatGrade = "pet" | "show";
+
 export interface CatData {
   id: string;
   publicContentId?: string;
   name: string;
   gender: string | null;
+  grade: CatGrade | null;
   color: string | null;
   birthday: string | null;
   lifecycleStatus: string;
@@ -142,6 +145,7 @@ export interface CatMediaAssetData {
 export interface CreateCatRequest {
   name: string;
   gender?: string | null;
+  grade?: CatGrade | null;
   color?: string | null;
   birthday?: string | null;
   lifecycleStatus?: string;

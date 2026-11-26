@@ -1,6 +1,7 @@
 import type {
   BreedingCatProfileData,
   CatData,
+  CatGrade,
   CatMediaAssetData,
   CreateCatRequest,
   CreateLitterRequest,
@@ -107,6 +108,7 @@ interface ImagePresentation {
 interface CatDraft {
   name: string;
   gender: string;
+  grade: CatGrade | "";
   color: string;
   birthday: string;
   lifecycleStatus: string;
@@ -178,6 +180,12 @@ const GENDER_OPTIONS = [
   { label: "未知", value: "unknown" },
 ];
 
+const CAT_GRADE_OPTIONS = [
+  { label: "未设置", value: "" },
+  { label: "宠物级", value: "pet" },
+  { label: "赛级", value: "show" },
+];
+
 const STUD_CATEGORY_OPTIONS = [
   { label: "现役公猫", value: "king" },
   { label: "现役母猫", value: "queen" },
@@ -210,6 +218,7 @@ const DEFAULT_CAT_DRAFT: CatDraft = {
   color: "",
   diet: "",
   gender: "",
+  grade: "",
   imagePresentation: {},
   kittenLitterId: "",
   kittenPriceText: "",
@@ -1316,6 +1325,7 @@ function CatManagementWorkspace({
                 <th>封面</th>
                 <th>名字</th>
                 <th>状态</th>
+                <th>级别</th>
                 {mode === "kittens" ? <th>窝次 / 父母</th> : null}
                 {mode === "studs" ? <th>繁育角色</th> : null}
                 <th>家长/归属</th>
@@ -1336,6 +1346,7 @@ function CatManagementWorkspace({
                     <span className="muted">{cat.color || "未填颜色"}</span>
                   </td>
                   <td>{formatCatStatus(cat, mode)}</td>
+                  <td>{formatOption(cat.grade ?? "", CAT_GRADE_OPTIONS)}</td>
                   {mode === "kittens" ? (
                     <td>
                       {cat.kittenProfile?.litter?.name ?? "-"}
@@ -1515,6 +1526,12 @@ function CatEditor({
             />
           </label>
         </div>
+        <SelectField
+          label="级别"
+          options={CAT_GRADE_OPTIONS}
+          value={draft.grade}
+          onChange={(value) => onChange({ ...draft, grade: value as CatDraft["grade"] })}
+        />
         <div className="form-grid">
           <label>
             颜色
@@ -2064,7 +2081,7 @@ function CropInputs({ value, onChange }: { value: CropRect; onChange: (value: Cr
           <input
             max="1"
             min="0"
-            step="0.01"
+            step="any"
             type="number"
             value={value[key]}
             onChange={(event) =>
@@ -2687,6 +2704,7 @@ function toCatPayload(
     birthday: draft.birthday || null,
     color: emptyToNull(draft.color),
     gender: emptyToNull(draft.gender),
+    grade: draft.grade || null,
     lifecycleStatus: draft.lifecycleStatus,
     name: draft.name.trim(),
     personality: emptyToNull(draft.personality),
@@ -2790,6 +2808,7 @@ function toCatDraft(cat: CatData): CatDraft {
     color: cat.color ?? "",
     diet: readCatStoryText(storyJson, "diet"),
     gender: cat.gender ?? "",
+    grade: cat.grade ?? "",
     imagePresentation,
     kittenLitterId: cat.kittenProfile?.litterId ?? "",
     kittenPriceText: cat.kittenProfile?.priceText ?? "",

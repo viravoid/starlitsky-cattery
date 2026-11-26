@@ -88,10 +88,12 @@
       </view>
       <view class="info">
         <text class="name">{{item.name}}</text>
-        <view wx:if="{{item.cardGender || item.cardAge}}" class="card-meta">
-          <text class="card-meta-cell">{{item.cardGender}}</text>
-          <view class="card-meta-divider"></view>
-          <text class="card-meta-cell">{{item.cardAge}}</text>
+        <view wx:if="{{item.cardGender || item.cardGrade || item.cardAge}}" class="card-meta">
+          <text wx:if="{{item.cardGender}}" class="card-meta-cell">{{item.cardGender}}</text>
+          <view wx:if="{{item.cardGender && item.cardGrade}}" class="card-meta-divider"></view>
+          <text wx:if="{{item.cardGrade}}" class="card-meta-cell">{{item.cardGrade}}</text>
+          <view wx:if="{{(item.cardGender || item.cardGrade) && item.cardAge}}" class="card-meta-divider"></view>
+          <text wx:if="{{item.cardAge}}" class="card-meta-cell">{{item.cardAge}}</text>
         </view>
       </view>
     </button>
