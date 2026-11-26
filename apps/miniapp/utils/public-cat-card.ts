@@ -13,6 +13,7 @@ export interface PublicCatCard {
   lineOne: string;
   lineTwo: string;
   cardGender: string;
+  cardGrade: string;
   cardAge: string;
   cardIdentity: string;
   cardColor: string;
@@ -49,6 +50,7 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
     return {
       ...common,
       kind: "kittens",
+      cardGrade: cat.grade === "pet" ? "宠物级" : cat.grade === "show" ? "赛级" : "",
       badge: status,
       lineOne: `${genderLabel(cat.gender)} · ${cat.color || "颜色待补充"}`,
       lineTwo: cat.birthday ? `生日 ${cat.birthday.slice(0, 10)}` : "生日待补充",
@@ -68,6 +70,7 @@ function buildPublicCatCard(cat: CatData, portrait: boolean): PublicCatCard | nu
     return {
       ...common,
       kind: "studs",
+      cardGrade: "",
       badge: category,
       lineOne: cat.color || "颜色待补充",
       lineTwo: cat.breedingProfile.trait || cat.breedingProfile.source || "资料待补充",

@@ -935,7 +935,10 @@ function verifyPublicCatUiInvariants() {
     !/\.thumb\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*5;/.test(catsWxss) ||
     !/\.info\s*\{[^}]*min-height:\s*0;[^}]*padding:\s*18rpx 18rpx 20rpx;/.test(catsWxss) ||
     /\.cat-row\.kitten-card|\.info\.kitten-info|\.card-footer|\.card-note|\.detail-label|\.detail-arrow/.test(catsWxss) ||
-    !catsWxml.includes('wx:if="{{item.cardGender || item.cardAge}}" class="card-meta"') ||
+    !catsWxml.includes('wx:if="{{item.cardGender || item.cardGrade || item.cardAge}}" class="card-meta"') ||
+    !catsWxml.includes('wx:if="{{item.cardGrade}}" class="card-meta-cell">{{item.cardGrade}}</text>') ||
+    !/kind:\s*"kittens"[\s\S]*?cardGrade:\s*cat\.grade === "pet" \? "宠物级" : cat\.grade === "show" \? "赛级" : ""/.test(cardModel) ||
+    !/kind:\s*"studs"[\s\S]*?cardGrade:\s*""/.test(cardModel) ||
     !/kind:\s*"studs"[\s\S]*?cardGender:\s*cat\.gender[\s\S]*?cardAge:\s*ageLabel\(cat\.birthday\)/.test(cardModel) ||
     !catsWxml.includes('class="card-meta-divider"') ||
     /了解详情|card-footer|detail-arrow|card-note|kitten-card|kitten-info/.test(catsWxml) ||
@@ -946,7 +949,7 @@ function verifyPublicCatUiInvariants() {
     catsWxml.includes("{{item.lineOne}}") ||
     catsWxml.includes("{{item.lineTwo}}")
   ) {
-    failures.push("Our Cats kitten and breeding cards must share one bordered card layout with only badge, image, name, gender, and age.");
+    failures.push("Our Cats kitten and breeding cards must share one bordered card layout with only badge, image, name, gender, optional grade, and age.");
   }
 
   const detailPageText = readFileSync(detailPagePath, "utf8");

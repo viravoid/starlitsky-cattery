@@ -134,10 +134,12 @@
             </view>
             <view class="preview-info">
               <text class="preview-name">{{item.name}}</text>
-              <view wx:if="{{item.cardGender || item.cardAge}}" class="preview-meta">
-                <text class="preview-meta-cell">{{item.cardGender}}</text>
-                <view class="preview-meta-divider"></view>
-                <text class="preview-meta-cell">{{item.cardAge}}</text>
+              <view wx:if="{{item.cardGender || item.cardGrade || item.cardAge}}" class="preview-meta">
+                <text wx:if="{{item.cardGender}}" class="preview-meta-cell">{{item.cardGender}}</text>
+                <view wx:if="{{item.cardGender && item.cardGrade}}" class="preview-meta-divider"></view>
+                <text wx:if="{{item.cardGrade}}" class="preview-meta-cell">{{item.cardGrade}}</text>
+                <view wx:if="{{(item.cardGender || item.cardGrade) && item.cardAge}}" class="preview-meta-divider"></view>
+                <text wx:if="{{item.cardAge}}" class="preview-meta-cell">{{item.cardAge}}</text>
               </view>
             </view>
           </button>

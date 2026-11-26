@@ -524,6 +524,7 @@ function cat(input: {
     id: input.id,
     name: input.name,
     gender: input.gender,
+    grade: null,
     color: input.color,
     birthday: input.birthday,
     lifecycleStatus: input.lifecycleStatus,

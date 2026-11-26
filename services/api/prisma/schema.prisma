@@ -211,6 +211,7 @@ model Cat {
   id               String    @id @default(uuid())
   name             String
   gender           String?
+  grade            String?
   color            String?
   birthday         DateTime?
   lifecycle_status String    @default("growing")

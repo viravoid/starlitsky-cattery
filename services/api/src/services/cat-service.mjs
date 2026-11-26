@@ -8,9 +8,11 @@ import {
 } from "./profile-service.mjs";
 
 const VISIBILITY_VALUES = new Set(["visible", "hidden", "archived"]);
+const CAT_GRADE_VALUES = new Set(["pet", "show"]);
 const CREATE_FIELDS = [
   "name",
   "gender",
+  "grade",
   "color",
   "birthday",
   "lifecycleStatus",
@@ -219,6 +221,12 @@ function normalizeCatInput(input, { mode, allowedFields }) {
   }
 
   assignNullableString(data, "gender", input, "gender");
+  if (Object.hasOwn(input, "grade")) {
+    if (input.grade !== null && !CAT_GRADE_VALUES.has(input.grade)) {
+      throw badRequest("grade must be pet, show, or null");
+    }
+    data.grade = input.grade;
+  }
   assignNullableString(data, "color", input, "color");
   assignNullableString(data, "personality", input, "personality");
   assignOptionalString(data, "lifecycle_status", input, "lifecycleStatus");
@@ -304,6 +312,7 @@ function toCatDto(cat, mediaByCatId = new Map(), options = {}) {
     ...readCatPublicContentFields(cat.story_json),
     name: cat.name,
     gender: cat.gender,
+    grade: cat.grade,
     color: cat.color,
     birthday: toIsoString(cat.birthday),
     lifecycleStatus: cat.lifecycle_status,

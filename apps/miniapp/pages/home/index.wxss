@@ -546,12 +546,10 @@
 }
 
 .preview-meta-divider {
-  position: absolute;
-  left: 50%;
+  flex: none;
   width: 1rpx;
   height: 22rpx;
   background: var(--xy-color-border);
-  transform: translateX(-50%);
 }
 
 .preview-state {
