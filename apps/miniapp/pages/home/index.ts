@@ -2,7 +2,7 @@ import type { FixedPageMediaAssetData } from "@starlitsky/shared";
 import { getFixedPage, listPublicCats } from "../../utils/public-content/index";
 import {
   isSeekingHomeKitten,
-  toPublicCatCard,
+  toPortraitPublicCatCard,
   type PublicCatCard,
 } from "../../utils/public-cat-card";
 import { setNativeShareMenu } from "../../utils/native-share";
@@ -219,7 +219,7 @@ Page({
       const data = await listPublicCats({ pageSize: 100 });
       const kittenPreview = data.items
         .filter(isSeekingHomeKitten)
-        .map(toPublicCatCard)
+        .map(toPortraitPublicCatCard)
         .filter((item): item is PublicCatCard => Boolean(item))
         .slice(0, 6);
       this.setData({ kittenPreview, previewLoading: false });
