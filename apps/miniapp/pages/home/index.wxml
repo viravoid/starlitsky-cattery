@@ -130,10 +130,16 @@
               <view wx:else class="thumb-empty xy-soft-placeholder">
                 <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
               </view>
-              <text class="preview-badge">{{item.badge}}</text>
+              <text wx:if="{{item.badge}}" class="preview-badge">{{item.badge}}</text>
             </view>
-            <text class="preview-name">{{item.name}}</text>
-            <text class="preview-line">{{item.lineOne}}</text>
+            <view class="preview-info">
+              <text class="preview-name">{{item.name}}</text>
+              <view wx:if="{{item.cardGender || item.cardAge}}" class="preview-meta">
+                <text class="preview-meta-cell">{{item.cardGender}}</text>
+                <view class="preview-meta-divider"></view>
+                <text class="preview-meta-cell">{{item.cardAge}}</text>
+              </view>
+            </view>
           </button>
         </view>
       </scroll-view>

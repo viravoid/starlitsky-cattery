@@ -443,13 +443,13 @@
 
 .preview-card {
   display: flex;
-  flex: 0 0 450rpx;
+  flex: 0 0 500rpx;
   flex-direction: column;
-  width: 450rpx !important;
-  min-width: 450rpx;
+  width: 500rpx !important;
+  min-width: 500rpx;
   box-sizing: border-box;
   margin: 0 !important;
-  padding: 10rpx 10rpx 16rpx;
+  padding: 0;
   overflow: hidden;
   border: 1rpx solid var(--xy-color-border);
   border-radius: 28rpx;
@@ -462,9 +462,10 @@
 .preview-thumb {
   position: relative;
   width: 100%;
-  height: 268rpx;
+  aspect-ratio: 4 / 5;
+  flex-shrink: 0;
   overflow: hidden;
-  border-radius: 20rpx;
+  border-radius: 28rpx 28rpx 0 0;
   background: var(--xy-color-muted-surface);
 }
 
@@ -487,14 +488,14 @@
 
 .preview-badge {
   position: absolute;
-  left: 9rpx;
-  bottom: 9rpx;
-  max-width: calc(100% - 18rpx);
-  padding: 4rpx 11rpx;
+  left: 12rpx;
+  top: 12rpx;
+  max-width: calc(100% - 20rpx);
+  padding: 7rpx 14rpx;
   overflow: hidden;
   border-radius: 999rpx;
-  background: rgba(255, 251, 241, 0.94);
-  color: var(--xy-color-primary);
+  background: rgba(255, 253, 247, 0.96);
+  color: #7b603d;
   font-size: 20rpx;
   font-weight: 700;
   line-height: 1.3;
@@ -502,28 +503,55 @@
   white-space: nowrap;
 }
 
-.preview-name,
-.preview-line {
+.preview-info {
+  display: flex;
+  min-width: 0;
+  box-sizing: border-box;
+  flex: 1;
+  flex-direction: column;
+  padding: 18rpx 18rpx 20rpx;
+}
+
+.preview-name {
   display: block;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.preview-name {
-  margin: 12rpx 6rpx 0;
   color: var(--xy-color-heading);
-  font-size: 27rpx;
-  font-weight: 700;
+  font-size: 36rpx;
+  font-weight: 600;
   line-height: 1.3;
+  text-align: center;
 }
 
-.preview-line {
-  margin: 5rpx 6rpx 0;
-  color: var(--xy-color-muted);
-  font-size: 21rpx;
-  line-height: 1.4;
+.preview-meta {
+  display: flex;
+  position: relative;
+  align-items: center;
+  min-width: 0;
+  margin-top: 12rpx;
+  color: #8a9db2;
+  font-size: 22rpx;
+  line-height: 1.35;
+}
+
+.preview-meta-cell {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-meta-divider {
+  position: absolute;
+  left: 50%;
+  width: 1rpx;
+  height: 22rpx;
+  background: var(--xy-color-border);
+  transform: translateX(-50%);
 }
 
 .preview-state {
