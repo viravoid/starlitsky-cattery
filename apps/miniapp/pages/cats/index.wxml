@@ -84,16 +84,14 @@
         <view wx:else class="thumb-empty xy-soft-placeholder">
           <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
         </view>
-        <text class="card-badge">{{item.badge}}</text>
+        <text wx:if="{{item.badge}}" class="card-badge">{{item.badge}}</text>
       </view>
       <view class="info">
         <text class="name">{{item.name}}</text>
-        <text class="card-line">{{item.lineOne}}</text>
-        <text class="card-line secondary">{{item.lineTwo}}</text>
-        <text wx:if="{{item.litterName}}" class="litter-label">{{item.litterName}}</text>
-        <view class="detail">
-          <text>了解详情</text>
-          <text class="detail-arrow">›</text>
+        <view wx:if="{{item.cardGender || item.cardAge}}" class="card-meta">
+          <text class="card-meta-cell">{{item.cardGender}}</text>
+          <view class="card-meta-divider"></view>
+          <text class="card-meta-cell">{{item.cardAge}}</text>
         </view>
       </view>
     </button>

@@ -1,5 +1,5 @@
 import { listPublicCats } from "../../utils/public-content/index";
-import { toPublicCatCard, type PublicCatCard } from "../../utils/public-cat-card";
+import { toPortraitPublicCatCard, type PublicCatCard } from "../../utils/public-cat-card";
 import { setNativeShareMenu } from "../../utils/native-share";
 
 type TabKey = "kittens" | "studs";
@@ -117,7 +117,7 @@ Page({
     try {
       const data = await listPublicCats({ pageSize: 100 });
       const items = data.items
-        .map(toPublicCatCard)
+        .map(toPortraitPublicCatCard)
         .filter((item): item is CatListItem => Boolean(item));
       this.setData({
         error: "",

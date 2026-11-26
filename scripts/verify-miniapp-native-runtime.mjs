@@ -893,9 +893,6 @@ function verifyPublicCatUiInvariants() {
   }
 
   const catsPageText = readFileSync(catsPagePath, "utf8");
-  if (/label:\s*"价格"|lineThree:\s*`价格/.test(catsPageText)) {
-    failures.push("Our Cats list kitten cards must not expose price fields.");
-  }
   if (
     !catsPageText.includes("activeGenderId") ||
     !catsPageText.includes("GENDER_FILTERS") ||
@@ -906,6 +903,8 @@ function verifyPublicCatUiInvariants() {
   }
 
   const catsWxml = readFileSync(catsWxmlPath, "utf8");
+  const catsWxss = readFileSync(join(miniappRoot, "pages/cats/index.wxss"), "utf8");
+  const cardModel = readFileSync(join(miniappRoot, "utils/public-cat-card.ts"), "utf8");
   if (catsWxml.includes("{{item.pill}}")) {
     failures.push("Our Cats list cards must not render public status pills such as active/semi-retired.");
   }
@@ -915,8 +914,39 @@ function verifyPublicCatUiInvariants() {
   ) {
     failures.push("Our Cats list must render gender options inside the kitten filter panel.");
   }
-  if (!catsWxml.includes('class="cat-row"') || !catsWxml.includes('class="litter-label"')) {
-    failures.push("Our Cats list must keep a full-card tap target and kitten litter label.");
+  if (!catsWxml.includes('class="cat-row"') || !catsWxml.includes('bindtap="openCat"')) {
+    failures.push("Our Cats list must keep a full-card tap target.");
+  }
+  if (
+    !catsWxml.includes('class="filter-section-title">窝次</text>') ||
+    !catsWxml.includes('bindtap="setLitter"') ||
+    !catsPageText.includes("item.litterId === normalizedLitterId")
+  ) {
+    failures.push("Our Cats list must retain litter filtering.");
+  }
+  if (
+    catsWxml.includes("cardPrice") ||
+    catsWxml.includes("card-price") ||
+    catsWxss.includes(".card-price") ||
+    cardModel.includes("cardPrice") ||
+    !catsWxml.includes('class="cat-row"') ||
+    !catsWxml.includes('class="info"') ||
+    !/\.cat-row\s*\{[^}]*border:\s*1rpx solid var\(--xy-color-border\);[^}]*border-radius:\s*28rpx;[^}]*background:\s*var\(--xy-color-surface\);[^}]*box-shadow:\s*var\(--xy-shadow-card\);/.test(catsWxss) ||
+    !/\.thumb\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*5;/.test(catsWxss) ||
+    !/\.info\s*\{[^}]*min-height:\s*0;[^}]*padding:\s*18rpx 18rpx 20rpx;/.test(catsWxss) ||
+    /\.cat-row\.kitten-card|\.info\.kitten-info|\.card-footer|\.card-note|\.detail-label|\.detail-arrow/.test(catsWxss) ||
+    !catsWxml.includes('wx:if="{{item.cardGender || item.cardAge}}" class="card-meta"') ||
+    !/kind:\s*"studs"[\s\S]*?cardGender:\s*cat\.gender[\s\S]*?cardAge:\s*ageLabel\(cat\.birthday\)/.test(cardModel) ||
+    !catsWxml.includes('class="card-meta-divider"') ||
+    /了解详情|card-footer|detail-arrow|card-note|kitten-card|kitten-info/.test(catsWxml) ||
+    catsWxml.includes('class="litter-label"') ||
+    catsWxml.includes("{{item.cardColor}}") ||
+    catsWxml.includes("{{item.cardIdentity}}") ||
+    catsWxml.includes("{{item.cardNote}}") ||
+    catsWxml.includes("{{item.lineOne}}") ||
+    catsWxml.includes("{{item.lineTwo}}")
+  ) {
+    failures.push("Our Cats kitten and breeding cards must share one bordered card layout with only badge, image, name, gender, and age.");
   }
 
   const detailPageText = readFileSync(detailPagePath, "utf8");
