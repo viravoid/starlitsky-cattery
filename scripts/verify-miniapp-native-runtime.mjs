@@ -937,7 +937,8 @@ function verifyPublicCatUiInvariants() {
     /\.cat-row\.kitten-card|\.info\.kitten-info|\.card-footer|\.card-note|\.detail-label|\.detail-arrow/.test(catsWxss) ||
     !catsWxml.includes('wx:if="{{item.cardGender || item.cardGrade || item.cardAge}}" class="card-meta"') ||
     !catsWxml.includes('wx:if="{{item.cardGrade}}" class="card-meta-cell">{{item.cardGrade}}</text>') ||
-    !cardModel.includes('cardGrade: cat.grade === "pet" ? "宠物级" : cat.grade === "show" ? "赛级" : ""') ||
+    !/kind:\s*"kittens"[\s\S]*?cardGrade:\s*cat\.grade === "pet" \? "宠物级" : cat\.grade === "show" \? "赛级" : ""/.test(cardModel) ||
+    !/kind:\s*"studs"[\s\S]*?cardGrade:\s*""/.test(cardModel) ||
     !/kind:\s*"studs"[\s\S]*?cardGender:\s*cat\.gender[\s\S]*?cardAge:\s*ageLabel\(cat\.birthday\)/.test(cardModel) ||
     !catsWxml.includes('class="card-meta-divider"') ||
     /了解详情|card-footer|detail-arrow|card-note|kitten-card|kitten-info/.test(catsWxml) ||

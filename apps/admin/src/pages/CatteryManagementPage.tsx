@@ -558,7 +558,7 @@ export function CatteryManagementPage() {
     setNotice("");
 
     try {
-      const payload = toCatPayload(catDraft, selectedCat);
+      const payload = toCatPayload(catDraft, selectedCat, activeSection);
       let savedCat: CatData;
 
       if (catEditorMode === "edit" && selectedCat) {
@@ -1325,7 +1325,7 @@ function CatManagementWorkspace({
                 <th>封面</th>
                 <th>名字</th>
                 <th>状态</th>
-                <th>级别</th>
+                {mode === "kittens" ? <th>级别</th> : null}
                 {mode === "kittens" ? <th>窝次 / 父母</th> : null}
                 {mode === "studs" ? <th>繁育角色</th> : null}
                 <th>家长/归属</th>
@@ -1346,7 +1346,9 @@ function CatManagementWorkspace({
                     <span className="muted">{cat.color || "未填颜色"}</span>
                   </td>
                   <td>{formatCatStatus(cat, mode)}</td>
-                  <td>{formatOption(cat.grade ?? "", CAT_GRADE_OPTIONS)}</td>
+                  {mode === "kittens" ? (
+                    <td>{formatOption(cat.grade ?? "", CAT_GRADE_OPTIONS)}</td>
+                  ) : null}
                   {mode === "kittens" ? (
                     <td>
                       {cat.kittenProfile?.litter?.name ?? "-"}
@@ -1526,12 +1528,14 @@ function CatEditor({
             />
           </label>
         </div>
-        <SelectField
-          label="级别"
-          options={CAT_GRADE_OPTIONS}
-          value={draft.grade}
-          onChange={(value) => onChange({ ...draft, grade: value as CatDraft["grade"] })}
-        />
+        {mode === "kittens" ? (
+          <SelectField
+            label="级别"
+            options={CAT_GRADE_OPTIONS}
+            value={draft.grade}
+            onChange={(value) => onChange({ ...draft, grade: value as CatDraft["grade"] })}
+          />
+        ) : null}
         <div className="form-grid">
           <label>
             颜色
@@ -2698,13 +2702,14 @@ function DescriptionList({ items }: { items: Array<[string, string]> }) {
 function toCatPayload(
   draft: CatDraft,
   existing: CatData | null,
+  section: SectionKey,
 ): CreateCatRequest | UpdateCatRequest {
   const storyJson = mergeCatStoryJson(existing?.storyJson, draft);
   return {
     birthday: draft.birthday || null,
     color: emptyToNull(draft.color),
     gender: emptyToNull(draft.gender),
-    grade: draft.grade || null,
+    ...(section === "kittens" ? { grade: draft.grade || null } : {}),
     lifecycleStatus: draft.lifecycleStatus,
     name: draft.name.trim(),
     personality: emptyToNull(draft.personality),
