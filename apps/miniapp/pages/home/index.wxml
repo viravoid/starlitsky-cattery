@@ -12,14 +12,13 @@
     >
       <swiper-item wx:for="{{heroSlides}}" wx:key="id">
         <view class="hero-slide">
-          <image
+          <view
             wx:if="{{item.imageUrl}}"
             class="hero-image"
-            src="{{item.imageUrl}}"
-            mode="aspectFill"
+            style="background-image: url({{item.imageUrl}});"
             data-url="{{item.imageUrl}}"
             bindtap="previewHeroImage"
-          />
+          ></view>
           <view wx:else class="hero-placeholder xy-soft-placeholder">
             <view class="hero-placeholder-content">
               <image class="xy-placeholder-cat" src="../../assets/placeholder-cat.png" mode="aspectFit" />
