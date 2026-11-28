@@ -77,22 +77,23 @@ test("all fixed-page templates open a readable preview without changing public c
   await page.getByLabel("密码").fill(E2E_ADMIN_PASSWORD);
   await page.getByRole("button", { name: "登录" }).click();
   await expect(page.getByText(E2E_ADMIN_USERNAME)).toBeVisible();
-  const slugs = [
-    "home",
-    "about",
-    "philosophy",
-    "environment",
-    "feeding",
-    "process",
-    "breeding-plan",
-    "aftercare",
-    "questionnaire",
-    "contact",
-  ];
-  for (const slug of slugs) {
+  const pages = [
+    ["home", "首页"],
+    ["about", "猫舍介绍"],
+    ["philosophy", "繁育理念"],
+    ["environment", "猫舍环境"],
+    ["feeding", "喂养体系"],
+    ["process", "价格与接猫流程"],
+    ["breeding-plan", "繁育计划"],
+    ["aftercare", "售后保障"],
+    ["questionnaire", "选猫问卷页面"],
+    ["contact", "联系方式"],
+  ] as const;
+  for (const [slug, title] of pages) {
     await test.step(`preview ${slug}`, async () => {
       await page.goto(`/#fixed-pages/${slug}`);
       const editor = page.getByRole("complementary", { name: "固定页面编辑" });
+      await expect(editor.getByRole("heading", { name: title, exact: true })).toBeVisible();
       await expect(editor.getByRole("button", { name: "预览未保存内容" })).toBeVisible();
       await editor.getByRole("button", { name: "预览未保存内容" }).click();
       const preview = page.getByRole("region", { name: "未保存内容预览" });
