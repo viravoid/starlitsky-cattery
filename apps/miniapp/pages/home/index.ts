@@ -138,7 +138,7 @@ const DEFAULT_HOME = {
   },
   hasHeroImages: false,
   currentHeroIndex: 0,
-  heroHeightStyle: "height: 68vh;",
+  heroHeightStyle: "height: 75vw;",
   heroSlides: [
     { id: "hero-1", imageUrl: "", label: "示例图片（首页轮播照片 1，待替换）" },
     { id: "hero-2", imageUrl: "", label: "示例图片（首页轮播照片 2，待替换）" },
@@ -334,12 +334,7 @@ function normalizeHomeImages(heroSlides: HomeHeroSlide[]) {
 }
 
 function calculateHeroHeightPx(info: WindowMetrics) {
-  const width = Math.max(320, info.windowWidth);
-  const height = Math.max(568, info.windowHeight);
-  const naturalPhotoHeight = width * 1.5;
-  const upperBound = height * 0.68;
-  const lowerBound = Math.min(Math.max(width * 1.18, height * 0.5), upperBound);
-  return Math.round(clamp(naturalPhotoHeight, lowerBound, upperBound));
+  return Math.round(info.windowWidth * 0.75);
 }
 
 async function getWindowMetrics(): Promise<WindowMetrics> {
@@ -391,10 +386,6 @@ function defaultWindowMetrics(): WindowMetrics {
 function isWindowMetrics(value: unknown): value is WindowMetrics {
   if (!isObject(value)) return false;
   return Number(value.windowWidth) > 0 && Number(value.windowHeight) > 0;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
 }
 
 function normalizeGroups(groupsInput: any[], entriesInput: Record<string, unknown>): HomeGroup[] {

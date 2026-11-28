@@ -25,6 +25,12 @@
   height: 100%;
 }
 
+.hero-image {
+  background-position: center 5%;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
 .hero-placeholder {
   background: var(--xy-color-background);
 }
@@ -95,7 +101,11 @@
 }
 
 .hero-copy.on-image {
+  right: auto;
+  bottom: 20rpx;
+  align-items: flex-start;
   background: transparent;
+  text-align: left;
 }
 
 .title {
