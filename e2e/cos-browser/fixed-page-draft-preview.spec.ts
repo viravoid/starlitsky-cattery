@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 import {
   API_ORIGIN,
   E2E_ADMIN_PASSWORD,
@@ -77,6 +77,37 @@ test("all fixed-page templates open a readable preview without changing public c
   await page.getByLabel("密码").fill(E2E_ADMIN_PASSWORD);
   await page.getByRole("button", { name: "登录" }).click();
   await expect(page.getByText(E2E_ADMIN_USERNAME)).toBeVisible();
+  await test.step("an older page request cannot replace a newer selection", async () => {
+    await page.goto("/#fixed-pages/home");
+    const editor = page.getByRole("complementary", { name: "固定页面编辑" });
+    await expect(editor.getByRole("heading", { name: "首页", exact: true })).toBeVisible();
+
+    let releaseProcess!: () => void;
+    let markProcessRequested!: () => void;
+    const processBlocked = new Promise<void>((resolve) => {
+      releaseProcess = resolve;
+    });
+    const processRequested = new Promise<void>((resolve) => {
+      markProcessRequested = resolve;
+    });
+    const delayedProcess = async (route: Route) => {
+      markProcessRequested();
+      await processBlocked;
+      await route.continue();
+    };
+    await page.route(`${API_ORIGIN}/fixed-pages/process`, delayedProcess);
+
+    await page.goto("/#fixed-pages/process");
+    await processRequested;
+    await page.goto("/#fixed-pages/breeding-plan");
+    await expect(editor.getByRole("heading", { name: "繁育计划", exact: true })).toBeVisible();
+
+    releaseProcess();
+    await page.waitForLoadState("networkidle");
+    await expect(editor.getByRole("heading", { name: "繁育计划", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/#fixed-pages\/breeding-plan$/);
+    await page.unroute(`${API_ORIGIN}/fixed-pages/process`, delayedProcess);
+  });
   const pages = [
     ["home", "首页"],
     ["about", "猫舍介绍"],
