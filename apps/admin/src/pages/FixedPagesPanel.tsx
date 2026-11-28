@@ -6,7 +6,7 @@ import type {
   MediaBindingData,
   UpdateFixedPageRequest,
 } from "@starlitsky/shared";
-import { FormEvent, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   archiveMediaBinding,
   getFixedPage,
@@ -151,6 +151,7 @@ export function FixedPagesPanel({
   const [previewForm, setPreviewForm] = useState<FixedPageFormState | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const selectionRequestId = useRef(0);
 
   const currentListPage = useMemo(
     () => pages.find((page) => page.slug === selectedSlug) ?? pages[0] ?? null,
@@ -202,6 +203,7 @@ export function FixedPagesPanel({
         if (fromNavigation) window.location.hash = `#fixed-pages/${selectedSlug}`;
         return;
       }
+      const requestId = ++selectionRequestId.current;
       setSelectedSlug(slug);
       setPreviewForm(null);
       setNotice("");
@@ -209,14 +211,16 @@ export function FixedPagesPanel({
 
       try {
         const page = await getFixedPage(slug);
+        if (requestId !== selectionRequestId.current) return;
         const nextForm = toForm(page);
         setSelectedPage(page);
         setSavedForm(nextForm);
         setForm(nextForm);
         await loadPageImages(page.id);
+        if (requestId !== selectionRequestId.current) return;
         if (!fromNavigation) window.location.hash = `#fixed-pages/${slug}`;
       } catch (selectError) {
-        setError(getErrorMessage(selectError));
+        if (requestId === selectionRequestId.current) setError(getErrorMessage(selectError));
       }
     },
     [dirty, loadPageImages, selectedSlug],
@@ -229,9 +233,9 @@ export function FixedPagesPanel({
   }, [requestedSlug, selectedSlug, selectPage]);
 
   useEffect(() => {
-    if (!currentListPage || selectedPage?.slug === currentListPage.slug) return;
+    if (!currentListPage || selectionRequestId.current !== 0) return;
     void selectPage(currentListPage.slug);
-  }, [currentListPage, selectPage, selectedPage?.slug]);
+  }, [currentListPage, selectPage]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
